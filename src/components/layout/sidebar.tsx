@@ -9,8 +9,17 @@ import { cn } from '@/lib/utils';
 import { LayoutDashboard, MoreVertical, User, Settings, LogOut } from 'lucide-react';
 import { logout } from '@/lib/auth';
 
-const iconMap: Record<string, React.ReactNode> = {
-  dashboard: <LayoutDashboard className="h-5 w-5" />,
+const iconMap: Record<string, React.FC<{ className?: string }>> = {
+  dashboard: LayoutDashboard,
+};
+
+const getIcon = (icon: string | React.FC<{ className?: string }>): React.ReactNode => {
+  if (typeof icon === 'string') {
+    const IconComponent = iconMap[icon] || LayoutDashboard;
+    return <IconComponent className="h-5 w-5" />;
+  }
+  const IconComponent = icon;
+  return <IconComponent className="h-5 w-5" />;
 };
 
 export function Sidebar() {
@@ -37,7 +46,7 @@ export function Sidebar() {
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                   )}
                 >
-                  {iconMap[item.icon] || iconMap.dashboard}
+                  {getIcon(item.icon)}
                   {item.title}
                 </Link>
               </li>

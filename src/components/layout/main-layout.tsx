@@ -1,6 +1,7 @@
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { AuthGuard } from './auth-guard';
+import { Toaster } from '@/components/ui/sonner';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           </main>
         </div>
       </div>
+      <Toaster />
     </AuthGuard>
   );
 }
