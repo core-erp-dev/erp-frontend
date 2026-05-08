@@ -6,8 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PositionTreeNode } from './position-tree-node';
 import { PositionFormModal } from './position-form-modal';
+import { AssignUserModal } from '@/modules/hr/employees/components/assign-user-modal';
 import { PositionTree, PositionRequest, PositionUpdateRequest } from '../types';
 import { organizationApi } from '../services/organization-api';
+import { employeeApi } from '@/modules/hr/employees/services/employee-api';
+import { CoreUser } from '@/modules/hr/employees/types';
 import { RefreshCw, TreePine, Plus } from 'lucide-react';
 import { AxiosError } from 'axios';
 
@@ -22,6 +25,12 @@ export const HierarchyView: React.FC = () => {
     null
   );
   const [parentPositionId, setParentPositionId] = useState<number | null>(null);
+
+  // Assign User Modal states
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignPositionId, setAssignPositionId] = useState<number | null>(null);
+  const [allUsers, setAllUsers] = useState<CoreUser[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const fetchPositions = useCallback(async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
@@ -46,6 +55,8 @@ export const HierarchyView: React.FC = () => {
 
   useEffect(() => {
     fetchPositions();
+    // Fetch all users for the assign modal
+    employeeApi.getUsers().then(setAllUsers).catch(() => {});
   }, [fetchPositions]);
 
   // Handle Add Sub-ordinate
@@ -116,11 +127,38 @@ export const HierarchyView: React.FC = () => {
     }
   };
 
-  // Handle Assign User (placeholder)
+  // Handle Assign User - open modal with position pre-filled
   const handleAssignUser = (position: PositionTree) => {
-    toast.info('Assign Staff', {
-      description: `Staff assignment for "${position.positionName}" will be implemented in a future update.`,
-    });
+    setAssignPositionId(position.id);
+    setIsAssignModalOpen(true);
+  };
+
+  // Handle Assign User submission
+  const handleAssignSubmit = async (data: {
+    userId: string;
+    positionId: number;
+    startDate: string;
+    isPrimary: boolean;
+  }) => {
+    try {
+      setIsAssigning(true);
+      await employeeApi.assignUserToPosition(data);
+      toast.success('User assigned successfully', {
+        description: 'The position assignment has been saved.',
+      });
+      setIsAssignModalOpen(false);
+      setAssignPositionId(null);
+      fetchPositions(true);
+    } catch (error) {
+      const errorMessage =
+        error instanceof AxiosError && error.response?.data?.message
+          ? error.response.data.message
+          : 'Failed to assign user to position';
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setIsAssigning(false);
+    }
   };
 
   // Handle Form Submit
@@ -196,7 +234,7 @@ export const HierarchyView: React.FC = () => {
             Organization Hierarchy
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage your organization's position structure and reporting lines.
+            Manage your organizations position structure and reporting lines.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -269,6 +307,20 @@ export const HierarchyView: React.FC = () => {
         position={selectedPosition}
         parentId={parentPositionId}
         allPositions={positions}
+      />
+
+      {/* Assign User Modal */}
+      <AssignUserModal
+        isOpen={isAssignModalOpen}
+        onClose={() => {
+          setIsAssignModalOpen(false);
+          setAssignPositionId(null);
+        }}
+        onSuccess={handleAssignSubmit}
+        positionId={assignPositionId}
+        users={allUsers}
+        positions={positions}
+        isSubmitting={isAssigning}
       />
     </div>
   );

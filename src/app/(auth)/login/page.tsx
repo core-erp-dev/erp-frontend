@@ -33,7 +33,7 @@ export default function LoginPage() {
     setError('');
 
     if (!username.trim() || !password.trim()) {
-      setError('Username dan password harus diisi');
+      setError('Email/NIP dan password harus diisi');
       return;
     }
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
       const message = apiError.response?.data?.message;
 
       if (status === 401) {
-        setError('Username atau password salah');
+        setError('Email/NIP atau password salah');
       } else if (status === 500) {
         setError('Server error, coba lagi nanti');
       } else if (status === 0 || !status) {
@@ -108,11 +108,11 @@ export default function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Email or NIP</Label>
               <Input
                 id="username"
                 type="text"
-                placeholder="Masukkan username"
+                placeholder="Masukkan email atau NIP"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required

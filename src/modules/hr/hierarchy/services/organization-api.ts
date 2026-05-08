@@ -14,7 +14,7 @@ export const organizationApi = {
    */
   fetchPositionTree: async (): Promise<PositionTree[]> => {
     const response = await api.get<ApiResponse<PositionTreeResponse>>(
-      '/api/positions/tree'
+      '/api/v1/employees/positions/tree'
     );
     return response.data.data.tree;
   },
@@ -24,7 +24,7 @@ export const organizationApi = {
    */
   createPosition: async (data: PositionRequest): Promise<Position> => {
     const response = await api.post<ApiResponse<Position>>(
-      '/api/positions',
+      '/api/v1/employees/positions',
       data
     );
     return response.data.data;
@@ -38,7 +38,7 @@ export const organizationApi = {
     data: PositionUpdateRequest
   ): Promise<Position> => {
     const response = await api.put<ApiResponse<Position>>(
-      `/api/positions/${id}`,
+      `/api/v1/employees/positions/${id}`,
       data
     );
     return response.data.data;
@@ -48,6 +48,6 @@ export const organizationApi = {
    * Soft delete a position
    */
   deletePosition: async (id: number): Promise<void> => {
-    await api.delete(`/api/positions/${id}`);
+    await api.delete(`/api/v1/employees/positions/${id}`);
   },
 };

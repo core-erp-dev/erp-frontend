@@ -1,4 +1,4 @@
-import { TreePine } from 'lucide-react';
+import { TreePine, Users } from 'lucide-react';
 
 export const dashboardSidebar = [
   {
@@ -7,8 +7,13 @@ export const dashboardSidebar = [
     icon: 'dashboard',
   },
   {
+    title: 'Employee Management',
+    href: '/hr/employees',
+    icon: Users,
+  },
+  {
     title: 'Organization Hierarchy',
-    href: '/organization/hierarchy',
+    href: '/hr/hierarchy',
     icon: TreePine,
   },
 ];

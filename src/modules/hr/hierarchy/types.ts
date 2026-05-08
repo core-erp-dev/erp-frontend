@@ -18,7 +18,7 @@ export interface Position {
   createdAt?: string;
   updatedAt?: string;
   children: PositionTree[];
-  assignedUser?: AssignedUser;
+  assignedUsers?: AssignedUser[];
 }
 
 export interface PositionTree extends Omit<Position, 'children'> {

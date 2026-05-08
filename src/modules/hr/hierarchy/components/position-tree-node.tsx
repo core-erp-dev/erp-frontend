@@ -138,21 +138,28 @@ export const PositionTreeNode: React.FC<PositionTreeNodeProps> = ({
           </div>
         </CardHeader>
 
-        {/* Assigned User Info */}
+        {/* Assigned Users Info */}
         <CardContent className="pt-0">
-          {position.assignedUser ? (
-            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-                <User className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">
-                  {position.assignedUser.fullName}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {position.assignedUser.nip} • {position.assignedUser.email}
-                </p>
-              </div>
+          {position.assignedUsers && position.assignedUsers.length > 0 ? (
+            <div className="space-y-1.5">
+              {position.assignedUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg"
+                >
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 shrink-0">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {user.fullName}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {user.nip} • {user.email}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground italic">
