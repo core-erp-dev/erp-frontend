@@ -1,17 +1,22 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-const titleMap: Record<string, string> = {
-  '/': 'Dashboard',
-};
+import React from 'react';
 
-export function Header() {
-  const pathname = usePathname();
-  const title = titleMap[pathname] || 'erpsystem';
+interface HeaderProps {
+  title?: string;
+  actions?: React.ReactNode;
+}
 
+export function Header({ title, actions }: HeaderProps) {
   return (
-    <header className="flex h-14 items-center border-b border-border bg-background px-6">
-      <span className="font-semibold text-foreground">{title}</span>
+    <header className="flex h-16 items-center justify-between bg-[#f5f5f5] px-8">
+      <h1 className="text-xl font-semibold text-foreground">
+        {title || 'erpsystem'}
+      </h1>
+
+      <div className="flex items-center gap-3">
+        {actions}
+      </div>
     </header>
   );
 }

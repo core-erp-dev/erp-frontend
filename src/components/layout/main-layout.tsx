@@ -1,5 +1,4 @@
 import { Sidebar } from './sidebar';
-import { Header } from './header';
 import { AuthGuard } from './auth-guard';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -12,11 +11,13 @@ export function MainLayout({ children }: MainLayoutProps) {
     <AuthGuard>
       <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <Header />
-          <main className="flex-1 overflow-y-auto bg-muted p-6">
+
+        <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f5f5]">
+
+          <div className="flex-1 overflow-y-auto">
             {children}
-          </main>
+          </div>
+
         </div>
       </div>
       <Toaster />
