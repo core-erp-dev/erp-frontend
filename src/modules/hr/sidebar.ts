@@ -1,5 +1,5 @@
 import type React from 'react';
-import { LayoutDashboard, Users, TreePine } from 'lucide-react';
+import { LayoutDashboard, Users, Network } from 'lucide-react';
 
 export interface SidebarItem {
   title: string;
@@ -16,15 +16,15 @@ export const hrSidebar: SidebarItem[] = [
     module: 'hr',
   },
   {
-    title: 'Employee Management',
+    title: 'Karyawan',
     href: '/hr/employees',
     icon: Users,
     module: 'hr',
   },
   {
-    title: 'Organization Hierarchy',
+    title: 'Struktur',
     href: '/hr/hierarchy',
-    icon: TreePine,
+    icon: Network,
     module: 'hr',
   },
 ];

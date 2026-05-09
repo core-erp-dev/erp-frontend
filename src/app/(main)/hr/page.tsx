@@ -1,15 +1,16 @@
-import { Header } from '@/components/layout/header';
-
 export default function HRDashboardPage() {
   return (
     <div className="flex h-full w-full flex-col">
-      <Header title="Dashboard" />
-
-      <main className="flex flex-1 flex-col items-center justify-center p-8">
-        <p className="text-lg text-muted-foreground">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">
           Welcome to the HR Dashboard
         </p>
-      </main>
+      </div>
+
+      <div className="mt-6">
+        {/* Dashboard content will go here */}
+      </div>
     </div>
   );
 }

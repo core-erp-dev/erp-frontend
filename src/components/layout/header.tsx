@@ -1,21 +1,23 @@
-'use client';
+"use client";
 
-import React from 'react';
+import { Button } from "@heroui/react";
+import { ArrowRightLeft, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-interface HeaderProps {
-  title?: string;
-  actions?: React.ReactNode;
-}
+export function Header() {
+  const router = useRouter();
 
-export function Header({ title, actions }: HeaderProps) {
   return (
-    <header className="flex h-16 items-center justify-between bg-[#f5f5f5] px-8">
-      <h1 className="text-xl font-semibold text-foreground">
-        {title || 'erpsystem'}
-      </h1>
+    <header className="flex h-16 items-center justify-end bg-[#f5f5f5] px-6">
+      <div className="flex items-center gap-2">
+        <Button variant="tertiary" size="md" onPress={() => router.push("/")}>
+          <ArrowRightLeft className="h-4 w-4" />
+          Ganti Modul
+        </Button>
 
-      <div className="flex items-center gap-3">
-        {actions}
+        <Button variant="tertiary" size="md" isIconOnly>
+          <Settings className="h-4 w-4" />
+        </Button>
       </div>
     </header>
   );
