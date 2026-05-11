@@ -1,308 +1,361 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PositionTreeNode } from './position-tree-node';
+import React from 'react';
+import {
+  Button,
+  Chip,
+  Dropdown,
+  SearchField,
+  Spinner,
+  Table,
+} from '@heroui/react';
+import {
+  RefreshCw,
+  Plus,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  UserPlus,
+  Search,
+  ChevronRight,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 import { PositionFormModal } from './position-form-modal';
 import { AssignUserModal } from '@/modules/hr/employees/components/assign-user-modal';
-import { PositionTree, PositionRequest, PositionUpdateRequest } from '../types';
-import { organizationApi } from '../services/organization-api';
-import { employeeApi } from '@/modules/hr/employees/services/employee-api';
-import { CoreUser } from '@/modules/hr/employees/types';
-import { RefreshCw, TreePine, Plus } from 'lucide-react';
-import { AxiosError } from 'axios';
+import { useHierarchyData } from '../hooks/use-hierarchy-data';
+import { getLevelColor, getInitials } from '../../shared/utils';
+import type { PositionRow } from '../../shared/utils/position-helpers';
 
 export const HierarchyView: React.FC = () => {
-  const [positions, setPositions] = useState<PositionTree[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const {
+    isLoading,
+    isRefreshing,
+    positions,
+    flatPositions,
+    filteredPositions,
+    tableItems,
+    searchTerm,
+    setSearchTerm,
+    expandedKeys,
+    setExpandedKeys,
+    isFormModalOpen,
+    selectedPosition,
+    parentPositionId,
+    handleAddRootPosition,
+    handleAddSubordinate,
+    handleEdit,
+    handleFormModalClose,
+    handleFormSubmit,
+    isAssignModalOpen,
+    assignPositionId,
+    allUsers,
+    isAssigning,
+    handleAssignUser,
+    handleAssignModalClose,
+    handleAssignSubmit,
+    handleDelete,
+    fetchPositions,
+  } = useHierarchyData();
 
-  // Modal states
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<PositionTree | null>(
-    null
-  );
-  const [parentPositionId, setParentPositionId] = useState<number | null>(null);
+  // ── Position row renderer ─────────────────────────────────
+  const renderPositionRow = (item: PositionRow) => {
+    const pos = item.position;
 
-  // Assign User Modal states
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [assignPositionId, setAssignPositionId] = useState<number | null>(null);
-  const [allUsers, setAllUsers] = useState<CoreUser[]>([]);
-  const [isAssigning, setIsAssigning] = useState(false);
+    return (
+      <Table.Row id={item.key} textValue={pos.positionName}>
+        {/* Position name — tree column with chevron */}
+        <Table.Cell textValue={pos.positionName}>
+          {({ hasChildItems, isExpanded, isTreeColumn }: { hasChildItems: boolean; isExpanded: boolean; isTreeColumn: boolean }) => (
+            <span className="flex items-center gap-2">
+              {hasChildItems && isTreeColumn ? (
+                <Button
+                  isIconOnly
+                  aria-label="Tampilkan karyawan"
+                  size="sm"
+                  slot="chevron"
+                  variant="ghost"
+                >
+                  <ChevronRight
+                    className={cn(
+                      'h-4 w-4 text-muted-foreground transition-transform duration-150',
+                      isExpanded ? 'rotate-90' : '',
+                    )}
+                  />
+                </Button>
+              ) : null}
+              <span className="font-medium">{pos.positionName}</span>
+            </span>
+          )}
+        </Table.Cell>
 
-  const fetchPositions = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
+        {/* Code */}
+        <Table.Cell>
+          <code className="rounded bg-default-100 px-1.5 py-0.5 text-xs">
+            {pos.positionCode}
+          </code>
+        </Table.Cell>
 
-    try {
-      const data = await organizationApi.fetchPositionTree();
-      setPositions(data);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to fetch position hierarchy';
-      toast.error(errorMessage, {
-        description: 'Please try again later.',
-      });
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+        {/* Level */}
+        <Table.Cell>
+          <Chip size="sm" color={getLevelColor(pos.positionLevel)} variant="soft">
+            Level {pos.positionLevel}
+          </Chip>
+        </Table.Cell>
 
-  useEffect(() => {
-    fetchPositions();
-    // Fetch all users for the assign modal
-    employeeApi.getUsers().then(setAllUsers).catch(() => {});
-  }, [fetchPositions]);
+        {/* Parent */}
+        <Table.Cell>{pos.parentName || '—'}</Table.Cell>
 
-  // Handle Add Sub-ordinate
-  const handleAddSubordinate = (parentId: number) => {
-    setSelectedPosition(null);
-    setParentPositionId(parentId);
-    setIsFormModalOpen(true);
-  };
+        {/* Staff count */}
+        <Table.Cell>
+          <span className="font-medium tabular-nums">
+            {pos.assignedUsers.length}
+          </span>
+        </Table.Cell>
 
-  // Handle Edit
-  const handleEdit = (position: PositionTree) => {
-    setSelectedPosition(position);
-    setParentPositionId(null);
-    setIsFormModalOpen(true);
-  };
+        {/* Actions */}
+        <Table.Cell>
+          <Dropdown>
+            <Dropdown.Trigger>
+              <Button
+                variant="tertiary"
+                isIconOnly
+                size="sm"
+                aria-label={`Menu aksi untuk ${pos.positionName}`}
+              >
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </Dropdown.Trigger>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                aria-label={`Menu aksi untuk ${pos.positionName}`}
+                onAction={(key) => {
+                  switch (key) {
+                    case 'edit':
+                      handleEdit(pos);
+                      break;
+                    case 'delete':
+                      handleDelete(pos);
+                      break;
+                    case 'add-sub':
+                      handleAddSubordinate(pos.id);
+                      break;
+                    case 'assign':
+                      handleAssignUser(pos);
+                      break;
+                  }
+                }}
+              >
+                <Dropdown.Item id="edit" textValue="Edit">
+                  <div className="flex items-center gap-2">
+                    <Pencil className="size-4 shrink-0 text-muted-foreground" />
+                    <span>Edit</span>
+                  </div>
+                </Dropdown.Item>
+                <Dropdown.Item id="assign" textValue="Tugaskan Karyawan">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="size-4 shrink-0 text-muted-foreground" />
+                    <span>Tugaskan Karyawan</span>
+                  </div>
+                </Dropdown.Item>
+                <Dropdown.Item id="add-sub" textValue="Tambah Bawahan">
+                  <div className="flex items-center gap-2">
+                    <Plus className="size-4 shrink-0 text-muted-foreground" />
+                    <span>Tambah Bawahan</span>
+                  </div>
+                </Dropdown.Item>
+                <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+                  <div className="flex items-center gap-2 text-danger">
+                    <Trash2 className="size-4 shrink-0" />
+                    <span>Hapus</span>
+                  </div>
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+        </Table.Cell>
 
-  // Handle Delete
-  const handleDelete = async (position: PositionTree) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the position "${position.positionName}"?\n\nThis action cannot be undone.`
+        {/* Expanded children — employee rows */}
+        <Table.Collection items={item.children}>
+          {(child) => {
+            if (child.key.startsWith('empty-')) {
+              return (
+                <Table.Row id={child.key}>
+                  <Table.Cell>
+                    <span className="pl-10 text-sm italic text-muted-foreground">
+                      Belum ada karyawan di jabatan ini.
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell />
+                  <Table.Cell />
+                  <Table.Cell />
+                  <Table.Cell />
+                  <Table.Cell />
+                </Table.Row>
+              );
+            }
+
+            return (
+              <Table.Row id={child.key} textValue={child.fullName}>
+                <Table.Cell>
+                  <div className="flex items-center gap-3 py-1 pl-6">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {getInitials(child.fullName)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {child.fullName}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {child.nip ? `NIP: ${child.nip}` : child.email}
+                      </div>
+                    </div>
+                  </div>
+                </Table.Cell>
+                <Table.Cell />
+                <Table.Cell />
+                <Table.Cell />
+                <Table.Cell />
+                <Table.Cell />
+              </Table.Row>
+            );
+          }}
+        </Table.Collection>
+      </Table.Row>
     );
-
-    if (!confirmed) return;
-
-    try {
-      await organizationApi.deletePosition(position.id);
-      toast.success('Position deleted successfully', {
-        description: `"${position.positionName}" has been removed.`,
-      });
-      fetchPositions(true);
-    } catch (error) {
-      // Handle specific error types
-      let errorTitle = 'Failed to delete position';
-      let errorDescription = 'Please try again later.';
-
-      if (error instanceof AxiosError && error.response) {
-        const detail = error.response.data?.detail || '';
-        const status = error.response.status;
-
-        if (status === 400) {
-          if (detail.toLowerCase().includes('orphan')) {
-            errorTitle = 'Cannot Delete: Has Sub-ordinates';
-            errorDescription =
-              'This position has sub-ordinate positions. Please remove or reassign them first.';
-          } else if (
-            detail.toLowerCase().includes('user') ||
-            detail.toLowerCase().includes('assign')
-          ) {
-            errorTitle = 'Cannot Delete: Has Assigned Users';
-            errorDescription =
-              'This position has users assigned to it. Please reassign or remove them first.';
-          } else if (
-            detail.toLowerCase().includes('circular') ||
-            detail.toLowerCase().includes('reference')
-          ) {
-            errorTitle = 'Circular Reference Detected';
-            errorDescription =
-              'This operation would create a circular reference in the hierarchy.';
-          } else {
-            errorDescription = detail || errorDescription;
-          }
-        }
-      }
-
-      toast.error(errorTitle, {
-        description: errorDescription,
-      });
-    }
-  };
-
-  // Handle Assign User - open modal with position pre-filled
-  const handleAssignUser = (position: PositionTree) => {
-    setAssignPositionId(position.id);
-    setIsAssignModalOpen(true);
-  };
-
-  // Handle Assign User submission
-  const handleAssignSubmit = async (data: {
-    userId: string;
-    positionId: number;
-    startDate: string;
-    isPrimary: boolean;
-  }) => {
-    try {
-      setIsAssigning(true);
-      await employeeApi.assignUserToPosition(data);
-      toast.success('User assigned successfully', {
-        description: 'The position assignment has been saved.',
-      });
-      setIsAssignModalOpen(false);
-      setAssignPositionId(null);
-      fetchPositions(true);
-    } catch (error) {
-      const errorMessage =
-        error instanceof AxiosError && error.response?.data?.message
-          ? error.response.data.message
-          : 'Failed to assign user to position';
-      toast.error(errorMessage);
-      throw error;
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  // Handle Form Submit
-  const handleFormSubmit = async (
-    data: PositionRequest | PositionUpdateRequest
-  ) => {
-    try {
-      if (selectedPosition) {
-        // Edit mode
-        const updateData = data as PositionUpdateRequest;
-        await organizationApi.updatePosition(selectedPosition.id, updateData);
-        toast.success('Position updated successfully', {
-          description: `"${updateData.positionName || selectedPosition.positionName}" has been updated.`,
-        });
-      } else {
-        // Create mode
-        const createData = data as PositionRequest;
-        await organizationApi.createPosition(createData);
-        toast.success('Position created successfully', {
-          description: `"${createData.positionName}" has been added to the hierarchy.`,
-        });
-      }
-      fetchPositions(true);
-    } catch (error) {
-      let errorTitle = selectedPosition
-        ? 'Failed to update position'
-        : 'Failed to create position';
-      let errorDescription = 'Please check your input and try again.';
-
-      if (error instanceof AxiosError && error.response) {
-        const detail = error.response.data?.detail || '';
-        const status = error.response.status;
-
-        if (status === 400) {
-          if (
-            detail.toLowerCase().includes('circular') ||
-            detail.toLowerCase().includes('reference')
-          ) {
-            errorTitle = 'Circular Reference Detected';
-            errorDescription =
-              'The selected parent would create a circular reference in the hierarchy.';
-          } else {
-            errorDescription = detail || errorDescription;
-          }
-        } else if (status === 409) {
-          errorTitle = 'Duplicate Position Code';
-          errorDescription =
-            'A position with this code already exists. Please use a unique code.';
-        }
-      }
-
-      toast.error(errorTitle, {
-        description: errorDescription,
-      });
-      throw error;
-    }
-  };
-
-  // Handle Add Root Position
-  const handleAddRootPosition = () => {
-    setSelectedPosition(null);
-    setParentPositionId(null);
-    setIsFormModalOpen(true);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex w-full flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TreePine className="h-6 w-6" />
-            Organization Hierarchy
+      <div className="flex flex-col gap-4">
+        {/* Title */}
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-foreground">
+            Struktur Jabatan
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage your organizations position structure and reporting lines.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+
           <Button
-            variant="outline"
+            isIconOnly
+            variant="tertiary"
             size="sm"
-            onClick={() => fetchPositions(true)}
-            disabled={isRefreshing}
+            className="pointer-events-none text-sm font-medium"
+            aria-label={`Total ${flatPositions.length} jabatan`}
           >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`}
-            />
-            Refresh
+            {flatPositions.length}
           </Button>
-          <Button size="sm" onClick={handleAddRootPosition}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Root Position
-          </Button>
+        </div>
+
+        {/* Search & Actions */}
+        <div className="flex items-center justify-between">
+          <SearchField
+            name="search"
+            value={searchTerm}
+            onChange={setSearchTerm}
+            className="w-70"
+          >
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input
+                aria-label="Cari posisi"
+                placeholder="Cari posisi..."
+              />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
+
+          <div className="flex items-center gap-2">
+            <Button
+              isIconOnly
+              variant="tertiary"
+              onPress={() => fetchPositions(true)}
+              isDisabled={isRefreshing}
+              aria-label="Muat ulang struktur organisasi"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+              />
+            </Button>
+            <Button variant="primary" onPress={handleAddRootPosition}>
+              <Plus className="h-4 w-4" />
+              Tambah Jabatan
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Loading State */}
-      {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-28 w-[90%]" />
-          <Skeleton className="h-28 w-[85%]" />
-        </div>
-      ) : positions.length === 0 ? (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center py-16 px-4">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-            <TreePine className="h-8 w-8 text-muted-foreground" />
+      {/* Empty state (only when not loading) */}
+      {!isLoading && filteredPositions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center px-4 py-16">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <Search className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">No Positions Yet</h3>
-          <p className="text-muted-foreground text-center mb-6 max-w-sm">
-            Start building your organization hierarchy by adding your first
-            position.
+          <h3 className="mb-2 text-lg font-semibold">
+            {searchTerm ? 'Jabatan Tidak Ditemukan' : 'Belum Ada Jabatan'}
+          </h3>
+          <p className="mb-6 max-w-sm text-center text-muted-foreground">
+            {searchTerm
+              ? 'Tidak ada jabatan yang cocok dengan pencarian Anda.'
+              : 'Mulai bangun hierarki organisasi dengan menambahkan jabatan pertama.'}
           </p>
-          <Button onClick={handleAddRootPosition}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Your First Position
-          </Button>
+          {!searchTerm && (
+            <Button variant="primary" onPress={handleAddRootPosition}>
+              <Plus className="h-4 w-4" />
+              Tambah Jabatan Pertama
+            </Button>
+          )}
         </div>
       ) : (
-        /* Tree View */
-        <div className="space-y-2">
-          {positions.map((position) => (
-            <PositionTreeNode
-              key={position.id}
-              position={position}
-              onAddSubordinate={handleAddSubordinate}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onAssignUser={handleAssignUser}
-            />
-          ))}
-        </div>
+        /* Table */
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content
+              aria-label="Tabel hierarki jabatan"
+              className="min-w-225"
+              selectionMode="single"
+              expandedKeys={expandedKeys}
+              onExpandedChange={setExpandedKeys}
+              treeColumn="name"
+            >
+              <Table.Header>
+                <Table.Column isRowHeader id="name">
+                  Nama Jabatan
+                </Table.Column>
+                <Table.Column id="code">Kode</Table.Column>
+                <Table.Column id="level">Level</Table.Column>
+                <Table.Column id="parent">Atasan Langsung</Table.Column>
+                <Table.Column id="staff">Jumlah Staf</Table.Column>
+                <Table.Column id="actions" aria-label="Aksi" className="w-16 text-center">{''}</Table.Column>
+              </Table.Header>
+              <Table.Body
+                items={isLoading ? [] : tableItems}
+                renderEmptyState={() =>
+                  isLoading ? (
+                    <div className="flex h-24 items-center justify-center">
+                      <Spinner size="md" />
+                    </div>
+                  ) : (
+                    <div className="flex h-24 flex-col items-center justify-center gap-2 text-muted-foreground">
+                      <span className="text-sm">
+                        {searchTerm
+                          ? 'Tidak ada jabatan yang cocok dengan pencarian.'
+                          : 'Belum ada data jabatan.'}
+                      </span>
+                    </div>
+                  )
+                }
+              >
+                {renderPositionRow}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
       )}
 
       {/* Form Modal */}
       <PositionFormModal
         isOpen={isFormModalOpen}
-        onClose={() => {
-          setIsFormModalOpen(false);
-          setSelectedPosition(null);
-          setParentPositionId(null);
-        }}
+        onClose={handleFormModalClose}
         onSubmit={handleFormSubmit}
         position={selectedPosition}
         parentId={parentPositionId}
@@ -312,10 +365,7 @@ export const HierarchyView: React.FC = () => {
       {/* Assign User Modal */}
       <AssignUserModal
         isOpen={isAssignModalOpen}
-        onClose={() => {
-          setIsAssignModalOpen(false);
-          setAssignPositionId(null);
-        }}
+        onClose={handleAssignModalClose}
         onSuccess={handleAssignSubmit}
         positionId={assignPositionId}
         users={allUsers}

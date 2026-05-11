@@ -1,33 +1,37 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Check, ChevronsUpDown, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+  Modal,
+  Button,
+  TextField,
+  Input,
+  Label,
+  FieldError,
+  Autocomplete,
+  SearchField,
+  ListBox,
+  EmptyState,
+  useFilter,
+} from '@heroui/react';
 import { PositionTree, PositionRequest, PositionUpdateRequest } from '../types';
+
+const positionFormSchema = z.object({
+  positionCode: z
+    .string()
+    .min(1, 'Kode jabatan wajib diisi')
+    .max(50, 'Kode jabatan maksimal 50 karakter'),
+  positionName: z
+    .string()
+    .min(1, 'Nama jabatan wajib diisi')
+    .max(100, 'Nama jabatan maksimal 100 karakter'),
+  parentId: z.number().nullable().optional(),
+});
+
+type PositionFormValues = z.infer<typeof positionFormSchema>;
 
 interface PositionFormModalProps {
   isOpen: boolean;
@@ -44,59 +48,26 @@ export const PositionFormModal: React.FC<PositionFormModalProps> = ({
   onClose,
   onSubmit,
   position,
-  parentId,
+  parentId: initialParentId,
   allPositions,
   isLoading = false,
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  // Calculate position level based on selected parent
-  const calculatePositionLevel = (parentIdValue: number | null): number => {
-    if (parentIdValue === null) return 1;
-    const findPosition = (positions: PositionTree[], id: number): PositionTree | undefined => {
-      for (const pos of positions) {
-        if (pos.id === id) return pos;
-        if (pos.children && pos.children.length > 0) {
-          const found = findPosition(pos.children, id);
-          if (found) return found;
-        }
-      }
-      return undefined;
-    };
-    const parent = findPosition(allPositions, parentIdValue);
-    return parent ? parent.positionLevel + 1 : 1;
-  };
-
-  const [formData, setFormData] = useState({
-    positionCode: '',
-    positionName: '',
-    parentId: null as number | null,
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
+  const { contains } = useFilter({ sensitivity: 'base' });
   const isEditMode = !!position;
 
-  useEffect(() => {
-    if (position) {
-      setFormData({
-        positionCode: position.positionCode,
-        positionName: position.positionName,
-        parentId: position.parentId,
-      });
-    } else {
-      setFormData({
-        positionCode: '',
-        positionName: '',
-        parentId: parentId ?? null,
-      });
-    }
-    setErrors({});
-  }, [position, parentId, isOpen]);
+  const form = useForm<PositionFormValues>({
+    resolver: zodResolver(positionFormSchema),
+    defaultValues: {
+      positionCode: '',
+      positionName: '',
+      parentId: null,
+    },
+  });
 
   const flattenPositions = (
     positions: PositionTree[],
-    depth = 0
+    depth = 0,
   ): { position: PositionTree; depth: number }[] => {
     const result: { position: PositionTree; depth: number }[] = [];
     positions.forEach((pos) => {
@@ -110,211 +81,249 @@ export const PositionFormModal: React.FC<PositionFormModalProps> = ({
 
   const flatPositions = flattenPositions(allPositions);
 
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.positionCode.trim()) {
-      newErrors.positionCode = 'Position code is required';
-    } else if (formData.positionCode.length > 50) {
-      newErrors.positionCode = 'Position code must be 50 characters or less';
-    }
-
-    if (!formData.positionName.trim()) {
-      newErrors.positionName = 'Position name is required';
-    } else if (formData.positionName.length > 100) {
-      newErrors.positionName = 'Position name must be 100 characters or less';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const calculatePositionLevel = (
+    parentIdValue: number | null,
+  ): number => {
+    if (parentIdValue === null) return 1;
+    const findPosition = (
+      positions: PositionTree[],
+      id: number,
+    ): PositionTree | undefined => {
+      for (const pos of positions) {
+        if (pos.id === id) return pos;
+        if (pos.children && pos.children.length > 0) {
+          const found = findPosition(pos.children, id);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+    const parent = findPosition(allPositions, parentIdValue);
+    return parent ? parent.positionLevel + 1 : 1;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (position) {
+      form.reset({
+        positionCode: position.positionCode,
+        positionName: position.positionName,
+        parentId: position.parentId,
+      });
+    } else {
+      form.reset({
+        positionCode: '',
+        positionName: '',
+        parentId: initialParentId ?? null,
+      });
+    }
+  }, [position, initialParentId, isOpen, form]);
 
-    if (!validateForm()) return;
-
+  const handleSubmit = async (values: PositionFormValues) => {
     setIsSubmitting(true);
     try {
-      // Calculate position level based on parent selection
-      const positionLevel = calculatePositionLevel(formData.parentId);
-
-      // Prepare data with auto-calculated position level
+      const positionLevel = calculatePositionLevel(values.parentId ?? null);
       const submitData = {
-        ...formData,
+        positionCode: values.positionCode,
+        positionName: values.positionName,
+        parentId: values.parentId,
         positionLevel,
       };
-
       await onSubmit(submitData);
       onClose();
     } catch (error) {
-      console.error('Failed to submit:', error);
+      console.error('Gagal menyimpan:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getSelectedParentName = () => {
-    if (formData.parentId === null) return 'No Parent (Root Position)';
-    const selected = allPositions.find((p) => p.id === formData.parentId);
-    return selected ? selected.positionName : '';
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditMode ? 'Edit Position' : 'Create New Position'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditMode
-              ? 'Update the position details below.'
-              : 'Add a new position to the organization hierarchy.'}
-          </DialogDescription>
-        </DialogHeader>
+    <Modal>
+      <Modal.Backdrop
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+      >
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-md">
+            <Modal.CloseTrigger />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Position Code */}
-          <div className="space-y-2">
-            <Label htmlFor="positionCode">
-              Position Code <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="positionCode"
-              value={formData.positionCode}
-              onChange={(e) =>
-                setFormData({ ...formData, positionCode: e.target.value })
-              }
-              placeholder="e.g., MGR, SUP"
-              disabled={isSubmitting}
-              className={errors.positionCode ? 'border-destructive' : ''}
-            />
-            {errors.positionCode && (
-              <p className="text-xs text-destructive">{errors.positionCode}</p>
-            )}
-          </div>
+            <Modal.Header>
+              <Modal.Heading className="px-2">
+                {isEditMode ? 'Edit Jabatan' : 'Tambah Jabatan Baru'}
+              </Modal.Heading>
+            </Modal.Header>
 
-          {/* Position Name */}
-          <div className="space-y-2">
-            <Label htmlFor="positionName">
-              Position Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="positionName"
-              value={formData.positionName}
-              onChange={(e) =>
-                setFormData({ ...formData, positionName: e.target.value })
-              }
-              placeholder="e.g., Sales Manager"
-              disabled={isSubmitting}
-              className={errors.positionName ? 'border-destructive' : ''}
-            />
-            {errors.positionName && (
-              <p className="text-xs text-destructive">{errors.positionName}</p>
-            )}
-          </div>
+            <Modal.Body className="p-2">
+              <form
+                id="position-form"
+                onSubmit={form.handleSubmit(handleSubmit)}
+                className="flex flex-col gap-4"
+              >
+                {/* Kode Jabatan */}
+                <Controller
+                  control={form.control}
+                  name="positionCode"
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      isRequired
+                      validationBehavior="aria"
+                      className="w-full"
+                      name={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      isInvalid={!!fieldState.error}
+                      isDisabled={isSubmitting}
+                    >
+                      <Label>Kode Jabatan</Label>
+                      <Input placeholder="contoh: MGR, SUP" />
+                      {fieldState.error && (
+                        <FieldError>{fieldState.error.message}</FieldError>
+                      )}
+                    </TextField>
+                  )}
+                />
 
-          {/* Parent Position (Searchable Combobox) */}
-          {!isEditMode && (
-            <div className="space-y-2">
-              <Label>Parent Position</Label>
-              <Popover open={open} onOpenChange={setOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-full justify-between"
-                    disabled={isSubmitting}
-                  >
-                    {getSelectedParentName()}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search position..." />
-                    <CommandList>
-                      <CommandEmpty>No position found.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          value="no-parent"
-                          onSelect={() => {
-                            setFormData({ ...formData, parentId: null });
-                            setOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              'mr-2 h-4 w-4',
-                              formData.parentId === null
-                                ? 'opacity-100'
-                                : 'opacity-0'
-                            )}
-                          />
-                          No Parent (Root Position)
-                        </CommandItem>
-                        {flatPositions.map(({ position: pos, depth }) => (
-                          <CommandItem
-                            key={pos.id}
-                            value={`${pos.id}-${pos.positionName}`}
-                            onSelect={() => {
-                              setFormData({ ...formData, parentId: pos.id });
-                              setOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                'mr-2 h-4 w-4',
-                                formData.parentId === pos.id
-                                  ? 'opacity-100'
-                                  : 'opacity-0'
+                {/* Nama Jabatan */}
+                <Controller
+                  control={form.control}
+                  name="positionName"
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      isRequired
+                      validationBehavior="aria"
+                      className="w-full"
+                      name={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      isInvalid={!!fieldState.error}
+                      isDisabled={isSubmitting}
+                    >
+                      <Label>Nama Jabatan</Label>
+                      <Input placeholder="contoh: Manajer Sales" />
+                      {fieldState.error && (
+                        <FieldError>{fieldState.error.message}</FieldError>
+                      )}
+                    </TextField>
+                  )}
+                />
+
+                {/* Jabatan Induk — hanya tampil saat membuat baru */}
+                {!isEditMode && (
+                  <Controller
+                    control={form.control}
+                    name="parentId"
+                    render={({ field, fieldState }) => (
+                      <Autocomplete
+                        validationBehavior="aria"
+                        className="w-full"
+                        placeholder="Pilih jabatan induk..."
+                        selectionMode="single"
+                        selectedKey={
+                          field.value === null
+                            ? 'none'
+                            : field.value != null
+                              ? String(field.value)
+                              : null
+                        }
+                        onSelectionChange={(key) => {
+                          if (key === 'none' || key === null) {
+                            field.onChange(null);
+                          } else {
+                            field.onChange(Number(key));
+                          }
+                        }}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Jabatan Induk</Label>
+                        <Autocomplete.Trigger>
+                          <Autocomplete.Value />
+                          <Autocomplete.ClearButton />
+                          <Autocomplete.Indicator />
+                        </Autocomplete.Trigger>
+                        <Autocomplete.Popover>
+                          <Autocomplete.Filter filter={contains}>
+                            <SearchField
+                              autoFocus
+                              name="search"
+                              variant="secondary"
+                            >
+                              <SearchField.Group>
+                                <SearchField.SearchIcon />
+                                <SearchField.Input placeholder="Cari jabatan..." />
+                                <SearchField.ClearButton />
+                              </SearchField.Group>
+                            </SearchField>
+                            <ListBox
+                              renderEmptyState={() => (
+                                <EmptyState>
+                                  Jabatan tidak ditemukan
+                                </EmptyState>
                               )}
-                            />
-                            <span style={{ paddingLeft: `${depth * 16}px` }}>
-                              {pos.positionName}
-                            </span>
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              ({pos.positionCode})
-                            </span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-              <p className="text-xs text-muted-foreground">
-                Select the parent position for this new role. The position level will be calculated automatically based on the parent.
-              </p>
-            </div>
-          )}
+                            >
+                              <ListBox.Item
+                                key="none"
+                                id="none"
+                                textValue="Tanpa Induk Jabatan Induk"
+                              >
+                                <span>
+                                  Tanpa Jabatan Induk
+                                </span>
+                              </ListBox.Item>
+                              {flatPositions.map(({ position: pos, depth }) => (
+                                <ListBox.Item
+                                  key={String(pos.id)}
+                                  id={String(pos.id)}
+                                  textValue={pos.positionName}
+                                >
+                                  <span
+                                    style={{
+                                      paddingLeft: `${depth * 16}px`,
+                                    }}
+                                  >
+                                    {pos.positionName}
+                                  </span>
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    ({pos.positionCode})
+                                  </span>
+                                </ListBox.Item>
+                              ))}
+                            </ListBox>
+                          </Autocomplete.Filter>
+                        </Autocomplete.Popover>
+                        {fieldState.error && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
+                      </Autocomplete>
+                    )}
+                  />
+                )}
+              </form>
+            </Modal.Body>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || isLoading}>
-              {isSubmitting || isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isEditMode ? 'Updating...' : 'Creating...'}
-                </>
-              ) : isEditMode ? (
-                'Update Position'
-              ) : (
-                'Create Position'
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <Modal.Footer>
+              <Button
+                variant="secondary"
+                onPress={onClose}
+                isDisabled={isSubmitting}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                form="position-form"
+                variant="primary"
+                isDisabled={isSubmitting || isLoading}
+                isPending={isSubmitting}
+              >
+                {isEditMode ? 'Simpan Perubahan' : 'Buat Jabatan'}
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
   );
 };

@@ -1,50 +1,40 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Loader2 } from 'lucide-react';
+  Modal,
+  Button,
+  TextField,
+  Input,
+  Label,
+  FieldError,
+  Autocomplete,
+  SearchField,
+  ListBox,
+  EmptyState,
+  useFilter,
+} from '@heroui/react';
 import { CoreUser, UserCreateRequest, UserUpdateRequest, RoleResponse } from '../types';
 import { employeeApi } from '../services/employee-api';
 
-// Validation schema
-const userFormSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  fullName: z.string().min(1, 'Full name is required'),
-  nip: z.string().optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
-  defaultRoleCode: z.string().min(1, 'Role is required'),
-  isActive: z.boolean(),
-});
+/** Dynamic Zod schema based on edit/create mode. */
+const getUserFormSchema = (isEditMode: boolean) =>
+  z.object({
+    email: z.string().email('Format email tidak valid'),
+    fullName: z.string().min(1, 'Nama lengkap wajib diisi'),
+    nip: z.string().optional(),
+    // Password required on create, optional on edit
+    password: isEditMode
+      ? z.string().optional().or(z.literal(''))
+      : z.string().min(6, 'Kata sandi minimal 6 karakter wajib diisi'),
+    defaultRoleCode: z.string().min(1, 'Role wajib dipilih'),
+    isActive: z.boolean(),
+  });
 
-type UserFormValues = z.infer<typeof userFormSchema>;
+type UserFormValues = z.infer<ReturnType<typeof getUserFormSchema>>;
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -64,9 +54,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   const isEditMode = !!user;
   const [roles, setRoles] = useState<RoleResponse[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+  const { contains } = useFilter({ sensitivity: 'base' });
 
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(getUserFormSchema(isEditMode)),
     defaultValues: {
       email: '',
       fullName: '',
@@ -77,14 +68,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     },
   });
 
-  // Fetch roles when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchRoles();
-    }
-  }, [isOpen]);
-
-  const fetchRoles = async () => {
+  const fetchRoles = useCallback(async () => {
     setIsLoadingRoles(true);
     try {
       const fetchedRoles = await employeeApi.getRoles();
@@ -94,14 +78,20 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     } finally {
       setIsLoadingRoles(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchRoles();
+    }
+  }, [isOpen, fetchRoles]);
 
   useEffect(() => {
     if (user) {
       form.reset({
         email: user.email,
         fullName: user.fullName,
-        nip: user.nip,
+        nip: user.nip || '',
         password: '',
         defaultRoleCode: user.roles?.[0]?.roleCode || '',
         isActive: user.isActive,
@@ -139,198 +129,189 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditMode ? 'Edit User' : 'Create New User'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditMode
-              ? 'Update the user details below. Password cannot be changed here.'
-              : 'Add a new user to the system. They will be able to login with their email or NIP.'}
-          </DialogDescription>
-        </DialogHeader>
+    <Modal>
+      <Modal.Backdrop
+        isOpen={isOpen}
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+      >
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-md">
+            <Modal.CloseTrigger />
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {/* Email */}
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Email <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="john@example.com"
-                      disabled={isSubmitting}
-                      autoComplete="email"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <Modal.Header>
+              <Modal.Heading className="px-2">
+                {isEditMode ? 'Edit Karyawan' : 'Tambah Karyawan Baru'}
+              </Modal.Heading>
+            </Modal.Header>
 
-            {/* Full Name */}
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Full Name <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="John Doe"
-                      disabled={isSubmitting}
-                      autoComplete="name"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <Modal.Body className="p-2">
+              <form id="user-form" onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
 
-            {/* NIP */}
-            <FormField
-              control={form.control}
-              name="nip"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>NIP (Employee Number)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="EMP001"
-                      disabled={isSubmitting}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                {/* Email */}
+                <Controller
+                  control={form.control}
+                  name="email"
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      isRequired
+                      validationBehavior="aria"
+                      className="w-full"
+                      name={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      isInvalid={!!fieldState.error}
+                      isDisabled={isSubmitting}
+                    >
+                      <Label>Email</Label>
+                      <Input placeholder="contoh@perusahaan.com" type="email" autoComplete="email" />
+                      {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                    </TextField>
+                  )}
+                />
 
-            {/* Password - Only for Create mode */}
-            {!isEditMode && (
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Password <span className="text-destructive">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        disabled={isSubmitting}
-                        autoComplete="new-password"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                {/* Nama Lengkap */}
+                <Controller
+                  control={form.control}
+                  name="fullName"
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      isRequired
+                      validationBehavior="aria"
+                      className="w-full"
+                      name={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      isInvalid={!!fieldState.error}
+                      isDisabled={isSubmitting}
+                    >
+                      <Label>Nama Lengkap</Label>
+                      <Input placeholder="Masukkan nama lengkap" autoComplete="name" />
+                      {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                    </TextField>
+                  )}
+                />
+
+                {/* NIP */}
+                <Controller
+                  control={form.control}
+                  name="nip"
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      validationBehavior="aria"
+                      className="w-full"
+                      name={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      isInvalid={!!fieldState.error}
+                      isDisabled={isSubmitting}
+                    >
+                      <Label>NIP (Nomor Induk Pegawai)</Label>
+                      <Input placeholder="Masukkan NIP" />
+                      {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                    </TextField>
+                  )}
+                />
+
+                {/* Password - Only shown and required when creating a new employee */}
+                {!isEditMode && (
+                  <Controller
+                    control={form.control}
+                    name="password"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        isRequired
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value}
+                        onChange={field.onChange}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Kata Sandi</Label>
+                        <Input placeholder="Masukkan kata sandi" type="password" autoComplete="new-password" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
                 )}
-              />
-            )}
 
-            {/* Role */}
-            <FormField
-              control={form.control}
-              name="defaultRoleCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Role <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <Select
-                    disabled={isSubmitting || isLoadingRoles}
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        {isLoadingRoles ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Loading roles...</span>
-                          </div>
-                        ) : (
-                          <SelectValue placeholder="Select a role" />
-                        )}
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.roleCode}>
-                          {role.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                {/* Role Autocomplete */}
+                <Controller
+                  control={form.control}
+                  name="defaultRoleCode"
+                  render={({ field, fieldState }) => (
+                    <Autocomplete
+                      isRequired
+                      validationBehavior="aria"
+                      className="w-full"
+                      placeholder={isLoadingRoles ? "Memuat role..." : "Cari dan pilih role..."}
+                      selectionMode="single"
+                      selectedKey={field.value || null}
+                      onSelectionChange={(key) => field.onChange(key ? key.toString() : '')}
+                      isInvalid={!!fieldState.error}
+                      isDisabled={isSubmitting || isLoadingRoles}
+                    >
+                      <Label>Role (Peran)</Label>
+                      <Autocomplete.Trigger>
+                        <Autocomplete.Value />
+                        <Autocomplete.ClearButton />
+                        <Autocomplete.Indicator />
+                      </Autocomplete.Trigger>
+                      <Autocomplete.Popover>
+                        <Autocomplete.Filter filter={contains}>
+                          <SearchField autoFocus name="search" variant="secondary">
+                            <SearchField.Group>
+                              <SearchField.SearchIcon />
+                              <SearchField.Input placeholder="Cari role..." />
+                              <SearchField.ClearButton />
+                            </SearchField.Group>
+                          </SearchField>
+                          <ListBox renderEmptyState={() => <EmptyState>Role tidak ditemukan</EmptyState>}>
+                            {roles.map((role) => (
+                              <ListBox.Item
+                                key={role.roleCode}
+                                id={role.roleCode}
+                                textValue={role.description}
+                              >
+                                {role.description}
+                                <ListBox.ItemIndicator />
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Autocomplete.Filter>
+                      </Autocomplete.Popover>
+                      {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                    </Autocomplete>
+                  )}
+                />
+              </form>
+            </Modal.Body>
 
-            {/* Active Status - Only for Edit mode */}
-            {isEditMode && (
-              <FormField
-                control={form.control}
-                name="isActive"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active Status</FormLabel>
-                      <p className="text-sm text-muted-foreground">
-                        User must be active to login
-                      </p>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={isSubmitting}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            )}
-
-            <DialogFooter>
+            <Modal.Footer>
               <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isSubmitting}
+                variant="secondary"
+                onPress={onClose}
+                isDisabled={isSubmitting}
               >
-                Cancel
+                Batal
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isEditMode ? 'Updating...' : 'Creating...'}
-                  </>
-                ) : isEditMode ? (
-                  'Update User'
-                ) : (
-                  'Create User'
-                )}
+              <Button
+                type="submit"
+                form="user-form"
+                variant="primary"
+                isDisabled={isSubmitting}
+                isPending={isSubmitting}
+              >
+                {isEditMode ? 'Simpan Perubahan' : 'Buat Karyawan'}
               </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+            </Modal.Footer>
+
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
   );
 };

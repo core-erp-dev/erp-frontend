@@ -1,4 +1,4 @@
-// User management types based on User API Documentation
+// User management types based on User Management API Documentation
 
 export interface CoreUser {
   id: string;
@@ -59,17 +59,8 @@ export interface UserUpdateRequest {
   defaultRoleCode?: string;
 }
 
-export interface ApiResponse<T> {
-  status: number;
-  message: string;
-  data: T;
-}
-
-export interface ApiErrorResponse {
-  status: number;
-  message: string;
-  data: null;
-}
+// Re-export shared API types for backward compatibility within this module
+export type { ApiResponse, ApiErrorResponse } from '@/types/api';
 
 // User Position Assignment types
 export interface AssignUserPositionRequest {

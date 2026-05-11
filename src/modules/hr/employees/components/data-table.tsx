@@ -1,165 +1,250 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Edit, Trash2, Loader2, UserPlus } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Edit, Trash2, UserPlus, MoreVertical } from 'lucide-react';
 import {
   Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+  Dropdown,
+  Spinner,
+  Button,
+  Pagination,
+} from '@heroui/react';
 import { CoreUser } from '../types';
 
 interface DataTableProps {
   users: CoreUser[];
   isLoading?: boolean;
+  searchQuery?: string;
   onEdit: (user: CoreUser) => void;
   onDelete: (user: CoreUser) => void;
   onAssignPosition: (user: CoreUser) => void;
 }
 
+/** Number of rows displayed per page. */
+const ITEMS_PER_PAGE = 10;
+
 export const DataTable: React.FC<DataTableProps> = ({
   users,
   isLoading = false,
+  searchQuery = '',
   onEdit,
   onDelete,
   onAssignPosition,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery);
 
-  // Client-side search filter
+  // Official React pattern for resetting state based on prop changes (no useEffect needed)
+  if (searchQuery !== prevSearchQuery) {
+    setPage(1);
+    setPrevSearchQuery(searchQuery);
+  }
+
+  // 1. Filter data based on search query
   const filteredUsers = users.filter(
     (user) =>
       user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.nip.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      (user.nip && user.nip.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()),
   );
+
+  // 2. Pagination calculations
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
+  const startItem = (page - 1) * ITEMS_PER_PAGE + 1;
+  const endItem = Math.min(page * ITEMS_PER_PAGE, totalItems);
+
+  // 3. Slice data for the current active page
+  const paginatedUsers = filteredUsers.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE,
+  );
+
+  // Build page numbers array (includes ellipsis indicators)
+  const getPageNumbers = (): (number | 'ellipsis')[] => {
+    const pages: (number | 'ellipsis')[] = [];
+
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      pages.push(1);
+
+      if (page > 3) {
+        pages.push('ellipsis');
+      }
+
+      const start = Math.max(2, page - 1);
+      const end = Math.min(totalPages - 1, page + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (page < totalPages - 2) {
+        pages.push('ellipsis');
+      }
+
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
 
   return (
     <div className="space-y-4">
-      {/* Search Input */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search by name, NIP, or email..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Data Karyawan" className="min-w-200">
+            <Table.Header>
+              <Table.Column id="nip" isRowHeader>NIP</Table.Column>
+              <Table.Column id="nama">Nama</Table.Column>
+              <Table.Column id="email">Email</Table.Column>
+              <Table.Column id="jabatan">Jabatan</Table.Column>
+              <Table.Column id="role">Role</Table.Column>
+              <Table.Column id="actions" aria-label="Aksi" className="w-16 text-center">{''}</Table.Column>
+            </Table.Header>
 
-      {/* Data Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Full Name</TableHead>
-              <TableHead>NIP</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Primary Position</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  <div className="flex items-center justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <Table.Body
+              renderEmptyState={() =>
+                isLoading ? (
+                  <div className="flex h-24 items-center justify-center">
+                    <Spinner size="md" />
                   </div>
-                </TableCell>
-              </TableRow>
-            ) : filteredUsers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  {searchQuery
-                    ? 'No users found matching your search.'
-                    : 'No users found. Create your first user to get started.'}
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.fullName}</TableCell>
-                  <TableCell>{user.nip}</TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    {user.roles?.length > 0 ? (
-                      <Badge variant="outline" className="font-normal">
-                        {user.roles[0].roleCode}
-                      </Badge>
+                ) : (
+                  <div className="flex h-24 flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <span className="text-sm">
+                      {searchQuery
+                        ? 'Tidak ada karyawan yang cocok dengan pencarian.'
+                        : 'Tidak ada data karyawan.'}
+                    </span>
+                  </div>
+                )
+              }
+            >
+              {/* Rendered using paginated data slice */}
+              {paginatedUsers.map((user) => (
+                <Table.Row key={user.id} id={user.id}>
+                  <Table.Cell className="font-medium text-foreground">
+                    {user.nip || '-'}
+                  </Table.Cell>
+
+                  <Table.Cell>{user.fullName}</Table.Cell>
+
+                  <Table.Cell className="text-muted-foreground">{user.email}</Table.Cell>
+
+                  <Table.Cell>
+                    {user.primaryPosition ? (
+                      user.primaryPosition.positionName
                     ) : (
-                      <span className="text-muted-foreground text-sm italic">
+                      '—'
+                    )}
+                  </Table.Cell>
+
+                  <Table.Cell>
+                    {user.roles?.length > 0 ? (
+                      user.roles[0].description || user.roles[0].roleCode
+                    ) : (
+                      <span className="text-sm italic text-muted-foreground">
                         No role
                       </span>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    {user.primaryPosition ? (
-                      <Badge variant="outline" className="font-normal">
-                        {user.primaryPosition.positionName}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm italic">
-                        Unassigned
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.isActive ? 'success' : 'destructive'}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onAssignPosition(user)}
-                        className="h-8 w-8"
-                        title="Assign Position"
-                      >
-                        <UserPlus className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onEdit(user)}
-                        className="h-8 w-8"
-                        title="Edit User"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onDelete(user)}
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        title="Deactivate User"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  </Table.Cell>
 
-      {/* Results count */}
-      {!isLoading && filteredUsers.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredUsers.length} of {users.length} users
-        </p>
+                  <Table.Cell>
+                    <div className="flex justify-end">
+                      <Dropdown>
+                        <Dropdown.Trigger>
+                          <Button
+                            isIconOnly
+                            variant="tertiary"
+                            size="sm"
+                            aria-label={`Aksi untuk ${user.fullName}`}
+                          >
+                            <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </Dropdown.Trigger>
+
+                        <Dropdown.Popover placement="bottom right" className="min-w-48">
+                          <Dropdown.Menu
+                            aria-label={`Menu aksi untuk ${user.fullName}`}
+                            onAction={(key) => {
+                              if (key === 'assign') onAssignPosition(user);
+                              if (key === 'edit') onEdit(user);
+                              if (key === 'delete') onDelete(user);
+                            }}
+                          >
+                            <Dropdown.Item id="assign" textValue="Atur Jabatan">
+                              <div className="flex items-center gap-2">
+                                <UserPlus className="h-4 w-4 text-muted-foreground" />
+                                <span>Atur Jabatan</span>
+                              </div>
+                            </Dropdown.Item>
+
+                            <Dropdown.Item id="edit" textValue="Edit Profil">
+                              <div className="flex items-center gap-2">
+                                <Edit className="h-4 w-4 text-muted-foreground" />
+                                <span>Edit Profil</span>
+                              </div>
+                            </Dropdown.Item>
+
+                            <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+                              <div className="flex items-center gap-2 text-danger">
+                                <Trash2 className="h-4 w-4" />
+                                <span>Hapus</span>
+                              </div>
+                            </Dropdown.Item>
+                          </Dropdown.Menu>
+                        </Dropdown.Popover>
+                      </Dropdown>
+                    </div>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
+
+      {/* Show pagination only when not loading and data exists */}
+      {!isLoading && totalItems > 0 && (
+        <Pagination className="w-full">
+          <Pagination.Summary>
+            Menampilkan {startItem}-{endItem} dari {totalItems} hasil
+          </Pagination.Summary>
+          <Pagination.Content>
+
+            <Pagination.Item>
+              <Pagination.Previous isDisabled={page === 1} onPress={() => setPage((p) => p - 1)}>
+                <Pagination.PreviousIcon />
+                <span>Sebelumnya</span>
+              </Pagination.Previous>
+            </Pagination.Item>
+
+            {getPageNumbers().map((p, i) =>
+              p === 'ellipsis' ? (
+                <Pagination.Item key={`ellipsis-${i}`}>
+                  <Pagination.Ellipsis />
+                </Pagination.Item>
+              ) : (
+                <Pagination.Item key={p}>
+                  <Pagination.Link isActive={p === page} onPress={() => setPage(p)}>
+                    {p}
+                  </Pagination.Link>
+                </Pagination.Item>
+              ),
+            )}
+
+            <Pagination.Item>
+              <Pagination.Next isDisabled={page === totalPages} onPress={() => setPage((p) => p + 1)}>
+                <span>Selanjutnya</span>
+                <Pagination.NextIcon />
+              </Pagination.Next>
+            </Pagination.Item>
+
+          </Pagination.Content>
+        </Pagination>
       )}
     </div>
   );

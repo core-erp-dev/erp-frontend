@@ -1,4 +1,4 @@
-// Position hierarchy types based on Employee Management API
+// Position hierarchy types based on Employee Management API Documentation
 
 export interface AssignedUser {
   id: string;
@@ -39,18 +39,8 @@ export interface PositionUpdateRequest {
   isActive?: boolean;
 }
 
-export interface ApiResponse<T> {
-  status: number;
-  message: string;
-  data: T;
-}
-
-export interface ApiErrorResponse {
-  title: string;
-  status: number;
-  detail: string;
-  timestamp: string;
-}
+// Re-export shared API types for backward compatibility within this module
+export type { ApiResponse, ApiErrorResponse } from '@/types/api';
 
 export interface PositionTreeResponse {
   tree: PositionTree[];

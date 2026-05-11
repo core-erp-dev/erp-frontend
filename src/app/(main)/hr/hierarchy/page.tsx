@@ -1,4 +1,4 @@
-import HierarchyPage from '@/modules/hr/hierarchy/pages/hierarchy-page';
+import { HierarchyView as HierarchyPage } from '@/modules/hr/hierarchy/components/hierarchy-view';
 
 export default function Page() {
   return <HierarchyPage />;
