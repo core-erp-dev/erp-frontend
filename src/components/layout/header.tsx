@@ -15,7 +15,7 @@ export function Header() {
           Ganti Modul
         </Button>
 
-        <Button variant="tertiary" size="md" isIconOnly>
+        <Button variant="tertiary" size="md" isIconOnly aria-label="Pengaturan">
           <Settings className="h-4 w-4" />
         </Button>
       </div>

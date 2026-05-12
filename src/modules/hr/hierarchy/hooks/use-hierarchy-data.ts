@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@heroui/react';
 import type { Selection } from '@heroui/react';
 import { AxiosError } from 'axios';
 
@@ -15,21 +15,14 @@ import { flattenPositionTree, buildTableItems, toPositionTree } from '../../shar
 import type { CoreUser } from '../../employees/types';
 
 interface UseHierarchyDataReturn {
-  // Loading states
   isLoading: boolean;
   isRefreshing: boolean;
-
-  // Position data
   positions: PositionTree[];
   flatPositions: FlatPosition[];
   filteredPositions: FlatPosition[];
   tableItems: ReturnType<typeof buildTableItems>;
-
-  // Search
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-
-  // Tree expansion
   expandedKeys: Selection;
   setExpandedKeys: (keys: Selection) => void;
 
@@ -57,10 +50,14 @@ interface UseHierarchyDataReturn {
     isPrimary: boolean;
   }) => Promise<void>;
 
-  // Delete
-  handleDelete: (pos: FlatPosition) => Promise<void>;
+  // Delete dialog (replaces window.confirm)
+  isDeleteDialogOpen: boolean;
+  deletingPosition: FlatPosition | null;
+  isDeleting: boolean;
+  handleDeleteRequest: (pos: FlatPosition) => void;
+  handleDeleteDialogClose: () => void;
+  handleDeleteConfirm: () => Promise<void>;
 
-  // Refresh
   fetchPositions: (showRefresh?: boolean) => Promise<void>;
 }
 
@@ -82,7 +79,12 @@ export function useHierarchyData(): UseHierarchyDataReturn {
   const [allUsers, setAllUsers] = useState<CoreUser[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
-  // ── Data fetching ─────────────────────────────────────────
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingPosition, setDeletingPosition] = useState<FlatPosition | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Data fetching
   const fetchPositions = useCallback(async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
     else setIsLoading(true);
@@ -95,7 +97,7 @@ export function useHierarchyData(): UseHierarchyDataReturn {
         error instanceof Error
           ? error.message
           : 'Gagal memuat hierarki jabatan';
-      toast.error(errorMessage, {
+      toast.danger(errorMessage, {
         description: 'Silakan coba lagi nanti.',
       });
     } finally {
@@ -106,10 +108,10 @@ export function useHierarchyData(): UseHierarchyDataReturn {
 
   useEffect(() => {
     fetchPositions();
-    employeeApi.getUsers().then(setAllUsers).catch(() => {});
+    employeeApi.getUsers().then((res) => setAllUsers(res.content)).catch(() => {});
   }, [fetchPositions]);
 
-  // ── Derived data ──────────────────────────────────────────
+  // Derived data
   const flatPositions = useMemo(
     () => flattenPositionTree(positions),
     [positions],
@@ -130,7 +132,7 @@ export function useHierarchyData(): UseHierarchyDataReturn {
     [filteredPositions],
   );
 
-  // ── Form modal handlers ───────────────────────────────────
+  // Form modal handlers
   const handleAddRootPosition = () => {
     setSelectedPosition(null);
     setParentPositionId(null);
@@ -201,23 +203,33 @@ export function useHierarchyData(): UseHierarchyDataReturn {
         }
       }
 
-      toast.error(errorTitle, { description: errorDescription });
+      toast.danger(errorTitle, { description: errorDescription });
       throw error;
     }
   };
 
-  // ── Delete handler ────────────────────────────────────────
-  const handleDelete = async (pos: FlatPosition) => {
-    const confirmed = window.confirm(
-      `Apakah Anda yakin ingin menghapus jabatan "${pos.positionName}"?\n\nTindakan ini tidak dapat dibatalkan.`,
-    );
-    if (!confirmed) return;
+  // Delete dialog handlers (replaces window.confirm)
+  const handleDeleteRequest = (pos: FlatPosition) => {
+    setDeletingPosition(pos);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteDialogClose = () => {
+    setIsDeleteDialogOpen(false);
+    setDeletingPosition(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingPosition) return;
+    setIsDeleting(true);
 
     try {
-      await organizationApi.deletePosition(pos.id);
+      await organizationApi.deletePosition(deletingPosition.id);
       toast.success('Jabatan berhasil dihapus', {
-        description: `"${pos.positionName}" telah dihapus.`,
+        description: `"${deletingPosition.positionName}" telah dihapus.`,
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingPosition(null);
       fetchPositions(true);
     } catch (error) {
       let errorTitle = 'Gagal menghapus jabatan';
@@ -239,24 +251,19 @@ export function useHierarchyData(): UseHierarchyDataReturn {
             errorTitle = 'Tidak Dapat Menghapus: Memiliki Karyawan';
             errorDescription =
               'Jabatan ini memiliki karyawan yang ditugaskan. Silakan pindahkan terlebih dahulu.';
-          } else if (
-            detail.toLowerCase().includes('circular') ||
-            detail.toLowerCase().includes('reference')
-          ) {
-            errorTitle = 'Referensi Sirkular Terdeteksi';
-            errorDescription =
-              'Operasi ini akan membuat referensi sirkular dalam hierarki.';
           } else {
             errorDescription = detail || errorDescription;
           }
         }
       }
 
-      toast.error(errorTitle, { description: errorDescription });
+      toast.danger(errorTitle, { description: errorDescription });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  // ── Assign user handlers ──────────────────────────────────
+  // Assign user handlers
   const handleAssignUser = (pos: FlatPosition) => {
     setAssignPositionId(pos.id);
     setIsAssignModalOpen(true);
@@ -287,7 +294,7 @@ export function useHierarchyData(): UseHierarchyDataReturn {
         error instanceof AxiosError && error.response?.data?.message
           ? error.response.data.message
           : 'Gagal menugaskan karyawan ke jabatan';
-      toast.error(errorMessage);
+      toast.danger(errorMessage);
       throw error;
     } finally {
       setIsAssigning(false);
@@ -295,25 +302,16 @@ export function useHierarchyData(): UseHierarchyDataReturn {
   };
 
   return {
-    // Loading states
     isLoading,
     isRefreshing,
-
-    // Position data
     positions,
     flatPositions,
     filteredPositions,
     tableItems,
-
-    // Search
     searchTerm,
     setSearchTerm,
-
-    // Tree expansion
     expandedKeys,
     setExpandedKeys,
-
-    // Form modal
     isFormModalOpen,
     selectedPosition,
     parentPositionId,
@@ -322,8 +320,6 @@ export function useHierarchyData(): UseHierarchyDataReturn {
     handleEdit,
     handleFormModalClose,
     handleFormSubmit,
-
-    // Assign modal
     isAssignModalOpen,
     assignPositionId,
     allUsers,
@@ -331,11 +327,12 @@ export function useHierarchyData(): UseHierarchyDataReturn {
     handleAssignUser,
     handleAssignModalClose,
     handleAssignSubmit,
-
-    // Delete
-    handleDelete,
-
-    // Refresh
+    isDeleteDialogOpen,
+    deletingPosition,
+    isDeleting,
+    handleDeleteRequest,
+    handleDeleteDialogClose,
+    handleDeleteConfirm,
     fetchPositions,
   };
 }

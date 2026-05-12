@@ -3,23 +3,19 @@ import { toast } from '@heroui/react';
 
 import { employeeApi } from '../services/employee-api';
 import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
-import { CoreUser, UserCreateRequest, UserUpdateRequest, AssignUserPositionRequest } from '../types';
+import { CoreUser, UserCreateRequest, UserUpdateRequest, AssignUserPositionRequest, PaginatedResponse } from '../types';
 import { PositionTree } from '@/modules/hr/hierarchy/types';
 import { extractErrorMessage } from '@/types/api';
 
 interface UseEmployeeDataReturn {
-  // Data
   users: CoreUser[];
   positions: PositionTree[];
   isLoading: boolean;
-
-  // User CRUD
-  fetchUsers: () => Promise<void>;
+  pagination: PaginatedResponse<CoreUser> | null;
+  fetchUsers: (page?: number, size?: number, search?: string) => Promise<void>;
   createUser: (data: UserCreateRequest) => Promise<boolean>;
   updateUser: (id: string, data: UserUpdateRequest) => Promise<boolean>;
   deleteUser: (id: string) => Promise<boolean>;
-
-  // Position assignment
   assignPosition: (data: AssignUserPositionRequest) => Promise<boolean>;
 }
 
@@ -27,15 +23,20 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const [users, setUsers] = useState<CoreUser[]>([]);
   const [positions, setPositions] = useState<PositionTree[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginatedResponse<CoreUser> | null>(null);
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (page = 0, size = 10, search?: string) => {
     try {
       setIsLoading(true);
-      const data = await employeeApi.getUsers();
-      setUsers(data);
+      const data = await employeeApi.getUsers({
+        page,
+        size,
+        search: search || undefined,
+      });
+      setUsers(data.content);
+      setPagination(data);
     } catch (error) {
       toast.danger('Gagal memuat data karyawan');
-      console.error('Error fetching users:', error);
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +47,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       const data = await organizationApi.fetchPositionTree();
       setPositions(data);
     } catch {
-      // Positions are supplementary data for the assign modal - fail silently
+      // Positions are supplementary data - fail silently
     }
   }, []);
 
@@ -115,6 +116,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     users,
     positions,
     isLoading,
+    pagination,
     fetchUsers,
     createUser,
     updateUser,

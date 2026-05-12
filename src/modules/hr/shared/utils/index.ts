@@ -1,5 +1,5 @@
-export { flattenPositionTree } from './flatten-positions';
-export type { FlatPosition } from './flatten-positions';
+export { flattenPositionTree, flattenPositionsByDepth, findPositionInTree } from './flatten-positions';
+export type { FlatPosition, FlatPositionWithDepth } from './flatten-positions';
 export {
   buildTableItems,
   getLevelColor,

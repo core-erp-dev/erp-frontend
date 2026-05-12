@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Edit, Trash2, UserPlus, MoreVertical } from 'lucide-react';
 import {
   Table,
@@ -9,86 +9,48 @@ import {
   Button,
   Pagination,
 } from '@heroui/react';
-import { CoreUser } from '../types';
+import { CoreUser, PaginatedResponse } from '../types';
 
 interface DataTableProps {
   users: CoreUser[];
   isLoading?: boolean;
   searchQuery?: string;
+  pagination: PaginatedResponse<CoreUser> | null;
+  onPageChange: (page: number) => void;
   onEdit: (user: CoreUser) => void;
   onDelete: (user: CoreUser) => void;
   onAssignPosition: (user: CoreUser) => void;
 }
 
-/** Number of rows displayed per page. */
-const ITEMS_PER_PAGE = 10;
-
 export const DataTable: React.FC<DataTableProps> = ({
   users,
   isLoading = false,
   searchQuery = '',
+  pagination,
+  onPageChange,
   onEdit,
   onDelete,
   onAssignPosition,
 }) => {
-  const [page, setPage] = useState(1);
-  const [prevSearchQuery, setPrevSearchQuery] = useState(searchQuery);
+  const currentPage = pagination ? pagination.page + 1 : 1;
+  const totalPages = pagination ? pagination.totalPages : 1;
+  const totalItems = pagination ? pagination.totalElements : 0;
+  const startItem = totalItems > 0 ? (currentPage - 1) * (pagination?.size ?? 10) + 1 : 0;
+  const endItem = Math.min(currentPage * (pagination?.size ?? 10), totalItems);
 
-  // Official React pattern for resetting state based on prop changes (no useEffect needed)
-  if (searchQuery !== prevSearchQuery) {
-    setPage(1);
-    setPrevSearchQuery(searchQuery);
-  }
-
-  // 1. Filter data based on search query
-  const filteredUsers = users.filter(
-    (user) =>
-      user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (user.nip && user.nip.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  // 2. Pagination calculations
-  const totalItems = filteredUsers.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE) || 1;
-  const startItem = (page - 1) * ITEMS_PER_PAGE + 1;
-  const endItem = Math.min(page * ITEMS_PER_PAGE, totalItems);
-
-  // 3. Slice data for the current active page
-  const paginatedUsers = filteredUsers.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE,
-  );
-
-  // Build page numbers array (includes ellipsis indicators)
   const getPageNumbers = (): (number | 'ellipsis')[] => {
     const pages: (number | 'ellipsis')[] = [];
-
     if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-
-      if (page > 3) {
-        pages.push('ellipsis');
-      }
-
-      const start = Math.max(2, page - 1);
-      const end = Math.min(totalPages - 1, page + 1);
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-
-      if (page < totalPages - 2) {
-        pages.push('ellipsis');
-      }
-
+      if (currentPage > 3) pages.push('ellipsis');
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (currentPage < totalPages - 2) pages.push('ellipsis');
       pages.push(totalPages);
     }
-
     return pages;
   };
 
@@ -105,7 +67,6 @@ export const DataTable: React.FC<DataTableProps> = ({
               <Table.Column id="role">Role</Table.Column>
               <Table.Column id="actions" aria-label="Aksi" className="w-16 text-center">{''}</Table.Column>
             </Table.Header>
-
             <Table.Body
               renderEmptyState={() =>
                 isLoading ? (
@@ -123,39 +84,28 @@ export const DataTable: React.FC<DataTableProps> = ({
                 )
               }
             >
-              {/* Rendered using paginated data slice */}
-              {paginatedUsers.map((user) => (
+              {users.map((user) => (
                 <Table.Row key={user.id} id={user.id}>
                   <Table.Cell className="font-medium text-foreground">
                     {user.nip || '-'}
                   </Table.Cell>
-
                   <Table.Cell>{user.fullName}</Table.Cell>
-
                   <Table.Cell className="text-muted-foreground">{user.email}</Table.Cell>
-
                   <Table.Cell>
-                    {user.primaryPosition ? (
-                      user.primaryPosition.positionName
-                    ) : (
-                      '—'
-                    )}
+                    {user.primaryPosition ? user.primaryPosition.positionName : '—'}
                   </Table.Cell>
-
                   <Table.Cell>
                     {user.roles?.length > 0 ? (
                       user.roles[0].description || user.roles[0].roleCode
                     ) : (
                       <span className="text-sm italic text-muted-foreground">
-                        No role
+                        Tanpa Role
                       </span>
                     )}
                   </Table.Cell>
-
                   <Table.Cell>
                     <div className="flex justify-end">
                       <Dropdown>
-                        <Dropdown.Trigger>
                           <Button
                             isIconOnly
                             variant="tertiary"
@@ -164,8 +114,6 @@ export const DataTable: React.FC<DataTableProps> = ({
                           >
                             <MoreVertical className="h-4 w-4 text-muted-foreground" />
                           </Button>
-                        </Dropdown.Trigger>
-
                         <Dropdown.Popover placement="bottom right" className="min-w-48">
                           <Dropdown.Menu
                             aria-label={`Menu aksi untuk ${user.fullName}`}
@@ -181,14 +129,12 @@ export const DataTable: React.FC<DataTableProps> = ({
                                 <span>Atur Jabatan</span>
                               </div>
                             </Dropdown.Item>
-
                             <Dropdown.Item id="edit" textValue="Edit Profil">
                               <div className="flex items-center gap-2">
                                 <Edit className="h-4 w-4 text-muted-foreground" />
                                 <span>Edit Profil</span>
                               </div>
                             </Dropdown.Item>
-
                             <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
                               <div className="flex items-center gap-2 text-danger">
                                 <Trash2 className="h-4 w-4" />
@@ -207,21 +153,18 @@ export const DataTable: React.FC<DataTableProps> = ({
         </Table.ScrollContainer>
       </Table>
 
-      {/* Show pagination only when not loading and data exists */}
       {!isLoading && totalItems > 0 && (
         <Pagination className="w-full">
           <Pagination.Summary>
             Menampilkan {startItem}-{endItem} dari {totalItems} hasil
           </Pagination.Summary>
           <Pagination.Content>
-
             <Pagination.Item>
-              <Pagination.Previous isDisabled={page === 1} onPress={() => setPage((p) => p - 1)}>
+              <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange(currentPage - 1)}>
                 <Pagination.PreviousIcon />
                 <span>Sebelumnya</span>
               </Pagination.Previous>
             </Pagination.Item>
-
             {getPageNumbers().map((p, i) =>
               p === 'ellipsis' ? (
                 <Pagination.Item key={`ellipsis-${i}`}>
@@ -229,20 +172,18 @@ export const DataTable: React.FC<DataTableProps> = ({
                 </Pagination.Item>
               ) : (
                 <Pagination.Item key={p}>
-                  <Pagination.Link isActive={p === page} onPress={() => setPage(p)}>
+                  <Pagination.Link isActive={p === currentPage} onPress={() => onPageChange(p)}>
                     {p}
                   </Pagination.Link>
                 </Pagination.Item>
               ),
             )}
-
             <Pagination.Item>
-              <Pagination.Next isDisabled={page === totalPages} onPress={() => setPage((p) => p + 1)}>
+              <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange(currentPage + 1)}>
                 <span>Selanjutnya</span>
                 <Pagination.NextIcon />
               </Pagination.Next>
             </Pagination.Item>
-
           </Pagination.Content>
         </Pagination>
       )}

@@ -22,6 +22,7 @@ import {
 import { parseDate } from "@internationalized/date";
 import { CoreUser } from "../types";
 import { PositionTree } from "@/modules/hr/hierarchy/types";
+import { flattenPositionsByDepth } from "../../shared/utils";
 
 interface AssignUserModalProps {
   isOpen: boolean;
@@ -79,21 +80,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
     }
   }, [isOpen, userId, positionId]);
 
-  const flattenPositions = (
-    positions: PositionTree[],
-    depth = 0,
-  ): { position: PositionTree; depth: number }[] => {
-    const result: { position: PositionTree; depth: number }[] = [];
-    positions.forEach((pos) => {
-      result.push({ position: pos, depth });
-      if (pos.children && pos.children.length > 0) {
-        result.push(...flattenPositions(pos.children, depth + 1));
-      }
-    });
-    return result;
-  };
-
-  const flatPositions = flattenPositions(positions);
+  const flatPositions = flattenPositionsByDepth(positions);
   const activeUsers = users.filter((u) => u.isActive);
 
   const getSelectedUserName = () => {

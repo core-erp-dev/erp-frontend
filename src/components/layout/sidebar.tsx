@@ -14,13 +14,12 @@ import {
   LogOut,
 } from "lucide-react";
 import { logout } from "@/lib/auth";
+import { useAuthStore } from "@/store/auth-store";
 
-// Fallback icon map for string-based icon references
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
   dashboard: LayoutDashboard,
 };
 
-// Helper to render an icon from either a string key or a component
 const getIcon = (
   icon: string | React.FC<{ className?: string }>,
   className?: string,
@@ -35,24 +34,26 @@ const getIcon = (
 
 export function Sidebar() {
   const pathname = usePathname();
+  const user = useAuthStore((state) => state.user);
 
-  // Extract the active module from the first path segment
-  // e.g. "/hr/employees" → "hr", "/finance/reports" → "finance"
   const activeModule = pathname.split("/").filter(Boolean)[0] || "";
 
-  // Filter sidebar items to only show those belonging to the active module
   const filteredItems = sidebarConfig.filter(
     (item) => item.module === activeModule,
   );
 
+  const userInitial = user?.username
+    ? user.username.charAt(0).toUpperCase()
+    : "U";
+  const displayName = user?.username || "Pengguna";
+  const displayEmail = user?.email || "-";
+
   return (
     <aside className="flex w-64 flex-col border-r border-border bg-background">
-      {/* Header Sidebar */}
       <div className="flex h-14 items-center px-4">
         <span className="font-bold text-foreground">erpsystem</span>
       </div>
 
-      {/* Navigasi Utama */}
       <nav className="flex-1 overflow-y-auto p-4">
         <ul className="space-y-1">
           {filteredItems.map((item) => {
@@ -80,24 +81,21 @@ export function Sidebar() {
         </ul>
       </nav>
 
-      {/* Footer / User Profile */}
       <div className="p-4 flex items-center justify-between gap-3">
-        {/* Informasi Profil Statis */}
         <div className="flex items-center gap-3 overflow-hidden pl-1">
           <Avatar size="sm">
-            <Avatar.Fallback>U</Avatar.Fallback>
+            <Avatar.Fallback>{userInitial}</Avatar.Fallback>
           </Avatar>
           <div className="flex flex-col items-start text-left truncate">
             <span className="font-medium text-foreground truncate w-full">
-              User
+              {displayName}
             </span>
             <span className="text-xs text-muted-foreground truncate w-full">
-              user@example.com
+              {displayEmail}
             </span>
           </div>
         </div>
 
-        {/* Dropdown Trigger */}
         <Dropdown>
           <Dropdown.Trigger className="outline-none">
             <div
@@ -107,7 +105,6 @@ export function Sidebar() {
               <MoreVertical className="h-5 w-5 text-muted-foreground" />
             </div>
           </Dropdown.Trigger>
-
           <Dropdown.Popover placement="right bottom" className="min-w-50">
             <Dropdown.Menu
               onAction={(key) => {
@@ -122,16 +119,13 @@ export function Sidebar() {
                   <Label className="font-normal">Akun</Label>
                 </div>
               </Dropdown.Item>
-
               <Dropdown.Item id="settings" textValue="Pengaturan">
                 <div className="flex items-center gap-2">
                   <Settings className="h-4 w-4 text-muted-foreground" />
                   <Label className="font-normal">Pengaturan</Label>
                 </div>
               </Dropdown.Item>
-
               <Separator />
-
               <Dropdown.Item id="logout" textValue="Keluar" variant="danger">
                 <div className="flex items-center gap-2 text-danger">
                   <LogOut className="h-4 w-4" />

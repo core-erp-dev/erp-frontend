@@ -5,6 +5,7 @@ import {
   Button,
   Chip,
   Dropdown,
+  Modal,
   SearchField,
   Spinner,
   Table,
@@ -18,6 +19,7 @@ import {
   UserPlus,
   Search,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -54,17 +56,20 @@ export const HierarchyView: React.FC = () => {
     handleAssignUser,
     handleAssignModalClose,
     handleAssignSubmit,
-    handleDelete,
+    isDeleteDialogOpen,
+    deletingPosition,
+    isDeleting,
+    handleDeleteRequest,
+    handleDeleteDialogClose,
+    handleDeleteConfirm,
     fetchPositions,
   } = useHierarchyData();
 
-  // ── Position row renderer ─────────────────────────────────
   const renderPositionRow = (item: PositionRow) => {
     const pos = item.position;
 
     return (
       <Table.Row id={item.key} textValue={pos.positionName}>
-        {/* Position name — tree column with chevron */}
         <Table.Cell textValue={pos.positionName}>
           {({ hasChildItems, isExpanded, isTreeColumn }: { hasChildItems: boolean; isExpanded: boolean; isTreeColumn: boolean }) => (
             <span className="flex items-center gap-2">
@@ -89,34 +94,28 @@ export const HierarchyView: React.FC = () => {
           )}
         </Table.Cell>
 
-        {/* Code */}
         <Table.Cell>
           <code className="rounded bg-default-100 px-1.5 py-0.5 text-xs">
             {pos.positionCode}
           </code>
         </Table.Cell>
 
-        {/* Level */}
         <Table.Cell>
           <Chip size="sm" color={getLevelColor(pos.positionLevel)} variant="soft">
             Level {pos.positionLevel}
           </Chip>
         </Table.Cell>
 
-        {/* Parent */}
         <Table.Cell>{pos.parentName || '—'}</Table.Cell>
 
-        {/* Staff count */}
         <Table.Cell>
           <span className="font-medium tabular-nums">
             {pos.assignedUsers.length}
           </span>
         </Table.Cell>
 
-        {/* Actions */}
         <Table.Cell>
           <Dropdown>
-            <Dropdown.Trigger>
               <Button
                 variant="tertiary"
                 isIconOnly
@@ -125,7 +124,6 @@ export const HierarchyView: React.FC = () => {
               >
                 <MoreVertical className="h-4 w-4 text-muted-foreground" />
               </Button>
-            </Dropdown.Trigger>
             <Dropdown.Popover>
               <Dropdown.Menu
                 aria-label={`Menu aksi untuk ${pos.positionName}`}
@@ -135,7 +133,7 @@ export const HierarchyView: React.FC = () => {
                       handleEdit(pos);
                       break;
                     case 'delete':
-                      handleDelete(pos);
+                      handleDeleteRequest(pos);
                       break;
                     case 'add-sub':
                       handleAddSubordinate(pos.id);
@@ -175,7 +173,6 @@ export const HierarchyView: React.FC = () => {
           </Dropdown>
         </Table.Cell>
 
-        {/* Expanded children — employee rows */}
         <Table.Collection items={item.children}>
           {(child) => {
             if (child.key.startsWith('empty-')) {
@@ -227,14 +224,11 @@ export const HierarchyView: React.FC = () => {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      {/* Header */}
       <div className="flex flex-col gap-4">
-        {/* Title */}
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">
             Struktur Jabatan
           </h1>
-
           <Button
             isIconOnly
             variant="tertiary"
@@ -246,7 +240,6 @@ export const HierarchyView: React.FC = () => {
           </Button>
         </div>
 
-        {/* Search & Actions */}
         <div className="flex items-center justify-between">
           <SearchField
             name="search"
@@ -284,7 +277,6 @@ export const HierarchyView: React.FC = () => {
         </div>
       </div>
 
-      {/* Empty state (only when not loading) */}
       {!isLoading && filteredPositions.length === 0 ? (
         <div className="flex flex-col items-center justify-center px-4 py-16">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -306,7 +298,6 @@ export const HierarchyView: React.FC = () => {
           )}
         </div>
       ) : (
-        /* Table */
         <Table>
           <Table.ScrollContainer>
             <Table.Content
@@ -352,7 +343,6 @@ export const HierarchyView: React.FC = () => {
         </Table>
       )}
 
-      {/* Form Modal */}
       <PositionFormModal
         isOpen={isFormModalOpen}
         onClose={handleFormModalClose}
@@ -362,7 +352,6 @@ export const HierarchyView: React.FC = () => {
         allPositions={positions}
       />
 
-      {/* Assign User Modal */}
       <AssignUserModal
         isOpen={isAssignModalOpen}
         onClose={handleAssignModalClose}
@@ -372,6 +361,52 @@ export const HierarchyView: React.FC = () => {
         positions={positions}
         isSubmitting={isAssigning}
       />
+
+      {/* Delete Position Dialog (replaces window.confirm) */}
+      <Modal>
+        <Modal.Backdrop
+          isOpen={isDeleteDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) handleDeleteDialogClose();
+          }}
+        >
+          <Modal.Container>
+            <Modal.Dialog className="sm:max-w-md">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading className="px-2 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  Konfirmasi Hapus Jabatan
+                </Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="p-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus jabatan{' '}
+                  <strong className="text-foreground">{deletingPosition?.positionName}</strong>?
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button
+                  variant="secondary"
+                  onPress={handleDeleteDialogClose}
+                  isDisabled={isDeleting}
+                >
+                  Batal
+                </Button>
+                <Button
+                  variant="danger"
+                  onPress={handleDeleteConfirm}
+                  isDisabled={isDeleting}
+                  isPending={isDeleting}
+                >
+                  {isDeleting ? 'Menghapus...' : 'Hapus Jabatan'}
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
     </div>
   );
 };

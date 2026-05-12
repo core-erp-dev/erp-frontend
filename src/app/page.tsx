@@ -7,37 +7,26 @@ import { AuthGuard } from '@/components/layout/auth-guard';
 
 const modules = [
   {
-    title: 'Human Resources',
-    description: 'Manage employees, organization hierarchy, and HR operations.',
+    title: 'Sumber Daya Manusia',
+    description: 'Kelola karyawan, hierarki organisasi, dan operasional HR.',
     href: '/hr',
     icon: Users,
     color: 'text-blue-600',
     bgColor: 'bg-blue-50',
   },
-  // Future modules:
-  // {
-  //   title: 'Finance',
-  //   description: 'Manage invoices, payments, and financial reports.',
-  //   href: '/finance',
-  //   icon: DollarSign,
-  //   color: 'text-green-600',
-  //   bgColor: 'bg-green-50',
-  // },
 ];
 
 export default function ModuleSelectorPage() {
   return (
     <AuthGuard>
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-8">
-        {/* Header */}
         <div className="mb-12 text-center">
           <h1 className="text-3xl font-bold text-foreground">erpsystem</h1>
           <p className="mt-2 text-muted-foreground">
-            Select a module to get started
+            Pilih modul untuk memulai
           </p>
         </div>
 
-        {/* Module Cards Grid */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {modules.map((mod) => {
             const Icon = mod.icon;

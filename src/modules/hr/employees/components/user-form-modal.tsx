@@ -20,13 +20,11 @@ import {
 import { CoreUser, UserCreateRequest, UserUpdateRequest, RoleResponse } from '../types';
 import { employeeApi } from '../services/employee-api';
 
-/** Dynamic Zod schema based on edit/create mode. */
 const getUserFormSchema = (isEditMode: boolean) =>
   z.object({
     email: z.string().email('Format email tidak valid'),
     fullName: z.string().min(1, 'Nama lengkap wajib diisi'),
     nip: z.string().optional(),
-    // Password required on create, optional on edit
     password: isEditMode
       ? z.string().optional().or(z.literal(''))
       : z.string().min(6, 'Kata sandi minimal 6 karakter wajib diisi'),
@@ -73,8 +71,8 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     try {
       const fetchedRoles = await employeeApi.getRoles();
       setRoles(fetchedRoles);
-    } catch (error) {
-      console.error('Failed to fetch roles:', error);
+    } catch {
+      // Fail silently — roles list will be empty
     } finally {
       setIsLoadingRoles(false);
     }
@@ -139,17 +137,13 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
-
             <Modal.Header>
               <Modal.Heading className="px-2">
                 {isEditMode ? 'Edit Karyawan' : 'Tambah Karyawan Baru'}
               </Modal.Heading>
             </Modal.Header>
-
             <Modal.Body className="p-2">
               <form id="user-form" onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
-
-                {/* Email */}
                 <Controller
                   control={form.control}
                   name="email"
@@ -170,8 +164,6 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                     </TextField>
                   )}
                 />
-
-                {/* Nama Lengkap */}
                 <Controller
                   control={form.control}
                   name="fullName"
@@ -192,8 +184,6 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                     </TextField>
                   )}
                 />
-
-                {/* NIP */}
                 <Controller
                   control={form.control}
                   name="nip"
@@ -213,8 +203,6 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                     </TextField>
                   )}
                 />
-
-                {/* Password - Only shown and required when creating a new employee */}
                 {!isEditMode && (
                   <Controller
                     control={form.control}
@@ -231,14 +219,12 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                         isDisabled={isSubmitting}
                       >
                         <Label>Kata Sandi</Label>
-                        <Input placeholder="Masukkan kata sandi" type="password" autoComplete="new-password" />
+                        <Input placeholder="Minimal 6 karakter" type="password" autoComplete="new-password" />
                         {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                       </TextField>
                     )}
                   />
                 )}
-
-                {/* Role Autocomplete */}
                 <Controller
                   control={form.control}
                   name="defaultRoleCode"
@@ -247,14 +233,16 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                       isRequired
                       validationBehavior="aria"
                       className="w-full"
-                      placeholder={isLoadingRoles ? "Memuat role..." : "Cari dan pilih role..."}
+                      placeholder="Pilih role..."
                       selectionMode="single"
                       selectedKey={field.value || null}
-                      onSelectionChange={(key) => field.onChange(key ? key.toString() : '')}
+                      onSelectionChange={(key) => {
+                        field.onChange(key ?? '');
+                      }}
                       isInvalid={!!fieldState.error}
                       isDisabled={isSubmitting || isLoadingRoles}
                     >
-                      <Label>Role (Peran)</Label>
+                      <Label>Role</Label>
                       <Autocomplete.Trigger>
                         <Autocomplete.Value />
                         <Autocomplete.ClearButton />
@@ -262,7 +250,11 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                       </Autocomplete.Trigger>
                       <Autocomplete.Popover>
                         <Autocomplete.Filter filter={contains}>
-                          <SearchField autoFocus name="search" variant="secondary">
+                          <SearchField
+                            autoFocus
+                            name="role-search"
+                            variant="secondary"
+                          >
                             <SearchField.Group>
                               <SearchField.SearchIcon />
                               <SearchField.Input placeholder="Cari role..." />
@@ -274,10 +266,9 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                               <ListBox.Item
                                 key={role.roleCode}
                                 id={role.roleCode}
-                                textValue={role.description}
+                                textValue={role.description || role.roleCode}
                               >
-                                {role.description}
-                                <ListBox.ItemIndicator />
+                                <span>{role.description || role.roleCode}</span>
                               </ListBox.Item>
                             ))}
                           </ListBox>
@@ -287,15 +278,33 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                     </Autocomplete>
                   )}
                 />
+                {isEditMode && (
+                  <Controller
+                    control={form.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <TextField className="w-full">
+                        <Label>Status Aktif</Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={(e) => field.onChange(e.target.checked)}
+                            disabled={isSubmitting}
+                            className="h-4 w-4 rounded border-border"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            {field.value ? 'Aktif' : 'Nonaktif'}
+                          </span>
+                        </div>
+                      </TextField>
+                    )}
+                  />
+                )}
               </form>
             </Modal.Body>
-
             <Modal.Footer>
-              <Button
-                variant="secondary"
-                onPress={onClose}
-                isDisabled={isSubmitting}
-              >
+              <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
                 Batal
               </Button>
               <Button
@@ -305,10 +314,9 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 isDisabled={isSubmitting}
                 isPending={isSubmitting}
               >
-                {isEditMode ? 'Simpan Perubahan' : 'Buat Karyawan'}
+                {isEditMode ? 'Simpan Perubahan' : 'Tambah Karyawan'}
               </Button>
             </Modal.Footer>
-
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

@@ -23,6 +23,19 @@ export interface ApiErrorResponse {
 }
 
 /**
+ * Paginated response wrapper from backend.
+ * Used by endpoints that return paginated data (e.g., GET /api/v1/users).
+ */
+export interface PaginatedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
+/**
  * Extracts a human-readable error message from an unknown error.
  * Handles Axios errors (both message and detail formats), API error responses,
  * and generic Error objects.

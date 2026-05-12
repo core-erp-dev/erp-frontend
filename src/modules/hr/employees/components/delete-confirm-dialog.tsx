@@ -1,7 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Modal, Button, Spinner } from '@heroui/react';
+import {
+  Modal,
+  Button,
+} from '@heroui/react';
+import { AlertTriangle } from 'lucide-react';
 
 interface DeleteConfirmDialogProps {
   isOpen: boolean;
@@ -23,32 +27,31 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
       <Modal.Backdrop
         isOpen={isOpen}
         onOpenChange={(open) => {
-          if (!open && !isDeleting) onClose();
+          if (!open) onClose();
         }}
-        isDismissable={!isDeleting}
       >
         <Modal.Container>
-          <Modal.Dialog>
+          <Modal.Dialog className="sm:max-w-md">
             <Modal.CloseTrigger />
 
             <Modal.Header>
-              <Modal.Heading className="text-lg font-semibold">
-                Hapus Data Karyawan
+              <Modal.Heading className="px-2 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-warning" />
+                Konfirmasi Nonaktifkan
               </Modal.Heading>
             </Modal.Header>
 
-            <Modal.Body>
+            <Modal.Body className="p-2">
               <p className="text-sm text-muted-foreground">
-                Apakah Anda yakin ingin menghapus data untuk{' '}
-                <span className="font-semibold text-foreground">{userName}</span>?
-                Tindakan ini tidak dapat dibatalkan dan akan menghapus semua
-                data penugasan jabatannya secara permanen.
+                Apakah Anda yakin ingin menonaktifkan karyawan{' '}
+                <strong className="text-foreground">{userName}</strong>?
+                Karyawan tidak akan bisa mengakses sistem setelah dinonaktifkan.
               </p>
             </Modal.Body>
 
             <Modal.Footer>
               <Button
-                variant="tertiary"
+                variant="secondary"
                 onPress={onClose}
                 isDisabled={isDeleting}
               >
@@ -58,15 +61,9 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
                 variant="danger"
                 onPress={onConfirm}
                 isDisabled={isDeleting}
+                isPending={isDeleting}
               >
-                {isDeleting ? (
-                  <div className="flex items-center gap-2">
-                    <Spinner size="sm" color="current" />
-                    Menghapus...
-                  </div>
-                ) : (
-                  'Hapus'
-                )}
+                {isDeleting ? 'Menonaktifkan...' : 'Nonaktifkan'}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

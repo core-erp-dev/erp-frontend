@@ -1,7 +1,3 @@
-/**
- * Flattens a nested PositionTree into a flat array.
- * Used by both hierarchy-view and assign-user-modal.
- */
 import type { PositionTree, AssignedUser } from '../../hierarchy/types';
 
 export interface FlatPosition {
@@ -15,11 +11,6 @@ export interface FlatPosition {
   assignedUsers: AssignedUser[];
 }
 
-/**
- * Recursively flattens a PositionTree into a flat array of FlatPosition objects.
- * @param tree - The nested position tree to flatten
- * @param parentName - The parent position name (null for root nodes)
- */
 export const flattenPositionTree = (
   tree: PositionTree[],
   parentName: string | null = null,
@@ -36,3 +27,36 @@ export const flattenPositionTree = (
       : [];
     return [flat, ...childPositions];
   });
+
+export interface FlatPositionWithDepth {
+  position: PositionTree;
+  depth: number;
+}
+
+export const flattenPositionsByDepth = (
+  positions: PositionTree[],
+  depth = 0,
+): FlatPositionWithDepth[] => {
+  const result: FlatPositionWithDepth[] = [];
+  positions.forEach((pos) => {
+    result.push({ position: pos, depth });
+    if (pos.children && pos.children.length > 0) {
+      result.push(...flattenPositionsByDepth(pos.children, depth + 1));
+    }
+  });
+  return result;
+};
+
+export const findPositionInTree = (
+  positions: PositionTree[],
+  id: number,
+): PositionTree | undefined => {
+  for (const pos of positions) {
+    if (pos.id === id) return pos;
+    if (pos.children && pos.children.length > 0) {
+      const found = findPositionInTree(pos.children, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+};
