@@ -2,9 +2,7 @@ import axios from 'axios';
 import { env } from './env';
 import { logout } from './auth';
 import { useAuthStore } from '@/store/auth-store';
-import { refreshAccessToken } from './token-service';
-
-const isDev = process.env.NODE_ENV === 'development';
+import { refreshAccessToken } from '@/lib/token-service';
 
 export const api = axios.create({
   baseURL: env.baseUrl,
@@ -19,27 +17,15 @@ api.interceptors.request.use(
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
-    if (isDev) {
-      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
-    }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 api.interceptors.response.use(
-  (response) => {
-    if (isDev) {
-      console.log(`[API Response] ${response.status} ${response.config.url}`);
-    }
-    return response;
-  },
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
-
-    if (isDev) {
-      console.log(`[API Error] ${error.response?.status} ${originalRequest.url}`);
-    }
 
     if (originalRequest.url?.includes('/auth/login')) {
       return Promise.reject(error);
@@ -58,5 +44,5 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );

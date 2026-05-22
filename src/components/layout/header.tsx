@@ -1,17 +1,24 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
-const titleMap: Record<string, string> = {
-  '/': 'Dashboard',
-};
+import { Button } from "@heroui/react";
+import { ArrowRightLeft, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export function Header() {
-  const pathname = usePathname();
-  const title = titleMap[pathname] || 'erpsystem';
+  const router = useRouter();
 
   return (
-    <header className="flex h-14 items-center border-b border-border bg-background px-6">
-      <span className="font-semibold text-foreground">{title}</span>
+    <header className="flex h-16 items-center justify-end bg-[#f5f5f5] px-6">
+      <div className="flex items-center gap-2">
+        <Button variant="tertiary" size="md" onPress={() => router.push("/")}>
+          <ArrowRightLeft className="h-4 w-4" />
+          Ganti Modul
+        </Button>
+
+        <Button variant="tertiary" size="md" isIconOnly aria-label="Pengaturan">
+          <Settings className="h-4 w-4" />
+        </Button>
+      </div>
     </header>
   );
 }

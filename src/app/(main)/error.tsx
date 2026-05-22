@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@heroui/react';
 import { AlertCircle } from 'lucide-react';
 
-export default function DashboardError({
+export default function MainError({
   error,
   reset,
 }: {
@@ -12,7 +12,7 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    // Error is available for debugging in development tools
   }, [error]);
 
   return (
@@ -20,10 +20,10 @@ export default function DashboardError({
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
         <AlertCircle className="h-8 w-8 text-red-500" />
       </div>
-      <h2 className="text-xl font-semibold text-gray-900">Something went wrong</h2>
-      <p className="text-gray-500">An unexpected error occurred.</p>
-      <Button onClick={reset} variant="outline" className="mt-2">
-        Try again
+      <h2 className="text-xl font-semibold text-gray-900">Terjadi Kesalahan</h2>
+      <p className="text-gray-500">Terjadi kesalahan yang tidak terduga.</p>
+      <Button onPress={reset} variant="secondary" className="mt-2">
+        Coba Lagi
       </Button>
     </div>
   );
