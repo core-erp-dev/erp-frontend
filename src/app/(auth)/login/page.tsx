@@ -50,10 +50,10 @@ export default function LoginPage() {
         throw new Error('Invalid server response');
       }
 
-      const { accessToken, refreshToken, username: userName, email, role } = response.data.data;
+      const { accessToken, refreshToken, username: userName, email, roles } = response.data.data;
 
       setToken(refreshToken);
-      useAuthStore.getState().setAuth(accessToken, { username: userName, email, role });
+      useAuthStore.getState().setAuth(accessToken, { username: userName, email, roles });
 
       router.push('/');
     } catch (err: unknown) {

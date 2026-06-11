@@ -1,7 +1,7 @@
 export interface User {
   username: string;
   email: string;
-  role: string;
+  roles: string[];
 }
 
 export interface AuthResponse {
@@ -12,7 +12,7 @@ export interface AuthResponse {
     refreshToken: string;
     username: string;
     email: string;
-    role: string;
+    roles: string[];
   };
 }
 

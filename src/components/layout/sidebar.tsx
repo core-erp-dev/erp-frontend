@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { logout } from "@/lib/auth";
 import { useAuthStore } from "@/store/auth-store";
+import { KpiPendingBadge } from "@/modules/hr/kpi/components/kpi-pending-badge";
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
   dashboard: LayoutDashboard,
@@ -38,9 +39,14 @@ export function Sidebar() {
 
   const activeModule = pathname.split("/").filter(Boolean)[0] || "";
 
-  const filteredItems = sidebarConfig.filter(
-    (item) => item.module === activeModule,
-  );
+  const filteredItems = sidebarConfig.filter((item) => {
+    if (item.module !== activeModule) return false;
+    // If item has no roles restriction, show to everyone
+    if (!item.roles || item.roles.length === 0) return true;
+    // Otherwise, user must have at least one of the required roles
+    const userRoles = user?.roles ?? [];
+    return item.roles.some((role) => userRoles.includes(role));
+  });
 
   const userInitial = user?.username
     ? user.username.charAt(0).toUpperCase()
@@ -74,6 +80,8 @@ export function Sidebar() {
                     isActive ? "text-foreground" : "text-gray-500",
                   )}
                   {item.title}
+                  {/* KPI Pending Badge */}
+                  {item.href === "/hr/kpi/approvals" && <KpiPendingBadge />}
                 </Link>
               </li>
             );
