@@ -1,5 +1,5 @@
 import type React from 'react';
-import { LayoutDashboard, Users, Network, Target, CheckSquare, BarChart3, FileCheck, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Users, Network, Target, CheckSquare, BarChart3, FileCheck, ClipboardList, Settings } from 'lucide-react';
 
 export interface SidebarItem {
   title: string;
@@ -62,5 +62,11 @@ export const hrSidebar: SidebarItem[] = [
     icon: FileCheck,
     module: 'hr',
     roles: ['SUPER_ADMIN', 'HR_ADMIN', 'USER_APPROVER'],
+  },
+  {
+    title: 'Pengaturan',
+    href: '/hr/settings',
+    icon: Settings,
+    module: 'hr',
   },
 ];
