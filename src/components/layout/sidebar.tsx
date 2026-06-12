@@ -6,10 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { sidebarConfig } from "@/config/sidebar";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Settings,
-} from "lucide-react";
+import { LayoutDashboard, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { KpiPendingBadge } from "@/modules/hr/kpi/components/kpi-pending-badge";
 
@@ -45,12 +42,12 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-64 flex-col border-r border-border bg-background">
-      <div className="flex h-14 items-center gap-2 px-4">
+      <div className="flex h-14 items-center px-5 pt-1">
         <Image
           src="/logo/text-logo.svg"
           alt="STI one"
-          width={80}
-          height={24}
+          width={64}
+          height={20}
           priority
         />
       </div>

@@ -1,36 +1,26 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Avatar, Separator } from "@heroui/react";
+import { Button, Avatar, Dropdown, Label, Separator } from "@heroui/react";
 import { SquaresFour } from "@phosphor-icons/react";
-import { ChevronDown, ChevronUp, User as UserIcon, Settings, LogOut } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  User as UserIcon,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { logout } from "@/lib/auth";
 import { useAuthStore } from "@/store/auth-store";
 
 export function Header() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const userInitial = user?.username
     ? user.username.charAt(0).toUpperCase()
     : "U";
   const displayName = user?.username || "Pengguna";
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsProfileOpen(false);
-      }
-    }
-    if (isProfileOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isProfileOpen]);
 
   return (
     <header className="flex h-16 items-center justify-end bg-[#f5f5f5] px-6">
@@ -45,65 +35,59 @@ export function Header() {
           <SquaresFour className="h-5 w-5" weight="regular" />
         </Button>
 
-        {/* Profile section */}
-        <div ref={dropdownRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setIsProfileOpen((prev) => !prev)}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#EBEBEC] outline-none"
-          >
-            <Avatar size="sm">
-              <Avatar.Fallback>{userInitial}</Avatar.Fallback>
-            </Avatar>
-            <span className="text-sm font-medium text-foreground hidden sm:inline">
-              {displayName}
-            </span>
-            {isProfileOpen ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            )}
-          </button>
-
-          {isProfileOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-background shadow-lg z-50 py-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsProfileOpen(false);
+        <Dropdown>
+          <Dropdown.Trigger className="outline-none">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#EBEBEC] outline-none"
+            >
+              <Avatar size="sm">
+                <Avatar.Fallback>{userInitial}</Avatar.Fallback>
+              </Avatar>
+              <span className="text-sm font-medium text-foreground hidden sm:inline">
+                {displayName}
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
+            </button>
+          </Dropdown.Trigger>
+          <Dropdown.Popover placement="bottom end" className="min-w-48">
+            <Dropdown.Menu
+              onAction={(key) => {
+                if (key === "profile") {
                   router.push("/profile");
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-[#EBEBEC] transition-colors"
-              >
-                <UserIcon className="h-4 w-4 text-muted-foreground" />
-                Profil
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsProfileOpen(false);
+                } else if (key === "account-settings") {
                   router.push("/settings");
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-[#EBEBEC] transition-colors"
-              >
-                <Settings className="h-4 w-4 text-muted-foreground" />
-                Pengaturan Akun
-              </button>
-              <Separator />
-              <button
-                type="button"
-                onClick={() => {
-                  setIsProfileOpen(false);
+                } else if (key === "logout") {
                   logout();
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger/10 transition-colors"
+                }
+              }}
+            >
+              <Dropdown.Item id="profile" textValue="Profil">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  <Label className="font-normal">Profil</Label>
+                </div>
+              </Dropdown.Item>
+              <Dropdown.Item id="account-settings" textValue="Pengaturan Akun">
+                <div className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <Label className="font-normal">Pengaturan Akun</Label>
+                </div>
+              </Dropdown.Item>
+              <Separator />
+              <Dropdown.Item
+                id="logout"
+                textValue="Keluar"
+                variant="danger"
               >
-                <LogOut className="h-4 w-4" />
-                Keluar
-              </button>
-            </div>
-          )}
-        </div>
+                <div className="flex items-center gap-2 text-danger">
+                  <LogOut className="h-4 w-4" />
+                  <Label className="font-normal">Keluar</Label>
+                </div>
+              </Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
       </div>
     </header>
   );
