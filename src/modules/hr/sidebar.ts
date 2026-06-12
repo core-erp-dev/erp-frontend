@@ -34,14 +34,14 @@ export const hrSidebar: SidebarItem[] = [
     href: '/hr/kpi/tasks',
     icon: Target,
     module: 'hr',
-    roles: ['ROLE_ADMIN', 'ROLE_EMPLOYEE'],
+    roles: ['SUPER_ADMIN', 'HR_ADMIN', 'USER_APPROVER', 'USER_STAFF'],
   },
   {
     title: 'KPI Korporat',
     href: '/hr/kpi/corporate',
     icon: ClipboardList,
     module: 'hr',
-    roles: ['ROLE_ADMIN'],
+    roles: ['SUPER_ADMIN', 'HR_ADMIN'],
   },
   {
     title: 'Capaian KPI',
@@ -54,13 +54,13 @@ export const hrSidebar: SidebarItem[] = [
     href: '/hr/kpi/approvals',
     icon: CheckSquare,
     module: 'hr',
-    roles: ['ROLE_ADMIN'],
+    roles: ['SUPER_ADMIN', 'HR_ADMIN'],
   },
   {
     title: 'Persetujuan Laporan',
     href: '/hr/kpi/approvals/reports',
     icon: FileCheck,
     module: 'hr',
-    roles: ['ROLE_ADMIN'],
+    roles: ['SUPER_ADMIN', 'HR_ADMIN', 'USER_APPROVER'],
   },
 ];

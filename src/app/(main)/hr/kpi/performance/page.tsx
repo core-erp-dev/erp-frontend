@@ -30,7 +30,7 @@ export default function KpiPerformancePage() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const result = await kpiReportApi.getPerformance({ tahun: selectedYear });
+        const result = await kpiReportApi.getPerformance({ year: selectedYear });
         setData(result);
       } catch {
         // Error handled in API layer
@@ -41,7 +41,7 @@ export default function KpiPerformancePage() {
     fetchData();
   }, [selectedYear]);
 
-  const persentase = data?.persentaseCapaian ?? 0;
+  const persentase = data?.achievementPercentage ?? 0;
   const progressColor = persentase >= 80 ? "success" : persentase >= 60 ? "warning" : "danger";
 
   return (
@@ -102,7 +102,7 @@ export default function KpiPerformancePage() {
                 Total Realisasi
               </div>
               <span className="text-2xl font-bold text-foreground">
-                {data?.totalRealisasi?.toLocaleString("id-ID", { minimumFractionDigits: 2 }) ?? "0,00"}
+                {data?.totalRealization?.toLocaleString("id-ID", { minimumFractionDigits: 2 }) ?? "0,00"}
               </span>
             </Card>
 
@@ -113,7 +113,7 @@ export default function KpiPerformancePage() {
                 Laporan Disetujui
               </div>
               <span className="text-2xl font-bold text-foreground">
-                {data?.totalApprovedReports ?? 0}
+                {data?.totalReportsApproved ?? 0}
               </span>
             </Card>
 
@@ -124,7 +124,7 @@ export default function KpiPerformancePage() {
                 Menunggu Persetujuan
               </div>
               <span className="text-2xl font-bold text-foreground">
-                {data?.totalPendingReports ?? 0}
+                {data?.totalReportsPending ?? 0}
               </span>
             </Card>
           </div>
@@ -183,7 +183,7 @@ export default function KpiPerformancePage() {
               </div>
               <div className="flex items-center justify-between text-sm mt-1">
                 <span className="text-muted-foreground">Periode:</span>
-                <span className="font-medium text-foreground">Tahun {data.tahun}</span>
+                <span className="font-medium text-foreground">Tahun {selectedYear}</span>
               </div>
             </Card>
           )}

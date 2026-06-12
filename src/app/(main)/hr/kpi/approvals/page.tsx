@@ -40,6 +40,7 @@ export default function KpiApprovalsPage() {
   const onApprovalSubmit = async (rejectReason?: string) => {
     if (!selectedTask) return false;
     const result = await approveTask(selectedTask.id, {
+      taskId: selectedTask.id,
       action: rejectReason ? "REJECT" : "APPROVE",
       rejectReason,
     });
@@ -90,7 +91,7 @@ export default function KpiApprovalsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {tasks.map((task) => (
+          {tasks.filter((t) => t.status === "PENDING_ADMIN_APPROVAL").map((task) => (
             <div
               key={task.id}
               className="flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3"
@@ -113,7 +114,7 @@ export default function KpiApprovalsPage() {
                 </div>
                 {task.annualTarget != null && (
                   <div className="text-sm text-muted-foreground">
-                    Target: {task.annualTarget.toLocaleString("id-ID")} {task.satuan}
+                    Target: {task.annualTarget.toLocaleString("id-ID")} {task.unit}
                   </div>
                 )}
               </div>

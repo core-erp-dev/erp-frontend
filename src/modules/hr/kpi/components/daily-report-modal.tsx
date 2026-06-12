@@ -181,7 +181,7 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                 <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
                   <span className="font-medium text-foreground">{task.taskName}</span>
                   <span className="ml-2 text-muted-foreground">
-                    ({task.taskCode}) — {task.satuan}
+                    ({task.taskCode}) — {task.unit}
                   </span>
                 </div>
               )}
@@ -298,7 +298,7 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                           onChange={handleFileChange}
                         />
                       </label>
-                      {editReport?.evidenceFileUrl && !file && (
+                      {editReport?.evidenceUrl && !file && (
                         <span className="text-xs text-info">Bukti lama sudah ada</span>
                       )}
                     </div>
@@ -315,10 +315,10 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                 )}
 
                 {/* Show existing evidence for locked reports */}
-                {isLocked && editReport?.evidenceFileUrl && (
+                {isLocked && editReport?.evidenceUrl && (
                   <div className="flex items-center gap-2">
                     <a
-                      href={editReport.evidenceFileUrl}
+                      href={editReport.evidenceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-info hover:underline"

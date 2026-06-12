@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import {
   Edit,
   Trash2,
@@ -8,6 +9,7 @@ import {
   MoreVertical,
   CheckCircle,
   XCircle,
+  Eye,
 } from 'lucide-react';
 import {
   Table,
@@ -136,7 +138,12 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
                   </Table.Cell>
                   <Table.Cell>
                     <div>
-                      <span className="font-medium">{task.taskName}</span>
+                      <Link
+                        href={`/hr/kpi/tasks/${task.id}`}
+                        className="font-medium text-foreground hover:text-primary hover:underline transition-colors"
+                      >
+                        {task.taskName}
+                      </Link>
                       {task.childTaskCount > 0 && (
                         <span className="ml-2 text-xs text-muted-foreground">
                           ({task.childTaskCount} sub-tugas)
@@ -152,7 +159,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
                   </Table.Cell>
                   <Table.Cell className="text-right tabular-nums">
                     {task.annualTarget?.toLocaleString('id-ID') ?? '-'}
-                    <span className="ml-1 text-xs text-muted-foreground">{task.satuan}</span>
+                    <span className="ml-1 text-xs text-muted-foreground">{task.unit}</span>
                   </Table.Cell>
                   <Table.Cell className="text-right tabular-nums">
                     {task.annualRealization?.toLocaleString('id-ID', { minimumFractionDigits: 2 }) ?? '0,00'}
@@ -181,6 +188,15 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
                               if (key === 'delete') onDelete(task);
                             }}
                           >
+                            <Dropdown.Item id="detail" textValue="Lihat Detail">
+                              <Link
+                                href={`/hr/kpi/tasks/${task.id}`}
+                                className="flex items-center gap-2"
+                              >
+                                <Eye className="h-4 w-4 text-muted-foreground" />
+                                <span>Lihat Detail</span>
+                              </Link>
+                            </Dropdown.Item>
                             {canApprove(task.status) && (
                               <Dropdown.Item id="approve" textValue="Setujui">
                                 <div className="flex items-center gap-2 text-success">

@@ -20,7 +20,7 @@ export interface KpiTask {
   corporateKpiName: string;
   taskCode: string;
   taskName: string;
-  satuan: string;
+  unit: string;  // was 'satuan' — backend sends 'unit'
   annualTarget: number;
   annualRealization: number;
   achievementPercentage: number;
@@ -77,6 +77,7 @@ export interface UpdateTaskRequest {
 }
 
 export interface TaskApprovalRequest {
+  taskId?: string;
   action: 'APPROVE' | 'REJECT';
   rejectReason?: string;
 }
@@ -111,7 +112,7 @@ export interface SubordinateTaskResponse {
   taskId: string;
   taskCode: string;
   taskName: string;
-  satuan: string;
+  unit: string;  // was 'satuan' — backend sends 'unit'
   positionId: number;
   positionName: string;
   annualTarget: number;
@@ -125,12 +126,18 @@ export interface SubordinateTaskResponse {
 export interface PerformanceSummaryResponse {
   employeeId: string;
   employeeName: string;
-  tahun: number;
+  positionName: string;
+  tahun?: number;
+  totalAssignedTasks: number;
+  activeTasks: number;
+  completedTasks: number;
   totalTarget: number;
-  totalRealisasi: number;
-  persentaseCapaian: number;
-  totalApprovedReports: number;
-  totalPendingReports: number;
+  totalRealization: number;
+  achievementPercentage: number;
+  totalReportsSubmitted: number;
+  totalReportsApproved: number;
+  totalReportsPending: number;
+  totalReportsRejected: number;
 }
 
 // Re-export api types for convenience
@@ -163,19 +170,24 @@ export interface KpiReport {
   taskId: string;
   taskName: string;
   taskCode: string;
+  positionId: number;
+  positionName: string;
   reportDate: string;
   description: string;
   dailyTarget: number;
   dailyRealization: number;
-  evidenceFilePath: string | null;
-  evidenceFileUrl: string | null;
+  unit: string;
+  evidencePath: string | null;     // was evidenceFilePath
+  evidenceUrl: string | null;      // was evidenceFileUrl
   approvalStatus: ReportApprovalStatus;
-  approvedBy: string | null;
-  approvedByName: string | null;
+  isLocked: boolean;
+  approverId: string | null;       // was approvedBy
+  approverName: string | null;     // was approvedByName
   approvedAt: string | null;
   rejectReason: string | null;
-  reportedBy: string;
-  reportedByName: string;
+  employeeId: string;              // was reportedBy
+  employeeName: string;            // was reportedByName
+  employeeNip: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -186,6 +198,7 @@ export interface CreateReportRequest {
   description: string;
   dailyTarget: number;
   dailyRealization: number;
+  unit?: string;
 }
 
 export interface UpdateReportRequest {
@@ -228,7 +241,7 @@ export interface PendingCountResponse {
 
 export interface PerformanceFilterParams {
   employeeId?: string;
-  tahun?: number;
+  year?: number;
 }
 
 // ===== Corporate KPI (KpiCorporate) =====

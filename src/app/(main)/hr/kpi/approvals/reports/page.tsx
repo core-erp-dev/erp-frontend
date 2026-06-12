@@ -86,7 +86,7 @@ export default function ReportApprovalPage() {
         action: "APPROVE",
       });
       toast.success("Laporan berhasil disetujui", {
-        description: `Laporan ${report.reportedByName} tanggal ${new Date(report.reportDate).toLocaleDateString("id-ID")} telah disetujui.`,
+        description: `Laporan ${report.employeeName} tanggal ${new Date(report.reportDate).toLocaleDateString("id-ID")} telah disetujui.`,
       });
       fetchReports(currentPage);
     } catch (error) {
@@ -106,7 +106,7 @@ export default function ReportApprovalPage() {
         rejectReason: reason,
       });
       toast.danger("Laporan berhasil ditolak", {
-        description: `Laporan ${rejectTarget.reportedByName} telah ditolak.`,
+        description: `Laporan ${rejectTarget.employeeName} telah ditolak.`,
       });
       fetchReports(currentPage);
     } catch (error) {
@@ -153,7 +153,7 @@ export default function ReportApprovalPage() {
   const filteredReports = search
     ? reports.filter(
         (r) =>
-          r.reportedByName.toLowerCase().includes(search.toLowerCase()) ||
+          r.employeeName.toLowerCase().includes(search.toLowerCase()) ||
           r.taskName.toLowerCase().includes(search.toLowerCase()) ||
           r.taskCode.toLowerCase().includes(search.toLowerCase()) ||
           r.description.toLowerCase().includes(search.toLowerCase()),
@@ -248,7 +248,7 @@ export default function ReportApprovalPage() {
               <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium text-foreground truncate">
-                    {report.reportedByName}
+                    {report.employeeName}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     ({report.taskCode})
@@ -378,7 +378,7 @@ export default function ReportApprovalPage() {
         onConfirm={handleRejectConfirm}
         reportInfo={
           rejectTarget
-            ? `Laporan ${rejectTarget.reportedByName} — ${rejectTarget.taskName} (${new Date(rejectTarget.reportDate).toLocaleDateString("id-ID")})`
+            ? `Laporan ${rejectTarget.employeeName} — ${rejectTarget.taskName} (${new Date(rejectTarget.reportDate).toLocaleDateString("id-ID")})`
             : undefined
         }
       />
@@ -392,7 +392,7 @@ export default function ReportApprovalPage() {
         onConfirm={handleAmendConfirm}
         reportInfo={
           amendTarget
-            ? `Laporan ${amendTarget.reportedByName} — ${amendTarget.taskName} (${new Date(amendTarget.reportDate).toLocaleDateString("id-ID")})`
+            ? `Laporan ${amendTarget.employeeName} — ${amendTarget.taskName} (${new Date(amendTarget.reportDate).toLocaleDateString("id-ID")})`
             : undefined
         }
       />

@@ -95,7 +95,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                     <User className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-muted-foreground text-xs">Pelapor</p>
-                      <p className="text-foreground font-medium">{report.reportedByName}</p>
+                      <p className="text-foreground font-medium">{report.employeeName}</p>
                     </div>
                   </div>
 
@@ -134,10 +134,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 </div>
 
                 {/* Evidence */}
-                {report.evidenceFileUrl && (
+                {report.evidenceUrl && (
                   <div className="flex items-center gap-2">
                     <a
-                      href={report.evidenceFileUrl}
+                      href={report.evidenceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-info hover:bg-info/5 transition-colors"
@@ -149,10 +149,10 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 )}
 
                 {/* Approval Info */}
-                {report.approvedByName && (
+                {report.approverName && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CheckCircle className="h-4 w-4" />
-                    Disetujui oleh {report.approvedByName}
+                    Disetujui oleh {report.approverName}
                     {report.approvedAt && (
                       <span>
                         pada {new Date(report.approvedAt).toLocaleDateString('id-ID')}

@@ -114,6 +114,7 @@ export default function KpiTasksPage() {
   const onApprovalSubmit = async (rejectReason?: string) => {
     if (!selectedTask) return false;
     const result = await approveTask(selectedTask.id, {
+      taskId: selectedTask.id,
       action: rejectReason ? "REJECT" : "APPROVE",
       rejectReason,
     });

@@ -200,7 +200,7 @@ export default function TaskDetailPage() {
             <div className="mt-6 flex flex-col gap-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  Target: {task.annualTarget.toLocaleString("id-ID")} {task.satuan}
+                  Target: {task.annualTarget.toLocaleString("id-ID")} {task.unit}
                 </span>
                 <span className="font-medium text-foreground">
                   {persentase.toFixed(2)}% tercapai
@@ -222,7 +222,7 @@ export default function TaskDetailPage() {
                   Realisasi: {task.annualRealization.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                 </span>
                 <span>
-                  Sisa: {Math.max(0, task.annualTarget - task.annualRealization).toLocaleString("id-ID")} {task.satuan}
+                  Sisa: {Math.max(0, task.annualTarget - task.annualRealization).toLocaleString("id-ID")} {task.unit}
                 </span>
               </div>
             </div>
@@ -301,9 +301,9 @@ export default function TaskDetailPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {report.evidenceFileUrl && (
+                        {report.evidenceUrl && (
                           <a
-                            href={report.evidenceFileUrl}
+                            href={report.evidenceUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 text-xs text-info hover:underline"

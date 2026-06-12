@@ -32,28 +32,39 @@ export const kpiReportApi = {
 
   createReport: async (data: CreateReportRequest, file?: File): Promise<KpiReport> => {
     const formData = new FormData();
-    formData.append('data', JSON.stringify(data));
-    if (file) {
-      formData.append('file', file);
+    // Backend @ModelAttribute expects individual form fields, not a JSON wrapper
+    formData.append('taskId', data.taskId);
+    formData.append('reportDate', data.reportDate);
+    formData.append('description', data.description);
+    formData.append('dailyTarget', String(data.dailyTarget));
+    formData.append('dailyRealization', String(data.dailyRealization));
+    if (data.unit) {
+      formData.append('unit', data.unit);
     }
+    if (file) {
+      formData.append('evidence', file); // Backend expects 'evidence', not 'file'
+    }
+    // Do NOT set Content-Type header — axios/browser will set multipart boundary automatically
     const response = await api.post<ApiResponse<KpiReport>>(
       '/api/v1/kpi/reports',
       formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data.data;
   },
 
   updateReport: async (id: string, data: UpdateReportRequest, file?: File): Promise<KpiReport> => {
     const formData = new FormData();
-    formData.append('data', JSON.stringify(data));
+    if (data.reportDate) formData.append('reportDate', data.reportDate);
+    if (data.description) formData.append('description', data.description);
+    if (data.dailyTarget != null) formData.append('dailyTarget', String(data.dailyTarget));
+    if (data.dailyRealization != null) formData.append('dailyRealization', String(data.dailyRealization));
+    if (data.unit) formData.append('unit', data.unit);
     if (file) {
-      formData.append('file', file);
+      formData.append('evidence', file); // Backend expects 'evidence', not 'file'
     }
     const response = await api.put<ApiResponse<KpiReport>>(
       `/api/v1/kpi/reports/${id}`,
       formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data.data;
   },

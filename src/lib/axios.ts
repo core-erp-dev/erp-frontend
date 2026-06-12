@@ -6,9 +6,9 @@ import { refreshAccessToken } from '@/lib/token-service';
 
 export const api = axios.create({
   baseURL: env.baseUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // NO default Content-Type — axios auto-detects:
+  // - JSON body → application/json
+  // - FormData body → multipart/form-data with boundary
 });
 
 api.interceptors.request.use(
@@ -16,6 +16,11 @@ api.interceptors.request.use(
     const accessToken = useAuthStore.getState().accessToken;
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    // If sending FormData, remove any hardcoded Content-Type
+    // so the browser can set the correct multipart boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
     }
     return config;
   },
