@@ -1,11 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button, Avatar, Dropdown, Label, Separator } from "@heroui/react";
-import { SquaresFour } from "@phosphor-icons/react";
 import {
+  Button,
+  Avatar,
+  Dropdown,
+  Label,
+  Separator,
+  SearchField,
+} from "@heroui/react";
+import {
+  Bell,
   ChevronDown,
-  ChevronUp,
   User as UserIcon,
   Settings,
   LogOut,
@@ -23,24 +29,32 @@ export function Header() {
   const displayName = user?.username || "Pengguna";
 
   return (
-    <header className="flex h-16 items-center justify-end bg-[#f5f5f5] px-6">
+    <header className="flex h-16 items-center bg-[#f5f5f5] px-6">
+      {/* Center: Searchbar — takes remaining space, centers content */}
+      <div className="flex flex-1 justify-center">
+        <SearchField>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="Cari" className="w-[320px]" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+      </div>
+
+      {/* Right: Notification + Profile */}
       <div className="flex items-center gap-2">
         <Button
           variant="tertiary"
           size="md"
           isIconOnly
-          aria-label="Ganti Modul"
-          onPress={() => router.push("/")}
+          aria-label="Notifikasi"
         >
-          <SquaresFour className="h-5 w-5" weight="regular" />
+          <Bell className="h-5 w-5" />
         </Button>
 
         <Dropdown>
           <Dropdown.Trigger className="outline-none">
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-[#EBEBEC] outline-none"
-            >
+            <div className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors hover:bg-[#EBEBEC] cursor-pointer">
               <Avatar size="sm">
                 <Avatar.Fallback>{userInitial}</Avatar.Fallback>
               </Avatar>
@@ -48,7 +62,7 @@ export function Header() {
                 {displayName}
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
-            </button>
+            </div>
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom end" className="min-w-48">
             <Dropdown.Menu
