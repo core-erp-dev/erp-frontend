@@ -1,10 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import type { Selection } from '@heroui/react';
 import {
   Button,
   Chip,
   Dropdown,
+  Header,
+  Label,
   Modal,
   SearchField,
   Spinner,
@@ -12,22 +15,28 @@ import {
 } from '@heroui/react';
 import {
   ArrowsClockwise,
-  Plus,
-  DotsThreeVertical,
-  PencilSimple,
-  Trash,
-  UserPlus,
-  MagnifyingGlass,
   CaretRight,
+  Check,
+  DotsThreeVertical,
+  FunnelSimple,
+  PencilSimple,
+  Plus,
+  SlidersHorizontal,
+  Trash,
+  Tray,
+  UserPlus,
   Warning,
+  X,
 } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 
 import { PositionFormModal } from './position-form-modal';
 import { AssignUserModal } from '@/modules/hr/employees/components/assign-user-modal';
 import { useHierarchyData } from '../hooks/use-hierarchy-data';
-import { getLevelColor, getInitials } from '../../shared/utils';
+import { getLevelColor, getInitials, buildTableItems } from '../../shared/utils';
+import type { FlatPosition } from '../../shared/utils';
 import type { PositionRow } from '../../shared/utils/position-helpers';
+import type { PositionTree } from '../types';
 
 export const HierarchyView: React.FC = () => {
   const {
@@ -36,7 +45,6 @@ export const HierarchyView: React.FC = () => {
     positions,
     flatPositions,
     filteredPositions,
-    tableItems,
     searchTerm,
     setSearchTerm,
     expandedKeys,
@@ -64,6 +72,100 @@ export const HierarchyView: React.FC = () => {
     handleDeleteConfirm,
     fetchPositions,
   } = useHierarchyData();
+
+  // Filter & Sort state
+  const [filterKeys, setFilterKeys] = useState<Selection>(new Set());
+  const [sortField, setSortField] = useState<'name' | 'staff' | 'level'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const isDefaultSort = sortField === 'name' && sortDir === 'asc';
+  const filterCount = (filterKeys as Set<string>).size;
+
+  const sortedAndFilteredPositions = useMemo(() => {
+    const fk = filterKeys as Set<string>;
+    const matchVacant = fk.has('vacant');
+    const matchOccupied = fk.has('occupied');
+    const hasStatusFilter = matchVacant || matchOccupied;
+    const matchLevels = new Set<number>();
+    if (fk.has('level:1')) matchLevels.add(1);
+    if (fk.has('level:2')) matchLevels.add(2);
+    if (fk.has('level:3')) matchLevels.add(3);
+    const hasLevelFilter = matchLevels.size > 0;
+    const hasAnyFilter = hasStatusFilter || hasLevelFilter;
+
+    // Fast path: no filters and default sort
+    if (!hasAnyFilter && isDefaultSort) {
+      return filteredPositions;
+    }
+
+    // Build search set from filteredPositions (already search-filtered)
+    const searchIds = new Set(filteredPositions.map((p) => p.id));
+
+    // Sort comparator for PositionTree nodes
+    const sortCmp = (a: PositionTree, b: PositionTree) => {
+      let cmp = 0;
+      if (sortField === 'name')
+        cmp = a.positionName.localeCompare(b.positionName, 'id');
+      else if (sortField === 'staff')
+        cmp = (a.assignedUsers?.length ?? 0) - (b.assignedUsers?.length ?? 0);
+      else if (sortField === 'level') cmp = a.positionLevel - b.positionLevel;
+      return sortDir === 'asc' ? cmp : -cmp;
+    };
+
+    // Check if a position passes active filters
+    const passesFilter = (pos: PositionTree): boolean => {
+      if (!searchIds.has(pos.id)) return false;
+      if (hasStatusFilter) {
+        const vacant = (pos.assignedUsers ?? []).length === 0;
+        if (matchVacant && !matchOccupied && !vacant) return false;
+        if (matchOccupied && !matchVacant && vacant) return false;
+      }
+      if (hasLevelFilter && !matchLevels.has(pos.positionLevel)) return false;
+      return true;
+    };
+
+    // Recursive filter + sort, preserving tree integrity
+    const processTree = (
+      nodes: PositionTree[],
+      parentName: string | null = null,
+    ): FlatPosition[] => {
+      const kept: { node: PositionTree; flat: FlatPosition[] }[] = [];
+
+      for (const node of nodes) {
+        const childFlat = processTree(
+          node.children ?? [],
+          node.positionName,
+        );
+        const nodePasses = passesFilter(node);
+
+        if (nodePasses || childFlat.length > 0) {
+          const fp: FlatPosition = {
+            id: node.id,
+            positionCode: node.positionCode,
+            positionName: node.positionName,
+            positionLevel: node.positionLevel,
+            parentId: node.parentId,
+            parentName,
+            isActive: node.isActive,
+            assignedUsers: node.assignedUsers ?? [],
+          };
+          kept.push({ node, flat: [fp, ...childFlat] });
+        }
+      }
+
+      // Sort siblings at this level
+      kept.sort((a, b) => sortCmp(a.node, b.node));
+
+      return kept.flatMap((k) => k.flat);
+    };
+
+    return processTree(positions);
+  }, [positions, filteredPositions, filterKeys, sortField, sortDir]);
+
+  const tableItems = useMemo(
+    () => buildTableItems(sortedAndFilteredPositions),
+    [sortedAndFilteredPositions],
+  );
 
   const renderPositionRow = (item: PositionRow) => {
     const pos = item.position;
@@ -224,7 +326,8 @@ export const HierarchyView: React.FC = () => {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-col gap-4">
+      {/* Row 1: Title + Refresh + Tambah */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">
             Struktur Jabatan
@@ -239,59 +342,184 @@ export const HierarchyView: React.FC = () => {
             {flatPositions.length}
           </Button>
         </div>
-
-        <div className="flex items-center justify-between">
-          <SearchField
-            name="search"
-            value={searchTerm}
-            onChange={setSearchTerm}
-            className="w-70"
+        <div className="flex items-center gap-2">
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => fetchPositions(true)}
+            isDisabled={isRefreshing}
+            aria-label="Muat ulang struktur organisasi"
           >
-            <SearchField.Group>
-              <SearchField.SearchIcon />
-              <SearchField.Input
-                aria-label="Cari posisi"
-                placeholder="Cari posisi..."
-              />
-              <SearchField.ClearButton />
-            </SearchField.Group>
-          </SearchField>
-
-          <div className="flex items-center gap-2">
-            <Button
-              isIconOnly
-              variant="tertiary"
-              onPress={() => fetchPositions(true)}
-              isDisabled={isRefreshing}
-              aria-label="Muat ulang struktur organisasi"
-            >
-              <ArrowsClockwise
-                className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
-              />
-            </Button>
-            <Button variant="primary" onPress={handleAddRootPosition}>
-              <Plus className="h-4 w-4" />
-              Tambah Jabatan
-            </Button>
-          </div>
+            <ArrowsClockwise
+              className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
+            />
+          </Button>
+          <Button variant="primary" onPress={handleAddRootPosition}>
+            <Plus className="h-4 w-4" />
+            Tambah Jabatan
+          </Button>
         </div>
       </div>
 
-      {!isLoading && filteredPositions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center px-4 py-16">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <MagnifyingGlass className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="mb-2 text-lg font-semibold">
-            {searchTerm ? 'Jabatan Tidak Ditemukan' : 'Belum Ada Jabatan'}
-          </h3>
-          <p className="mb-6 max-w-sm text-center text-muted-foreground">
-            {searchTerm
-              ? 'Tidak ada jabatan yang cocok dengan pencarian Anda.'
-              : 'Mulai bangun hierarki organisasi dengan menambahkan jabatan pertama.'}
-          </p>
-          {!searchTerm && (
-            <Button variant="primary" onPress={handleAddRootPosition}>
+      {/* Row 2: Filter + Sort (left) | Search (right) */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* Filter Dropdown */}
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Filter">
+              <SlidersHorizontal className="h-4 w-4" />
+              Filter
+              {filterCount > 0 && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <span className="text-sm font-medium text-foreground">
+                    {filterCount}
+                  </span>
+                </>
+              )}
+            </Button>
+            <Dropdown.Popover className="min-w-[220px]">
+              <Dropdown.Menu
+                selectedKeys={filterKeys}
+                selectionMode="multiple"
+                onSelectionChange={setFilterKeys}
+              >
+                <Dropdown.Section>
+                  <Header>Ketersediaan</Header>
+                  <Dropdown.Item id="vacant" textValue="Kosong (Vacant)">
+                    <Dropdown.ItemIndicator />
+                    <Label>Kosong (Vacant)</Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="occupied" textValue="Terisi">
+                    <Dropdown.ItemIndicator />
+                    <Label>Terisi</Label>
+                  </Dropdown.Item>
+                </Dropdown.Section>
+                <Dropdown.Section>
+                  <Header>Level</Header>
+                  <Dropdown.Item
+                    id="level:1"
+                    textValue="Level 1 - Top Management"
+                  >
+                    <Dropdown.ItemIndicator />
+                    <Label>Level 1 - Top Management</Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    id="level:2"
+                    textValue="Level 2 - Middle Management"
+                  >
+                    <Dropdown.ItemIndicator />
+                    <Label>Level 2 - Middle Management</Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    id="level:3"
+                    textValue="Level 3 - Staff/Operational"
+                  >
+                    <Dropdown.ItemIndicator />
+                    <Label>Level 3 - Staff/Operational</Label>
+                  </Dropdown.Item>
+                </Dropdown.Section>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+
+          {/* Sort Dropdown */}
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Urutkan">
+              <FunnelSimple className="h-4 w-4" />
+              Urut
+              {!isDefaultSort && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <Check className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                onAction={(key) => {
+                  switch (key) {
+                    case 'name-asc':
+                      setSortField('name');
+                      setSortDir('asc');
+                      break;
+                    case 'name-desc':
+                      setSortField('name');
+                      setSortDir('desc');
+                      break;
+                    case 'staff-desc':
+                      setSortField('staff');
+                      setSortDir('desc');
+                      break;
+                    case 'level-desc':
+                      setSortField('level');
+                      setSortDir('desc');
+                      break;
+                  }
+                }}
+              >
+                <Dropdown.Item id="name-asc" textValue="Nama Jabatan (A-Z)">
+                  <Label>Nama Jabatan (A-Z)</Label>
+                </Dropdown.Item>
+                <Dropdown.Item id="name-desc" textValue="Nama Jabatan (Z-A)">
+                  <Label>Nama Jabatan (Z-A)</Label>
+                </Dropdown.Item>
+                <Dropdown.Item
+                  id="staff-desc"
+                  textValue="Jumlah Staf (Terbanyak)"
+                >
+                  <Label>Jumlah Staf (Terbanyak)</Label>
+                </Dropdown.Item>
+                <Dropdown.Item
+                  id="level-desc"
+                  textValue="Level Jabatan (Tertinggi)"
+                >
+                  <Label>Level Jabatan (Tertinggi)</Label>
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+
+          {/* Reset Button (conditional) */}
+          {(filterCount > 0 || !isDefaultSort) && (
+            <Button
+              isIconOnly
+              variant="tertiary"
+              aria-label="Reset"
+              onPress={() => {
+                setFilterKeys(new Set());
+                setSortField('name');
+                setSortDir('asc');
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        <SearchField
+          name="search"
+          value={searchTerm}
+          onChange={setSearchTerm}
+          className="w-72"
+        >
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              aria-label="Cari jabatan"
+              placeholder="Cari jabatan"
+            />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+      </div>
+
+      {!isLoading && sortedAndFilteredPositions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+          <Tray className="h-8 w-8" />
+          <span className="text-sm">Tidak ada data</span>
+          {!searchTerm && filterCount === 0 && (
+            <Button variant="primary" onPress={handleAddRootPosition} className="mt-4">
               <Plus className="h-4 w-4" />
               Tambah Jabatan Pertama
             </Button>
@@ -321,20 +549,17 @@ export const HierarchyView: React.FC = () => {
               <Table.Body
                 items={isLoading ? [] : tableItems}
                 renderEmptyState={() =>
-                  isLoading ? (
-                    <div className="flex h-24 items-center justify-center">
-                      <Spinner size="md" />
-                    </div>
-                  ) : (
-                    <div className="flex h-24 flex-col items-center justify-center gap-2 text-muted-foreground">
-                      <span className="text-sm">
-                        {searchTerm
-                          ? 'Tidak ada jabatan yang cocok dengan pencarian.'
-                          : 'Belum ada data jabatan.'}
-                      </span>
-                    </div>
-                  )
-                }
+                    isLoading ? (
+                      <div className="flex h-24 items-center justify-center">
+                        <Spinner size="md" />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                        <Tray className="h-8 w-8" />
+                        <span className="text-sm">Tidak ada data</span>
+                      </div>
+                    )
+                  }
               >
                 {renderPositionRow}
               </Table.Body>
