@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card } from '@heroui/react';
-import { Users } from 'lucide-react';
+import { Users } from '@phosphor-icons/react';
 import { AuthGuard } from '@/components/layout/auth-guard';
 
 const modules = [

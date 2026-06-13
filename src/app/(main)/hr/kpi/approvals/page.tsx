@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { RefreshCw, CheckCircle } from "lucide-react";
+import { ArrowsClockwise, CheckCircle } from "@phosphor-icons/react";
 import { Button, Skeleton } from "@heroui/react";
 import { ApprovalModal } from "@/modules/hr/kpi/components/approval-modal";
 import { useKpiTaskData } from "@/modules/hr/kpi/hooks/use-task-data";
@@ -73,7 +73,7 @@ export default function KpiApprovalsPage() {
           isDisabled={isLoading}
           aria-label="Muat ulang data"
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          <ArrowsClockwise className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
       </div>
 

@@ -5,15 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Button, Separator } from "@heroui/react";
-import { SquaresFour } from "@phosphor-icons/react";
+import { SquaresFour, Gear as Settings } from "@phosphor-icons/react";
 import { sidebarConfig } from "@/config/sidebar";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Settings } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import { KpiPendingBadge } from "@/modules/hr/kpi/components/kpi-pending-badge";
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
-  dashboard: LayoutDashboard,
+  dashboard: SquaresFour,
   settings: Settings,
 };
 
@@ -28,7 +27,7 @@ const getIcon = (
   className?: string,
 ): React.ReactNode => {
   if (typeof icon === "string") {
-    const IconComponent = iconMap[icon] || LayoutDashboard;
+    const IconComponent = iconMap[icon] || SquaresFour;
     return <IconComponent className={cn("h-5 w-5", className)} />;
   }
   const IconComponent = icon;

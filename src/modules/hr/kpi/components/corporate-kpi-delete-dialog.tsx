@@ -5,7 +5,7 @@ import {
   Modal,
   Button,
 } from '@heroui/react';
-import { AlertTriangle, XCircle } from 'lucide-react';
+import { Warning, XCircle } from '@phosphor-icons/react';
 import type { CorporateKpiResponse } from '../types';
 
 interface CorporateKpiDeleteDialogProps {
@@ -44,7 +44,7 @@ export const CorporateKpiDeleteDialog: React.FC<CorporateKpiDeleteDialogProps> =
                 {hasLinkedTasks ? (
                   <XCircle className="h-5 w-5 text-danger" />
                 ) : (
-                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  <Warning className="h-5 w-5 text-warning" />
                 )}
                 <Modal.Heading>
                   {hasLinkedTasks ? 'Tidak Dapat Dihapus' : 'Konfirmasi Hapus KPI'}

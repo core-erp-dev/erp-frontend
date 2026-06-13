@@ -10,12 +10,12 @@ import {
   User,
   FileText,
   Target,
-  TrendingUp,
-  Download,
+  TrendUp,
+  DownloadSimple,
   CheckCircle,
   XCircle,
   Clock,
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 import {
   KpiReport,
   REPORT_STATUS_LABELS,
@@ -108,7 +108,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 text-sm">
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <TrendUp className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-muted-foreground text-xs">Realisasi</p>
                       <p className="text-foreground font-medium">{report.dailyRealization}</p>
@@ -142,7 +142,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm text-info hover:bg-info/5 transition-colors"
                     >
-                      <Download className="h-4 w-4" />
+                      <DownloadSimple className="h-4 w-4" />
                       Lihat Bukti Lampiran
                     </a>
                   </div>

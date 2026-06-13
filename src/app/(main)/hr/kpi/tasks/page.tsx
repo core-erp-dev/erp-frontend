@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Plus, RefreshCw, AlertTriangle } from "lucide-react";
+import { Plus, ArrowsClockwise, Warning } from "@phosphor-icons/react";
 import { Button, SearchField, Select } from "@heroui/react";
 import { ListBox } from "@heroui/react";
 
@@ -126,7 +126,7 @@ export default function KpiTasksPage() {
       {/* Banner notifikasi */}
       {showBanner && (
         <div className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3">
-          <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0" />
+          <Warning className="h-5 w-5 text-warning flex-shrink-0" />
           <div className="text-sm">
             {pendingTargetCount > 0 && (
               <span className="font-medium text-warning">
@@ -211,7 +211,7 @@ export default function KpiTasksPage() {
               isDisabled={isLoading}
               aria-label="Muat ulang data"
             >
-              <RefreshCw
+              <ArrowsClockwise
                 className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
               />
             </Button>

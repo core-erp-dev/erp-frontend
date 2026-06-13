@@ -11,11 +11,11 @@ import {
 } from "@heroui/react";
 import {
   Bell,
-  ChevronDown,
+  CaretDown,
   User as UserIcon,
-  Settings,
-  LogOut,
-} from "lucide-react";
+  Gear,
+  SignOut,
+} from "@phosphor-icons/react";
 import { logout } from "@/lib/auth";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -53,21 +53,16 @@ export function Header() {
         </Button>
 
         <Dropdown>
-          <Dropdown.Trigger className="outline-none">
-            <Button
-              variant="tertiary"
-              size="md"
-              aria-label="Menu profil"
-              className="rounded-full gap-2 pl-1! pr-3!"
-            >
+          <Dropdown.Trigger className="outline-none" aria-label="Menu profil">
+            <div className="flex items-center gap-2 rounded-full !pl-2.5 !pr-3 py-1.5 transition-colors hover:bg-[#EBEBEC] cursor-pointer">
               <Avatar size="sm">
                 <Avatar.Fallback>{userInitial}</Avatar.Fallback>
               </Avatar>
               <span className="text-sm font-medium text-foreground hidden sm:inline">
                 {displayName}
               </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
-            </Button>
+              <CaretDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
+            </div>
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom end" className="min-w-48">
             <Dropdown.Menu
@@ -89,7 +84,7 @@ export function Header() {
               </Dropdown.Item>
               <Dropdown.Item id="account-settings" textValue="Pengaturan Akun">
                 <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <Gear className="h-4 w-4 text-muted-foreground" />
                   <Label className="font-normal">Pengaturan Akun</Label>
                 </div>
               </Dropdown.Item>
@@ -100,7 +95,7 @@ export function Header() {
                 variant="danger"
               >
                 <div className="flex items-center gap-2 text-danger">
-                  <LogOut className="h-4 w-4" />
+                  <SignOut className="h-4 w-4" />
                   <Label className="font-normal">Keluar</Label>
                 </div>
               </Dropdown.Item>

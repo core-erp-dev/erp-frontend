@@ -9,4 +9,44 @@ declare module "@phosphor-icons/react" {
   }
 
   export const SquaresFour: FC<IconProps>;
+  export const WarningCircle: FC<IconProps>;
+  export const Warning: FC<IconProps>;
+  export const ChartBar: FC<IconProps>;
+  export const Check: FC<IconProps>;
+  export const CheckCircle: FC<IconProps>;
+  export const Checks: FC<IconProps>;
+  export const CaretDown: FC<IconProps>;
+  export const CaretRight: FC<IconProps>;
+  export const CaretUp: FC<IconProps>;
+  export const ClipboardText: FC<IconProps>;
+  export const PencilSimple: FC<IconProps>;
+  export const FileC: FC<IconProps>;
+  export const FileText: FC<IconProps>;
+  export const FileX: FC<IconProps>;
+  export const Info: FC<IconProps>;
+  export const CircleNotch: FC<IconProps>;
+  export const Lock: FC<IconProps>;
+  export const DotsThreeVertical: FC<IconProps>;
+  export const TreeStructure: FC<IconProps>;
+  export const Plus: FC<IconProps>;
+  export const ArrowsClockwise: FC<IconProps>;
+  export const ArrowCounterClockwise: FC<IconProps>;
+  export const ArrowLeft: FC<IconProps>;
+  export const MagnifyingGlass: FC<IconProps>;
+  export const Gear: FC<IconProps>;
+  export const Target: FC<IconProps>;
+  export const Trash: FC<IconProps>;
+  export const UploadSimple: FC<IconProps>;
+  export const DownloadSimple: FC<IconProps>;
+  export const UserPlus: FC<IconProps>;
+  export const Users: FC<IconProps>;
+  export const User: FC<IconProps>;
+  export const X: FC<IconProps>;
+  export const XCircle: FC<IconProps>;
+  export const Bell: FC<IconProps>;
+  export const SignOut: FC<IconProps>;
+  export const Eye: FC<IconProps>;
+  export const Funnel: FC<IconProps>;
+  export const Clock: FC<IconProps>;
+  export const TrendUp: FC<IconProps>;
 }

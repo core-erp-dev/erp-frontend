@@ -1,5 +1,5 @@
 import type React from 'react';
-import { LayoutDashboard, Users, Network, Target, CheckSquare, BarChart3, FileCheck, ClipboardList, Settings } from 'lucide-react';
+import { SquaresFour, Users, TreeStructure, Target, Checks, ChartBar, FileC, ClipboardText, Gear } from '@phosphor-icons/react';
 
 export interface SidebarItem {
   title: string;
@@ -14,7 +14,7 @@ export const hrSidebar: SidebarItem[] = [
   {
     title: 'Dashboard',
     href: '/hr',
-    icon: LayoutDashboard,
+    icon: SquaresFour,
     module: 'hr',
   },
   {
@@ -26,7 +26,7 @@ export const hrSidebar: SidebarItem[] = [
   {
     title: 'Struktur',
     href: '/hr/hierarchy',
-    icon: Network,
+    icon: TreeStructure,
     module: 'hr',
   },
   {
@@ -39,34 +39,34 @@ export const hrSidebar: SidebarItem[] = [
   {
     title: 'KPI Korporat',
     href: '/hr/kpi/corporate',
-    icon: ClipboardList,
+    icon: ClipboardText,
     module: 'hr',
     roles: ['SUPER_ADMIN', 'HR_ADMIN'],
   },
   {
     title: 'Capaian KPI',
     href: '/hr/kpi/performance',
-    icon: BarChart3,
+    icon: ChartBar,
     module: 'hr',
   },
   {
     title: 'Persetujuan KPI',
     href: '/hr/kpi/approvals',
-    icon: CheckSquare,
+    icon: Checks,
     module: 'hr',
     roles: ['SUPER_ADMIN', 'HR_ADMIN'],
   },
   {
     title: 'Persetujuan Laporan',
     href: '/hr/kpi/approvals/reports',
-    icon: FileCheck,
+    icon: FileC,
     module: 'hr',
     roles: ['SUPER_ADMIN', 'HR_ADMIN', 'USER_APPROVER'],
   },
   {
     title: 'Pengaturan',
     href: '/hr/settings',
-    icon: Settings,
+    icon: Gear,
     module: 'hr',
   },
 ];

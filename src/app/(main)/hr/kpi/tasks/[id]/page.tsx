@@ -15,9 +15,9 @@ import {
   Plus,
   FileText,
   Users,
-  Download,
-  RotateCcw,
-} from "lucide-react";
+  DownloadSimple,
+  ArrowCounterClockwise,
+} from "@phosphor-icons/react";
 import { kpiTaskApi } from "@/modules/hr/kpi/services/task-api";
 import { kpiReportApi } from "@/modules/hr/kpi/services/report-api";
 import {
@@ -308,7 +308,7 @@ export default function TaskDetailPage() {
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 text-xs text-info hover:underline"
                           >
-                            <Download className="h-3 w-3" />
+                            <DownloadSimple className="h-3 w-3" />
                             Bukti
                           </a>
                         )}
@@ -333,7 +333,7 @@ export default function TaskDetailPage() {
                               setIsAmendOpen(true);
                             }}
                           >
-                            <RotateCcw className="h-3 w-3" />
+                            <ArrowCounterClockwise className="h-3 w-3" />
                             Minta Revisi
                           </Button>
                         )}

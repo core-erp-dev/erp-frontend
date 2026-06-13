@@ -11,16 +11,16 @@ import {
   Table,
 } from '@heroui/react';
 import {
-  RefreshCw,
+  ArrowsClockwise,
   Plus,
-  MoreVertical,
-  Pencil,
-  Trash2,
+  DotsThreeVertical,
+  PencilSimple,
+  Trash,
   UserPlus,
-  Search,
-  ChevronRight,
-  AlertTriangle,
-} from 'lucide-react';
+  MagnifyingGlass,
+  CaretRight,
+  Warning,
+} from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 
 import { PositionFormModal } from './position-form-modal';
@@ -81,7 +81,7 @@ export const HierarchyView: React.FC = () => {
                   slot="chevron"
                   variant="ghost"
                 >
-                  <ChevronRight
+                  <CaretRight
                     className={cn(
                       'h-4 w-4 text-muted-foreground transition-transform duration-150',
                       isExpanded ? 'rotate-90' : '',
@@ -122,7 +122,7 @@ export const HierarchyView: React.FC = () => {
                 size="sm"
                 aria-label={`Menu aksi untuk ${pos.positionName}`}
               >
-                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                <DotsThreeVertical className="h-4 w-4 text-muted-foreground" />
               </Button>
             <Dropdown.Popover>
               <Dropdown.Menu
@@ -146,7 +146,7 @@ export const HierarchyView: React.FC = () => {
               >
                 <Dropdown.Item id="edit" textValue="Edit">
                   <div className="flex items-center gap-2">
-                    <Pencil className="size-4 shrink-0 text-muted-foreground" />
+                    <PencilSimple className="size-4 shrink-0 text-muted-foreground" />
                     <span>Edit</span>
                   </div>
                 </Dropdown.Item>
@@ -164,7 +164,7 @@ export const HierarchyView: React.FC = () => {
                 </Dropdown.Item>
                 <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
                   <div className="flex items-center gap-2 text-danger">
-                    <Trash2 className="size-4 shrink-0" />
+                    <Trash className="size-4 shrink-0" />
                     <span>Hapus</span>
                   </div>
                 </Dropdown.Item>
@@ -265,7 +265,7 @@ export const HierarchyView: React.FC = () => {
               isDisabled={isRefreshing}
               aria-label="Muat ulang struktur organisasi"
             >
-              <RefreshCw
+              <ArrowsClockwise
                 className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`}
               />
             </Button>
@@ -280,7 +280,7 @@ export const HierarchyView: React.FC = () => {
       {!isLoading && filteredPositions.length === 0 ? (
         <div className="flex flex-col items-center justify-center px-4 py-16">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            <Search className="h-8 w-8 text-muted-foreground" />
+            <MagnifyingGlass className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3 className="mb-2 text-lg font-semibold">
             {searchTerm ? 'Jabatan Tidak Ditemukan' : 'Belum Ada Jabatan'}
@@ -375,7 +375,7 @@ export const HierarchyView: React.FC = () => {
               <Modal.CloseTrigger />
               <Modal.Header>
                 <Modal.Heading className="px-2 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-warning" />
+                  <Warning className="h-5 w-5 text-warning" />
                   Konfirmasi Hapus Jabatan
                 </Modal.Heading>
               </Modal.Header>

@@ -13,7 +13,7 @@ import {
   FieldError,
   Alert,
 } from '@heroui/react';
-import { Upload, FileCheck, AlertTriangle, Lock } from 'lucide-react';
+import { UploadSimple, FileC, Warning, Lock } from '@phosphor-icons/react';
 import { KpiTask, KpiReport } from '../types';
 import { kpiReportApi } from '../services/report-api';
 
@@ -289,7 +289,7 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                     <Label className="text-sm">Upload Bukti (Opsional)</Label>
                     <div className="flex items-center gap-3">
                       <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-4 py-2 text-sm text-muted-foreground hover:border-accent hover:text-accent transition-colors">
-                        <Upload className="h-4 w-4" />
+                        <UploadSimple className="h-4 w-4" />
                         {file ? file.name : 'Pilih file...'}
                         <input
                           type="file"
@@ -304,7 +304,7 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                     </div>
                     {file && (
                       <div className="flex items-center gap-2 text-xs text-success">
-                        <FileCheck className="h-3 w-3" />
+                        <FileC className="h-3 w-3" />
                         {file.name} ({(file.size / 1024).toFixed(0)} KB)
                       </div>
                     )}
@@ -323,7 +323,7 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-info hover:underline"
                     >
-                      <FileCheck className="h-4 w-4" />
+                      <FileC className="h-4 w-4" />
                       Lihat bukti yang diunggah
                     </a>
                   </div>
@@ -332,7 +332,7 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                 {/* File Error */}
                 {fileError && (
                   <div className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
-                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                    <Warning className="h-4 w-4 flex-shrink-0" />
                     {fileError}
                   </div>
                 )}
@@ -340,7 +340,7 @@ export const DailyReportModal: React.FC<DailyReportModalProps> = ({
                 {/* Backdate Warning */}
                 {form.watch('reportDate') && form.watch('reportDate') < maxDate && (
                   <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">
-                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                    <Warning className="h-4 w-4 flex-shrink-0" />
                     Anda melaporkan untuk tanggal lampau ({new Date(form.watch('reportDate')).toLocaleDateString('id-ID')}).
                   </div>
                 )}

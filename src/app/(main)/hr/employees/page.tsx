@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, ArrowsClockwise } from "@phosphor-icons/react";
 import { Button, SearchField } from "@heroui/react";
 
 import { DataTable } from "@/modules/hr/employees/components/data-table";
@@ -120,7 +120,7 @@ export default function EmployeePage() {
               isDisabled={isLoading}
               aria-label="Muat ulang data karyawan"
             >
-              <RefreshCw
+              <ArrowsClockwise
                 className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
               />
             </Button>

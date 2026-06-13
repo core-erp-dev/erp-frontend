@@ -9,7 +9,7 @@ import {
   Label,
   FieldError,
 } from '@heroui/react';
-import { RotateCcw, AlertTriangle } from 'lucide-react';
+import { ArrowCounterClockwise, Warning } from '@phosphor-icons/react';
 
 interface AmendModalProps {
   isOpen: boolean;
@@ -74,7 +74,7 @@ export const AmendModal: React.FC<AmendModalProps> = ({
             <Modal.Body className="p-2">
               {/* Warning Banner */}
               <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning">
-                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <Warning className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <span>
                   Menarik persetujuan akan mengurangi nilai realisasi yang sudah terakumulasi.
                   Pegawai perlu mengirim laporan baru sebagai pengganti.
@@ -118,7 +118,7 @@ export const AmendModal: React.FC<AmendModalProps> = ({
                 isPending={isSubmitting}
                 className="bg-warning text-warning-foreground hover:bg-warning/90"
               >
-                <RotateCcw className="h-4 w-4" />
+                <ArrowCounterClockwise className="h-4 w-4" />
                 Tarik & Minta Revisi
               </Button>
             </Modal.Footer>

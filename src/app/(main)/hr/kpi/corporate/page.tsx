@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, RefreshCw, Info } from 'lucide-react';
+import { Plus, ArrowsClockwise, Info } from '@phosphor-icons/react';
 import { Button, Skeleton, Select, ListBox } from '@heroui/react';
 import { useAuthStore } from '@/store/auth-store';
 import { CorporateKpiTree } from '@/modules/hr/kpi/components/corporate-kpi-tree';
@@ -172,7 +172,7 @@ function CorporateKpiContent({ canEdit }: { canEdit: boolean }) {
               isDisabled={isLoading}
               aria-label="Muat ulang data"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
             {canEdit && (
               <Button variant="primary" onPress={() => openCreate()}>

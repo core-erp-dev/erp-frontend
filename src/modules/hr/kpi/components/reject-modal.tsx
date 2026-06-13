@@ -9,7 +9,7 @@ import {
   Label,
   FieldError,
 } from '@heroui/react';
-import { XCircle } from 'lucide-react';
+import { XCircle } from '@phosphor-icons/react';
 
 interface RejectModalProps {
   isOpen: boolean;

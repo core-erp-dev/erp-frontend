@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { CaretRight, CaretDown, PencilSimple, Trash, WarningCircle } from '@phosphor-icons/react';
 import { Button, Tooltip } from '@heroui/react';
 import type { CorporateKpiResponse } from '../types';
 
@@ -68,9 +68,9 @@ const TreeNode: React.FC<{
               aria-label={isExpanded ? 'Ciutkan' : 'Perluas'}
             >
               {isExpanded ? (
-                <ChevronDown className="h-3.5 w-3.5" />
+                <CaretDown className="h-3.5 w-3.5" />
               ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
+                <CaretRight className="h-3.5 w-3.5" />
               )}
             </Button>
           ) : (
@@ -126,7 +126,7 @@ const TreeNode: React.FC<{
               onPress={() => onEdit(kpi)}
               aria-label={`Edit ${kpi.indicatorName}`}
             >
-              <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+              <PencilSimple className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
             {kpi.linkedTaskCount > 0 ? (
               <Tooltip>
@@ -137,7 +137,7 @@ const TreeNode: React.FC<{
                   isDisabled
                   aria-label={`Hapus ${kpi.indicatorName}`}
                 >
-                  <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                  <WarningCircle className="h-3.5 w-3.5 text-muted-foreground" />
                 </Button>
                 <Tooltip.Content>
                   <p>Tidak dapat dihapus: masih terhubung dengan {kpi.linkedTaskCount} tugas</p>
@@ -151,7 +151,7 @@ const TreeNode: React.FC<{
                 onPress={() => onDelete(kpi)}
                 aria-label={`Hapus ${kpi.indicatorName}`}
               >
-                <Trash2 className="h-3.5 w-3.5 text-danger" />
+                <Trash className="h-3.5 w-3.5 text-danger" />
               </Button>
             )}
           </div>

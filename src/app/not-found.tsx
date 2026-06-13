@@ -1,4 +1,6 @@
-import { FileX } from 'lucide-react';
+'use client';
+
+import { FileX } from '@phosphor-icons/react';
 import { Button } from '@heroui/react';
 import Link from 'next/link';
 

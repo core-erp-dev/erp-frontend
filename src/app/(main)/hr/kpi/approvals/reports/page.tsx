@@ -7,12 +7,12 @@ import {
   SearchField,
 } from "@heroui/react";
 import {
-  RefreshCw,
+  ArrowsClockwise,
   CheckCircle,
   XCircle,
   Eye,
-  Filter,
-} from "lucide-react";
+  Funnel,
+} from "@phosphor-icons/react";
 import { kpiReportApi } from "@/modules/hr/kpi/services/report-api";
 import {
   KpiReport,
@@ -180,7 +180,7 @@ export default function ReportApprovalPage() {
           onPress={() => fetchReports(currentPage)}
           isDisabled={isLoading}
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          <ArrowsClockwise className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
@@ -188,7 +188,7 @@ export default function ReportApprovalPage() {
       {/* Info Banner */}
       {statusFilter === "PENDING" && pendingCount > 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-warning">
-          <Filter className="h-4 w-4 flex-shrink-0" />
+          <Funnel className="h-4 w-4 flex-shrink-0" />
           Terdapat <strong>{pendingCount} laporan</strong> menunggu persetujuan Anda.
         </div>
       )}

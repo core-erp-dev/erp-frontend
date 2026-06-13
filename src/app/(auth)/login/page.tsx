@@ -16,7 +16,7 @@ import {
   FieldError,
   Alert,
 } from '@heroui/react';
-import { Loader2 } from 'lucide-react';
+import { CircleNotch } from '@phosphor-icons/react';
 import { AuthResponse } from '@/types/auth';
 
 interface ApiError {
@@ -190,7 +190,7 @@ export default function LoginPage() {
                 <Button className="w-full" type="submit" isDisabled={isLoading}>
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <CircleNotch className="mr-2 h-4 w-4 animate-spin" />
                       Memuat...
                     </>
                   ) : (

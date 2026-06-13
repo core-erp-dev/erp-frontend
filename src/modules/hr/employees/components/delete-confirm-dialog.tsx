@@ -5,7 +5,7 @@ import {
   Modal,
   Button,
 } from '@heroui/react';
-import { AlertTriangle } from 'lucide-react';
+import { Warning } from '@phosphor-icons/react';
 
 interface DeleteConfirmDialogProps {
   isOpen: boolean;
@@ -36,7 +36,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
 
             <Modal.Header>
               <Modal.Heading className="px-2 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-warning" />
+                <Warning className="h-5 w-5 text-warning" />
                 Konfirmasi Nonaktifkan
               </Modal.Heading>
             </Modal.Header>

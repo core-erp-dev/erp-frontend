@@ -5,7 +5,7 @@ import {
   Modal,
   Button,
 } from '@heroui/react';
-import { AlertTriangle } from 'lucide-react';
+import { Warning } from '@phosphor-icons/react';
 
 interface DeleteTaskDialogProps {
   isOpen: boolean;
@@ -37,7 +37,7 @@ export const DeleteTaskDialog: React.FC<DeleteTaskDialogProps> = ({
             <Modal.CloseTrigger />
             <Modal.Header>
               <div className="flex items-center gap-2 px-2">
-                <AlertTriangle className="h-5 w-5 text-danger" />
+                <Warning className="h-5 w-5 text-danger" />
                 <Modal.Heading>Konfirmasi Hapus Tugas</Modal.Heading>
               </div>
             </Modal.Header>

@@ -3,14 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-  Edit,
-  Trash2,
-  ChevronDown,
-  MoreVertical,
+  PencilSimple,
+  Trash,
+  CaretDown,
+  DotsThreeVertical,
   CheckCircle,
   XCircle,
   Eye,
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 import {
   Table,
   Dropdown,
@@ -177,7 +177,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
                           size="sm"
                           aria-label={`Aksi untuk ${task.taskName}`}
                         >
-                          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                          <DotsThreeVertical className="h-4 w-4 text-muted-foreground" />
                         </Button>
                         <Dropdown.Popover placement="bottom right" className="min-w-48">
                           <Dropdown.Menu
@@ -208,7 +208,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
                             {canEdit(task.status) && (
                               <Dropdown.Item id="edit" textValue="Edit Tugas">
                                 <div className="flex items-center gap-2">
-                                  <Edit className="h-4 w-4 text-muted-foreground" />
+                                  <PencilSimple className="h-4 w-4 text-muted-foreground" />
                                   <span>Edit Tugas</span>
                                 </div>
                               </Dropdown.Item>
@@ -216,7 +216,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
                             {canDelete(task.status) && (
                               <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
                                 <div className="flex items-center gap-2 text-danger">
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash className="h-4 w-4" />
                                   <span>Hapus</span>
                                 </div>
                               </Dropdown.Item>
@@ -247,7 +247,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
               onPress={() => onPageChange(currentPage - 1)}
               aria-label="Halaman sebelumnya"
             >
-              <ChevronDown className="h-4 w-4 rotate-90" />
+              <CaretDown className="h-4 w-4 rotate-90" />
             </Button>
             {getPageNumbers().map((p, i) =>
               p === 'ellipsis' ? (
@@ -273,7 +273,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
               onPress={() => onPageChange(currentPage + 1)}
               aria-label="Halaman berikutnya"
             >
-              <ChevronDown className="h-4 w-4 -rotate-90" />
+              <CaretDown className="h-4 w-4 -rotate-90" />
             </Button>
           </div>
         </div>

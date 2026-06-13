@@ -8,7 +8,7 @@ import {
   Select,
   ListBox,
 } from "@heroui/react";
-import { Target, TrendingUp, FileCheck, Clock } from "lucide-react";
+import { Target, TrendUp, FileC, Clock } from "@phosphor-icons/react";
 import { kpiReportApi } from "@/modules/hr/kpi/services/report-api";
 import { PerformanceSummaryResponse } from "@/modules/hr/kpi/types";
 
@@ -98,7 +98,7 @@ export default function KpiPerformancePage() {
             {/* Total Realisasi */}
             <Card className="flex flex-col gap-1 p-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <TrendingUp className="h-4 w-4" />
+                <TrendUp className="h-4 w-4" />
                 Total Realisasi
               </div>
               <span className="text-2xl font-bold text-foreground">
@@ -109,7 +109,7 @@ export default function KpiPerformancePage() {
             {/* Laporan Disetujui */}
             <Card className="flex flex-col gap-1 p-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <FileCheck className="h-4 w-4" />
+                <FileC className="h-4 w-4" />
                 Laporan Disetujui
               </div>
               <span className="text-2xl font-bold text-foreground">
