@@ -30,13 +30,13 @@ export function Header() {
 
   return (
     <header className="flex h-16 items-center bg-[#f5f5f5] px-6">
-      {/* Center: Searchbar — takes remaining space, centers content */}
+      {/* Center: Searchbar */}
       <div className="flex flex-1 justify-center">
-        <SearchField>
+        <SearchField aria-label="Cari">
           <SearchField.Group>
             <SearchField.SearchIcon />
             <SearchField.Input placeholder="Cari" className="w-[320px]" />
-            <SearchField.ClearButton />
+            <SearchField.ClearButton aria-label="Hapus pencarian" />
           </SearchField.Group>
         </SearchField>
       </div>
@@ -54,7 +54,12 @@ export function Header() {
 
         <Dropdown>
           <Dropdown.Trigger className="outline-none">
-            <div className="flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors hover:bg-[#EBEBEC] cursor-pointer">
+            <Button
+              variant="tertiary"
+              size="md"
+              aria-label="Menu profil"
+              className="rounded-full gap-2 pl-1! pr-3!"
+            >
               <Avatar size="sm">
                 <Avatar.Fallback>{userInitial}</Avatar.Fallback>
               </Avatar>
@@ -62,7 +67,7 @@ export function Header() {
                 {displayName}
               </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
-            </div>
+            </Button>
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom end" className="min-w-48">
             <Dropdown.Menu
