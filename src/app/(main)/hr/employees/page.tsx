@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Plus, ArrowsClockwise } from "@phosphor-icons/react";
-import { Button, SearchField } from "@heroui/react";
+import { useState, useCallback, useMemo } from "react";
+import { Plus, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X } from "@phosphor-icons/react";
+import {
+  Button,
+  SearchField,
+  Dropdown,
+  Header,
+  Label,
+} from "@heroui/react";
+import type { Selection } from "@heroui/react";
 
 import { DataTable } from "@/modules/hr/employees/components/data-table";
 import { UserFormModal } from "@/modules/hr/employees/components/user-form-modal";
@@ -14,6 +21,9 @@ import {
 } from "@/modules/hr/employees/types";
 import { useEmployeeData } from "@/modules/hr/employees/hooks/use-employee-data";
 import { useEmployeeForm } from "@/modules/hr/employees/hooks/use-employee-form";
+
+type SortField = "fullName" | "nip" | "createdAt";
+type SortDir = "asc" | "desc";
 
 export default function EmployeePage() {
   const {
@@ -49,6 +59,68 @@ export default function EmployeePage() {
   } = useEmployeeForm();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterKeys, setFilterKeys] = useState<Selection>(new Set());
+  const [sortField, setSortField] = useState<SortField>("fullName");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // Client-side filter + sort
+  const filteredUsers = useMemo(() => {
+    let result = [...users];
+
+    // Collect selected filters
+    const selected = filterKeys instanceof Set ? filterKeys : new Set<string>();
+    const statusKeys = new Set<string>();
+    const posKeys = new Set<string>();
+    selected.forEach((k) => {
+      const key = String(k);
+      if (key.startsWith("status:")) statusKeys.add(key.replace("status:", ""));
+      if (key.startsWith("pos:")) posKeys.add(key.replace("pos:", ""));
+    });
+
+    // Filter by status
+    if (statusKeys.size > 0) {
+      result = result.filter((u) => {
+        return (
+          (statusKeys.has("active") && u.isActive) ||
+          (statusKeys.has("inactive") && !u.isActive)
+        );
+      });
+    }
+
+    // Filter by position
+    if (posKeys.size > 0) {
+      result = result.filter((u) => {
+        const posName = u.primaryPosition?.positionName;
+        return posName ? posKeys.has(posName) : false;
+      });
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      if (sortField === "createdAt") {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        return sortDir === "asc" ? dateA - dateB : dateB - dateA;
+      }
+      const valA = sortField === "nip" ? a.nip || "" : a.fullName || "";
+      const valB = sortField === "nip" ? b.nip || "" : b.fullName || "";
+      const cmp = valA.localeCompare(valB, "id");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return result;
+  }, [users, filterKeys, sortField, sortDir]);
+
+  // Unique positions from users
+  const positionNames = useMemo(() => {
+    const names = new Set<string>();
+    users.forEach((u) => {
+      if (u.primaryPosition?.positionName) {
+        names.add(u.primaryPosition.positionName);
+      }
+    });
+    return Array.from(names).sort();
+  }, [users]);
 
   const onFormSubmit = async (data: UserCreateRequest | UserUpdateRequest) => {
     if (selectedUser) {
@@ -77,9 +149,19 @@ export default function EmployeePage() {
     [fetchUsers, pagination?.size],
   );
 
+  const activeFilterCount = filterKeys instanceof Set ? filterKeys.size : 0;
+
+  const sortOptions = [
+    { field: "fullName" as SortField, label: "Nama (A-Z)", dir: "asc" as SortDir },
+    { field: "fullName" as SortField, label: "Nama (Z-A)", dir: "desc" as SortDir },
+    { field: "createdAt" as SortField, label: "Terbaru", dir: "desc" as SortDir },
+    { field: "createdAt" as SortField, label: "Terlama", dir: "asc" as SortDir },
+  ];
+
   return (
     <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-col gap-4">
+      {/* Row 1: Title + Refresh + Tambah */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">
             Semua Karyawan
@@ -94,47 +176,139 @@ export default function EmployeePage() {
             {pagination?.totalElements ?? 0}
           </Button>
         </div>
-
-        <div className="flex items-center justify-between">
-          <SearchField
-            name="search"
-            value={searchQuery}
-            onChange={handleSearch}
-            className="w-70"
+        <div className="flex items-center gap-2">
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={handleRefresh}
+            isDisabled={isLoading}
+            aria-label="Muat ulang data karyawan"
           >
-            <SearchField.Group>
-              <SearchField.SearchIcon />
-              <SearchField.Input
-                aria-label="Cari karyawan"
-                placeholder="Cari karyawan..."
-              />
-              <SearchField.ClearButton />
-            </SearchField.Group>
-          </SearchField>
-
-          <div className="flex items-center gap-2">
-            <Button
-              isIconOnly
-              variant="tertiary"
-              onPress={handleRefresh}
-              isDisabled={isLoading}
-              aria-label="Muat ulang data karyawan"
-            >
-              <ArrowsClockwise
-                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-              />
-            </Button>
-            <Button variant="primary" onPress={handleCreateUser}>
-              <Plus className="h-4 w-4" />
-              Tambah Karyawan
-            </Button>
-          </div>
+            <ArrowsClockwise
+              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            />
+          </Button>
+          <Button variant="primary" onPress={handleCreateUser}>
+            <Plus className="h-4 w-4" />
+            Tambah Karyawan
+          </Button>
         </div>
       </div>
 
+      {/* Row 2: Filter + Sort (left) | Search (right) */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* Filter Dropdown */}
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Filter">
+              <SlidersHorizontal className="h-4 w-4" />
+              Filter
+              {activeFilterCount > 0 && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <span className="text-sm font-medium text-foreground">{activeFilterCount}</span>
+                </>
+              )}
+            </Button>
+            <Dropdown.Popover className="min-w-[220px]">
+              <Dropdown.Menu
+                selectedKeys={filterKeys}
+                selectionMode="multiple"
+                onSelectionChange={setFilterKeys}
+              >
+                <Dropdown.Section>
+                  <Header>Status</Header>
+                  <Dropdown.Item id="status:active" textValue="Aktif">
+                    <Dropdown.ItemIndicator />
+                    <Label>Aktif</Label>
+                  </Dropdown.Item>
+                  <Dropdown.Item id="status:inactive" textValue="Tidak Aktif">
+                    <Dropdown.ItemIndicator />
+                    <Label>Tidak Aktif</Label>
+                  </Dropdown.Item>
+                </Dropdown.Section>
+                <Dropdown.Section>
+                  <Header>Jabatan</Header>
+                  {positionNames.map((name) => (
+                    <Dropdown.Item key={name} id={`pos:${name}`} textValue={name}>
+                      <Dropdown.ItemIndicator />
+                      <Label>{name}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Section>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+
+          {/* Sort Dropdown */}
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Urutkan">
+              <FunnelSimple className="h-4 w-4" />
+              Urut
+              {(sortField !== "fullName" || sortDir !== "asc") && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <Check className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                onAction={(key) => {
+                  const opt = sortOptions[Number(key)];
+                  if (opt) {
+                    setSortField(opt.field);
+                    setSortDir(opt.dir);
+                  }
+                }}
+              >
+                {sortOptions.map((opt, i) => (
+                  <Dropdown.Item key={i} id={String(i)} textValue={opt.label}>
+                    <Label>{opt.label}</Label>
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+
+          {/* Reset Button */}
+          {(activeFilterCount > 0 || sortField !== "fullName" || sortDir !== "asc") && (
+            <Button
+              isIconOnly
+              variant="tertiary"
+              aria-label="Reset filter dan urutan"
+              onPress={() => {
+                setFilterKeys(new Set());
+                setSortField("fullName");
+                setSortDir("asc");
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        <SearchField
+          name="search"
+          value={searchQuery}
+          onChange={handleSearch}
+          className="w-72"
+        >
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input
+              aria-label="Cari karyawan"
+              placeholder="Cari NIP, Nama, Jabatan"
+            />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+      </div>
+
+      {/* Table */}
       <div className="w-full">
         <DataTable
-          users={users}
+          users={filteredUsers}
           isLoading={isLoading}
           searchQuery={searchQuery}
           pagination={pagination}
@@ -145,6 +319,7 @@ export default function EmployeePage() {
         />
       </div>
 
+      {/* Modals */}
       <UserFormModal
         isOpen={isFormModalOpen}
         onClose={handleFormModalClose}

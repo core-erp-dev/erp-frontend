@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
-import { PencilSimple, Trash, UserPlus, DotsThreeVertical } from '@phosphor-icons/react';
+import React, { useState, useCallback } from 'react';
+import Link from 'next/link';
+import { Eye, PencilSimple, Trash, Copy, Check, Tray } from '@phosphor-icons/react';
 import {
   Table,
-  Dropdown,
   Spinner,
   Button,
   Pagination,
@@ -35,158 +35,153 @@ export const DataTable: React.FC<DataTableProps> = ({
   const currentPage = pagination ? pagination.page + 1 : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
   const totalItems = pagination ? pagination.totalElements : 0;
-  const startItem = totalItems > 0 ? (currentPage - 1) * (pagination?.size ?? 10) + 1 : 0;
-  const endItem = Math.min(currentPage * (pagination?.size ?? 10), totalItems);
+  const pageSize = pagination?.size ?? 10;
+  const startItem = totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const getPageNumbers = (): (number | 'ellipsis')[] => {
-    const pages: (number | 'ellipsis')[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push('ellipsis');
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (currentPage < totalPages - 2) pages.push('ellipsis');
-      pages.push(totalPages);
-    }
-    return pages;
-  };
+  const handleCopyNip = useCallback((userId: string, nip: string) => {
+    navigator.clipboard.writeText(nip);
+    setCopiedId(userId);
+    setTimeout(() => setCopiedId(null), 3000);
+  }, []);
 
   return (
-    <div className="space-y-4">
-      <Table>
-        <Table.ScrollContainer>
-          <Table.Content aria-label="Data Karyawan" className="min-w-200">
-            <Table.Header>
-              <Table.Column id="nip" isRowHeader>NIP</Table.Column>
-              <Table.Column id="nama">Nama</Table.Column>
-              <Table.Column id="email">Email</Table.Column>
-              <Table.Column id="jabatan">Jabatan</Table.Column>
-              <Table.Column id="role">Role</Table.Column>
-              <Table.Column id="actions" aria-label="Aksi" className="w-16 text-center">{''}</Table.Column>
-            </Table.Header>
-            <Table.Body
-              renderEmptyState={() =>
-                isLoading ? (
-                  <div className="flex h-24 items-center justify-center">
-                    <Spinner size="md" />
-                  </div>
-                ) : (
-                  <div className="flex h-24 flex-col items-center justify-center gap-2 text-muted-foreground">
-                    <span className="text-sm">
-                      {searchQuery
-                        ? 'Tidak ada karyawan yang cocok dengan pencarian.'
-                        : 'Tidak ada data karyawan.'}
-                    </span>
-                  </div>
-                )
-              }
-            >
-              {users.map((user) => (
-                <Table.Row key={user.id} id={user.id}>
-                  <Table.Cell className="font-medium text-foreground">
+    <Table>
+      <Table.ScrollContainer>
+        <Table.Content aria-label="Data Karyawan" className="min-w-[700px]">
+          <Table.Header>
+            <Table.Column id="nip" isRowHeader>NIP</Table.Column>
+            <Table.Column id="nama">Nama</Table.Column>
+            <Table.Column id="email">Email</Table.Column>
+            <Table.Column id="jabatan">Jabatan</Table.Column>
+            <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
+          </Table.Header>
+          <Table.Body
+            renderEmptyState={() =>
+              isLoading ? (
+                <div className="flex h-24 items-center justify-center">
+                  <Spinner size="md" />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                  <Tray className="h-8 w-8" />
+                  <span className="text-sm">Tidak ada data</span>
+                </div>
+              )
+            }
+          >
+            {users.map((user) => (
+              <Table.Row key={user.id} id={user.id}>
+                <Table.Cell className="font-medium text-foreground">
+                  <div className="flex items-center gap-1">
                     {user.nip || '-'}
-                  </Table.Cell>
-                  <Table.Cell>{user.fullName}</Table.Cell>
-                  <Table.Cell className="text-muted-foreground">{user.email}</Table.Cell>
-                  <Table.Cell>
-                    {user.primaryPosition ? user.primaryPosition.positionName : '—'}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {user.roles?.length > 0 ? (
-                      user.roles[0].description || user.roles[0].roleCode
-                    ) : (
-                      <span className="text-sm italic text-muted-foreground">
-                        Tanpa Role
-                      </span>
+                    {user.nip && (
+                      <Button
+                        isIconOnly
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Salin NIP ${user.nip}`}
+                        onPress={() => handleCopyNip(user.id, user.nip!)}
+                      >
+                        {copiedId === user.id ? (
+                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
                     )}
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex justify-end">
-                      <Dropdown>
-                          <Button
-                            isIconOnly
-                            variant="tertiary"
-                            size="sm"
-                            aria-label={`Aksi untuk ${user.fullName}`}
-                          >
-                            <DotsThreeVertical className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        <Dropdown.Popover placement="bottom right" className="min-w-48">
-                          <Dropdown.Menu
-                            aria-label={`Menu aksi untuk ${user.fullName}`}
-                            onAction={(key) => {
-                              if (key === 'assign') onAssignPosition(user);
-                              if (key === 'edit') onEdit(user);
-                              if (key === 'delete') onDelete(user);
-                            }}
-                          >
-                            <Dropdown.Item id="assign" textValue="Atur Jabatan">
-                              <div className="flex items-center gap-2">
-                                <UserPlus className="h-4 w-4 text-muted-foreground" />
-                                <span>Atur Jabatan</span>
-                              </div>
-                            </Dropdown.Item>
-                            <Dropdown.Item id="edit" textValue="Edit Profil">
-                              <div className="flex items-center gap-2">
-                                <PencilSimple className="h-4 w-4 text-muted-foreground" />
-                                <span>Edit Profil</span>
-                              </div>
-                            </Dropdown.Item>
-                            <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
-                              <div className="flex items-center gap-2 text-danger">
-                                <Trash className="h-4 w-4" />
-                                <span>Hapus</span>
-                              </div>
-                            </Dropdown.Item>
-                          </Dropdown.Menu>
-                        </Dropdown.Popover>
-                      </Dropdown>
-                    </div>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Content>
-        </Table.ScrollContainer>
-      </Table>
+                  </div>
+                </Table.Cell>
+                <Table.Cell>
+                  <Link
+                    href={`/hr/employees/${user.id}`}
+                    className="text-foreground hover:underline font-medium"
+                  >
+                    {user.fullName}
+                  </Link>
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">{user.email}</Table.Cell>
+                <Table.Cell>
+                  {user.primaryPosition ? user.primaryPosition.positionName : '—'}
+                </Table.Cell>
+                <Table.Cell>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      isIconOnly
+                      variant="tertiary"
+                      size="sm"
+                      aria-label={`Detail ${user.fullName}`}
+                      onPress={() => onAssignPosition(user)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      variant="tertiary"
+                      size="sm"
+                      aria-label={`Edit ${user.fullName}`}
+                      onPress={() => onEdit(user)}
+                    >
+                      <PencilSimple className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      variant="danger-soft"
+                      size="sm"
+                      aria-label={`Hapus ${user.fullName}`}
+                      onPress={() => onDelete(user)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
 
       {!isLoading && totalItems > 0 && (
-        <Pagination className="w-full">
-          <Pagination.Summary>
-            Menampilkan {startItem}-{endItem} dari {totalItems} hasil
-          </Pagination.Summary>
-          <Pagination.Content>
-            <Pagination.Item>
-              <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange(currentPage - 1)}>
-                <Pagination.PreviousIcon />
-                <span>Sebelumnya</span>
-              </Pagination.Previous>
-            </Pagination.Item>
-            {getPageNumbers().map((p, i) =>
-              p === 'ellipsis' ? (
-                <Pagination.Item key={`ellipsis-${i}`}>
-                  <Pagination.Ellipsis />
-                </Pagination.Item>
-              ) : (
+        <Table.Footer>
+          <Pagination size="sm">
+            <Pagination.Summary>
+              {startItem} to {endItem} of {totalItems} hasil
+            </Pagination.Summary>
+            <Pagination.Content>
+              <Pagination.Item>
+                <Pagination.Previous
+                  isDisabled={currentPage === 1}
+                  onPress={() => onPageChange(currentPage - 1)}
+                >
+                  <Pagination.PreviousIcon />
+                  Sebelumnya
+                </Pagination.Previous>
+              </Pagination.Item>
+              {pages.map((p) => (
                 <Pagination.Item key={p}>
-                  <Pagination.Link isActive={p === currentPage} onPress={() => onPageChange(p)}>
+                  <Pagination.Link
+                    isActive={p === currentPage}
+                    onPress={() => onPageChange(p)}
+                  >
                     {p}
                   </Pagination.Link>
                 </Pagination.Item>
-              ),
-            )}
-            <Pagination.Item>
-              <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange(currentPage + 1)}>
-                <span>Selanjutnya</span>
-                <Pagination.NextIcon />
-              </Pagination.Next>
-            </Pagination.Item>
-          </Pagination.Content>
-        </Pagination>
+              ))}
+              <Pagination.Item>
+                <Pagination.Next
+                  isDisabled={currentPage === totalPages}
+                  onPress={() => onPageChange(currentPage + 1)}
+                >
+                  Selanjutnya
+                  <Pagination.NextIcon />
+                </Pagination.Next>
+              </Pagination.Item>
+            </Pagination.Content>
+          </Pagination>
+        </Table.Footer>
       )}
-    </div>
+    </Table>
   );
 };

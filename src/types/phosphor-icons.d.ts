@@ -14,6 +14,9 @@ declare module "@phosphor-icons/react" {
   export const ChartBar: FC<IconProps>;
   export const Check: FC<IconProps>;
   export const CheckCircle: FC<IconProps>;
+  export const Copy: FC<IconProps>;
+  export const SlidersHorizontal: FC<IconProps>;
+  export const FunnelSimple: FC<IconProps>;
   export const Checks: FC<IconProps>;
   export const CaretDown: FC<IconProps>;
   export const CaretRight: FC<IconProps>;
@@ -49,4 +52,5 @@ declare module "@phosphor-icons/react" {
   export const Funnel: FC<IconProps>;
   export const Clock: FC<IconProps>;
   export const TrendUp: FC<IconProps>;
+  export const Tray: FC<IconProps>;
 }
