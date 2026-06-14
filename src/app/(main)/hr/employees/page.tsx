@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { Plus, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X } from '@phosphor-icons/react';
+import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X } from '@phosphor-icons/react';
 import {
   Button,
   SearchField,
   Dropdown,
   Header,
   Label,
+  Breadcrumbs,
+  BreadcrumbsItem,
 } from '@heroui/react';
 import type { Selection } from '@heroui/react';
 
@@ -157,6 +159,14 @@ export default function EmployeePage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
+      <Breadcrumbs>
+        <BreadcrumbsItem href="/">
+          <House className="h-4 w-4" />
+        </BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
+        <BreadcrumbsItem>Karyawan</BreadcrumbsItem>
+      </Breadcrumbs>
+
       {/* Row 1: Title + Refresh + Tambah */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

@@ -55,4 +55,5 @@ declare module "@phosphor-icons/react" {
   export const Tray: FC<IconProps>;
   export const CalendarBlank: FC<IconProps>;
   export const Calendar: FC<IconProps>;
+  export const House: FC<IconProps>;
 }
