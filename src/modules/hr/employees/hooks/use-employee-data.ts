@@ -1,18 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@heroui/react';
 
-import { employeeApi } from '../services/employee-api';
+import { employeeApi, UserFilterParams } from '../services/employee-api';
 import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
 import { CoreUser, UserCreateRequest, UserUpdateRequest, AssignUserPositionRequest, PaginatedResponse } from '../types';
 import { PositionTree } from '@/modules/hr/hierarchy/types';
 import { extractErrorMessage } from '@/types/api';
+
+export type SortField = 'fullName' | 'nip' | 'createdAt';
+export type SortDir = 'asc' | 'desc';
+export type StatusFilter = 'all' | 'active' | 'inactive';
+
+export interface EmployeeFilters {
+  search: string;
+  status: StatusFilter;
+  jabatanId: number | null;
+  sortBy: SortField;
+  sortDirection: SortDir;
+  page: number; // 1-based (UI)
+  size: number;
+}
+
+const DEFAULT_FILTERS: EmployeeFilters = {
+  search: '',
+  status: 'all',
+  jabatanId: null,
+  sortBy: 'fullName',
+  sortDirection: 'asc',
+  page: 1,
+  size: 10,
+};
 
 interface UseEmployeeDataReturn {
   users: CoreUser[];
   positions: PositionTree[];
   isLoading: boolean;
   pagination: PaginatedResponse<CoreUser> | null;
-  fetchUsers: (page?: number, size?: number, search?: string) => Promise<void>;
+  filters: EmployeeFilters;
+  setSearch: (search: string) => void;
+  setStatus: (status: StatusFilter) => void;
+  setJabatanId: (id: number | null) => void;
+  setSort: (field: SortField, dir: SortDir) => void;
+  setPage: (page: number) => void;
+  resetFilters: () => void;
+  refresh: () => void;
   createUser: (data: UserCreateRequest) => Promise<boolean>;
   updateUser: (id: string, data: UserUpdateRequest) => Promise<boolean>;
   deleteUser: (id: string) => Promise<boolean>;
@@ -24,15 +55,33 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const [positions, setPositions] = useState<PositionTree[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginatedResponse<CoreUser> | null>(null);
+  const [filters, setFilters] = useState<EmployeeFilters>(DEFAULT_FILTERS);
 
-  const fetchUsers = useCallback(async (page = 0, size = 10, search?: string) => {
+  const fetchUsers = useCallback(async (currentFilters: EmployeeFilters) => {
     try {
       setIsLoading(true);
-      const data = await employeeApi.getUsers({
-        page,
-        size,
-        search: search || undefined,
-      });
+
+      const params: UserFilterParams = {
+        search: currentFilters.search || undefined,
+        page: currentFilters.page - 1, // Convert 1-based UI to 0-based BE
+        size: currentFilters.size,
+        sortBy: currentFilters.sortBy,
+        sortDirection: currentFilters.sortDirection,
+      };
+
+      // Status filter
+      if (currentFilters.status === 'active') {
+        params.isActive = true;
+      } else if (currentFilters.status === 'inactive') {
+        params.isActive = false;
+      }
+
+      // Jabatan filter
+      if (currentFilters.jabatanId !== null) {
+        params.jabatanId = currentFilters.jabatanId;
+      }
+
+      const data = await employeeApi.getUsers(params);
       setUsers(data.content);
       setPagination(data);
     } catch (error) {
@@ -42,6 +91,12 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     }
   }, []);
 
+  // Fetch users whenever filters change
+  useEffect(() => {
+    fetchUsers(filters);
+  }, [filters, fetchUsers]);
+
+  // Fetch positions tree once on mount
   const fetchPositions = useCallback(async () => {
     try {
       const data = await organizationApi.fetchPositionTree();
@@ -52,9 +107,40 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   }, []);
 
   useEffect(() => {
-    fetchUsers();
     fetchPositions();
-  }, [fetchUsers, fetchPositions]);
+  }, [fetchPositions]);
+
+  // --- Filter setters (all reset page to 1) ---
+
+  const setSearch = useCallback((search: string) => {
+    setFilters((prev) => ({ ...prev, search, page: 1 }));
+  }, []);
+
+  const setStatus = useCallback((status: StatusFilter) => {
+    setFilters((prev) => ({ ...prev, status, page: 1 }));
+  }, []);
+
+  const setJabatanId = useCallback((jabatanId: number | null) => {
+    setFilters((prev) => ({ ...prev, jabatanId, page: 1 }));
+  }, []);
+
+  const setSort = useCallback((sortBy: SortField, sortDirection: SortDir) => {
+    setFilters((prev) => ({ ...prev, sortBy, sortDirection, page: 1 }));
+  }, []);
+
+  const setPage = useCallback((page: number) => {
+    setFilters((prev) => ({ ...prev, page }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+  }, []);
+
+  const refresh = useCallback(() => {
+    fetchUsers(filters);
+  }, [fetchUsers, filters]);
+
+  // --- CRUD operations ---
 
   const createUser = async (data: UserCreateRequest): Promise<boolean> => {
     try {
@@ -62,7 +148,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       toast.success('Karyawan berhasil ditambahkan', {
         description: 'Data karyawan baru berhasil disimpan.',
       });
-      await fetchUsers();
+      await fetchUsers(filters);
       return true;
     } catch (error) {
       toast.danger(extractErrorMessage(error, 'Gagal menambahkan karyawan'));
@@ -76,10 +162,10 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       toast.success('Data karyawan berhasil diperbarui', {
         description: 'Perubahan data karyawan telah disimpan.',
       });
-      await fetchUsers();
+      await fetchUsers(filters);
       return true;
     } catch (error) {
-      toast.danger(extractErrorMessage(error, 'Gagal memperbarui data karyawan'));
+      toast.danger(extractErrorMessage(error, 'Gagal memperbarui karyawan'));
       return false;
     }
   };
@@ -90,7 +176,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       toast.success('Karyawan berhasil dinonaktifkan', {
         description: 'Karyawan tidak lagi aktif dalam sistem.',
       });
-      await fetchUsers();
+      await fetchUsers(filters);
       return true;
     } catch (error) {
       toast.danger(extractErrorMessage(error, 'Gagal menonaktifkan karyawan'));
@@ -104,7 +190,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       toast.success('Jabatan berhasil ditetapkan', {
         description: 'Karyawan telah berhasil ditempatkan pada jabatan terkait.',
       });
-      await fetchUsers();
+      await fetchUsers(filters);
       return true;
     } catch (error) {
       toast.danger(extractErrorMessage(error, 'Gagal menetapkan jabatan karyawan'));
@@ -117,7 +203,14 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     positions,
     isLoading,
     pagination,
-    fetchUsers,
+    filters,
+    setSearch,
+    setStatus,
+    setJabatanId,
+    setSort,
+    setPage,
+    resetFilters,
+    refresh,
     createUser,
     updateUser,
     deleteUser,

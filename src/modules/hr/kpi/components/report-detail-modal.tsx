@@ -6,7 +6,7 @@ import {
   Button,
 } from '@heroui/react';
 import {
-  Calendar,
+  CalendarBlank,
   User,
   FileText,
   Target,
@@ -77,7 +77,7 @@ export const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <CalendarBlank className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-muted-foreground text-xs">Tanggal</p>
                       <p className="text-foreground font-medium">

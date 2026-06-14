@@ -47,7 +47,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
   onDelete,
   onApprove,
 }) => {
-  const currentPage = pagination ? pagination.page + 1 : 1;
+  const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
   const totalItems = pagination ? pagination.totalElements : 0;
   const startItem = totalItems > 0 ? (currentPage - 1) * (pagination?.size ?? 10) + 1 : 0;

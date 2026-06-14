@@ -14,6 +14,7 @@ export interface UserFilterParams {
   search?: string;
   roleCode?: string;
   isActive?: boolean;
+  jabatanId?: number;
   page?: number;
   size?: number;
   sortBy?: string;

@@ -1,29 +1,35 @@
-"use client";
+'use client';
 
-import { useState, useCallback, useMemo } from "react";
-import { Plus, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X } from "@phosphor-icons/react";
+import { useState, useCallback, useMemo } from 'react';
+import { Plus, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X } from '@phosphor-icons/react';
 import {
   Button,
   SearchField,
   Dropdown,
   Header,
   Label,
-} from "@heroui/react";
-import type { Selection } from "@heroui/react";
+} from '@heroui/react';
+import type { Selection } from '@heroui/react';
 
-import { DataTable } from "@/modules/hr/employees/components/data-table";
-import { UserFormModal } from "@/modules/hr/employees/components/user-form-modal";
-import { DeleteConfirmDialog } from "@/modules/hr/employees/components/delete-confirm-dialog";
-import { AssignUserModal } from "@/modules/hr/employees/components/assign-user-modal";
+import { DataTable } from '@/modules/hr/employees/components/data-table';
+import { UserFormModal } from '@/modules/hr/employees/components/user-form-modal';
+import { DeleteConfirmDialog } from '@/modules/hr/employees/components/delete-confirm-dialog';
+import { AssignUserModal } from '@/modules/hr/employees/components/assign-user-modal';
 import {
   UserCreateRequest,
   UserUpdateRequest,
-} from "@/modules/hr/employees/types";
-import { useEmployeeData } from "@/modules/hr/employees/hooks/use-employee-data";
-import { useEmployeeForm } from "@/modules/hr/employees/hooks/use-employee-form";
+} from '@/modules/hr/employees/types';
+import { useEmployeeData, type SortField, type SortDir, type StatusFilter } from '@/modules/hr/employees/hooks/use-employee-data';
+import { useEmployeeForm } from '@/modules/hr/employees/hooks/use-employee-form';
+import { useDebounce } from '@/hooks/use-debounce';
+import { flattenPositionTree } from '@/modules/hr/shared/utils/flatten-positions';
 
-type SortField = "fullName" | "nip" | "createdAt";
-type SortDir = "asc" | "desc";
+const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
+  { field: 'fullName', label: 'Nama (A-Z)', dir: 'asc' },
+  { field: 'fullName', label: 'Nama (Z-A)', dir: 'desc' },
+  { field: 'createdAt', label: 'Terbaru', dir: 'desc' },
+  { field: 'createdAt', label: 'Terlama', dir: 'asc' },
+];
 
 export default function EmployeePage() {
   const {
@@ -31,7 +37,14 @@ export default function EmployeePage() {
     positions,
     isLoading,
     pagination,
-    fetchUsers,
+    filters,
+    setSearch,
+    setStatus,
+    setJabatanId,
+    setSort,
+    setPage,
+    resetFilters,
+    refresh,
     createUser,
     updateUser,
     deleteUser,
@@ -58,70 +71,82 @@ export default function EmployeePage() {
     handleAssignSubmit,
   } = useEmployeeForm();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterKeys, setFilterKeys] = useState<Selection>(new Set());
-  const [sortField, setSortField] = useState<SortField>("fullName");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  // Local search input state (immediate UI feedback)
+  const [searchInput, setSearchInput] = useState('');
+  // Debounced search → triggers server fetch
+  const debouncedSearch = useDebounce(searchInput, 400);
 
-  // Client-side filter + sort
-  const filteredUsers = useMemo(() => {
-    let result = [...users];
+  // Track debounced search changes → update hook
+  const [lastSearched, setLastSearched] = useState('');
+  if (debouncedSearch !== lastSearched) {
+    setLastSearched(debouncedSearch);
+    setSearch(debouncedSearch);
+  }
 
-    // Collect selected filters
-    const selected = filterKeys instanceof Set ? filterKeys : new Set<string>();
-    const statusKeys = new Set<string>();
-    const posKeys = new Set<string>();
+  // Build flat positions list for filter dropdown
+  const flatPositions = useMemo(() => flattenPositionTree(positions), [positions]);
+
+  // Derive filter selection keys for HeroUI Dropdown
+  const filterSelectionKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (filters.status === 'active') keys.add('status:active');
+    if (filters.status === 'inactive') keys.add('status:inactive');
+    if (filters.jabatanId !== null) keys.add(`pos:${filters.jabatanId}`);
+    return keys;
+  }, [filters.status, filters.jabatanId]);
+
+  const activeFilterCount = filterSelectionKeys.size;
+
+  // Handle filter selection changes from Dropdown
+  const handleFilterChange = useCallback((selection: Selection) => {
+    const selected = selection instanceof Set ? selection : new Set<string>();
+
+    // Parse status
+    let newStatus: StatusFilter = 'all';
     selected.forEach((k) => {
       const key = String(k);
-      if (key.startsWith("status:")) statusKeys.add(key.replace("status:", ""));
-      if (key.startsWith("pos:")) posKeys.add(key.replace("pos:", ""));
+      if (key === 'status:active') newStatus = 'active';
+      if (key === 'status:inactive') newStatus = 'inactive';
     });
 
-    // Filter by status
-    if (statusKeys.size > 0) {
-      result = result.filter((u) => {
-        return (
-          (statusKeys.has("active") && u.isActive) ||
-          (statusKeys.has("inactive") && !u.isActive)
-        );
-      });
-    }
-
-    // Filter by position
-    if (posKeys.size > 0) {
-      result = result.filter((u) => {
-        const posName = u.primaryPosition?.positionName;
-        return posName ? posKeys.has(posName) : false;
-      });
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      if (sortField === "createdAt") {
-        const dateA = new Date(a.createdAt || 0).getTime();
-        const dateB = new Date(b.createdAt || 0).getTime();
-        return sortDir === "asc" ? dateA - dateB : dateB - dateA;
-      }
-      const valA = sortField === "nip" ? a.nip || "" : a.fullName || "";
-      const valB = sortField === "nip" ? b.nip || "" : b.fullName || "";
-      const cmp = valA.localeCompare(valB, "id");
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-
-    return result;
-  }, [users, filterKeys, sortField, sortDir]);
-
-  // Unique positions from users
-  const positionNames = useMemo(() => {
-    const names = new Set<string>();
-    users.forEach((u) => {
-      if (u.primaryPosition?.positionName) {
-        names.add(u.primaryPosition.positionName);
+    // Parse jabatan
+    let newJabatanId: number | null = null;
+    selected.forEach((k) => {
+      const key = String(k);
+      if (key.startsWith('pos:')) {
+        newJabatanId = Number(key.replace('pos:', ''));
       }
     });
-    return Array.from(names).sort();
-  }, [users]);
 
+    setStatus(newStatus);
+    setJabatanId(newJabatanId);
+  }, [setStatus, setJabatanId]);
+
+  // Handle sort selection
+  const handleSortAction = useCallback((key: React.Key) => {
+    const opt = SORT_OPTIONS[Number(key)];
+    if (opt) {
+      setSort(opt.field, opt.dir);
+    }
+  }, [setSort]);
+
+  // Handle page change
+  const handlePageChange = useCallback((page: number) => {
+    setPage(page);
+  }, [setPage]);
+
+  // Handle refresh
+  const handleRefresh = useCallback(() => {
+    refresh();
+  }, [refresh]);
+
+  // Sort indicator
+  const isDefaultSort = filters.sortBy === 'fullName' && filters.sortDirection === 'asc';
+
+  // Has any non-default filter
+  const hasActiveFilters = activeFilterCount > 0 || !isDefaultSort;
+
+  // Form submit handler
   const onFormSubmit = async (data: UserCreateRequest | UserUpdateRequest) => {
     if (selectedUser) {
       await updateUser(selectedUser.id, data);
@@ -129,34 +154,6 @@ export default function EmployeePage() {
       await createUser(data as UserCreateRequest);
     }
   };
-
-  const handlePageChange = useCallback(
-    (page: number) => {
-      fetchUsers(page - 1, pagination?.size ?? 10, searchQuery || undefined);
-    },
-    [fetchUsers, pagination?.size, searchQuery],
-  );
-
-  const handleRefresh = useCallback(() => {
-    fetchUsers(pagination?.page ?? 0, pagination?.size ?? 10);
-  }, [fetchUsers, pagination?.page, pagination?.size]);
-
-  const handleSearch = useCallback(
-    (value: string) => {
-      setSearchQuery(value);
-      fetchUsers(0, pagination?.size ?? 10, value || undefined);
-    },
-    [fetchUsers, pagination?.size],
-  );
-
-  const activeFilterCount = filterKeys instanceof Set ? filterKeys.size : 0;
-
-  const sortOptions = [
-    { field: "fullName" as SortField, label: "Nama (A-Z)", dir: "asc" as SortDir },
-    { field: "fullName" as SortField, label: "Nama (Z-A)", dir: "desc" as SortDir },
-    { field: "createdAt" as SortField, label: "Terbaru", dir: "desc" as SortDir },
-    { field: "createdAt" as SortField, label: "Terlama", dir: "asc" as SortDir },
-  ];
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -185,7 +182,7 @@ export default function EmployeePage() {
             aria-label="Muat ulang data karyawan"
           >
             <ArrowsClockwise
-              className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
             />
           </Button>
           <Button variant="primary" onPress={handleCreateUser}>
@@ -212,9 +209,9 @@ export default function EmployeePage() {
             </Button>
             <Dropdown.Popover className="min-w-[220px]">
               <Dropdown.Menu
-                selectedKeys={filterKeys}
+                selectedKeys={filterSelectionKeys}
                 selectionMode="multiple"
-                onSelectionChange={setFilterKeys}
+                onSelectionChange={handleFilterChange}
               >
                 <Dropdown.Section>
                   <Header>Status</Header>
@@ -229,10 +226,10 @@ export default function EmployeePage() {
                 </Dropdown.Section>
                 <Dropdown.Section>
                   <Header>Jabatan</Header>
-                  {positionNames.map((name) => (
-                    <Dropdown.Item key={name} id={`pos:${name}`} textValue={name}>
+                  {flatPositions.map((pos) => (
+                    <Dropdown.Item key={pos.id} id={`pos:${pos.id}`} textValue={pos.positionName}>
                       <Dropdown.ItemIndicator />
-                      <Label>{name}</Label>
+                      <Label>{pos.positionName}</Label>
                     </Dropdown.Item>
                   ))}
                 </Dropdown.Section>
@@ -245,7 +242,7 @@ export default function EmployeePage() {
             <Button variant="tertiary" aria-label="Urutkan">
               <FunnelSimple className="h-4 w-4" />
               Urut
-              {(sortField !== "fullName" || sortDir !== "asc") && (
+              {!isDefaultSort && (
                 <>
                   <span className="mx-0.5 h-4 w-px bg-border" />
                   <Check className="h-4 w-4" />
@@ -253,16 +250,8 @@ export default function EmployeePage() {
               )}
             </Button>
             <Dropdown.Popover>
-              <Dropdown.Menu
-                onAction={(key) => {
-                  const opt = sortOptions[Number(key)];
-                  if (opt) {
-                    setSortField(opt.field);
-                    setSortDir(opt.dir);
-                  }
-                }}
-              >
-                {sortOptions.map((opt, i) => (
+              <Dropdown.Menu onAction={handleSortAction}>
+                {SORT_OPTIONS.map((opt, i) => (
                   <Dropdown.Item key={i} id={String(i)} textValue={opt.label}>
                     <Label>{opt.label}</Label>
                   </Dropdown.Item>
@@ -272,16 +261,12 @@ export default function EmployeePage() {
           </Dropdown>
 
           {/* Reset Button */}
-          {(activeFilterCount > 0 || sortField !== "fullName" || sortDir !== "asc") && (
+          {hasActiveFilters && (
             <Button
               isIconOnly
               variant="tertiary"
               aria-label="Reset filter dan urutan"
-              onPress={() => {
-                setFilterKeys(new Set());
-                setSortField("fullName");
-                setSortDir("asc");
-              }}
+              onPress={resetFilters}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -290,15 +275,15 @@ export default function EmployeePage() {
 
         <SearchField
           name="search"
-          value={searchQuery}
-          onChange={handleSearch}
+          value={searchInput}
+          onChange={setSearchInput}
           className="w-72"
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
             <SearchField.Input
               aria-label="Cari karyawan"
-              placeholder="Cari NIP, Nama, Jabatan"
+              placeholder="Cari NIP, Nama, Email"
             />
             <SearchField.ClearButton />
           </SearchField.Group>
@@ -308,9 +293,8 @@ export default function EmployeePage() {
       {/* Table */}
       <div className="w-full">
         <DataTable
-          users={filteredUsers}
+          users={users}
           isLoading={isLoading}
-          searchQuery={searchQuery}
           pagination={pagination}
           onPageChange={handlePageChange}
           onEdit={handleEditUser}
@@ -332,7 +316,7 @@ export default function EmployeePage() {
         isOpen={isDeleteDialogOpen}
         onClose={handleDeleteDialogClose}
         onConfirm={() => handleDeleteConfirm(() => deleteUser(selectedUser!.id))}
-        userName={selectedUser?.fullName || ""}
+        userName={selectedUser?.fullName || ''}
         isDeleting={isDeleting}
       />
 

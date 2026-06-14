@@ -32,7 +32,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   onDelete,
   onAssignPosition,
 }) => {
-  const currentPage = pagination ? pagination.page + 1 : 1;
+  const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
   const totalItems = pagination ? pagination.totalElements : 0;
   const pageSize = pagination?.size ?? 10;

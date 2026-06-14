@@ -206,6 +206,7 @@ export interface UpdateReportRequest {
   description?: string;
   dailyTarget?: number;
   dailyRealization?: number;
+  unit?: string;
 }
 
 export interface ReportApprovalRequest {
