@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X } from '@phosphor-icons/react';
 import {
   Button,
@@ -10,21 +11,17 @@ import {
   Label,
   Breadcrumbs,
   BreadcrumbsItem,
+  toast,
 } from '@heroui/react';
 import type { Selection } from '@heroui/react';
 
+import { useAuthStore } from '@/store/auth-store';
 import { DataTable } from '@/modules/hr/employees/components/data-table';
-import { UserFormModal } from '@/modules/hr/employees/components/user-form-modal';
 import { DeleteConfirmDialog } from '@/modules/hr/employees/components/delete-confirm-dialog';
-import { AssignUserModal } from '@/modules/hr/employees/components/assign-user-modal';
-import {
-  UserCreateRequest,
-  UserUpdateRequest,
-} from '@/modules/hr/employees/types';
 import { useEmployeeData, type SortField, type SortDir, type StatusFilter } from '@/modules/hr/employees/hooks/use-employee-data';
-import { useEmployeeForm } from '@/modules/hr/employees/hooks/use-employee-form';
 import { useDebounce } from '@/hooks/use-debounce';
 import { flattenPositionTree } from '@/modules/hr/shared/utils/flatten-positions';
+import type { CoreUser } from '@/modules/hr/employees/types';
 
 const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
   { field: 'fullName', label: 'Nama (A-Z)', dir: 'asc' },
@@ -34,6 +31,9 @@ const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
 ];
 
 export default function EmployeePage() {
+  const user = useAuthStore((s) => s.user);
+  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+
   const {
     users,
     positions,
@@ -47,48 +47,47 @@ export default function EmployeePage() {
     setPage,
     resetFilters,
     refresh,
-    createUser,
-    updateUser,
     deleteUser,
-    assignPosition,
   } = useEmployeeData();
 
-  const {
-    isFormModalOpen,
-    selectedUser,
-    isSubmitting,
-    handleCreateUser,
-    handleEditUser,
-    handleFormModalClose,
-    isDeleteDialogOpen,
-    isDeleting,
-    handleDeleteUser,
-    handleDeleteDialogClose,
-    handleDeleteConfirm,
-    isAssignModalOpen,
-    assignUserId,
-    isAssigning,
-    handleAssignPosition,
-    handleAssignModalClose,
-    handleAssignSubmit,
-  } = useEmployeeForm();
-
-  // Local search input state (immediate UI feedback)
+  // Local search input state
   const [searchInput, setSearchInput] = useState('');
-  // Debounced search → triggers server fetch
   const debouncedSearch = useDebounce(searchInput, 400);
-
-  // Track debounced search changes → update hook
   const [lastSearched, setLastSearched] = useState('');
   if (debouncedSearch !== lastSearched) {
     setLastSearched(debouncedSearch);
     setSearch(debouncedSearch);
   }
 
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<CoreUser | null>(null);
+
+  const handleDeleteUser = useCallback((u: CoreUser) => {
+    setSelectedUser(u);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!selectedUser) return;
+    setIsDeleting(true);
+    try {
+      await deleteUser(selectedUser.id);
+      toast.success('Karyawan berhasil dinonaktifkan');
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+    } catch {
+      toast.danger('Gagal menonaktifkan karyawan');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedUser, deleteUser]);
+
   // Build flat positions list for filter dropdown
   const flatPositions = useMemo(() => flattenPositionTree(positions), [positions]);
 
-  // Derive filter selection keys for HeroUI Dropdown
+  // Filter selection keys
   const filterSelectionKeys = useMemo(() => {
     const keys = new Set<string>();
     if (filters.status === 'active') keys.add('status:active');
@@ -99,63 +98,27 @@ export default function EmployeePage() {
 
   const activeFilterCount = filterSelectionKeys.size;
 
-  // Handle filter selection changes from Dropdown
   const handleFilterChange = useCallback((selection: Selection) => {
     const selected = selection instanceof Set ? selection : new Set<string>();
-
-    // Parse status
     let newStatus: StatusFilter = 'all';
+    let newJabatanId: number | null = null;
     selected.forEach((k) => {
       const key = String(k);
       if (key === 'status:active') newStatus = 'active';
       if (key === 'status:inactive') newStatus = 'inactive';
+      if (key.startsWith('pos:')) newJabatanId = Number(key.replace('pos:', ''));
     });
-
-    // Parse jabatan
-    let newJabatanId: number | null = null;
-    selected.forEach((k) => {
-      const key = String(k);
-      if (key.startsWith('pos:')) {
-        newJabatanId = Number(key.replace('pos:', ''));
-      }
-    });
-
     setStatus(newStatus);
     setJabatanId(newJabatanId);
   }, [setStatus, setJabatanId]);
 
-  // Handle sort selection
   const handleSortAction = useCallback((key: React.Key) => {
     const opt = SORT_OPTIONS[Number(key)];
-    if (opt) {
-      setSort(opt.field, opt.dir);
-    }
+    if (opt) setSort(opt.field, opt.dir);
   }, [setSort]);
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number) => {
-    setPage(page);
-  }, [setPage]);
-
-  // Handle refresh
-  const handleRefresh = useCallback(() => {
-    refresh();
-  }, [refresh]);
-
-  // Sort indicator
   const isDefaultSort = filters.sortBy === 'fullName' && filters.sortDirection === 'asc';
-
-  // Has any non-default filter
   const hasActiveFilters = activeFilterCount > 0 || !isDefaultSort;
-
-  // Form submit handler
-  const onFormSubmit = async (data: UserCreateRequest | UserUpdateRequest) => {
-    if (selectedUser) {
-      await updateUser(selectedUser.id, data);
-    } else {
-      await createUser(data as UserCreateRequest);
-    }
-  };
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -170,9 +133,7 @@ export default function EmployeePage() {
       {/* Row 1: Title + Refresh + Tambah */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-foreground">
-            Semua Karyawan
-          </h1>
+          <h1 className="text-xl font-semibold text-foreground">Semua Karyawan</h1>
           <Button
             isIconOnly
             variant="tertiary"
@@ -187,25 +148,26 @@ export default function EmployeePage() {
           <Button
             isIconOnly
             variant="tertiary"
-            onPress={handleRefresh}
+            onPress={() => refresh()}
             isDisabled={isLoading}
             aria-label="Muat ulang data karyawan"
           >
-            <ArrowsClockwise
-              className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
-            />
+            <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="primary" onPress={handleCreateUser}>
-            <Plus className="h-4 w-4" />
-            Tambah Karyawan
-          </Button>
+          {hasPerm('employee:create') && (
+            <Link href="/hr/employees/create">
+              <Button variant="primary">
+                <Plus className="h-4 w-4" />
+                Tambah Karyawan
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
       {/* Row 2: Filter + Sort (left) | Search (right) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* Filter Dropdown */}
           <Dropdown>
             <Button variant="tertiary" aria-label="Filter">
               <SlidersHorizontal className="h-4 w-4" />
@@ -247,7 +209,6 @@ export default function EmployeePage() {
             </Dropdown.Popover>
           </Dropdown>
 
-          {/* Sort Dropdown */}
           <Dropdown>
             <Button variant="tertiary" aria-label="Urutkan">
               <FunnelSimple className="h-4 w-4" />
@@ -270,14 +231,8 @@ export default function EmployeePage() {
             </Dropdown.Popover>
           </Dropdown>
 
-          {/* Reset Button */}
           {hasActiveFilters && (
-            <Button
-              isIconOnly
-              variant="tertiary"
-              aria-label="Reset filter dan urutan"
-              onPress={resetFilters}
-            >
+            <Button isIconOnly variant="tertiary" aria-label="Reset filter" onPress={resetFilters}>
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -291,10 +246,7 @@ export default function EmployeePage() {
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
-            <SearchField.Input
-              aria-label="Cari karyawan"
-              placeholder="Cari NIP, Nama, Email"
-            />
+            <SearchField.Input aria-label="Cari karyawan" placeholder="Cari NIP, Nama, Email" />
             <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
@@ -306,38 +258,18 @@ export default function EmployeePage() {
           users={users}
           isLoading={isLoading}
           pagination={pagination}
-          onPageChange={handlePageChange}
-          onEdit={handleEditUser}
+          onPageChange={setPage}
           onDelete={handleDeleteUser}
-          onAssignPosition={handleAssignPosition}
         />
       </div>
 
-      {/* Modals */}
-      <UserFormModal
-        isOpen={isFormModalOpen}
-        onClose={handleFormModalClose}
-        onSubmit={onFormSubmit}
-        user={selectedUser}
-        isSubmitting={isSubmitting}
-      />
-
+      {/* Delete Dialog (only modal remaining) */}
       <DeleteConfirmDialog
         isOpen={isDeleteDialogOpen}
-        onClose={handleDeleteDialogClose}
-        onConfirm={() => handleDeleteConfirm(() => deleteUser(selectedUser!.id))}
+        onClose={() => { setIsDeleteDialogOpen(false); setSelectedUser(null); }}
+        onConfirm={handleDeleteConfirm}
         userName={selectedUser?.fullName || ''}
         isDeleting={isDeleting}
-      />
-
-      <AssignUserModal
-        isOpen={isAssignModalOpen}
-        onClose={handleAssignModalClose}
-        onSuccess={(data) => handleAssignSubmit(() => assignPosition(data))}
-        userId={assignUserId}
-        users={users}
-        positions={positions}
-        isSubmitting={isAssigning}
       />
     </div>
   );

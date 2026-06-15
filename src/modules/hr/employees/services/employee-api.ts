@@ -8,6 +8,7 @@ import {
   ApiResponse,
   PaginatedResponse,
   RoleResponse,
+  PositionOption,
 } from '../types';
 
 export interface UserFilterParams {
@@ -26,6 +27,13 @@ export const employeeApi = {
     const response = await api.get<ApiResponse<PaginatedResponse<CoreUser>>>(
       '/api/v1/users',
       { params },
+    );
+    return response.data.data;
+  },
+
+  getUserById: async (id: string): Promise<CoreUser> => {
+    const response = await api.get<ApiResponse<CoreUser>>(
+      `/api/v1/users/${id}`,
     );
     return response.data.data;
   },
@@ -65,5 +73,12 @@ export const employeeApi = {
       '/api/v1/roles',
     );
     return response.data.data;
+  },
+
+  getPositions: async (): Promise<PositionOption[]> => {
+    const response = await api.get<ApiResponse<{ tree: PositionOption[] }>>(
+      '/api/v1/employees/positions/tree',
+    );
+    return response.data.data.tree;
   },
 };

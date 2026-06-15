@@ -9,6 +9,7 @@ export interface CoreUser {
   createdAt: string;
   updatedAt: string;
   roles: CoreRole[];
+  permissions: string[];
   primaryPosition: PrimaryPosition | null;
 }
 
@@ -16,12 +17,14 @@ export interface CoreRole {
   id: number;
   roleCode: string;
   description: string;
+  permissions?: string[];
 }
 
 export interface RoleResponse {
   id: number;
   roleCode: string;
   description: string;
+  permissions?: string[];
 }
 
 export interface PrimaryPosition {
@@ -46,7 +49,7 @@ export interface UserCreateRequest {
   nip?: string;
   password?: string;
   authServiceId?: string;
-  defaultRoleCode?: string;
+  defaultPositionId?: number;
 }
 
 export interface UserUpdateRequest {
@@ -54,7 +57,7 @@ export interface UserUpdateRequest {
   fullName?: string;
   nip?: string;
   isActive?: boolean;
-  defaultRoleCode?: string;
+  defaultPositionId?: number;
 }
 
 export type { ApiResponse, ApiErrorResponse, PaginatedResponse } from '@/types/api';
@@ -81,4 +84,13 @@ export interface UserPositionResponse {
   isActive: boolean;
   assignedBy: string;
   createdAt: string;
+}
+
+export interface PositionOption {
+  id: number;
+  positionCode: string;
+  positionName: string;
+  parentId: number | null;
+  positionLevel: number;
+  children?: PositionOption[];
 }

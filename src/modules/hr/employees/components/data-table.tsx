@@ -9,29 +9,27 @@ import {
   Button,
   Pagination,
 } from '@heroui/react';
+import { useAuthStore } from '@/store/auth-store';
 import { CoreUser, PaginatedResponse } from '../types';
 
 interface DataTableProps {
   users: CoreUser[];
   isLoading?: boolean;
-  searchQuery?: string;
   pagination: PaginatedResponse<CoreUser> | null;
   onPageChange: (page: number) => void;
-  onEdit: (user: CoreUser) => void;
   onDelete: (user: CoreUser) => void;
-  onAssignPosition: (user: CoreUser) => void;
 }
 
 export const DataTable: React.FC<DataTableProps> = ({
   users,
   isLoading = false,
-  searchQuery = '',
   pagination,
   onPageChange,
-  onEdit,
   onDelete,
-  onAssignPosition,
 }) => {
+  const user = useAuthStore((s) => s.user);
+  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+
   const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
   const totalItems = pagination ? pagination.totalElements : 0;
@@ -72,20 +70,20 @@ export const DataTable: React.FC<DataTableProps> = ({
               )
             }
           >
-            {users.map((user) => (
-              <Table.Row key={user.id} id={user.id}>
+            {users.map((emp) => (
+              <Table.Row key={emp.id} id={emp.id}>
                 <Table.Cell className="font-medium text-foreground">
                   <div className="flex items-center gap-1">
-                    {user.nip || '-'}
-                    {user.nip && (
+                    {emp.nip || '-'}
+                    {emp.nip && (
                       <Button
                         isIconOnly
                         variant="ghost"
                         size="sm"
-                        aria-label={`Salin NIP ${user.nip}`}
-                        onPress={() => handleCopyNip(user.id, user.nip!)}
+                        aria-label={`Salin NIP ${emp.nip}`}
+                        onPress={() => handleCopyNip(emp.id, emp.nip!)}
                       >
-                        {copiedId === user.id ? (
+                        {copiedId === emp.id ? (
                           <Check className="h-3.5 w-3.5 text-muted-foreground" />
                         ) : (
                           <Copy className="h-3.5 w-3.5 text-muted-foreground" />
@@ -95,46 +93,60 @@ export const DataTable: React.FC<DataTableProps> = ({
                   </div>
                 </Table.Cell>
                 <Table.Cell>
-                  <Link
-                    href={`/hr/employees/${user.id}`}
-                    className="text-foreground hover:underline font-medium"
-                  >
-                    {user.fullName}
-                  </Link>
+                  {hasPerm('employee:read') ? (
+                    <Link
+                      href={`/hr/employees/${emp.id}`}
+                      className="text-foreground hover:underline font-medium"
+                    >
+                      {emp.fullName}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-foreground">{emp.fullName}</span>
+                  )}
                 </Table.Cell>
-                <Table.Cell className="text-muted-foreground">{user.email}</Table.Cell>
+                <Table.Cell className="text-muted-foreground">{emp.email}</Table.Cell>
                 <Table.Cell>
-                  {user.primaryPosition ? user.primaryPosition.positionName : '—'}
+                  {emp.primaryPosition ? emp.primaryPosition.positionName : '—'}
                 </Table.Cell>
                 <Table.Cell>
                   <div className="flex items-center justify-end gap-1">
-                    <Button
-                      isIconOnly
-                      variant="tertiary"
-                      size="sm"
-                      aria-label={`Detail ${user.fullName}`}
-                      onPress={() => onAssignPosition(user)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      variant="tertiary"
-                      size="sm"
-                      aria-label={`Edit ${user.fullName}`}
-                      onPress={() => onEdit(user)}
-                    >
-                      <PencilSimple className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      variant="danger-soft"
-                      size="sm"
-                      aria-label={`Hapus ${user.fullName}`}
-                      onPress={() => onDelete(user)}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
+                    {hasPerm('employee:read') && (
+                      <Button
+                        isIconOnly
+                        variant="tertiary"
+                        size="sm"
+                        aria-label={`Detail ${emp.fullName}`}
+                        onPress={() => {}}
+                      >
+                        <Link href={`/hr/employees/${emp.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    )}
+                    {hasPerm('employee:update') && (
+                      <Button
+                        isIconOnly
+                        variant="tertiary"
+                        size="sm"
+                        aria-label={`Edit ${emp.fullName}`}
+                        onPress={() => {}}
+                      >
+                        <Link href={`/hr/employees/${emp.id}/edit`}>
+                          <PencilSimple className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    )}
+                    {hasPerm('employee:delete') && (
+                      <Button
+                        isIconOnly
+                        variant="danger-soft"
+                        size="sm"
+                        aria-label={`Hapus ${emp.fullName}`}
+                        onPress={() => onDelete(emp)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </Table.Cell>
               </Table.Row>
