@@ -172,13 +172,13 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const deleteUser = async (id: string): Promise<boolean> => {
     try {
       await employeeApi.deleteUser(id);
-      toast.success('Karyawan berhasil dinonaktifkan', {
+      toast.success('Karyawan berhasil dihapus', {
         description: 'Karyawan tidak lagi aktif dalam sistem.',
       });
       await fetchUsers(filters);
       return true;
     } catch (error) {
-      toast.danger(extractErrorMessage(error, 'Gagal menonaktifkan karyawan'));
+      toast.danger(extractErrorMessage(error, 'Gagal menghapus karyawan'));
       return false;
     }
   };
