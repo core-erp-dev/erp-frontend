@@ -93,7 +93,7 @@ export default function EmployeeDetailPage() {
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="Nama Lengkap" value={employee.fullName} />
           <Field label="Email" value={employee.email} />
-          <Field label="NIP" value={employee.nip || '—'} />
+          <Field label="NIP" value={employee.nip || '-'} />
           <Field
             label="Status"
             value={
@@ -108,14 +108,14 @@ export default function EmployeeDetailPage() {
               </span>
             }
           />
-          <Field label="Jabatan" value={pos?.positionName || '—'} />
-          <Field label="Kode Jabatan" value={pos?.positionCode || '—'} />
-          <Field label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '—'} />
+          <Field label="Jabatan" value={pos?.positionName || '-'} />
+          <Field label="Kode Jabatan" value={pos?.positionCode || '-'} />
+          <Field label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
           <Field label="Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
-          <Field label="No. Telepon" value={employee.phoneNumber || '—'} />
-          <Field label="Jenis Kelamin" value={employee.gender === 'M' ? 'Laki-laki' : employee.gender === 'F' ? 'Perempuan' : '—'} />
-          <Field label="Tanggal Lahir" value={employee.birthDate ? formatDate(employee.birthDate) : '—'} />
-          <Field label="Alamat" value={employee.address || '—'} />
+          <Field label="No. Telepon" value={employee.phoneNumber || '-'} />
+          <Field label="Jenis Kelamin" value={employee.gender === 'M' ? 'Laki-laki' : employee.gender === 'F' ? 'Perempuan' : '-'} />
+          <Field label="Tanggal Lahir" value={employee.birthDate ? formatDate(employee.birthDate) : '-'} />
+          <Field label="Alamat" value={employee.address || '-'} />
         </div>
       </div>
     </div>

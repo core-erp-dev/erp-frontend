@@ -2,16 +2,15 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X } from '@phosphor-icons/react';
+import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X, Eye } from '@phosphor-icons/react';
 import {
+  Breadcrumbs,
+  BreadcrumbsItem,
   Button,
   SearchField,
   Dropdown,
   Header,
   Label,
-  Breadcrumbs,
-  BreadcrumbsItem,
-  toast,
 } from '@heroui/react';
 import type { Selection } from '@heroui/react';
 
@@ -75,11 +74,10 @@ export default function EmployeePage() {
     setIsDeleting(true);
     try {
       await deleteUser(selectedUser.id);
-      toast.success('Karyawan berhasil dinonaktifkan');
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
     } catch {
-      toast.danger('Gagal menonaktifkan karyawan');
+      // Error toast handled by hook
     } finally {
       setIsDeleting(false);
     }
@@ -117,7 +115,7 @@ export default function EmployeePage() {
   }, [setSort]);
 
   const isDefaultSort = filters.sortBy === 'fullName' && filters.sortDirection === 'asc';
-  const hasActiveFilters = activeFilterCount > 0 || !isDefaultSort;
+  const hasActiveFilters = activeFilterCount > 0 || !isDefaultSort || filters.includeDeleted;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -219,23 +217,24 @@ export default function EmployeePage() {
             </Dropdown.Popover>
           </Dropdown>
 
+          {/* Toggle: Tampilkan Karyawan Terhapus */}
+          {hasPerm('employee:read_deleted') && (
+            <Button variant="tertiary" aria-label="Tampilkan terhapus" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
+              <Eye className="h-4 w-4" />
+              Terhapus
+              {filters.includeDeleted && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <Check className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
+
           {hasActiveFilters && (
             <Button isIconOnly variant="tertiary" aria-label="Reset filter" onPress={resetFilters}>
               <X className="h-4 w-4" />
             </Button>
-          )}
-
-          {/* Toggle: Tampilkan Karyawan Terhapus */}
-          {hasPerm('employee:read_deleted') && (
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={filters.includeDeleted}
-                onChange={(e) => setIncludeDeleted(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-[#006FEE] focus:ring-[#006FEE]"
-              />
-              <span className="text-muted-foreground">Tampilkan Terhapus</span>
-            </label>
           )}
         </div>
 

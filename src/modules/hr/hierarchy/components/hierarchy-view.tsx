@@ -208,7 +208,7 @@ export const HierarchyView: React.FC = () => {
           </Chip>
         </Table.Cell>
 
-        <Table.Cell>{pos.parentName || '—'}</Table.Cell>
+        <Table.Cell>{pos.parentName || '-'}</Table.Cell>
 
         <Table.Cell>
           <span className="font-medium tabular-nums">

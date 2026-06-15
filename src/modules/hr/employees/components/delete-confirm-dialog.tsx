@@ -26,46 +26,49 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
     <Modal>
       <Modal.Backdrop
         isOpen={isOpen}
+        isDismissable={false}
         onOpenChange={(open) => {
           if (!open) onClose();
         }}
       >
         <Modal.Container>
-          <Modal.Dialog className="sm:max-w-md">
-            <Modal.CloseTrigger />
-
-            <Modal.Header>
-              <Modal.Heading className="px-2 flex items-center gap-2">
-                <Warning className="h-5 w-5 text-warning" />
-                Konfirmasi Nonaktifkan
-              </Modal.Heading>
+          <Modal.Dialog className="sm:max-w-[360px]">
+            <Modal.Header className="items-center text-center">
+              <Modal.Icon className="bg-danger-soft text-danger-soft-foreground">
+                <Warning className="size-5" />
+              </Modal.Icon>
+              <Modal.Heading>Konfirmasi Hapus</Modal.Heading>
             </Modal.Header>
 
-            <Modal.Body className="p-2">
-              <p className="text-sm text-muted-foreground">
-                Apakah Anda yakin ingin menonaktifkan karyawan{' '}
+            <Modal.Body>
+              <p className="text-sm text-muted-foreground text-center">
+                Apakah Anda yakin ingin menghapus karyawan{' '}
                 <strong className="text-foreground">{userName}</strong>?
-                Karyawan tidak akan bisa mengakses sistem setelah dinonaktifkan.
+                Karyawan tidak akan bisa mengakses sistem setelah dihapus.
               </p>
             </Modal.Body>
 
-            <Modal.Footer>
+            <Modal.Footer className="flex-col-reverse">
               <Button
-                variant="secondary"
-                onPress={onClose}
-                isDisabled={isDeleting}
-              >
-                Batal
-              </Button>
-              <Button
+                className="w-full"
                 variant="danger"
                 onPress={onConfirm}
                 isDisabled={isDeleting}
                 isPending={isDeleting}
               >
-                {isDeleting ? 'Menonaktifkan...' : 'Nonaktifkan'}
+                {isDeleting ? 'Menghapus...' : 'Hapus'}
+              </Button>
+              <Button
+                className="w-full"
+                variant="secondary"
+                slot="close"
+                onPress={onClose}
+                isDisabled={isDeleting}
+              >
+                Batal
               </Button>
             </Modal.Footer>
+            <Modal.CloseTrigger />
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

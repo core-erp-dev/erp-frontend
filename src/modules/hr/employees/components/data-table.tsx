@@ -78,7 +78,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                 <Table.Row
                   key={emp.id}
                   id={emp.id}
-                  className={isDeleted ? 'opacity-50' : ''}
+                  className=""
                 >
                   <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
                     <div className="flex items-center gap-1">
@@ -102,7 +102,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   </Table.Cell>
                   <Table.Cell>
                     {isDeleted ? (
-                      <span className="font-medium italic text-gray-400">{emp.fullName}</span>
+                      <span className="font-medium text-gray-400">{emp.fullName}</span>
                     ) : hasPerm('employee:read') ? (
                       <Link
                         href={`/hr/employees/${emp.id}`}
@@ -118,7 +118,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                     {emp.email}
                   </Table.Cell>
                   <Table.Cell className={isDeleted ? 'text-gray-400' : ''}>
-                    {emp.primaryPosition ? emp.primaryPosition.positionName : '—'}
+                    {emp.primaryPosition ? emp.primaryPosition.positionName : '-'}
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
@@ -126,13 +126,13 @@ export const DataTable: React.FC<DataTableProps> = ({
                         // Deleted row: only show restore button
                         hasPerm('employee:restore') && (
                           <Button
-                            variant="primary"
+                            isIconOnly
+                            variant="tertiary"
                             size="sm"
                             aria-label={`Pulihkan ${emp.fullName}`}
                             onPress={() => onRestore(emp)}
                           >
                             <ArrowCounterClockwise className="h-4 w-4" />
-                            Pulihkan
                           </Button>
                         )
                       ) : (
