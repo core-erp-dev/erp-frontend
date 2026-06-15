@@ -5,6 +5,11 @@ export interface CoreUser {
   fullName: string;
   email: string;
   isActive: boolean;
+  joinDate: string;
+  phoneNumber: string | null;
+  gender: string | null;
+  birthDate: string | null;
+  address: string | null;
   lastSyncAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -50,6 +55,11 @@ export interface UserCreateRequest {
   password?: string;
   authServiceId?: string;
   defaultPositionId?: number;
+  joinDate: string;
+  phoneNumber?: string;
+  gender?: string;
+  birthDate?: string;
+  address?: string;
 }
 
 export interface UserUpdateRequest {
@@ -58,6 +68,11 @@ export interface UserUpdateRequest {
   nip?: string;
   isActive?: boolean;
   defaultPositionId?: number;
+  joinDate?: string;
+  phoneNumber?: string;
+  gender?: string;
+  birthDate?: string;
+  address?: string;
 }
 
 export type { ApiResponse, ApiErrorResponse, PaginatedResponse } from '@/types/api';

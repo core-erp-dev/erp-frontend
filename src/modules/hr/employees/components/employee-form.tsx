@@ -30,6 +30,11 @@ const getFormSchema = (isEditMode: boolean) =>
       ? z.string().optional().or(z.literal(''))
       : z.string().min(6, 'Kata sandi minimal 6 karakter'),
     defaultPositionId: z.number({ message: 'Jabatan wajib dipilih' }).min(1, 'Jabatan wajib dipilih'),
+    joinDate: z.string().min(1, 'Tanggal bergabung wajib diisi'),
+    phoneNumber: z.string().optional(),
+    gender: z.string().optional(),
+    birthDate: z.string().optional(),
+    address: z.string().optional(),
     isActive: z.boolean(),
   });
 
@@ -73,6 +78,11 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       nip: '',
       password: '',
       defaultPositionId: undefined as unknown as number,
+      joinDate: '',
+      phoneNumber: '',
+      gender: '',
+      birthDate: '',
+      address: '',
       isActive: true,
     },
   });
@@ -100,6 +110,11 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         nip: initialData.nip || '',
         password: '',
         defaultPositionId: initialData.primaryPosition?.positionId,
+        joinDate: initialData.joinDate || '',
+        phoneNumber: initialData.phoneNumber || '',
+        gender: initialData.gender || '',
+        birthDate: initialData.birthDate || '',
+        address: initialData.address || '',
         isActive: initialData.isActive,
       });
     }
@@ -118,6 +133,11 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           nip: values.nip,
           isActive: values.isActive,
           defaultPositionId: values.defaultPositionId,
+          joinDate: values.joinDate,
+          phoneNumber: values.phoneNumber || undefined,
+          gender: values.gender || undefined,
+          birthDate: values.birthDate || undefined,
+          address: values.address || undefined,
         };
         await employeeApi.updateUser(initialData.id, payload);
       } else {
@@ -127,6 +147,11 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           nip: values.nip,
           password: values.password,
           defaultPositionId: values.defaultPositionId,
+          joinDate: values.joinDate,
+          phoneNumber: values.phoneNumber || undefined,
+          gender: values.gender || undefined,
+          birthDate: values.birthDate || undefined,
+          address: values.address || undefined,
         };
         await employeeApi.createUser(payload);
       }
@@ -298,6 +323,121 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         />
 
         {/* Status Aktif (edit only) */}
+
+        {/* === HRIS Fields === */}
+        <div className="border-t border-border pt-4">
+          <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">
+            Data Kepegawaian
+          </h3>
+          <div className="flex flex-col gap-5">
+            {/* Tanggal Bergabung */}
+            <Controller
+              control={form.control}
+              name="joinDate"
+              render={({ field, fieldState }) => (
+                <TextField
+                  isRequired
+                  validationBehavior="aria"
+                  className="w-full"
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  isInvalid={!!fieldState.error}
+                  isDisabled={isSubmitting}
+                >
+                  <Label>Tanggal Bergabung</Label>
+                  <Input type="date" />
+                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+
+            {/* No. Telepon & Gender (side by side) */}
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="phoneNumber"
+                render={({ field, fieldState }) => (
+                  <TextField
+                    validationBehavior="aria"
+                    className="w-full"
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    isInvalid={!!fieldState.error}
+                    isDisabled={isSubmitting}
+                  >
+                    <Label>No. Telepon</Label>
+                    <Input placeholder="08xxxxxxxxxx" type="tel" />
+                    {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                  </TextField>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-sm font-medium text-foreground">Jenis Kelamin</Label>
+                    <select
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value || undefined)}
+                      disabled={isSubmitting}
+                      className="w-full rounded-xl border border-gray-200 bg-background px-3 py-2.5 text-sm outline-none focus:border-[#006FEE]"
+                    >
+                      <option value="">Pilih...</option>
+                      <option value="M">Laki-laki</option>
+                      <option value="F">Perempuan</option>
+                    </select>
+                  </div>
+                )}
+              />
+            </div>
+
+            {/* Tanggal Lahir */}
+            <Controller
+              control={form.control}
+              name="birthDate"
+              render={({ field, fieldState }) => (
+                <TextField
+                  validationBehavior="aria"
+                  className="w-full"
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  isInvalid={!!fieldState.error}
+                  isDisabled={isSubmitting}
+                >
+                  <Label>Tanggal Lahir</Label>
+                  <Input type="date" />
+                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+
+            {/* Alamat */}
+            <Controller
+              control={form.control}
+              name="address"
+              render={({ field, fieldState }) => (
+                <TextField
+                  validationBehavior="aria"
+                  className="w-full"
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  isInvalid={!!fieldState.error}
+                  isDisabled={isSubmitting}
+                >
+                  <Label>Alamat</Label>
+                  <Input placeholder="Alamat lengkap" />
+                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+          </div>
+        </div>
+
         {isEditMode && hasPerm('employee:update') && (
           <Controller
             control={form.control}

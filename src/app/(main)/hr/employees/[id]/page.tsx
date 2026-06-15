@@ -111,7 +111,11 @@ export default function EmployeeDetailPage() {
           <Field label="Jabatan" value={pos?.positionName || '—'} />
           <Field label="Kode Jabatan" value={pos?.positionCode || '—'} />
           <Field label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '—'} />
-          <Field label="Bergabung" value={formatDate(employee.createdAt)} />
+          <Field label="Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
+          <Field label="No. Telepon" value={employee.phoneNumber || '—'} />
+          <Field label="Jenis Kelamin" value={employee.gender === 'M' ? 'Laki-laki' : employee.gender === 'F' ? 'Perempuan' : '—'} />
+          <Field label="Tanggal Lahir" value={employee.birthDate ? formatDate(employee.birthDate) : '—'} />
+          <Field label="Alamat" value={employee.address || '—'} />
         </div>
       </div>
     </div>
