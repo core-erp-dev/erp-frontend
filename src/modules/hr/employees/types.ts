@@ -5,6 +5,7 @@ export interface CoreUser {
   fullName: string;
   email: string;
   isActive: boolean;
+  deletedAt: string | null;
   joinDate: string;
   phoneNumber: string | null;
   gender: string | null;

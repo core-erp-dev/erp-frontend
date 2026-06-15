@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Eye, PencilSimple, Trash, Copy, Check, Tray } from '@phosphor-icons/react';
+import { Eye, PencilSimple, Trash, Copy, Check, Tray, ArrowCounterClockwise } from '@phosphor-icons/react';
 import {
   Table,
   Spinner,
@@ -18,6 +18,7 @@ interface DataTableProps {
   pagination: PaginatedResponse<CoreUser> | null;
   onPageChange: (page: number) => void;
   onDelete: (user: CoreUser) => void;
+  onRestore: (user: CoreUser) => void;
 }
 
 export const DataTable: React.FC<DataTableProps> = ({
@@ -26,6 +27,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   pagination,
   onPageChange,
   onDelete,
+  onRestore,
 }) => {
   const user = useAuthStore((s) => s.user);
   const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
@@ -70,87 +72,116 @@ export const DataTable: React.FC<DataTableProps> = ({
               )
             }
           >
-            {users.map((emp) => (
-              <Table.Row key={emp.id} id={emp.id}>
-                <Table.Cell className="font-medium text-foreground">
-                  <div className="flex items-center gap-1">
-                    {emp.nip || '-'}
-                    {emp.nip && (
-                      <Button
-                        isIconOnly
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Salin NIP ${emp.nip}`}
-                        onPress={() => handleCopyNip(emp.id, emp.nip!)}
+            {users.map((emp) => {
+              const isDeleted = !!emp.deletedAt;
+              return (
+                <Table.Row
+                  key={emp.id}
+                  id={emp.id}
+                  className={isDeleted ? 'opacity-50' : ''}
+                >
+                  <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
+                    <div className="flex items-center gap-1">
+                      {emp.nip || '-'}
+                      {emp.nip && !isDeleted && (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Salin NIP ${emp.nip}`}
+                          onPress={() => handleCopyNip(emp.id, emp.nip!)}
+                        >
+                          {copiedId === emp.id ? (
+                            <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {isDeleted ? (
+                      <span className="font-medium italic text-gray-400">{emp.fullName}</span>
+                    ) : hasPerm('employee:read') ? (
+                      <Link
+                        href={`/hr/employees/${emp.id}`}
+                        className="text-foreground hover:underline font-medium"
                       >
-                        {copiedId === emp.id ? (
-                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                        )}
-                      </Button>
+                        {emp.fullName}
+                      </Link>
+                    ) : (
+                      <span className="font-medium text-foreground">{emp.fullName}</span>
                     )}
-                  </div>
-                </Table.Cell>
-                <Table.Cell>
-                  {hasPerm('employee:read') ? (
-                    <Link
-                      href={`/hr/employees/${emp.id}`}
-                      className="text-foreground hover:underline font-medium"
-                    >
-                      {emp.fullName}
-                    </Link>
-                  ) : (
-                    <span className="font-medium text-foreground">{emp.fullName}</span>
-                  )}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">{emp.email}</Table.Cell>
-                <Table.Cell>
-                  {emp.primaryPosition ? emp.primaryPosition.positionName : '—'}
-                </Table.Cell>
-                <Table.Cell>
-                  <div className="flex items-center justify-end gap-1">
-                    {hasPerm('employee:read') && (
-                      <Button
-                        isIconOnly
-                        variant="tertiary"
-                        size="sm"
-                        aria-label={`Detail ${emp.fullName}`}
-                        onPress={() => {}}
-                      >
-                        <Link href={`/hr/employees/${emp.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    )}
-                    {hasPerm('employee:update') && (
-                      <Button
-                        isIconOnly
-                        variant="tertiary"
-                        size="sm"
-                        aria-label={`Edit ${emp.fullName}`}
-                        onPress={() => {}}
-                      >
-                        <Link href={`/hr/employees/${emp.id}/edit`}>
-                          <PencilSimple className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    )}
-                    {hasPerm('employee:delete') && (
-                      <Button
-                        isIconOnly
-                        variant="danger-soft"
-                        size="sm"
-                        aria-label={`Hapus ${emp.fullName}`}
-                        onPress={() => onDelete(emp)}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </Table.Cell>
-              </Table.Row>
-            ))}
+                  </Table.Cell>
+                  <Table.Cell className={isDeleted ? 'text-gray-400' : 'text-muted-foreground'}>
+                    {emp.email}
+                  </Table.Cell>
+                  <Table.Cell className={isDeleted ? 'text-gray-400' : ''}>
+                    {emp.primaryPosition ? emp.primaryPosition.positionName : '—'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex items-center justify-end gap-1">
+                      {isDeleted ? (
+                        // Deleted row: only show restore button
+                        hasPerm('employee:restore') && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            aria-label={`Pulihkan ${emp.fullName}`}
+                            onPress={() => onRestore(emp)}
+                          >
+                            <ArrowCounterClockwise className="h-4 w-4" />
+                            Pulihkan
+                          </Button>
+                        )
+                      ) : (
+                        // Active row: normal actions
+                        <>
+                          {hasPerm('employee:read') && (
+                            <Button
+                              isIconOnly
+                              variant="tertiary"
+                              size="sm"
+                              aria-label={`Detail ${emp.fullName}`}
+                              onPress={() => {}}
+                            >
+                              <Link href={`/hr/employees/${emp.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          )}
+                          {hasPerm('employee:update') && (
+                            <Button
+                              isIconOnly
+                              variant="tertiary"
+                              size="sm"
+                              aria-label={`Edit ${emp.fullName}`}
+                              onPress={() => {}}
+                            >
+                              <Link href={`/hr/employees/${emp.id}/edit`}>
+                                <PencilSimple className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          )}
+                          {hasPerm('employee:delete') && (
+                            <Button
+                              isIconOnly
+                              variant="danger-soft"
+                              size="sm"
+                              aria-label={`Hapus ${emp.fullName}`}
+                              onPress={() => onDelete(emp)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
           </Table.Body>
         </Table.Content>
       </Table.ScrollContainer>

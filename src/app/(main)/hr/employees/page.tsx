@@ -18,7 +18,7 @@ import type { Selection } from '@heroui/react';
 import { useAuthStore } from '@/store/auth-store';
 import { DataTable } from '@/modules/hr/employees/components/data-table';
 import { DeleteConfirmDialog } from '@/modules/hr/employees/components/delete-confirm-dialog';
-import { useEmployeeData, type SortField, type SortDir, type StatusFilter } from '@/modules/hr/employees/hooks/use-employee-data';
+import { useEmployeeData, type SortField, type SortDir } from '@/modules/hr/employees/hooks/use-employee-data';
 import { useDebounce } from '@/hooks/use-debounce';
 import { flattenPositionTree } from '@/modules/hr/shared/utils/flatten-positions';
 import type { CoreUser } from '@/modules/hr/employees/types';
@@ -41,13 +41,14 @@ export default function EmployeePage() {
     pagination,
     filters,
     setSearch,
-    setStatus,
+    setIncludeDeleted,
     setJabatanId,
     setSort,
     setPage,
     resetFilters,
     refresh,
     deleteUser,
+    restoreUser,
   } = useEmployeeData();
 
   // Local search input state
@@ -84,33 +85,31 @@ export default function EmployeePage() {
     }
   }, [selectedUser, deleteUser]);
 
+  const handleRestore = useCallback(async (u: CoreUser) => {
+    await restoreUser(u.id);
+  }, [restoreUser]);
+
   // Build flat positions list for filter dropdown
   const flatPositions = useMemo(() => flattenPositionTree(positions), [positions]);
 
   // Filter selection keys
   const filterSelectionKeys = useMemo(() => {
     const keys = new Set<string>();
-    if (filters.status === 'active') keys.add('status:active');
-    if (filters.status === 'inactive') keys.add('status:inactive');
     if (filters.jabatanId !== null) keys.add(`pos:${filters.jabatanId}`);
     return keys;
-  }, [filters.status, filters.jabatanId]);
+  }, [filters.jabatanId]);
 
   const activeFilterCount = filterSelectionKeys.size;
 
   const handleFilterChange = useCallback((selection: Selection) => {
     const selected = selection instanceof Set ? selection : new Set<string>();
-    let newStatus: StatusFilter = 'all';
     let newJabatanId: number | null = null;
     selected.forEach((k) => {
       const key = String(k);
-      if (key === 'status:active') newStatus = 'active';
-      if (key === 'status:inactive') newStatus = 'inactive';
       if (key.startsWith('pos:')) newJabatanId = Number(key.replace('pos:', ''));
     });
-    setStatus(newStatus);
     setJabatanId(newJabatanId);
-  }, [setStatus, setJabatanId]);
+  }, [setJabatanId]);
 
   const handleSortAction = useCallback((key: React.Key) => {
     const opt = SORT_OPTIONS[Number(key)];
@@ -165,7 +164,7 @@ export default function EmployeePage() {
         </div>
       </div>
 
-      {/* Row 2: Filter + Sort (left) | Search (right) */}
+      {/* Row 2: Filter + Sort + Toggle (left) | Search (right) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Dropdown>
@@ -185,17 +184,6 @@ export default function EmployeePage() {
                 selectionMode="multiple"
                 onSelectionChange={handleFilterChange}
               >
-                <Dropdown.Section>
-                  <Header>Status</Header>
-                  <Dropdown.Item id="status:active" textValue="Aktif">
-                    <Dropdown.ItemIndicator />
-                    <Label>Aktif</Label>
-                  </Dropdown.Item>
-                  <Dropdown.Item id="status:inactive" textValue="Tidak Aktif">
-                    <Dropdown.ItemIndicator />
-                    <Label>Tidak Aktif</Label>
-                  </Dropdown.Item>
-                </Dropdown.Section>
                 <Dropdown.Section>
                   <Header>Jabatan</Header>
                   {flatPositions.map((pos) => (
@@ -236,6 +224,19 @@ export default function EmployeePage() {
               <X className="h-4 w-4" />
             </Button>
           )}
+
+          {/* Toggle: Tampilkan Karyawan Terhapus */}
+          {hasPerm('employee:read_deleted') && (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-gray-50">
+              <input
+                type="checkbox"
+                checked={filters.includeDeleted}
+                onChange={(e) => setIncludeDeleted(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-[#006FEE] focus:ring-[#006FEE]"
+              />
+              <span className="text-muted-foreground">Tampilkan Terhapus</span>
+            </label>
+          )}
         </div>
 
         <SearchField
@@ -260,10 +261,11 @@ export default function EmployeePage() {
           pagination={pagination}
           onPageChange={setPage}
           onDelete={handleDeleteUser}
+          onRestore={handleRestore}
         />
       </div>
 
-      {/* Delete Dialog (only modal remaining) */}
+      {/* Delete Dialog */}
       <DeleteConfirmDialog
         isOpen={isDeleteDialogOpen}
         onClose={() => { setIsDeleteDialogOpen(false); setSelectedUser(null); }}

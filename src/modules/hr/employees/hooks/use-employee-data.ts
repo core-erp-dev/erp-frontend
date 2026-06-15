@@ -9,11 +9,11 @@ import { extractErrorMessage } from '@/types/api';
 
 export type SortField = 'fullName' | 'nip' | 'createdAt';
 export type SortDir = 'asc' | 'desc';
-export type StatusFilter = 'all' | 'active' | 'inactive';
+export type StatusFilter = 'all' | 'deleted';
 
 export interface EmployeeFilters {
   search: string;
-  status: StatusFilter;
+  includeDeleted: boolean;
   jabatanId: number | null;
   sortBy: SortField;
   sortDirection: SortDir;
@@ -23,7 +23,7 @@ export interface EmployeeFilters {
 
 const DEFAULT_FILTERS: EmployeeFilters = {
   search: '',
-  status: 'all',
+  includeDeleted: false,
   jabatanId: null,
   sortBy: 'fullName',
   sortDirection: 'asc',
@@ -38,7 +38,7 @@ interface UseEmployeeDataReturn {
   pagination: PaginatedResponse<CoreUser> | null;
   filters: EmployeeFilters;
   setSearch: (search: string) => void;
-  setStatus: (status: StatusFilter) => void;
+  setIncludeDeleted: (include: boolean) => void;
   setJabatanId: (id: number | null) => void;
   setSort: (field: SortField, dir: SortDir) => void;
   setPage: (page: number) => void;
@@ -47,6 +47,7 @@ interface UseEmployeeDataReturn {
   createUser: (data: UserCreateRequest) => Promise<boolean>;
   updateUser: (id: string, data: UserUpdateRequest) => Promise<boolean>;
   deleteUser: (id: string) => Promise<boolean>;
+  restoreUser: (id: string) => Promise<boolean>;
   assignPosition: (data: AssignUserPositionRequest) => Promise<boolean>;
 }
 
@@ -69,11 +70,9 @@ export function useEmployeeData(): UseEmployeeDataReturn {
         sortDirection: currentFilters.sortDirection,
       };
 
-      // Status filter
-      if (currentFilters.status === 'active') {
-        params.isActive = true;
-      } else if (currentFilters.status === 'inactive') {
-        params.isActive = false;
+      // Include deleted filter
+      if (currentFilters.includeDeleted) {
+        params.includeDeleted = true;
       }
 
       // Jabatan filter
@@ -116,8 +115,8 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     setFilters((prev) => ({ ...prev, search, page: 1 }));
   }, []);
 
-  const setStatus = useCallback((status: StatusFilter) => {
-    setFilters((prev) => ({ ...prev, status, page: 1 }));
+  const setIncludeDeleted = useCallback((include: boolean) => {
+    setFilters((prev) => ({ ...prev, includeDeleted: include, page: 1 }));
   }, []);
 
   const setJabatanId = useCallback((jabatanId: number | null) => {
@@ -184,6 +183,20 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     }
   };
 
+  const restoreUser = async (id: string): Promise<boolean> => {
+    try {
+      await employeeApi.restoreUser(id);
+      toast.success('Karyawan berhasil dipulihkan', {
+        description: 'Data karyawan telah dikembalikan.',
+      });
+      await fetchUsers(filters);
+      return true;
+    } catch (error) {
+      toast.danger(extractErrorMessage(error, 'Gagal memulihkan karyawan'));
+      return false;
+    }
+  };
+
   const assignPosition = async (data: AssignUserPositionRequest): Promise<boolean> => {
     try {
       await employeeApi.assignUserToPosition(data);
@@ -205,7 +218,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     pagination,
     filters,
     setSearch,
-    setStatus,
+    setIncludeDeleted,
     setJabatanId,
     setSort,
     setPage,
@@ -214,6 +227,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     createUser,
     updateUser,
     deleteUser,
+    restoreUser,
     assignPosition,
   };
 }

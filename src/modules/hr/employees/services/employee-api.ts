@@ -14,7 +14,7 @@ import {
 export interface UserFilterParams {
   search?: string;
   roleCode?: string;
-  isActive?: boolean;
+  includeDeleted?: boolean;
   jabatanId?: number;
   page?: number;
   size?: number;
@@ -56,6 +56,13 @@ export const employeeApi = {
 
   deleteUser: async (id: string): Promise<void> => {
     await api.delete(`/api/v1/users/${id}`);
+  },
+
+  restoreUser: async (id: string): Promise<CoreUser> => {
+    const response = await api.post<ApiResponse<CoreUser>>(
+      `/api/v1/users/${id}/restore`,
+    );
+    return response.data.data;
   },
 
   assignUserToPosition: async (
