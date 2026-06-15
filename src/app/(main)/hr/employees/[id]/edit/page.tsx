@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { toast } from '@heroui/react';
 import { Spinner } from '@heroui/react';
 import { EmployeeForm } from '@/modules/hr/employees/components/employee-form';
 import { employeeApi } from '@/modules/hr/employees/services/employee-api';
@@ -55,8 +54,7 @@ export default function EditEmployeePage() {
       mode="edit"
       initialData={user}
       onSuccess={() => {
-        toast.success('Data karyawan berhasil diperbarui');
-        router.push('/hr/employees');
+        router.push(`/hr/employees/${id}`);
       }}
     />
   );

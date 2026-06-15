@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X, Eye } from '@phosphor-icons/react';
 import {
   Breadcrumbs,
@@ -30,6 +30,7 @@ const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
 ];
 
 export default function EmployeePage() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
 
@@ -152,12 +153,10 @@ export default function EmployeePage() {
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           {hasPerm('employee:create') && (
-            <Link href="/hr/employees/create">
-              <Button variant="primary">
-                <Plus className="h-4 w-4" />
-                Tambah Karyawan
-              </Button>
-            </Link>
+            <Button variant="primary" onPress={() => router.push('/hr/employees/create')}>
+              <Plus className="h-4 w-4" />
+              Tambah Karyawan
+            </Button>
           )}
         </div>
       </div>
