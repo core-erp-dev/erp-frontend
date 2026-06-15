@@ -2,6 +2,7 @@ export interface User {
   username: string;
   email: string;
   roles: string[];
+  permissions: string[];
 }
 
 export interface AuthResponse {
@@ -13,6 +14,7 @@ export interface AuthResponse {
     username: string;
     email: string;
     roles: string[];
+    permissions: string[];
   };
 }
 

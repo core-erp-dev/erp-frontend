@@ -66,10 +66,11 @@ export default function LoginPage() {
         username: userName,
         email,
         roles,
+        permissions,
       } = response.data.data;
 
       setToken(refreshToken);
-      useAuthStore.getState().setAuth(accessToken, { username: userName, email, roles });
+      useAuthStore.getState().setAuth(accessToken, { username: userName, email, roles, permissions: permissions ?? [] });
 
       router.push('/');
     } catch (err: unknown) {

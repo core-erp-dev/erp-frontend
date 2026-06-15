@@ -34,13 +34,13 @@ const executeRefresh = async (): Promise<string> => {
     throw new Error('Invalid refresh response: missing accessToken');
   }
 
-  const { accessToken, refreshToken: newRefreshToken, username, email, roles } = response.data.data;
+  const { accessToken, refreshToken: newRefreshToken, username, email, roles, permissions } = response.data.data;
 
   if (newRefreshToken) {
     setToken(newRefreshToken);
   }
 
-  useAuthStore.getState().setAuth(accessToken, { username, email, roles });
+  useAuthStore.getState().setAuth(accessToken, { username, email, roles, permissions: permissions ?? [] });
 
   return accessToken;
 };
