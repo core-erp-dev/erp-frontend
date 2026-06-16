@@ -4,7 +4,6 @@ export interface CoreUser {
   nip: string;
   fullName: string;
   email: string;
-  isActive: boolean;
   deletedAt: string | null;
   joinDate: string;
   phoneNumber: string | null;
@@ -67,7 +66,6 @@ export interface UserUpdateRequest {
   email?: string;
   fullName?: string;
   nip?: string;
-  isActive?: boolean;
   defaultPositionId?: string;
   joinDate?: string;
   phoneNumber?: string;

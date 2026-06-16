@@ -81,7 +81,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
   }, [isOpen, userId, positionId]);
 
   const flatPositions = flattenPositionsByDepth(positions);
-  const activeUsers = users.filter((u) => u.isActive);
+  const activeUsers = users.filter((u) => !u.deletedAt);
 
   const getSelectedUserName = () => {
     if (!formData.userId) return "Karyawan tidak ditemukan";

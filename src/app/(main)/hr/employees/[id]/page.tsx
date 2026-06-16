@@ -149,20 +149,6 @@ export default function EmployeeDetailPage() {
           <Field label="Jabatan" value={pos?.positionName || '-'} />
           <Field label="Tanggal Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
           <Field label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
-          <Field
-            label="Status"
-            value={
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  employee.isActive
-                    ? 'bg-green-50 text-green-700'
-                    : 'bg-red-50 text-red-700'
-                }`}
-              >
-                {employee.isActive ? 'Aktif' : 'Nonaktif'}
-              </span>
-            }
-          />
         </div>
       </div>
 
