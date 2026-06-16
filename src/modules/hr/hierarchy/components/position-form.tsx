@@ -4,11 +4,11 @@ import { useEffect, useState, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
-import { House, ArrowLeft, Check } from '@phosphor-icons/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
   Button, TextField, Input, Label, FieldError,
-  Breadcrumbs, BreadcrumbsItem, Spinner,
+  Breadcrumbs, BreadcrumbsItem, Spinner, Surface, toast,
 } from '@heroui/react';
 
 import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
@@ -35,6 +35,7 @@ interface PositionFormProps {
 
 export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEditMode = mode === 'edit';
 
   const [allPositions, setAllPositions] = useState<PositionTree[]>([]);
@@ -43,18 +44,20 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Get parentId from query params (for "Tambah Bawahan")
+  const queryParentId = searchParams.get('parentId');
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       positionCode: '',
       positionName: '',
       description: '',
-      parentId: null,
+      parentId: queryParentId || null,
       roleIds: [],
     },
   });
 
-  // Fetch positions tree + roles on mount
   useEffect(() => {
     (async () => {
       try {
@@ -72,10 +75,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
     })();
   }, []);
 
-  // Populate form in edit mode
   useEffect(() => {
     if (initialData && roles.length > 0) {
-      // Load current role assignments for this position
       organizationApi.getPositionRoles(initialData.id).then((posRoles) => {
         form.reset({
           positionCode: initialData.positionCode,
@@ -88,7 +89,13 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
     }
   }, [initialData, roles, form]);
 
-  // Flatten positions for parent dropdown (exclude self in edit mode)
+  // Set parentId from query params on create mode
+  useEffect(() => {
+    if (!isEditMode && queryParentId && allPositions.length > 0) {
+      form.setValue('parentId', queryParentId);
+    }
+  }, [isEditMode, queryParentId, allPositions, form]);
+
   const flatParents = useMemo(() => {
     const result: { id: string; label: string }[] = [];
     const walk = (nodes: PositionTree[], prefix = '') => {
@@ -115,18 +122,12 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         };
         await organizationApi.updatePosition(initialData.id, payload);
 
-        // Sync roles: get current, diff, add/remove
         const currentRoles = await organizationApi.getPositionRoles(initialData.id);
         const currentIds = currentRoles.map((r) => r.id);
         const toAdd = values.roleIds.filter((id) => !currentIds.includes(id));
         const toRemove = currentIds.filter((id) => !values.roleIds.includes(id));
-
-        for (const roleId of toAdd) {
-          await organizationApi.assignRoleToPosition(initialData.id, roleId);
-        }
-        for (const roleId of toRemove) {
-          await organizationApi.removeRoleFromPosition(initialData.id, roleId);
-        }
+        for (const roleId of toAdd) await organizationApi.assignRoleToPosition(initialData.id, roleId);
+        for (const roleId of toRemove) await organizationApi.removeRoleFromPosition(initialData.id, roleId);
       } else {
         const payload: PositionRequest = {
           positionCode: values.positionCode,
@@ -135,11 +136,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
           parentId: values.parentId || undefined,
         };
         const newPos = await organizationApi.createPosition(payload);
-
-        // Assign roles to newly created position
-        for (const roleId of values.roleIds) {
-          await organizationApi.assignRoleToPosition(newPos.id, roleId);
-        }
+        for (const roleId of values.roleIds) await organizationApi.assignRoleToPosition(newPos.id, roleId);
       }
       onSuccess();
     } catch (err) {
@@ -158,7 +155,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6 p-6">
+    <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
@@ -175,130 +172,126 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         </h1>
       </div>
 
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
-        {/* Kode Jabatan */}
-        <Controller
-          control={form.control}
-          name="positionCode"
-          render={({ field, fieldState }) => (
-            <TextField isRequired validationBehavior="aria" className="w-full"
-              name={field.name} value={field.value} onChange={field.onChange}
-              isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-              <Label>Kode Jabatan</Label>
-              <Input placeholder="Contoh: MGR-HRD-001" />
-              {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
-            </TextField>
-          )}
-        />
-
-        {/* Nama Jabatan */}
-        <Controller
-          control={form.control}
-          name="positionName"
-          render={({ field, fieldState }) => (
-            <TextField isRequired validationBehavior="aria" className="w-full"
-              name={field.name} value={field.value} onChange={field.onChange}
-              isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-              <Label>Nama Jabatan</Label>
-              <Input placeholder="Contoh: Manager HRD" />
-              {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
-            </TextField>
-          )}
-        />
-
-        {/* Deskripsi */}
-        <Controller
-          control={form.control}
-          name="description"
-          render={({ field, fieldState }) => (
-            <TextField validationBehavior="aria" className="w-full"
-              name={field.name} value={field.value ?? ''} onChange={field.onChange}
-              isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-              <Label>Deskripsi (Opsional)</Label>
-              <Input placeholder="Deskripsi singkat jabatan" />
-              {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
-            </TextField>
-          )}
-        />
-
-        {/* Atasan (Parent) */}
-        <Controller
-          control={form.control}
-          name="parentId"
-          render={({ field }) => (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-sm font-medium text-foreground">Lapor Ke (Opsional)</Label>
-              <select
-                value={field.value ?? ''}
-                onChange={(e) => field.onChange(e.target.value || null)}
-                disabled={isSubmitting}
-                className="w-full rounded-xl border border-gray-200 bg-background px-3 py-2.5 text-sm outline-none focus:border-[#006FEE]"
-              >
-                <option value="">— Tidak ada atasan (Root) —</option>
-                {flatParents.map((p) => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
-        />
-
-        {/* Role Multi-select */}
-        <Controller
-          control={form.control}
-          name="roleIds"
-          render={({ field, fieldState }) => (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-sm font-medium text-foreground">
-                Role <span className="text-red-500">*</span>
-              </Label>
-              <div className="space-y-2 rounded-xl border border-gray-200 p-3">
-                {roles.map((role) => (
-                  <label key={role.id} className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={(field.value ?? []).includes(role.id)}
-                      onChange={(e) => {
-                        const current = field.value ?? [];
-                        if (e.target.checked) {
-                          field.onChange([...current, role.id]);
-                        } else {
-                          field.onChange(current.filter((id) => id !== role.id));
-                        }
-                      }}
-                      disabled={isSubmitting}
-                      className="h-4 w-4 rounded border-gray-300 text-[#006FEE] focus:ring-[#006FEE]"
-                    />
-                    <span className="text-sm">{role.roleCode}</span>
-                    <span className="text-xs text-gray-400">— {role.description}</span>
-                  </label>
-                ))}
-              </div>
-              {fieldState.error && (
-                <span className="text-xs text-red-500">{fieldState.error.message}</span>
+      <Surface variant="transparent" className="rounded-3xl border p-6">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
+          {/* Kode + Nama */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Controller
+              control={form.control}
+              name="positionCode"
+              render={({ field, fieldState }) => (
+                <TextField isRequired validationBehavior="aria" className="w-full"
+                  name={field.name} value={field.value} onChange={field.onChange}
+                  isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                  <Label>Kode Jabatan</Label>
+                  <Input placeholder="Contoh: MGR-HRD-001" />
+                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                </TextField>
               )}
+            />
+            <Controller
+              control={form.control}
+              name="positionName"
+              render={({ field, fieldState }) => (
+                <TextField isRequired validationBehavior="aria" className="w-full"
+                  name={field.name} value={field.value} onChange={field.onChange}
+                  isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                  <Label>Nama Jabatan</Label>
+                  <Input placeholder="Contoh: Manager HRD" />
+                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                </TextField>
+              )}
+            />
+          </div>
+
+          {/* Deskripsi */}
+          <Controller
+            control={form.control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <TextField validationBehavior="aria" className="w-full"
+                name={field.name} value={field.value ?? ''} onChange={field.onChange}
+                isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                <Label>Deskripsi (Opsional)</Label>
+                <Input placeholder="Deskripsi singkat jabatan" />
+                {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+              </TextField>
+            )}
+          />
+
+          {/* Atasan */}
+          <Controller
+            control={form.control}
+            name="parentId"
+            render={({ field }) => (
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-sm font-medium text-foreground">Lapor Ke (Opsional)</Label>
+                <select
+                  value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value || null)}
+                  disabled={isSubmitting}
+                  className="w-full rounded-xl border border-gray-200 bg-background px-3 py-2.5 text-sm outline-none focus:border-[#006FEE]"
+                >
+                  <option value="">— Tidak ada atasan (Root) —</option>
+                  {flatParents.map((p) => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          />
+
+          {/* Role */}
+          <Controller
+            control={form.control}
+            name="roleIds"
+            render={({ field, fieldState }) => (
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Role <span className="text-red-500">*</span>
+                </Label>
+                <div className="space-y-2 rounded-xl border border-gray-200 p-3">
+                  {roles.map((role) => (
+                    <label key={role.id} className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={(field.value ?? []).includes(role.id)}
+                        onChange={(e) => {
+                          const current = field.value ?? [];
+                          field.onChange(e.target.checked ? [...current, role.id] : current.filter((id) => id !== role.id));
+                        }}
+                        disabled={isSubmitting}
+                        className="h-4 w-4 rounded border-gray-300 text-[#006FEE] focus:ring-[#006FEE]"
+                      />
+                      <span className="text-sm">{role.roleCode}</span>
+                      <span className="text-xs text-gray-400">— {role.description}</span>
+                    </label>
+                  ))}
+                </div>
+                {fieldState.error && <span className="text-xs text-red-500">{fieldState.error.message}</span>}
+              </div>
+            )}
+          />
+
+          {/* Error */}
+          {submitError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {submitError}
             </div>
           )}
-        />
 
-        {/* Error */}
-        {submitError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {submitError}
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="secondary" onPress={() => router.push('/hr/positions')} isDisabled={isSubmitting}>
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
+              <FloppyDisk className="h-4 w-4" />
+              Simpan
+            </Button>
           </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Button variant="secondary" onPress={() => router.push('/hr/positions')} isDisabled={isSubmitting}>
-            Batal
-          </Button>
-          <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
-            <Check className="h-4 w-4" />
-            {isEditMode ? 'Simpan Perubahan' : 'Tambah Jabatan'}
-          </Button>
-        </div>
-      </form>
+        </form>
+      </Surface>
     </div>
   );
 }

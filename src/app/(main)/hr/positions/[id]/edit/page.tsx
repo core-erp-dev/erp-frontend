@@ -20,14 +20,10 @@ export default function EditPositionPage() {
   useEffect(() => {
     (async () => {
       try {
-        // Fetch tree and find the position by ID
         const tree = await organizationApi.fetchPositionTree();
         const found = findInTree(tree, id);
-        if (!found) {
-          setError('Jabatan tidak ditemukan');
-        } else {
-          setPosition(found);
-        }
+        if (!found) setError('Jabatan tidak ditemukan');
+        else setPosition(found);
       } catch {
         setError('Gagal memuat data jabatan');
       } finally {
