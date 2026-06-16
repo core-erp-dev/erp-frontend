@@ -1,106 +1,85 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown, TreeStructure } from '@phosphor-icons/react';
+import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown } from '@phosphor-icons/react';
 import { Table, Spinner, Button, Pagination, Dropdown } from '@heroui/react';
 import { useAuthStore } from '@/store/auth-store';
-import type { PositionTree } from '../types';
+import type { Position, PositionTree } from '../types';
+import type { PaginatedResponse } from '@/types/api';
 
 interface PositionTableProps {
-  positions: PositionTree[];
-  isLoading?: boolean;
-  totalItems: number;
-  page: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
-  onDelete: (pos: PositionTree) => void;
-  viewMode: 'table' | 'tree';
+  positions?: Position[];
+  pagination?: PaginatedResponse<Position> | null;
+  onPageChange?: (page: number) => void;
+  treePositions?: PositionTree[];
   expandedIds?: Set<string>;
   onToggleExpand?: (id: string) => void;
+  isLoading?: boolean;
+  viewMode: 'table' | 'tree';
+  onDelete: (id: string, name: string) => void;
 }
 
 export const PositionTable: React.FC<PositionTableProps> = ({
-  positions,
-  isLoading = false,
-  totalItems,
-  page,
-  pageSize,
+  positions = [],
+  pagination = null,
   onPageChange,
-  onDelete,
-  viewMode,
+  treePositions = [],
   expandedIds = new Set(),
   onToggleExpand,
+  isLoading = false,
+  viewMode,
+  onDelete,
 }) => {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
 
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const startItem = totalItems > 0 ? (page - 1) * pageSize + 1 : 0;
-  const endItem = Math.min(page * pageSize, totalItems);
+  const currentPage = pagination ? pagination.page : 1;
+  const totalPages = pagination ? pagination.totalPages : 1;
+  const totalItems = pagination ? pagination.totalElements : 0;
+  const pageSize = pagination?.size ?? 10;
+  const startItem = totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
 
-  const renderActions = (pos: PositionTree) => (
+  // ── Kebab menu ──
+  const renderActions = (id: string, name: string) => (
     <Dropdown>
-      <Button isIconOnly variant="ghost" size="sm" aria-label={`Aksi ${pos.positionName}`}>
+      <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
       </Button>
       <Dropdown.Popover>
-        <Dropdown.Menu>
+        <Dropdown.Menu onAction={(key) => {
+          if (key === 'detail') router.push(`/hr/positions/${id}`);
+          if (key === 'edit') router.push(`/hr/positions/${id}/edit`);
+          if (key === 'add-child') router.push(`/hr/positions/create?parentId=${id}`);
+          if (key === 'delete') onDelete(id, name);
+        }}>
           {hasPerm('position:read') && (
-            <Dropdown.Item key="detail" id="detail" textValue="Detail">
-              <div className="flex items-center gap-2">
-                <Eye className="h-4 w-4" />
-                <span>Detail</span>
-              </div>
+            <Dropdown.Item id="detail" textValue="Detail">
+              <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground" /><span>Detail</span></div>
             </Dropdown.Item>
           )}
           {hasPerm('position:update') && (
-            <Dropdown.Item key="edit" id="edit" textValue="Edit">
-              <div className="flex items-center gap-2">
-                <PencilSimple className="h-4 w-4" />
-                <span>Edit</span>
-              </div>
+            <Dropdown.Item id="edit" textValue="Edit">
+              <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
             </Dropdown.Item>
           )}
           {hasPerm('position:create') && (
-            <Dropdown.Item key="add-child" id="add-child" textValue="Tambah Bawahan">
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                <span>Tambah Bawahan</span>
-              </div>
+            <Dropdown.Item id="add-child" textValue="Tambah Bawahan">
+              <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Tambah Bawahan</span></div>
             </Dropdown.Item>
           )}
           {hasPerm('position:delete') && (
-            <Dropdown.Item key="delete" id="delete" textValue="Hapus" variant="danger">
-              <div className="flex items-center gap-2">
-                <Trash className="h-4 w-4" />
-                <span>Hapus</span>
-              </div>
+            <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+              <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
             </Dropdown.Item>
           )}
         </Dropdown.Menu>
       </Dropdown.Popover>
     </Dropdown>
   );
-
-  // Handle dropdown actions via onAction
-  const handleAction = (pos: PositionTree, key: React.Key) => {
-    switch (key) {
-      case 'detail':
-        router.push(`/hr/positions/${pos.id}`);
-        break;
-      case 'edit':
-        router.push(`/hr/positions/${pos.id}/edit`);
-        break;
-      case 'add-child':
-        router.push(`/hr/positions/create?parentId=${pos.id}`);
-        break;
-      case 'delete':
-        onDelete(pos);
-        break;
-    }
-  };
 
   if (isLoading) {
     return (
@@ -110,7 +89,8 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     );
   }
 
-  if (positions.length === 0) {
+  const isEmpty = viewMode === 'table' ? positions.length === 0 : treePositions.length === 0;
+  if (isEmpty) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
         <Tray className="h-8 w-8" />
@@ -119,18 +99,18 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     );
   }
 
-  // Tree View: flatten with indentation
+  // ── TREE VIEW ──
   if (viewMode === 'tree') {
-    const treeRows = buildTreeRows(positions, expandedIds, 0);
+    const treeRows = buildTreeRows(treePositions, expandedIds, 0);
     return (
-      <Table key={viewMode}>
+      <Table key="tree">
         <Table.ScrollContainer>
           <Table.Content aria-label="Struktur Jabatan" className="min-w-[700px]">
             <Table.Header>
-              <Table.Column id="name" isRowHeader>Nama Jabatan</Table.Column>
-              <Table.Column id="code">Kode</Table.Column>
-              <Table.Column id="users">Karyawan</Table.Column>
-              <Table.Column id="actions" className="text-center">{''}</Table.Column>
+              <Table.Column id="tree-name" isRowHeader>Nama Jabatan</Table.Column>
+              <Table.Column id="tree-code">Kode</Table.Column>
+              <Table.Column id="tree-users">Karyawan</Table.Column>
+              <Table.Column id="tree-actions" className="text-center">{''}</Table.Column>
             </Table.Header>
             <Table.Body>
               {treeRows.map((row) => (
@@ -151,50 +131,17 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                       ) : (
                         <span className="mr-1 w-5" />
                       )}
-                      <TreeStructure className="mr-2 h-4 w-4 text-[#006FEE]" />
-                      <span className="font-medium text-foreground">{row.positionName}</span>
+                      <Link href={`/hr/positions/${row.id}`} className="font-medium text-foreground hover:underline">
+                        {row.positionName}
+                      </Link>
                     </div>
                   </Table.Cell>
-                  <Table.Cell className="font-mono text-xs text-muted-foreground">
-                    {row.positionCode}
+                  <Table.Cell className="font-mono text-xs text-muted-foreground">{row.positionCode}</Table.Cell>
+                  <Table.Cell>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">{row.userCount}</span>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                      {row.userCount}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <div className="flex justify-end">
-                      <Dropdown>
-                        <Button isIconOnly variant="ghost" size="sm" aria-label={`Aksi ${row.positionName}`}>
-                          <DotsThreeVertical className="h-4 w-4" />
-                        </Button>
-                        <Dropdown.Popover>
-                          <Dropdown.Menu onAction={(key) => handleAction(row.original, key)}>
-                            {hasPerm('position:read') && (
-                              <Dropdown.Item key="detail" textValue="Detail">
-                                <div className="flex items-center gap-2"><Eye className="h-4 w-4" /><span>Detail</span></div>
-                              </Dropdown.Item>
-                            )}
-                            {hasPerm('position:update') && (
-                              <Dropdown.Item key="edit" textValue="Edit">
-                                <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4" /><span>Edit</span></div>
-                              </Dropdown.Item>
-                            )}
-                            {hasPerm('position:create') && (
-                              <Dropdown.Item key="add-child" textValue="Tambah Bawahan">
-                                <div className="flex items-center gap-2"><Plus className="h-4 w-4" /><span>Tambah Bawahan</span></div>
-                              </Dropdown.Item>
-                            )}
-                            {hasPerm('position:delete') && (
-                              <Dropdown.Item key="delete" textValue="Hapus" variant="danger">
-                                <div className="flex items-center gap-2"><Trash className="h-4 w-4" /><span>Hapus</span></div>
-                              </Dropdown.Item>
-                            )}
-                          </Dropdown.Menu>
-                        </Dropdown.Popover>
-                      </Dropdown>
-                    </div>
+                    <div className="flex justify-end">{renderActions(row.id, row.positionName)}</div>
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -205,9 +152,9 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     );
   }
 
-  // Table View: flat with pagination
+  // ── TABLE VIEW ──
   return (
-    <Table key={viewMode}>
+    <Table key="table">
       <Table.ScrollContainer>
         <Table.Content aria-label="Daftar Jabatan" className="min-w-[700px]">
           <Table.Header>
@@ -218,82 +165,57 @@ export const PositionTable: React.FC<PositionTableProps> = ({
             <Table.Column id="actions" className="text-center">{''}</Table.Column>
           </Table.Header>
           <Table.Body>
-            {positions.map((pos) => (
-              <Table.Row key={pos.id} id={pos.id}>
-                <Table.Cell className="font-mono text-xs text-muted-foreground">
-                  {pos.positionCode}
-                </Table.Cell>
-                <Table.Cell className="font-medium text-foreground">
-                  {pos.positionName}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {pos.parentName || '—'}
-                </Table.Cell>
-                <Table.Cell>
-                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                    {(pos.assignedUsers ?? []).length}
-                  </span>
-                </Table.Cell>
-                <Table.Cell>
-                  <div className="flex justify-end">
-                    <Dropdown>
-                      <Button isIconOnly variant="ghost" size="sm" aria-label={`Aksi ${pos.positionName}`}>
-                        <DotsThreeVertical className="h-4 w-4" />
-                      </Button>
-                      <Dropdown.Popover>
-                        <Dropdown.Menu onAction={(key) => handleAction(pos, key)}>
-                          {hasPerm('position:read') && (
-                            <Dropdown.Item key="detail" textValue="Detail">
-                              <div className="flex items-center gap-2"><Eye className="h-4 w-4" /><span>Detail</span></div>
-                            </Dropdown.Item>
-                          )}
-                          {hasPerm('position:update') && (
-                            <Dropdown.Item key="edit" textValue="Edit">
-                              <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4" /><span>Edit</span></div>
-                            </Dropdown.Item>
-                          )}
-                          {hasPerm('position:create') && (
-                            <Dropdown.Item key="add-child" textValue="Tambah Bawahan">
-                              <div className="flex items-center gap-2"><Plus className="h-4 w-4" /><span>Tambah Bawahan</span></div>
-                            </Dropdown.Item>
-                          )}
-                          {hasPerm('position:delete') && (
-                            <Dropdown.Item key="delete" textValue="Hapus" variant="danger">
-                              <div className="flex items-center gap-2"><Trash className="h-4 w-4" /><span>Hapus</span></div>
-                            </Dropdown.Item>
-                          )}
-                        </Dropdown.Menu>
-                      </Dropdown.Popover>
-                    </Dropdown>
-                  </div>
-                </Table.Cell>
-              </Table.Row>
-            ))}
+            {positions.map((pos) => {
+              const isDeleted = !!pos.deletedAt;
+              return (
+                <Table.Row key={pos.id} id={pos.id}>
+                  <Table.Cell className={`font-mono text-xs ${isDeleted ? 'text-gray-400' : 'text-muted-foreground'}`}>
+                    {pos.positionCode}
+                  </Table.Cell>
+                  <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
+                    {isDeleted ? (
+                      <span>{pos.positionName}</span>
+                    ) : (
+                      <Link href={`/hr/positions/${pos.id}`} className="text-foreground hover:underline font-medium">
+                        {pos.positionName}
+                      </Link>
+                    )}
+                  </Table.Cell>
+                  <Table.Cell className={isDeleted ? 'text-gray-400' : 'text-muted-foreground'}>
+                    {pos.parentName || '-'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                      {(pos.assignedUsers ?? []).length}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex justify-end">{renderActions(pos.id, pos.positionName)}</div>
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
           </Table.Body>
         </Table.Content>
       </Table.ScrollContainer>
 
-      {totalItems > pageSize && (
+      {!isLoading && totalItems > 0 && (
         <Table.Footer>
-          <Pagination size="sm">
-            <Pagination.Summary>
-              {startItem} to {endItem} of {totalItems} hasil
-            </Pagination.Summary>
+          <Pagination>
+            <Pagination.Summary>{startItem} to {endItem} of {totalItems} hasil</Pagination.Summary>
             <Pagination.Content>
               <Pagination.Item>
-                <Pagination.Previous isDisabled={page === 1} onPress={() => onPageChange(page - 1)}>
+                <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange?.(currentPage - 1)}>
                   <Pagination.PreviousIcon /> Sebelumnya
                 </Pagination.Previous>
               </Pagination.Item>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <Pagination.Item key={p}>
-                  <Pagination.Link isActive={p === page} onPress={() => onPageChange(p)}>
-                    {p}
-                  </Pagination.Link>
+                  <Pagination.Link isActive={p === currentPage} onPress={() => onPageChange?.(p)}>{p}</Pagination.Link>
                 </Pagination.Item>
               ))}
               <Pagination.Item>
-                <Pagination.Next isDisabled={page === totalPages} onPress={() => onPageChange(page + 1)}>
+                <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange?.(currentPage + 1)}>
                   Selanjutnya <Pagination.NextIcon />
                 </Pagination.Next>
               </Pagination.Item>
@@ -305,8 +227,6 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   );
 };
 
-// ─── Tree Row Builder ────────────────────────────────────────
-
 interface TreeRow {
   id: string;
   positionName: string;
@@ -314,14 +234,9 @@ interface TreeRow {
   userCount: number;
   depth: number;
   hasChildren: boolean;
-  original: PositionTree;
 }
 
-function buildTreeRows(
-  nodes: PositionTree[],
-  expandedIds: Set<string>,
-  depth: number,
-): TreeRow[] {
+function buildTreeRows(nodes: PositionTree[], expandedIds: Set<string>, depth: number): TreeRow[] {
   const rows: TreeRow[] = [];
   for (const node of nodes) {
     rows.push({
@@ -331,7 +246,6 @@ function buildTreeRows(
       userCount: (node.assignedUsers ?? []).length,
       depth,
       hasChildren: node.children.length > 0,
-      original: node,
     });
     if (node.children.length > 0 && expandedIds.has(node.id)) {
       rows.push(...buildTreeRows(node.children, expandedIds, depth + 1));

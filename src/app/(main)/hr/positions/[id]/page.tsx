@@ -113,15 +113,18 @@ export default function PositionDetailPage() {
                 <DotsThreeVertical className="h-4 w-4" />
               </Button>
               <Dropdown.Popover>
-                <Dropdown.Menu>
+                <Dropdown.Menu onAction={(key) => {
+                  if (key === 'edit') router.push(`/hr/positions/${id}/edit`);
+                  if (key === 'delete') setIsDeleteOpen(true);
+                }}>
                   {hasPerm('position:update') && (
-                    <Dropdown.Item key="edit" id="edit" textValue="Edit">
-                      <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4" /><span>Edit</span></div>
+                    <Dropdown.Item id="edit" textValue="Edit">
+                      <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
                     </Dropdown.Item>
                   )}
                   {hasPerm('position:delete') && (
-                    <Dropdown.Item key="delete" id="delete" textValue="Hapus" variant="danger">
-                      <div className="flex items-center gap-2"><Trash className="h-4 w-4" /><span>Hapus</span></div>
+                    <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+                      <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
                     </Dropdown.Item>
                   )}
                 </Dropdown.Menu>

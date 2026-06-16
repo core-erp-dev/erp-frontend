@@ -8,8 +8,27 @@ import {
   ApiResponse,
 } from '../types';
 import type { RoleResponse } from '@/modules/hr/employees/types';
+import type { PaginatedResponse } from '@/types/api';
+
+export interface PositionFilterParams {
+  search?: string;
+  includeDeleted?: boolean;
+  page?: number;
+  size?: number;
+  sortBy?: string;
+  sortDirection?: string;
+}
 
 export const organizationApi = {
+  /** Fetch paginated positions (table view) */
+  getPositions: async (params?: PositionFilterParams): Promise<PaginatedResponse<Position>> => {
+    const response = await api.get<ApiResponse<PaginatedResponse<Position>>>(
+      '/api/v1/employees/positions',
+      { params }
+    );
+    return response.data.data;
+  },
+
   /** Fetch the complete position hierarchy as a tree structure */
   fetchPositionTree: async (): Promise<PositionTree[]> => {
     const response = await api.get<ApiResponse<PositionTreeResponse>>(
