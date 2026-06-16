@@ -8,13 +8,15 @@ export interface AssignedUser {
 }
 
 export interface Position {
-  id: number;
+  id: string;
   positionCode: string;
   positionName: string;
-  parentId: number | null;
+  description: string | null;
+  parentId: string | null;
   parentName: string | null;
   positionLevel: number;
   isActive: boolean;
+  deletedAt: string | null;
   createdAt?: string;
   updatedAt?: string;
   children: PositionTree[];
@@ -28,15 +30,17 @@ export interface PositionTree extends Omit<Position, 'children'> {
 export interface PositionRequest {
   positionCode: string;
   positionName: string;
-  parentId?: number | null;
+  description?: string;
+  parentId?: string | null;
   positionLevel?: number;
 }
 
 export interface PositionUpdateRequest {
   positionCode?: string;
   positionName?: string;
+  description?: string;
+  parentId?: string | null;
   positionLevel?: number;
-  isActive?: boolean;
 }
 
 // Re-export shared API types for backward compatibility within this module

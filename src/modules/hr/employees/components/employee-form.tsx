@@ -40,7 +40,7 @@ const getFormSchema = (isEditMode: boolean) =>
     email: z.string().email('Format email tidak valid'),
     address: z.string().optional(),
     nip: z.string().optional(),
-    defaultPositionId: z.number().optional(),
+    defaultPositionId: z.string().min(1, 'Jabatan wajib dipilih').optional(),
     joinDate: z.string().optional(),
     password: isEditMode
       ? z.string().optional().or(z.literal(''))
@@ -55,8 +55,8 @@ interface EmployeeFormProps {
   onSuccess: () => void;
 }
 
-function flattenPositions(tree: PositionOption[], prefix = ''): { id: number; label: string }[] {
-  const result: { id: number; label: string }[] = [];
+function flattenPositions(tree: PositionOption[], prefix = ''): { id: string; label: string }[] {
+  const result: { id: string; label: string }[] = [];
   for (const node of tree) {
     const indent = prefix ? `${prefix} › ` : '';
     result.push({ id: node.id, label: `${indent}${node.positionName}` });
@@ -243,7 +243,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </TextField>
             )} />
             <Controller control={form.control} name="defaultPositionId" render={({ field, fieldState }) => (
-              <Select className="w-full" selectedKey={field.value != null ? String(field.value) : null} onSelectionChange={(k) => field.onChange(k ? Number(k) : undefined)} isInvalid={!!fieldState.error} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+              <Select className="w-full" selectedKey={field.value != null ? String(field.value) : null} onSelectionChange={(k) => field.onChange(k ? String(k) : undefined)} isInvalid={!!fieldState.error} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
                 <Label>Jabatan</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>

@@ -1,11 +1,11 @@
 import type { PositionTree, AssignedUser } from '../../hierarchy/types';
 
 export interface FlatPosition {
-  id: number;
+  id: string;
   positionCode: string;
   positionName: string;
   positionLevel: number;
-  parentId: number | null;
+  parentId: string | null;
   parentName: string | null;
   isActive: boolean;
   assignedUsers: AssignedUser[];
@@ -49,7 +49,7 @@ export const flattenPositionsByDepth = (
 
 export const findPositionInTree = (
   positions: PositionTree[],
-  id: number,
+  id: string,
 ): PositionTree | undefined => {
   for (const pos of positions) {
     if (pos.id === id) return pos;

@@ -29,7 +29,7 @@ const getTaskFormSchema = (isEditMode: boolean) =>
     ...(isEditMode
       ? {}
       : {
-          positionId: z.number().min(1, 'Pilih posisi'),
+          positionId: z.string().min(1, 'Pilih posisi'),
           corporateKpiId: z.string().min(1, 'KPI Korporat wajib dipilih'),
         }),
   });
@@ -61,7 +61,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
 
   // Flatten position tree for the select dropdown
   const flatPositions = React.useMemo(() => {
-    const result: { id: number; label: string; level: number }[] = [];
+    const result: { id: string; label: string; level: number }[] = [];
     const walk = (items: PositionTree[], level: number) => {
       for (const item of items) {
         result.push({ id: item.id, label: item.positionName, level });
@@ -99,7 +99,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       taskName: '',
       annualTarget: null,
       periodYear: new Date().getFullYear(),
-      ...(isEditMode ? {} : { positionId: 0, corporateKpiId: '' }),
+      ...(isEditMode ? {} : { positionId: '', corporateKpiId: '' }),
     },
   });
 
@@ -115,7 +115,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
         taskName: '',
         annualTarget: null,
         periodYear: new Date().getFullYear(),
-        positionId: 0,
+        positionId: '',
         corporateKpiId: '',
       });
     }
@@ -130,7 +130,7 @@ export const TaskFormModal: React.FC<TaskFormModalProps> = ({
       };
       await onSubmit(updateData);
     } else {
-      const formValues = values as TaskFormValues & { positionId: number; corporateKpiId: string };
+      const formValues = values as TaskFormValues & { positionId: string; corporateKpiId: string };
       const createData: CreateTaskRequest = {
         positionId: formValues.positionId,
         corporateKpiId: formValues.corporateKpiId,

@@ -17,7 +17,7 @@ export interface EmployeeRow {
 
 export interface PositionRow {
   key: string;
-  id: number;
+  id: string;
   type: 'position';
   position: FlatPosition;
   children: EmployeeRow[];
@@ -88,10 +88,12 @@ export const toPositionTree = (pos: FlatPosition): PositionTree => ({
   id: pos.id,
   positionCode: pos.positionCode,
   positionName: pos.positionName,
+  description: null,
   parentId: pos.parentId,
   parentName: pos.parentName,
   positionLevel: pos.positionLevel,
   isActive: pos.isActive,
+  deletedAt: null,
   assignedUsers: pos.assignedUsers,
   children: [],
 });

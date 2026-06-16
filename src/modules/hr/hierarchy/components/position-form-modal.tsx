@@ -23,7 +23,7 @@ import { flattenPositionsByDepth, findPositionInTree } from '../../shared/utils'
 const positionFormSchema = z.object({
   positionCode: z.string().min(1, 'Kode jabatan wajib diisi').max(50, 'Kode jabatan maksimal 50 karakter'),
   positionName: z.string().min(1, 'Nama jabatan wajib diisi').max(100, 'Nama jabatan maksimal 100 karakter'),
-  parentId: z.number().nullable().optional(),
+  parentId: z.string().nullable().optional(),
 });
 
 type PositionFormValues = z.infer<typeof positionFormSchema>;
@@ -33,7 +33,7 @@ interface PositionFormModalProps {
   onClose: () => void;
   onSubmit: (data: PositionRequest | PositionUpdateRequest) => Promise<void>;
   position?: PositionTree | null;
-  parentId?: number | null;
+  parentId?: string | null;
   allPositions: PositionTree[];
   isLoading?: boolean;
 }
@@ -52,7 +52,7 @@ export const PositionFormModal: React.FC<PositionFormModalProps> = ({
 
   const flatPositions = flattenPositionsByDepth(allPositions);
 
-  const calculatePositionLevel = (parentIdValue: number | null): number => {
+  const calculatePositionLevel = (parentIdValue: string | null): number => {
     if (parentIdValue === null) return 1;
     const parent = findPositionInTree(allPositions, parentIdValue);
     return parent ? parent.positionLevel + 1 : 1;

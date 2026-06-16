@@ -29,23 +29,23 @@ interface UseHierarchyDataReturn {
   // Form modal
   isFormModalOpen: boolean;
   selectedPosition: PositionTree | null;
-  parentPositionId: number | null;
+  parentPositionId: string | null;
   handleAddRootPosition: () => void;
-  handleAddSubordinate: (parentId: number) => void;
+  handleAddSubordinate: (parentId: string) => void;
   handleEdit: (pos: FlatPosition) => void;
   handleFormModalClose: () => void;
   handleFormSubmit: (data: PositionRequest | PositionUpdateRequest) => Promise<void>;
 
   // Assign modal
   isAssignModalOpen: boolean;
-  assignPositionId: number | null;
+  assignPositionId: string | null;
   allUsers: CoreUser[];
   isAssigning: boolean;
   handleAssignUser: (pos: FlatPosition) => void;
   handleAssignModalClose: () => void;
   handleAssignSubmit: (data: {
     userId: string;
-    positionId: number;
+    positionId: string;
     startDate: string;
     isPrimary: boolean;
   }) => Promise<void>;
@@ -71,11 +71,11 @@ export function useHierarchyData(): UseHierarchyDataReturn {
   // Form modal state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<PositionTree | null>(null);
-  const [parentPositionId, setParentPositionId] = useState<number | null>(null);
+  const [parentPositionId, setParentPositionId] = useState<string | null>(null);
 
   // Assign modal state
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
-  const [assignPositionId, setAssignPositionId] = useState<number | null>(null);
+  const [assignPositionId, setAssignPositionId] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<CoreUser[]>([]);
   const [isAssigning, setIsAssigning] = useState(false);
 
@@ -139,7 +139,7 @@ export function useHierarchyData(): UseHierarchyDataReturn {
     setIsFormModalOpen(true);
   };
 
-  const handleAddSubordinate = (parentId: number) => {
+  const handleAddSubordinate = (parentId: string) => {
     setSelectedPosition(null);
     setParentPositionId(parentId);
     setIsFormModalOpen(true);
@@ -240,13 +240,17 @@ export function useHierarchyData(): UseHierarchyDataReturn {
         const status = error.response.status;
 
         if (status === 400) {
-          if (detail.toLowerCase().includes('orphan')) {
+          if (
+            detail.toLowerCase().includes('orphan') ||
+            detail.toLowerCase().includes('bawahan')
+          ) {
             errorTitle = 'Tidak Dapat Menghapus: Memiliki Bawahan';
             errorDescription =
               'Jabatan ini memiliki jabatan bawahan. Silakan hapus atau pindahkan terlebih dahulu.';
           } else if (
             detail.toLowerCase().includes('user') ||
-            detail.toLowerCase().includes('assign')
+            detail.toLowerCase().includes('assign') ||
+            detail.toLowerCase().includes('karyawan')
           ) {
             errorTitle = 'Tidak Dapat Menghapus: Memiliki Karyawan';
             errorDescription =
@@ -276,7 +280,7 @@ export function useHierarchyData(): UseHierarchyDataReturn {
 
   const handleAssignSubmit = async (data: {
     userId: string;
-    positionId: number;
+    positionId: string;
     startDate: string;
     isPrimary: boolean;
   }) => {

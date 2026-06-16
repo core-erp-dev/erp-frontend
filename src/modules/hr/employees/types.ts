@@ -38,7 +38,7 @@ export interface PrimaryPosition {
   userId: string;
   userName: string;
   userEmail: string;
-  positionId: number;
+  positionId: string;
   positionName: string;
   positionCode: string;
   startDate: string;
@@ -55,7 +55,7 @@ export interface UserCreateRequest {
   nip?: string;
   password?: string;
   authServiceId?: string;
-  defaultPositionId?: number;
+  defaultPositionId?: string;
   joinDate: string;
   phoneNumber?: string;
   gender?: string;
@@ -68,7 +68,7 @@ export interface UserUpdateRequest {
   fullName?: string;
   nip?: string;
   isActive?: boolean;
-  defaultPositionId?: number;
+  defaultPositionId?: string;
   joinDate?: string;
   phoneNumber?: string;
   gender?: string;
@@ -80,7 +80,7 @@ export type { ApiResponse, ApiErrorResponse, PaginatedResponse } from '@/types/a
 
 export interface AssignUserPositionRequest {
   userId: string;
-  positionId: number;
+  positionId: string;
   startDate: string;
   endDate?: string | null;
   isPrimary: boolean;
@@ -91,7 +91,7 @@ export interface UserPositionResponse {
   userId: string;
   userName: string;
   userEmail: string;
-  positionId: number;
+  positionId: string;
   positionName: string;
   positionCode: string;
   startDate: string;
@@ -103,10 +103,10 @@ export interface UserPositionResponse {
 }
 
 export interface PositionOption {
-  id: number;
+  id: string;
   positionCode: string;
   positionName: string;
-  parentId: number | null;
+  parentId: string | null;
   positionLevel: number;
   children?: PositionOption[];
 }

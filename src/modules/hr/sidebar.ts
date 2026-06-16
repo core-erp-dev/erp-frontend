@@ -27,7 +27,7 @@ export const hrSidebar: SidebarItem[] = [
   },
   {
     title: 'Struktur Jabatan',
-    href: '/hr/hierarchy',
+    href: '/hr/positions',
     icon: TreeStructure,
     module: 'hr',
     group: 'ORGANISASI',

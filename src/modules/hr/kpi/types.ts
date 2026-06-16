@@ -11,7 +11,7 @@ export interface AssignedEmployeeInfo {
 
 export interface KpiTask {
   id: string;
-  positionId: number;
+  positionId: string;
   positionName: string;
   positionCode: string;
   parentTaskId: string | null;
@@ -62,7 +62,7 @@ export const KPI_TASK_STATUS_COLORS: Record<KpiTaskStatus, string> = {
 // ===== Request DTOs =====
 
 export interface CreateTaskRequest {
-  positionId: number;
+  positionId: string;
   parentTaskId?: string | null;
   corporateKpiId: string;
   taskName: string;
@@ -85,7 +85,7 @@ export interface TaskApprovalRequest {
 export interface TaskFilterParams {
   search?: string;
   status?: KpiTaskStatus;
-  positionId?: number;
+  positionId?: string;
   periodYear?: number;
   employeeId?: string;
   page?: number;
@@ -113,7 +113,7 @@ export interface SubordinateTaskResponse {
   taskCode: string;
   taskName: string;
   unit: string;  // was 'satuan' — backend sends 'unit'
-  positionId: number;
+  positionId: string;
   positionName: string;
   annualTarget: number;
   annualRealization: number;
@@ -170,7 +170,7 @@ export interface KpiReport {
   taskId: string;
   taskName: string;
   taskCode: string;
-  positionId: number;
+  positionId: string;
   positionName: string;
   reportDate: string;
   description: string;

@@ -29,12 +29,12 @@ interface AssignUserModalProps {
   onClose: () => void;
   onSuccess: (data: {
     userId: string;
-    positionId: number;
+    positionId: string;
     startDate: string;
     isPrimary: boolean;
   }) => void;
   userId?: string | null;
-  positionId?: number | null;
+  positionId?: string | null;
   users: CoreUser[];
   positions: PositionTree[];
   isSubmitting?: boolean;
@@ -42,7 +42,7 @@ interface AssignUserModalProps {
 
 interface FormData {
   userId: string | null;
-  positionId: number | null;
+  positionId: string | null;
   startDate: string;
   isPrimary: boolean;
 }
@@ -174,7 +174,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                   onSelectionChange={(key) => {
                     setFormData({
                       ...formData,
-                      positionId: key ? Number(key) : null,
+                      positionId: key ? String(key) : null,
                     });
                     setErrors((prev) => ({ ...prev, positionId: "" }));
                   }}
