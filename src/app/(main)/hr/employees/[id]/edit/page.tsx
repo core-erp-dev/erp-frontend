@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Spinner } from '@heroui/react';
+import { Spinner, Alert, Button } from '@heroui/react';
+import { ArrowLeft } from '@phosphor-icons/react';
+import { useAuthStore } from '@/store/auth-store';
 import { EmployeeForm } from '@/modules/hr/employees/components/employee-form';
 import { employeeApi } from '@/modules/hr/employees/services/employee-api';
 import type { CoreUser } from '@/modules/hr/employees/types';
@@ -11,16 +13,22 @@ export default function EditEmployeePage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const user = useAuthStore((s) => s.user);
+  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
 
-  const [user, setUser] = useState<CoreUser | null>(null);
+  const [employee, setEmployee] = useState<CoreUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!hasPerm('employee:update')) {
+      setIsLoading(false);
+      return;
+    }
     (async () => {
       try {
         const data = await employeeApi.getUserById(id);
-        setUser(data);
+        setEmployee(data);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Gagal memuat data karyawan';
         setError(msg);
@@ -29,6 +37,23 @@ export default function EditEmployeePage() {
       }
     })();
   }, [id]);
+
+  if (!hasPerm('employee:update')) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Akses Ditolak</Alert.Title>
+          </Alert.Content>
+        </Alert>
+        <Button variant="secondary" onPress={() => router.push('/hr/employees')}>
+          <ArrowLeft className="h-4 w-4" />
+          Kembali
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -39,7 +64,7 @@ export default function EditEmployeePage() {
     );
   }
 
-  if (error || !user) {
+  if (error || !employee) {
     return (
       <div className="p-6">
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
@@ -52,7 +77,7 @@ export default function EditEmployeePage() {
   return (
     <EmployeeForm
       mode="edit"
-      initialData={user}
+      initialData={employee}
       onSuccess={() => {
         router.push(`/hr/employees/${id}`);
       }}

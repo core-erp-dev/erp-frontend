@@ -7,11 +7,11 @@
 - [x] `settings/page.tsx:19` — Ganti native `<button>` settings card dengan `<Button variant="ghost" aria-label="...">`
 - [x] `sidebar.tsx:117-123` — Fix Image aspect ratio: tambah `width: "auto"` ke inline style
 
-## Step 2 — Architecture Cleanup
+## Step 2 — Architecture Cleanup ✅
 
-- [ ] Hapus `/hr/hierarchy` route: delete `app/(main)/hr/hierarchy/page.tsx`
-- [ ] Rename folder `modules/hr/hierarchy/` → `modules/hr/positions/`
-- [ ] Update semua import path yang terdampak (position-table, position-form, position-form-modal, delete-confirm-dialog, hierarchy-view, hooks, services, types, sidebar.ts, pages)
+- [x] Hapus `/hr/hierarchy` route: delete `app/(main)/hr/hierarchy/page.tsx`
+- [x] Rename folder `modules/hr/hierarchy/` → `modules/hr/positions/`
+- [x] Update semua import path yang terdampak (22 files)
 
 ## Step 3 — Page-Level Permission Guards
 
@@ -21,7 +21,7 @@
 - [ ] `positions/[id]/edit/page.tsx` — Tambah `hasPerm('position:update')` guard
 - [ ] `sidebar.ts` — Tambah `permissions: ['employee:read']` ke item Karyawan
 - [ ] `sidebar.ts` — Tambah `permissions: ['position:read']` ke item Struktur Jabatan
-- [ ] `settings/page.tsx` — Tambah AuthGuard atau permission check
+- [ ] `settings/page.tsx` — Tambah permission check
 - [ ] `settings/roles/page.tsx` — Tambah `hasPerm('role:read')` page-level guard
 
 ## Step 4 — HeroUI Compliance
@@ -34,7 +34,7 @@
 
 ## Step 5 — Reusability & Cleanup
 
-- [ ] Extract shared `DeleteConfirmDialog` — merge `employees/` dan `hierarchy/` versi ke `components/shared/`
+- [ ] Extract shared `DeleteConfirmDialog` — merge `employees/` dan `positions/` versi ke `components/shared/`
 - [ ] Extract `DateFieldPicker` dari `employee-form.tsx` ke `components/shared/date-field-picker.tsx`
 - [ ] Extract `findInTree` utility ke `modules/hr/shared/utils/`
 - [ ] Hapus 14 unused shadcn/ui components di `src/components/ui/`

@@ -11,9 +11,10 @@
 - `hierarchy-view.tsx:179` — Fix PressResponder warning: ganti `<Button slot="chevron">` dengan `<span>` indicator (React Aria tree Table handles row click)
 - `settings/page.tsx:19` — Ganti native `<button>` settings card dengan HeroUI `<Button variant="ghost" aria-label="...">`
 
-### chore(docs): organize documentation
+### refactor(arch): delete duplicate /hr/hierarchy route, rename folder to positions/
 
-- Pindahkan semua `.md` file ke `docs/` folder
-- Buat `docs/plan.md` — 5-step remediation plan
-- Buat `docs/changelog.md`
-- Buat `docs/FRONTEND_AUDIT_REPORT.md` — comprehensive audit report
+**Step 2 — Architecture Cleanup:**
+
+- Hapus `app/(main)/hr/hierarchy/` route (duplicate of `/hr/positions`)
+- Rename `modules/hr/hierarchy/` → `modules/hr/positions/`
+- Update 22 import paths di seluruh codebase
