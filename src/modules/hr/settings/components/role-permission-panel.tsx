@@ -1,6 +1,6 @@
 'use client';
 
-import { Spinner } from '@heroui/react';
+import { Spinner, Button } from '@heroui/react';
 import { useRoleData } from '../hooks/use-role-data';
 import type { Role } from '../types';
 
@@ -132,9 +132,11 @@ function RoleCard({
   onSelect: () => void;
 }) {
   return (
-    <button
-      onClick={onSelect}
-      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+    <Button
+      variant="ghost"
+      aria-label={`Pilih role ${role.roleCode}`}
+      onPress={onSelect}
+      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors h-auto ${
         isSelected
           ? 'border-[#006FEE] bg-blue-50 text-foreground'
           : 'border-border bg-background hover:bg-gray-50'
@@ -144,6 +146,6 @@ function RoleCard({
       <div className="mt-0.5 text-xs text-gray-500">
         {role.permissions.length} permission
       </div>
-    </button>
+    </Button>
   );
 }

@@ -140,9 +140,9 @@ export default function PositionDetailPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Kode" value={position.positionCode} />
           <Field label="Nama" value={position.positionName} />
-          <Field label="Deskripsi" value={position.description || '—'} />
+          <Field label="Deskripsi" value={position.description || '-'} />
           <Field label="Level" value={String(position.positionLevel)} />
-          <Field label="Lapor Ke" value={position.parentName || '— (Root)'} />
+          <Field label="Lapor Ke" value={position.parentName || '- (Root)'} />
         </div>
       </div>
 
@@ -155,10 +155,12 @@ export default function PositionDetailPage() {
         {position.children.length > 0 ? (
           <div className="space-y-2">
             {position.children.map((child) => (
-              <button
+              <Button
                 key={child.id}
-                onClick={() => router.push(`/hr/positions/${child.id}`)}
-                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left hover:border-[#006FEE] transition-colors"
+                variant="ghost"
+                aria-label={`Buka ${child.positionName}`}
+                onPress={() => router.push(`/hr/positions/${child.id}`)}
+                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left hover:border-[#006FEE] transition-colors h-auto"
               >
                 <div>
                   <div className="text-sm font-medium text-foreground">{child.positionName}</div>
@@ -167,7 +169,7 @@ export default function PositionDetailPage() {
                 <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
                   {(child.assignedUsers ?? []).length} karyawan
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         ) : (
@@ -184,17 +186,19 @@ export default function PositionDetailPage() {
         {assignedUsers.length > 0 ? (
           <div className="space-y-2">
             {assignedUsers.map((u) => (
-              <button
+              <Button
                 key={u.id}
-                onClick={() => router.push(`/hr/employees/${u.id}`)}
-                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left hover:border-[#006FEE] transition-colors"
+                variant="ghost"
+                aria-label={`Buka ${u.fullName}`}
+                onPress={() => router.push(`/hr/employees/${u.id}`)}
+                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left hover:border-[#006FEE] transition-colors h-auto"
               >
                 <div>
                   <div className="text-sm font-medium text-foreground">{u.fullName}</div>
                   <div className="text-xs text-gray-400">{u.email}</div>
                 </div>
-                <span className="font-mono text-xs text-gray-400">{u.nip || '—'}</span>
-              </button>
+                <span className="font-mono text-xs text-gray-400">{u.nip || '-'}</span>
+              </Button>
             ))}
           </div>
         ) : (
