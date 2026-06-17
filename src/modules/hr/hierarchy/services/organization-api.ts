@@ -68,7 +68,7 @@ export const organizationApi = {
 
   /** Soft delete a position */
   deletePosition: async (id: string): Promise<void> => {
-    await api.patch(`/api/v1/positions/${id}/delete`);
+    await api.patch(`/api/v1/employees/positions/${id}/delete`);
   },
 
   /** Get roles assigned to a position */

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, House, ArrowsClockwise, FunnelSimple, Check, X, Eye } from '@phosphor-icons/react';
+import { Plus, House, ArrowsClockwise, FunnelSimple, Check, X, Eye, ArrowsOutSimple, ArrowsInSimple } from '@phosphor-icons/react';
 import {
   Breadcrumbs,
   BreadcrumbsItem,
@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { PositionTable } from '@/modules/hr/hierarchy/components/position-table';
 import { DeleteConfirmDialog } from '@/modules/hr/hierarchy/components/delete-confirm-dialog';
 import { usePositionData, type SortField, type SortDir } from '@/modules/hr/hierarchy/hooks/use-position-data';
+import type { PositionTree } from '@/modules/hr/hierarchy/types';
 import { useDebounce } from '@/hooks/use-debounce';
 
 const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
@@ -93,6 +94,34 @@ export default function PositionsPage() {
       return next;
     });
   }, []);
+
+  // Collect all node IDs that have children (expandable)
+  const collectExpandableIds = useCallback((nodes: PositionTree[]): string[] => {
+    const ids: string[] = [];
+    for (const node of nodes) {
+      if (node.children && node.children.length > 0) {
+        ids.push(node.id);
+        ids.push(...collectExpandableIds(node.children));
+      }
+    }
+    return ids;
+  }, []);
+
+  const handleExpandAll = useCallback(() => {
+    const allIds = collectExpandableIds(treePositions);
+    setExpandedIds(new Set(allIds));
+  }, [treePositions, collectExpandableIds]);
+
+  const handleCollapseAll = useCallback(() => {
+    setExpandedIds(new Set());
+  }, []);
+
+  // Check if all expandable nodes are expanded
+  const allExpanded = (() => {
+    if (treePositions.length === 0) return false;
+    const expandableIds = collectExpandableIds(treePositions);
+    return expandableIds.length > 0 && expandableIds.every((id) => expandedIds.has(id));
+  })();
 
   // Auto-expand roots when switching to tree view
   const handleViewModeChange = useCallback((mode: 'table' | 'tree') => {
@@ -172,6 +201,21 @@ export default function PositionsPage() {
               </Tabs.List>
             </Tabs.ListContainer>
           </Tabs>
+
+          {viewMode === 'tree' && (
+            <Button
+              variant="tertiary"
+              onPress={allExpanded ? handleCollapseAll : handleExpandAll}
+              aria-label={allExpanded ? 'Ciutkan semua' : 'Perluas semua'}
+            >
+              {allExpanded ? (
+                <ArrowsInSimple className="h-4 w-4" />
+              ) : (
+                <ArrowsOutSimple className="h-4 w-4" />
+              )}
+              {allExpanded ? 'Ciutkan Semua' : 'Perluas Semua'}
+            </Button>
+          )}
 
           {viewMode === 'table' && (
             <>

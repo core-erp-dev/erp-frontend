@@ -57,4 +57,6 @@ declare module "@phosphor-icons/react" {
   export const CalendarBlank: FC<IconProps>;
   export const Calendar: FC<IconProps>;
   export const House: FC<IconProps>;
+  export const ArrowsOutSimple: FC<IconProps>;
+  export const ArrowsInSimple: FC<IconProps>;
 }
