@@ -120,16 +120,20 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                   <Table.Cell>
                     <div className="flex items-center" style={{ paddingLeft: row.depth * 24 }}>
                       {row.hasChildren ? (
-                        <button
-                          onClick={() => onToggleExpand?.(row.id)}
-                          className="mr-1 flex h-5 w-5 items-center justify-center rounded hover:bg-gray-100"
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={expandedIds.has(row.id) ? 'Ciutkan' : 'Perluas'}
+                          onPress={() => onToggleExpand?.(row.id)}
+                          className="mr-1 h-5 w-5 min-w-0"
                         >
                           {expandedIds.has(row.id) ? (
                             <CaretDown className="h-3.5 w-3.5 text-gray-500" />
                           ) : (
                             <CaretRight className="h-3.5 w-3.5 text-gray-500" />
                           )}
-                        </button>
+                        </Button>
                       ) : (
                         <span className="mr-1 w-5" />
                       )}

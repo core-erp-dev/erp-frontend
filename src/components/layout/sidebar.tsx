@@ -120,7 +120,7 @@ export function Sidebar() {
           width={64}
           height={20}
           priority
-          style={{ height: "auto" }}
+          style={{ height: "auto", width: "auto" }}
         />
         <span className="text-sm font-bold text-foreground uppercase tracking-wider">
           {moduleLabel}

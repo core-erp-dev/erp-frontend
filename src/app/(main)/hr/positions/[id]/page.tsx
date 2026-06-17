@@ -6,9 +6,9 @@ import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Users, TreeSt
 import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, toast } from '@heroui/react';
 
 import { useAuthStore } from '@/store/auth-store';
-import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
-import { DeleteConfirmDialog } from '@/modules/hr/hierarchy/components/delete-confirm-dialog';
-import type { PositionTree } from '@/modules/hr/hierarchy/types';
+import { organizationApi } from '@/modules/hr/positions/services/organization-api';
+import { DeleteConfirmDialog } from '@/modules/hr/positions/components/delete-confirm-dialog';
+import type { PositionTree } from '@/modules/hr/positions/types';
 
 export default function PositionDetailPage() {
   const router = useRouter();

@@ -1,4 +1,4 @@
-import type { PositionTree, AssignedUser } from '../../hierarchy/types';
+import type { PositionTree, AssignedUser } from '../../positions/types';
 
 export interface FlatPosition {
   id: string;

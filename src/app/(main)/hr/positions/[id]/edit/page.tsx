@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from '@heroui/react';
 import { Spinner } from '@heroui/react';
-import { PositionForm } from '@/modules/hr/hierarchy/components/position-form';
-import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
-import type { PositionTree } from '@/modules/hr/hierarchy/types';
+import { PositionForm } from '@/modules/hr/positions/components/position-form';
+import { organizationApi } from '@/modules/hr/positions/services/organization-api';
+import type { PositionTree } from '@/modules/hr/positions/types';
 
 export default function EditPositionPage() {
   const router = useRouter();

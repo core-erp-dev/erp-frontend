@@ -176,20 +176,14 @@ export const HierarchyView: React.FC = () => {
           {({ hasChildItems, isExpanded, isTreeColumn }: { hasChildItems: boolean; isExpanded: boolean; isTreeColumn: boolean }) => (
             <span className="flex items-center gap-2">
               {hasChildItems && isTreeColumn ? (
-                <Button
-                  isIconOnly
-                  aria-label="Tampilkan karyawan"
-                  size="sm"
-                  slot="chevron"
-                  variant="ghost"
-                >
+                <span className="mr-2 shrink-0">
                   <CaretRight
                     className={cn(
                       'h-4 w-4 text-muted-foreground transition-transform duration-150',
                       isExpanded ? 'rotate-90' : '',
                     )}
                   />
-                </Button>
+                </span>
               ) : null}
               <span className="font-medium">{pos.positionName}</span>
             </span>

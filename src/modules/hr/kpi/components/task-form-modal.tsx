@@ -17,9 +17,9 @@ import {
 } from '@heroui/react';
 import { KpiTask, CreateTaskRequest, UpdateTaskRequest } from '../types';
 import { corporateKpiApi } from '../services/corporate-kpi-api';
-import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
+import { organizationApi } from '@/modules/hr/positions/services/organization-api';
 import type { CorporateKpiResponse } from '../types';
-import type { PositionTree } from '@/modules/hr/hierarchy/types';
+import type { PositionTree } from '@/modules/hr/positions/types';
 
 const getTaskFormSchema = (isEditMode: boolean) =>
   z.object({

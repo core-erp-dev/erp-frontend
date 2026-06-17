@@ -21,7 +21,7 @@ import {
 } from "@heroui/react";
 import { parseDate } from "@internationalized/date";
 import { CoreUser } from "../types";
-import { PositionTree } from "@/modules/hr/hierarchy/types";
+import { PositionTree } from "@/modules/hr/positions/types";
 import { flattenPositionsByDepth } from "../../shared/utils";
 
 interface AssignUserModalProps {

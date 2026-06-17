@@ -15,9 +15,9 @@ import {
   Alert,
 } from '@heroui/react';
 
-import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
+import { organizationApi } from '@/modules/hr/positions/services/organization-api';
 import { roleApi } from '@/modules/hr/settings/services/role-api';
-import type { PositionTree, PositionRequest, PositionUpdateRequest } from '@/modules/hr/hierarchy/types';
+import type { PositionTree, PositionRequest, PositionUpdateRequest } from '@/modules/hr/positions/types';
 import type { RoleResponse } from '@/modules/hr/employees/types';
 
 const formSchema = z.object({

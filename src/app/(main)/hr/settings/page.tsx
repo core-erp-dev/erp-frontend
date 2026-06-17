@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Lock } from '@phosphor-icons/react';
+import { Button } from '@heroui/react';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -16,9 +17,11 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <button
-          onClick={() => router.push('/hr/settings/roles')}
-          className="flex flex-row items-center gap-4 rounded-xl border border-border p-5 text-left transition-colors hover:border-[#006FEE]"
+        <Button
+          variant="ghost"
+          aria-label="Hak Akses & Role"
+          onPress={() => router.push('/hr/settings/roles')}
+          className="flex flex-row items-center gap-4 rounded-xl border border-border p-5 text-left transition-colors hover:border-[#006FEE] h-auto"
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
             <Lock className="h-6 w-6 text-[#006FEE]" />
@@ -27,7 +30,7 @@ export default function SettingsPage() {
             <div className="text-sm font-semibold text-foreground">Hak Akses & Role</div>
             <div className="text-xs text-gray-500">Kelola role dan permission</div>
           </div>
-        </button>
+        </Button>
       </div>
     </div>
   );

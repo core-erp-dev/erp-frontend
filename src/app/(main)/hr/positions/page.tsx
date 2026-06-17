@@ -15,11 +15,11 @@ import {
 } from '@heroui/react';
 
 import { useAuthStore } from '@/store/auth-store';
-import { PositionTable } from '@/modules/hr/hierarchy/components/position-table';
-import { DeleteConfirmDialog } from '@/modules/hr/hierarchy/components/delete-confirm-dialog';
-import { usePositionData, type SortField, type SortDir } from '@/modules/hr/hierarchy/hooks/use-position-data';
-import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
-import type { PositionTree } from '@/modules/hr/hierarchy/types';
+import { PositionTable } from '@/modules/hr/positions/components/position-table';
+import { DeleteConfirmDialog } from '@/modules/hr/positions/components/delete-confirm-dialog';
+import { usePositionData, type SortField, type SortDir } from '@/modules/hr/positions/hooks/use-position-data';
+import { organizationApi } from '@/modules/hr/positions/services/organization-api';
+import type { PositionTree } from '@/modules/hr/positions/types';
 import { useDebounce } from '@/hooks/use-debounce';
 
 const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [

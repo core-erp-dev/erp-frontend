@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@heroui/react';
 
 import { employeeApi, UserFilterParams } from '../services/employee-api';
-import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
+import { organizationApi } from '@/modules/hr/positions/services/organization-api';
 import { CoreUser, UserCreateRequest, UserUpdateRequest, AssignUserPositionRequest, PaginatedResponse } from '../types';
-import { PositionTree } from '@/modules/hr/hierarchy/types';
+import { PositionTree } from '@/modules/hr/positions/types';
 import { extractErrorMessage } from '@/types/api';
 
 export type SortField = 'fullName' | 'nip' | 'createdAt';

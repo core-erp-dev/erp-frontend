@@ -3,7 +3,7 @@
  * Extracted from hierarchy-view to enable reuse and testability.
  */
 import type { FlatPosition } from './flatten-positions';
-import type { PositionTree } from '../../hierarchy/types';
+import type { PositionTree } from '../../positions/types';
 
 /** Row types for the hierarchy table rendering. */
 export interface EmployeeRow {

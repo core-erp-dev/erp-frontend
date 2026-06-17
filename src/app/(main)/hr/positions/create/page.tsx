@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { toast } from '@heroui/react';
-import { PositionForm } from '@/modules/hr/hierarchy/components/position-form';
+import { PositionForm } from '@/modules/hr/positions/components/position-form';
 
 export default function CreatePositionPage() {
   const router = useRouter();
