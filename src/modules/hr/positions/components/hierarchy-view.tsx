@@ -33,8 +33,8 @@ import { cn } from '@/lib/utils';
 import { PositionFormModal } from './position-form-modal';
 import { AssignUserModal } from '@/modules/hr/employees/components/assign-user-modal';
 import { useHierarchyData } from '../hooks/use-hierarchy-data';
-import { getLevelColor, getInitials, buildTableItems } from '../../shared/utils';
-import type { FlatPosition } from '../../shared/utils';
+import { getLevelColor, getInitials, buildTableItems } from '../../shared/utils/position-helpers';
+import type { FlatPosition } from '../../shared/utils/flatten-positions';
 import type { PositionRow } from '../../shared/utils/position-helpers';
 import type { PositionTree } from '../types';
 

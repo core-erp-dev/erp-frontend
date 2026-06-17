@@ -31,11 +31,11 @@ export function useRoleData() {
     } finally {
       setLoading(false);
     }
-  }, [selectedRole]);
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchData]);
 
   const togglePermission = async (roleId: number, permissionCode: string, hasPermission: boolean) => {
     const perm = permissions.find((p) => p.permissionCode === permissionCode);

@@ -16,16 +16,12 @@ import {
   BreadcrumbsItem,
   Select,
   ListBox,
-  DatePicker,
-  DateField,
-  Calendar,
   TextArea,
   Surface,
-  I18nProvider,
   toast,
 } from '@heroui/react';
-import { parseDate } from '@internationalized/date';
 
+import { DateFieldPicker } from '@/components/shared/date-field-picker';
 import { employeeApi } from '../services/employee-api';
 import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption } from '../types';
 
@@ -67,36 +63,6 @@ function flattenPositions(tree: PositionOption[], prefix = ''): { id: string; la
   return result;
 }
 
-function DateFieldPicker({ label, value, onChange, isDisabled, isInvalid, errorMessage }: {
-  label: string; value: string; onChange: (v: string) => void; isDisabled: boolean; isInvalid?: boolean; errorMessage?: string;
-}) {
-  return (
-    <I18nProvider locale="id-ID">
-      <DatePicker className="w-full" value={value ? parseDate(value) : null} onChange={(d) => onChange(d ? d.toString() : '')} isDisabled={isDisabled} isInvalid={isInvalid}>
-        <Label>{label}</Label>
-        <DateField.Group fullWidth>
-          <DateField.Input>{(s) => <DateField.Segment segment={s} />}</DateField.Input>
-          <DateField.Suffix><DatePicker.Trigger><DatePicker.TriggerIndicator /></DatePicker.Trigger></DateField.Suffix>
-        </DateField.Group>
-        {errorMessage && <FieldError>{errorMessage}</FieldError>}
-        <DatePicker.Popover>
-          <Calendar aria-label={`Pilih ${label.toLowerCase()}`}>
-            <Calendar.Header>
-              <Calendar.YearPickerTrigger><Calendar.YearPickerTriggerHeading /><Calendar.YearPickerTriggerIndicator /></Calendar.YearPickerTrigger>
-              <Calendar.NavButton slot="previous" /><Calendar.NavButton slot="next" />
-            </Calendar.Header>
-            <Calendar.Grid>
-              <Calendar.GridHeader>{(d) => <Calendar.HeaderCell>{d}</Calendar.HeaderCell>}</Calendar.GridHeader>
-              <Calendar.GridBody>{(d) => <Calendar.Cell date={d} />}</Calendar.GridBody>
-            </Calendar.Grid>
-            <Calendar.YearPickerGrid><Calendar.YearPickerGridBody>{({ year }) => <Calendar.YearPickerCell year={year} />}</Calendar.YearPickerGridBody></Calendar.YearPickerGrid>
-          </Calendar>
-        </DatePicker.Popover>
-      </DatePicker>
-    </I18nProvider>
-  );
-}
-
 export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps) {
   const router = useRouter();
   const [positions, setPositions] = useState<PositionOption[]>([]);
@@ -116,7 +82,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
 
   useEffect(() => {
     (async () => {
-      try { setPositions(await employeeApi.getPositions()); } catch {} finally { setIsLoadingPositions(false); }
+      try { setPositions(await employeeApi.getPositions()); } catch { /* positions fetch failed — dropdown will be empty */ } finally { setIsLoadingPositions(false); }
     })();
   }, []);
 

@@ -18,7 +18,7 @@ import {
   useFilter,
 } from '@heroui/react';
 import { PositionTree, PositionRequest, PositionUpdateRequest } from '../types';
-import { flattenPositionsByDepth, findPositionInTree } from '../../shared/utils';
+import { flattenPositionsByDepth, findPositionInTree } from '../../shared/utils/flatten-positions';
 
 const positionFormSchema = z.object({
   positionCode: z.string().min(1, 'Kode jabatan wajib diisi').max(50, 'Kode jabatan maksimal 50 karakter'),

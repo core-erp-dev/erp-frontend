@@ -11,7 +11,8 @@ import type {
 import type { FlatPosition } from '../../shared/utils/flatten-positions';
 import { organizationApi } from '../services/organization-api';
 import { employeeApi } from '../../employees/services/employee-api';
-import { flattenPositionTree, buildTableItems, toPositionTree } from '../../shared/utils';
+import { flattenPositionTree } from '../../shared/utils/flatten-positions';
+import { buildTableItems, toPositionTree } from '../../shared/utils/position-helpers';
 import type { CoreUser } from '../../employees/types';
 
 interface UseHierarchyDataReturn {

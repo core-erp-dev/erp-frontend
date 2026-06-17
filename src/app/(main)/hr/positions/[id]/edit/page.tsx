@@ -7,6 +7,7 @@ import { ArrowLeft } from '@phosphor-icons/react';
 import { useAuthStore } from '@/store/auth-store';
 import { PositionForm } from '@/modules/hr/positions/components/position-form';
 import { organizationApi } from '@/modules/hr/positions/services/organization-api';
+import { findInTree } from '@/modules/hr/shared/utils/find-in-tree';
 import type { PositionTree } from '@/modules/hr/positions/types';
 
 export default function EditPositionPage() {
@@ -66,10 +67,13 @@ export default function EditPositionPage() {
 
   if (error || !position) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {error || 'Jabatan tidak ditemukan'}
-        </div>
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{error || 'Jabatan tidak ditemukan'}</Alert.Title>
+          </Alert.Content>
+        </Alert>
       </div>
     );
   }
@@ -83,15 +87,4 @@ export default function EditPositionPage() {
       }}
     />
   );
-}
-
-function findInTree(tree: PositionTree[], id: string): PositionTree | null {
-  for (const node of tree) {
-    if (node.id === id) return node;
-    if (node.children.length > 0) {
-      const found = findInTree(node.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
 }

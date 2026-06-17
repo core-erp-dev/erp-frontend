@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Users, TreeStructure, Plus } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, toast } from '@heroui/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, toast } from '@heroui/react';
 
 import { useAuthStore } from '@/store/auth-store';
 import { organizationApi } from '@/modules/hr/positions/services/organization-api';
-import { DeleteConfirmDialog } from '@/modules/hr/positions/components/delete-confirm-dialog';
+import { findInTree } from '@/modules/hr/shared/utils/find-in-tree';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import type { PositionTree } from '@/modules/hr/positions/types';
 
 export default function PositionDetailPage() {
@@ -64,10 +65,13 @@ export default function PositionDetailPage() {
 
   if (error || !position) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {error || 'Jabatan tidak ditemukan'}
-        </div>
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{error || 'Jabatan tidak ditemukan'}</Alert.Title>
+          </Alert.Content>
+        </Alert>
       </div>
     );
   }
@@ -211,8 +215,10 @@ export default function PositionDetailPage() {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
-        positionName={position.positionName}
+        name={position.positionName}
         isDeleting={isDeleting}
+        entityLabel="jabatan"
+        warning="Jabatan yang masih memiliki bawahan atau karyawan aktif tidak dapat dihapus."
       />
     </div>
   );
@@ -225,15 +231,4 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-sm text-foreground">{value}</span>
     </div>
   );
-}
-
-function findInTree(tree: PositionTree[], id: string): PositionTree | null {
-  for (const node of tree) {
-    if (node.id === id) return node;
-    if (node.children.length > 0) {
-      const found = findInTree(node.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
 }

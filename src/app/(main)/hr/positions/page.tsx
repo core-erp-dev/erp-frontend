@@ -16,7 +16,7 @@ import {
 
 import { useAuthStore } from '@/store/auth-store';
 import { PositionTable } from '@/modules/hr/positions/components/position-table';
-import { DeleteConfirmDialog } from '@/modules/hr/positions/components/delete-confirm-dialog';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { usePositionData, type SortField, type SortDir } from '@/modules/hr/positions/hooks/use-position-data';
 import { organizationApi } from '@/modules/hr/positions/services/organization-api';
 import type { PositionTree } from '@/modules/hr/positions/types';
@@ -317,8 +317,10 @@ export default function PositionsPage() {
         isOpen={isDeleteOpen}
         onClose={() => { setIsDeleteOpen(false); setDeleteTarget(null); }}
         onConfirm={handleDeleteConfirm}
-        positionName={deleteTarget?.name || ''}
+        name={deleteTarget?.name || ''}
         isDeleting={isDeleting}
+        entityLabel="jabatan"
+        warning="Jabatan yang masih memiliki bawahan atau karyawan aktif tidak dapat dihapus."
       />
     </div>
   );

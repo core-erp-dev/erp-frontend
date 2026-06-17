@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, toast } from '@heroui/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, toast } from '@heroui/react';
 
 import { useAuthStore } from '@/store/auth-store';
 import { employeeApi } from '@/modules/hr/employees/services/employee-api';
-import { DeleteConfirmDialog } from '@/modules/hr/employees/components/delete-confirm-dialog';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import type { CoreUser } from '@/modules/hr/employees/types';
 
 export default function EmployeeDetailPage() {
@@ -63,10 +63,13 @@ export default function EmployeeDetailPage() {
 
   if (error || !employee) {
     return (
-      <div>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {error || 'Karyawan tidak ditemukan'}
-        </div>
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{error || 'Karyawan tidak ditemukan'}</Alert.Title>
+          </Alert.Content>
+        </Alert>
       </div>
     );
   }
@@ -157,7 +160,9 @@ export default function EmployeeDetailPage() {
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
-        userName={employee.fullName}
+        name={employee.fullName}
+        entityLabel="karyawan"
+        warning="Karyawan tidak akan bisa mengakses sistem setelah dihapus."
         isDeleting={isDeleting}
       />
     </div>

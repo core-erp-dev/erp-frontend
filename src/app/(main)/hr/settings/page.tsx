@@ -8,7 +8,7 @@ export default function SettingsPage() {
   const router = useRouter();
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex w-full flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Pengaturan</h1>
         <p className="mt-1 text-sm text-gray-500">

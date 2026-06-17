@@ -8,7 +8,12 @@ interface DeleteConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
-  positionName: string;
+  /** Display name of the entity being deleted */
+  name: string;
+  /** Label for the entity type (e.g. "karyawan", "jabatan") */
+  entityLabel: string;
+  /** Optional additional warning message */
+  warning?: string;
   isDeleting?: boolean;
 }
 
@@ -16,7 +21,9 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   isOpen,
   onClose,
   onConfirm,
-  positionName,
+  name,
+  entityLabel,
+  warning,
   isDeleting = false,
 }) => {
   return (
@@ -39,9 +46,14 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
 
             <Modal.Body>
               <p className="text-sm text-muted-foreground text-center">
-                Apakah Anda yakin ingin menghapus jabatan{' '}
-                <strong className="text-foreground">{positionName}</strong>?
-                Jabatan yang masih memiliki bawahan atau karyawan aktif tidak dapat dihapus.
+                Apakah Anda yakin ingin menghapus {entityLabel}{' '}
+                <strong className="text-foreground">{name}</strong>?
+                {warning && (
+                  <>
+                    <br />
+                    <span className="text-xs">{warning}</span>
+                  </>
+                )}
               </p>
             </Modal.Body>
 

@@ -16,7 +16,7 @@ import type { Selection } from '@heroui/react';
 
 import { useAuthStore } from '@/store/auth-store';
 import { DataTable } from '@/modules/hr/employees/components/data-table';
-import { DeleteConfirmDialog } from '@/modules/hr/employees/components/delete-confirm-dialog';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { useEmployeeData, type SortField, type SortDir } from '@/modules/hr/employees/hooks/use-employee-data';
 import { useDebounce } from '@/hooks/use-debounce';
 import { flattenPositionTree } from '@/modules/hr/shared/utils/flatten-positions';
@@ -268,7 +268,9 @@ export default function EmployeePage() {
         isOpen={isDeleteDialogOpen}
         onClose={() => { setIsDeleteDialogOpen(false); setSelectedUser(null); }}
         onConfirm={handleDeleteConfirm}
-        userName={selectedUser?.fullName || ''}
+        name={selectedUser?.fullName || ''}
+        entityLabel="karyawan"
+        warning="Karyawan tidak akan bisa mengakses sistem setelah dihapus."
         isDeleting={isDeleting}
       />
     </div>

@@ -66,10 +66,13 @@ export default function EditEmployeePage() {
 
   if (error || !employee) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-          {error || 'Karyawan tidak ditemukan'}
-        </div>
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>{error || 'Karyawan tidak ditemukan'}</Alert.Title>
+          </Alert.Content>
+        </Alert>
       </div>
     );
   }

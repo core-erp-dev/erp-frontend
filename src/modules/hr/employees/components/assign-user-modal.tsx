@@ -22,7 +22,7 @@ import {
 import { parseDate } from "@internationalized/date";
 import { CoreUser } from "../types";
 import { PositionTree } from "@/modules/hr/positions/types";
-import { flattenPositionsByDepth } from "../../shared/utils";
+import { flattenPositionsByDepth } from "../../shared/utils/flatten-positions";
 
 interface AssignUserModalProps {
   isOpen: boolean;
