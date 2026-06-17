@@ -55,7 +55,7 @@ export const employeeApi = {
   },
 
   deleteUser: async (id: string): Promise<void> => {
-    await api.delete(`/api/v1/users/${id}`);
+    await api.patch(`/api/v1/users/${id}/delete`);
   },
 
   restoreUser: async (id: string): Promise<CoreUser> => {

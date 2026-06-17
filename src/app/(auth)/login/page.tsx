@@ -52,7 +52,7 @@ export default function LoginPage() {
 
     try {
       const response = await api.post<AuthResponse>('/api/v1/auth/login', {
-        username,
+        login: username,
         password,
       });
 
