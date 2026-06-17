@@ -40,8 +40,10 @@ const getFormSchema = (isEditMode: boolean) =>
     email: z.string().email('Format email tidak valid'),
     address: z.string().optional(),
     nip: z.string().optional(),
-    defaultPositionId: z.string().min(1, 'Jabatan wajib dipilih').optional(),
-    joinDate: z.string().optional(),
+    defaultPositionId: z.string().optional(),
+    joinDate: isEditMode
+      ? z.string().optional()
+      : z.string().min(1, 'Tanggal bergabung wajib diisi'),
     password: isEditMode
       ? z.string().optional().or(z.literal(''))
       : z.string().min(6, 'Kata sandi minimal 6 karakter'),
@@ -65,17 +67,18 @@ function flattenPositions(tree: PositionOption[], prefix = ''): { id: string; la
   return result;
 }
 
-function DateFieldPicker({ label, value, onChange, isDisabled }: {
-  label: string; value: string; onChange: (v: string) => void; isDisabled: boolean;
+function DateFieldPicker({ label, value, onChange, isDisabled, isInvalid, errorMessage }: {
+  label: string; value: string; onChange: (v: string) => void; isDisabled: boolean; isInvalid?: boolean; errorMessage?: string;
 }) {
   return (
     <I18nProvider locale="id-ID">
-      <DatePicker className="w-full" value={value ? parseDate(value) : null} onChange={(d) => onChange(d ? d.toString() : '')} isDisabled={isDisabled}>
+      <DatePicker className="w-full" value={value ? parseDate(value) : null} onChange={(d) => onChange(d ? d.toString() : '')} isDisabled={isDisabled} isInvalid={isInvalid}>
         <Label>{label}</Label>
         <DateField.Group fullWidth>
           <DateField.Input>{(s) => <DateField.Segment segment={s} />}</DateField.Input>
           <DateField.Suffix><DatePicker.Trigger><DatePicker.TriggerIndicator /></DatePicker.Trigger></DateField.Suffix>
         </DateField.Group>
+        {errorMessage && <FieldError>{errorMessage}</FieldError>}
         <DatePicker.Popover>
           <Calendar aria-label={`Pilih ${label.toLowerCase()}`}>
             <Calendar.Header>
@@ -253,8 +256,8 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 </Select.Popover>
               </Select>
             )} />
-            <Controller control={form.control} name="joinDate" render={({ field }) => (
-              <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} />
+            <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
+              <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
             )} />
             {!isEditMode && (
               <Controller control={form.control} name="password" render={({ field, fieldState }) => (

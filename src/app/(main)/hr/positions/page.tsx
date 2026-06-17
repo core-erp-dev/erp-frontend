@@ -11,12 +11,14 @@ import {
   Dropdown,
   Label,
   Tabs,
+  toast,
 } from '@heroui/react';
 
 import { useAuthStore } from '@/store/auth-store';
 import { PositionTable } from '@/modules/hr/hierarchy/components/position-table';
 import { DeleteConfirmDialog } from '@/modules/hr/hierarchy/components/delete-confirm-dialog';
 import { usePositionData, type SortField, type SortDir } from '@/modules/hr/hierarchy/hooks/use-position-data';
+import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
 import type { PositionTree } from '@/modules/hr/hierarchy/types';
 import { useDebounce } from '@/hooks/use-debounce';
 
@@ -84,6 +86,18 @@ export default function PositionsPage() {
       setIsDeleting(false);
     }
   }, [deleteTarget, deletePosition]);
+
+  const handleRestoreRequest = useCallback(async (id: string, name: string) => {
+    try {
+      await organizationApi.restorePosition(id);
+      toast.success(`Jabatan "${name}" berhasil dipulihkan`);
+      refreshTable();
+      refreshTree();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal memulihkan jabatan';
+      toast.danger(msg);
+    }
+  }, [refreshTable, refreshTree]);
 
   // Expand/collapse for tree view
   const handleToggleExpand = useCallback((id: string) => {
@@ -243,7 +257,7 @@ export default function PositionsPage() {
               </Dropdown>
 
               {/* Toggle: Tampilkan Terhapus */}
-              {hasPerm('position:delete') && (
+              {hasPerm('position:read_deleted') && (
                 <Button variant="tertiary" aria-label="Tampilkan terhapus" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
                   <Eye className="h-4 w-4" />
                   Terhapus
@@ -294,6 +308,7 @@ export default function PositionsPage() {
           isLoading={viewMode === 'table' ? isLoading : isLoadingTree}
           viewMode={viewMode}
           onDelete={handleDeleteRequest}
+          onRestore={handleRestoreRequest}
         />
       </div>
 

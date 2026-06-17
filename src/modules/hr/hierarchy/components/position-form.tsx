@@ -5,17 +5,20 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
+import type { Key } from '@heroui/react';
 import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
   Button, TextField, Input, Label, FieldError,
-  Breadcrumbs, BreadcrumbsItem, Spinner, Surface, toast,
+  Breadcrumbs, BreadcrumbsItem, Surface, toast,
+  Select, ListBox, TextArea,
+  Autocomplete, EmptyState, SearchField, Tag, TagGroup, useFilter,
+  Alert,
 } from '@heroui/react';
 
 import { organizationApi } from '@/modules/hr/hierarchy/services/organization-api';
 import { roleApi } from '@/modules/hr/settings/services/role-api';
 import type { PositionTree, PositionRequest, PositionUpdateRequest } from '@/modules/hr/hierarchy/types';
 import type { RoleResponse } from '@/modules/hr/employees/types';
-import { extractErrorMessage } from '@/types/api';
 
 const formSchema = z.object({
   positionCode: z.string().min(1, 'Kode jabatan wajib diisi'),
@@ -43,6 +46,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const { contains } = useFilter({ sensitivity: 'base' });
 
   // Get parentId from query params (for "Tambah Bawahan")
   const queryParentId = searchParams.get('parentId');
@@ -109,6 +114,16 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
     return result;
   }, [allPositions, isEditMode, initialData]);
 
+  // Sort roles: selected first, then unselected
+  const sortedRoles = useMemo(() => {
+    const selectedIds = new Set(form.watch('roleIds'));
+    return [...roles].sort((a, b) => {
+      const aSelected = selectedIds.has(a.id) ? 0 : 1;
+      const bSelected = selectedIds.has(b.id) ? 0 : 1;
+      return aSelected - bSelected;
+    });
+  }, [roles, form.watch('roleIds')]);
+
   const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     setSubmitError(null);
@@ -140,7 +155,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       }
       onSuccess();
     } catch (err) {
-      setSubmitError(extractErrorMessage(err, 'Terjadi kesalahan'));
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan';
+      setSubmitError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -149,7 +165,10 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   if (isLoadingData) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <Spinner size="md" />
+        <Surface className="flex items-center gap-2 rounded-xl px-4 py-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+          <span className="text-sm text-muted-foreground">Memuat data...</span>
+        </Surface>
       </div>
     );
   }
@@ -172,112 +191,175 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         </h1>
       </div>
 
-      <Surface variant="transparent" className="rounded-3xl border p-6">
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-5">
-          {/* Kode + Nama */}
-          <div className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-6">
+
+          {/* ── INFORMASI DASAR ── */}
+          <Surface variant="transparent" className="flex flex-col gap-4 rounded-3xl border p-6">
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Informasi Dasar</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Controller
+                control={form.control}
+                name="positionCode"
+                render={({ field, fieldState }) => (
+                  <TextField isRequired validationBehavior="aria" className="w-full"
+                    name={field.name} value={field.value} onChange={field.onChange}
+                    isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                    <Label>Kode Jabatan</Label>
+                    <Input placeholder="Contoh: MGR-HRD-001" />
+                    {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                  </TextField>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="positionName"
+                render={({ field, fieldState }) => (
+                  <TextField isRequired validationBehavior="aria" className="w-full"
+                    name={field.name} value={field.value} onChange={field.onChange}
+                    isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                    <Label>Nama Jabatan</Label>
+                    <Input placeholder="Contoh: Manager HRD" />
+                    {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                  </TextField>
+                )}
+              />
+            </div>
             <Controller
               control={form.control}
-              name="positionCode"
+              name="description"
               render={({ field, fieldState }) => (
-                <TextField isRequired validationBehavior="aria" className="w-full"
-                  name={field.name} value={field.value} onChange={field.onChange}
+                <TextField validationBehavior="aria" className="w-full"
+                  name={field.name} value={field.value ?? ''} onChange={field.onChange}
                   isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                  <Label>Kode Jabatan</Label>
-                  <Input placeholder="Contoh: MGR-HRD-001" />
+                  <Label>Deskripsi</Label>
+                  <TextArea placeholder="Deskripsi singkat jabatan" rows={2} />
                   {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                 </TextField>
               )}
             />
-            <Controller
-              control={form.control}
-              name="positionName"
-              render={({ field, fieldState }) => (
-                <TextField isRequired validationBehavior="aria" className="w-full"
-                  name={field.name} value={field.value} onChange={field.onChange}
-                  isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                  <Label>Nama Jabatan</Label>
-                  <Input placeholder="Contoh: Manager HRD" />
-                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
-                </TextField>
-              )}
-            />
-          </div>
+          </Surface>
 
-          {/* Deskripsi */}
-          <Controller
-            control={form.control}
-            name="description"
-            render={({ field, fieldState }) => (
-              <TextField validationBehavior="aria" className="w-full"
-                name={field.name} value={field.value ?? ''} onChange={field.onChange}
-                isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                <Label>Deskripsi (Opsional)</Label>
-                <Input placeholder="Deskripsi singkat jabatan" />
-                {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
-              </TextField>
-            )}
-          />
+          {/* ── STRUKTUR & AKSES ── */}
+          <Surface variant="transparent" className="flex flex-col gap-4 rounded-3xl border p-6">
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Struktur & Akses</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Atasan — HeroUI Select */}
+              <Controller
+                control={form.control}
+                name="parentId"
+                render={({ field }) => (
+                  <Select
+                    className="w-full"
+                    selectedKey={field.value || null}
+                    onSelectionChange={(k) => field.onChange(k ? String(k) : null)}
+                    isDisabled={isSubmitting}
+                    placeholder="Tanpa atasan"
+                  >
+                    <Label>Atasan</Label>
+                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        <ListBox.Item id="" textValue="Tanpa atasan">Tanpa atasan</ListBox.Item>
+                        {flatParents.map((p) => (
+                          <ListBox.Item key={p.id} id={p.id} textValue={p.label}>{p.label}</ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                )}
+              />
+              {/* Role — Autocomplete Multiselect + Search */}
+              <Controller
+                control={form.control}
+                name="roleIds"
+                render={({ field, fieldState }) => {
+                  const selectedKeys = (field.value ?? []).map(String);
+                  const onRemoveTags = (keys: Set<Key>) => {
+                    const removeSet = new Set(Array.from(keys).map(Number));
+                    field.onChange((field.value ?? []).filter((id) => !removeSet.has(id)));
+                  };
 
-          {/* Atasan */}
-          <Controller
-            control={form.control}
-            name="parentId"
-            render={({ field }) => (
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-sm font-medium text-foreground">Lapor Ke (Opsional)</Label>
-                <select
-                  value={field.value ?? ''}
-                  onChange={(e) => field.onChange(e.target.value || null)}
-                  disabled={isSubmitting}
-                  className="w-full rounded-xl border border-gray-200 bg-background px-3 py-2.5 text-sm outline-none focus:border-[#006FEE]"
-                >
-                  <option value="">— Tidak ada atasan (Root) —</option>
-                  {flatParents.map((p) => (
-                    <option key={p.id} value={p.id}>{p.label}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          />
-
-          {/* Role */}
-          <Controller
-            control={form.control}
-            name="roleIds"
-            render={({ field, fieldState }) => (
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-sm font-medium text-foreground">
-                  Role <span className="text-red-500">*</span>
-                </Label>
-                <div className="space-y-2 rounded-xl border border-gray-200 p-3">
-                  {roles.map((role) => (
-                    <label key={role.id} className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={(field.value ?? []).includes(role.id)}
-                        onChange={(e) => {
-                          const current = field.value ?? [];
-                          field.onChange(e.target.checked ? [...current, role.id] : current.filter((id) => id !== role.id));
-                        }}
-                        disabled={isSubmitting}
-                        className="h-4 w-4 rounded border-gray-300 text-[#006FEE] focus:ring-[#006FEE]"
-                      />
-                      <span className="text-sm">{role.roleCode}</span>
-                      <span className="text-xs text-gray-400">— {role.description}</span>
-                    </label>
-                  ))}
-                </div>
-                {fieldState.error && <span className="text-xs text-red-500">{fieldState.error.message}</span>}
-              </div>
-            )}
-          />
+                  return (
+                    <Autocomplete
+                      className="w-full"
+                      placeholder="Pilih role"
+                      selectionMode="multiple"
+                      value={selectedKeys}
+                      onChange={(keys) => {
+                        const arr = Array.isArray(keys) ? keys : keys != null ? [keys] : [];
+                        field.onChange(arr.map(Number));
+                      }}
+                      isInvalid={!!fieldState.error}
+                      isDisabled={isSubmitting}
+                    >
+                      <Label>Role</Label>
+                      <Autocomplete.Trigger>
+                        <Autocomplete.Value>
+                          {({ defaultChildren, isPlaceholder, state }: any) => {
+                            if (isPlaceholder || state.selectedItems.length === 0) {
+                              return defaultChildren;
+                            }
+                            const selectedItemsKeys = state.selectedItems.map((item: any) => item.key);
+                            return (
+                              <TagGroup size="sm" onRemove={onRemoveTags}>
+                                <TagGroup.List>
+                                  {selectedItemsKeys.map((key: Key) => {
+                                    const role = roles.find((r) => String(r.id) === String(key));
+                                    if (!role) return null;
+                                    return (
+                                      <Tag key={role.id} id={String(role.id)}>
+                                        {role.roleCode}
+                                      </Tag>
+                                    );
+                                  })}
+                                </TagGroup.List>
+                              </TagGroup>
+                            );
+                          }}
+                        </Autocomplete.Value>
+                        <Autocomplete.ClearButton />
+                        <Autocomplete.Indicator />
+                      </Autocomplete.Trigger>
+                      {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      <Autocomplete.Popover>
+                        <Autocomplete.Filter filter={contains}>
+                          <SearchField autoFocus name="search" variant="secondary">
+                            <SearchField.Group>
+                              <SearchField.SearchIcon />
+                              <SearchField.Input placeholder="Cari role..." />
+                              <SearchField.ClearButton />
+                            </SearchField.Group>
+                          </SearchField>
+                          <ListBox renderEmptyState={() => <EmptyState>Role tidak ditemukan</EmptyState>}>
+                            {sortedRoles.map((role) => (
+                              <ListBox.Item key={role.id} id={String(role.id)} textValue={role.roleCode}>
+                                <div className="flex flex-col">
+                                  <span>{role.roleCode}</span>
+                                  {role.description && (
+                                    <span className="text-xs text-muted-foreground">{role.description}</span>
+                                  )}
+                                </div>
+                                <ListBox.ItemIndicator />
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Autocomplete.Filter>
+                      </Autocomplete.Popover>
+                    </Autocomplete>
+                  );
+                }}
+              />
+            </div>
+          </Surface>
 
           {/* Error */}
           {submitError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {submitError}
-            </div>
+            <Alert status="danger">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>{submitError}</Alert.Title>
+              </Alert.Content>
+            </Alert>
           )}
 
           {/* Actions */}
@@ -291,7 +373,6 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
             </Button>
           </div>
         </form>
-      </Surface>
     </div>
   );
 }

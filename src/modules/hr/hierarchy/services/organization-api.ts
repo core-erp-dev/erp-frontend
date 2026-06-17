@@ -71,6 +71,14 @@ export const organizationApi = {
     await api.patch(`/api/v1/employees/positions/${id}/delete`);
   },
 
+  /** Restore a soft-deleted position */
+  restorePosition: async (id: string): Promise<Position> => {
+    const response = await api.post<ApiResponse<Position>>(
+      `/api/v1/employees/positions/${id}/restore`
+    );
+    return response.data.data;
+  },
+
   /** Get roles assigned to a position */
   getPositionRoles: async (positionId: string): Promise<RoleResponse[]> => {
     const response = await api.get<ApiResponse<RoleResponse[]>>(

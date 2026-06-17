@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown } from '@phosphor-icons/react';
+import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { Table, Spinner, Button, Pagination, Dropdown } from '@heroui/react';
 import { useAuthStore } from '@/store/auth-store';
 import type { Position, PositionTree } from '../types';
@@ -19,6 +19,7 @@ interface PositionTableProps {
   isLoading?: boolean;
   viewMode: 'table' | 'tree';
   onDelete: (id: string, name: string) => void;
+  onRestore?: (id: string, name: string) => void;
 }
 
 export const PositionTable: React.FC<PositionTableProps> = ({
@@ -31,6 +32,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   isLoading = false,
   viewMode,
   onDelete,
+  onRestore,
 }) => {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -49,7 +51,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
       </Button>
-      <Dropdown.Popover>
+      <Dropdown.Popover placement="top">
         <Dropdown.Menu onAction={(key) => {
           if (key === 'detail') router.push(`/hr/positions/${id}`);
           if (key === 'edit') router.push(`/hr/positions/${id}/edit`);
@@ -141,7 +143,17 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">{row.userCount}</span>
                   </Table.Cell>
                   <Table.Cell>
-                    <div className="flex justify-end">{renderActions(row.id, row.positionName)}</div>
+                    <div className="flex justify-end">
+                      {row.isDeleted ? (
+                        hasPerm('position:restore') && (
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
+                            <ArrowCounterClockwise className="h-4 w-4" />
+                          </Button>
+                        )
+                      ) : (
+                        renderActions(row.id, row.positionName)
+                      )}
+                    </div>
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -190,7 +202,17 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     </span>
                   </Table.Cell>
                   <Table.Cell>
-                    <div className="flex justify-end">{renderActions(pos.id, pos.positionName)}</div>
+                    {isDeleted ? (
+                      hasPerm('position:restore') && (
+                        <div className="flex justify-end">
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
+                            <ArrowCounterClockwise className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex justify-end">{renderActions(pos.id, pos.positionName)}</div>
+                    )}
                   </Table.Cell>
                 </Table.Row>
               );
@@ -234,6 +256,7 @@ interface TreeRow {
   userCount: number;
   depth: number;
   hasChildren: boolean;
+  isDeleted: boolean;
 }
 
 function buildTreeRows(nodes: PositionTree[], expandedIds: Set<string>, depth: number): TreeRow[] {
@@ -246,6 +269,7 @@ function buildTreeRows(nodes: PositionTree[], expandedIds: Set<string>, depth: n
       userCount: (node.assignedUsers ?? []).length,
       depth,
       hasChildren: node.children.length > 0,
+      isDeleted: !!node.deletedAt,
     });
     if (node.children.length > 0 && expandedIds.has(node.id)) {
       rows.push(...buildTreeRows(node.children, expandedIds, depth + 1));
