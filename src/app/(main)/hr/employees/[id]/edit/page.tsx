@@ -1,44 +1,22 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Spinner, Alert, Button } from '@heroui/react';
 import { ArrowLeft } from '@phosphor-icons/react';
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
+import { useEmployeeDetail } from '@/modules/hr/employees/hooks/use-employee-detail';
 import { EmployeeForm } from '@/modules/hr/employees/components/employee-form';
-import { employeeApi } from '@/modules/hr/employees/services/employee-api';
-import type { CoreUser } from '@/modules/hr/employees/types';
 
 export default function EditEmployeePage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = useCallback((perm: string) => (user?.permissions ?? []).includes(perm), [user?.permissions]);
+  const { hasPerm } = usePermission();
 
-  const [employee, setEmployee] = useState<CoreUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { employee, isLoading, error } = useEmployeeDetail(id);
 
-  useEffect(() => {
-    if (!hasPerm('employee:update')) {
-      setIsLoading(false);
-      return;
-    }
-    (async () => {
-      try {
-        const data = await employeeApi.getUserById(id);
-        setEmployee(data);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Gagal memuat data karyawan';
-        setError(msg);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [id, hasPerm]);
-
-  if (!hasPerm('employee:update')) {
+  if (!hasPerm(PERM.EMPLOYEE_UPDATE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

@@ -14,7 +14,8 @@ import {
   toast,
 } from '@heroui/react';
 
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import { PositionTable } from '@/modules/hr/positions/components/position-table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { usePositionData, type SortField, type SortDir } from '@/modules/hr/positions/hooks/use-position-data';
@@ -33,8 +34,7 @@ const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
 
 export default function PositionsPage() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
   const {
     positions,
@@ -191,7 +191,7 @@ export default function PositionsPage() {
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
 
-          {hasPerm('position:create') && (
+          {hasPerm(PERM.POSITION_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/hr/positions/create')}>
               <Plus className="h-4 w-4" />
               Tambah Jabatan
@@ -257,7 +257,7 @@ export default function PositionsPage() {
               </Dropdown>
 
               {/* Toggle: Tampilkan Terhapus */}
-              {hasPerm('position:read_deleted') && (
+              {hasPerm(PERM.POSITION_READ_DELETED) && (
                 <Button variant="tertiary" aria-label="Tampilkan terhapus" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
                   <Eye className="h-4 w-4" />
                   Terhapus

@@ -1,46 +1,22 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Spinner, Alert, Button } from '@heroui/react';
 import { ArrowLeft } from '@phosphor-icons/react';
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
+import { usePositionDetail } from '@/modules/hr/positions/hooks/use-position-detail';
 import { PositionForm } from '@/modules/hr/positions/components/position-form';
-import { organizationApi } from '@/modules/hr/positions/services/organization-api';
-import { findInTree } from '@/modules/hr/shared/utils/find-in-tree';
-import type { PositionTree } from '@/modules/hr/positions/types';
 
 export default function EditPositionPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = useCallback((perm: string) => (user?.permissions ?? []).includes(perm), [user?.permissions]);
+  const { hasPerm } = usePermission();
 
-  const [position, setPosition] = useState<PositionTree | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { position, isLoading, error } = usePositionDetail(id);
 
-  useEffect(() => {
-    if (!hasPerm('position:update')) {
-      setIsLoading(false);
-      return;
-    }
-    (async () => {
-      try {
-        const tree = await organizationApi.fetchPositionTree();
-        const found = findInTree(tree, id);
-        if (!found) setError('Jabatan tidak ditemukan');
-        else setPosition(found);
-      } catch {
-        setError('Gagal memuat data jabatan');
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [id, hasPerm]);
-
-  if (!hasPerm('position:update')) {
+  if (!hasPerm(PERM.POSITION_UPDATE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

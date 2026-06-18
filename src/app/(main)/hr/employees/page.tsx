@@ -14,7 +14,8 @@ import {
 } from '@heroui/react';
 import type { Selection } from '@heroui/react';
 
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import { DataTable } from '@/modules/hr/employees/components/data-table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { useEmployeeData, type SortField, type SortDir } from '@/modules/hr/employees/hooks/use-employee-data';
@@ -31,8 +32,7 @@ const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
 
 export default function EmployeePage() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
   const {
     users,
@@ -152,7 +152,7 @@ export default function EmployeePage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {hasPerm('employee:create') && (
+          {hasPerm(PERM.EMPLOYEE_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/hr/employees/create')}>
               <Plus className="h-4 w-4" />
               Tambah Karyawan
@@ -217,7 +217,7 @@ export default function EmployeePage() {
           </Dropdown>
 
           {/* Toggle: Tampilkan Karyawan Terhapus */}
-          {hasPerm('employee:read_deleted') && (
+          {hasPerm(PERM.EMPLOYEE_READ_DELETED) && (
             <Button variant="tertiary" aria-label="Tampilkan terhapus" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
               <Eye className="h-4 w-4" />
               Terhapus

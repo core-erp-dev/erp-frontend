@@ -22,6 +22,7 @@ import {
 } from '@heroui/react';
 
 import { DateFieldPicker } from '@/components/shared/date-field-picker';
+import { GENDER, GENDER_LABEL } from '@/constants/gender';
 import { employeeApi } from '../services/employee-api';
 import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption } from '../types';
 
@@ -167,8 +168,8 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    <ListBox.Item id="L" textValue="Laki-laki">Laki-laki</ListBox.Item>
-                    <ListBox.Item id="P" textValue="Perempuan">Perempuan</ListBox.Item>
+                    <ListBox.Item id={GENDER.MALE} textValue={GENDER_LABEL[GENDER.MALE]}>{GENDER_LABEL[GENDER.MALE]}</ListBox.Item>
+                    <ListBox.Item id={GENDER.FEMALE} textValue={GENDER_LABEL[GENDER.FEMALE]}>{GENDER_LABEL[GENDER.FEMALE]}</ListBox.Item>
                   </ListBox>
                 </Select.Popover>
               </Select>

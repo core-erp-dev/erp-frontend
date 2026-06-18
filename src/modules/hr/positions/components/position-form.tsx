@@ -296,15 +296,13 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                       <Label>Role</Label>
                       <Autocomplete.Trigger>
                         <Autocomplete.Value>
-                          {({ defaultChildren, isPlaceholder, state }: {
-                            defaultChildren: React.ReactNode;
-                            isPlaceholder: boolean;
-                            state: { selectedItems: Array<{ key: Key; name: string }> };
-                          }) => {
+                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                          {({ defaultChildren, isPlaceholder, state }: any) => {
                             if (isPlaceholder || state.selectedItems.length === 0) {
                               return defaultChildren;
                             }
-                            const selectedItemsKeys = state.selectedItems.map((item) => item.key);
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            const selectedItemsKeys = state.selectedItems.map((item: any) => item.key);
                             return (
                               <TagGroup size="sm" onRemove={onRemoveTags}>
                                 <TagGroup.List>

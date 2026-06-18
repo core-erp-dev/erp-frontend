@@ -1,41 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash } from '@phosphor-icons/react';
 import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, toast } from '@heroui/react';
 
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
+import { getGenderLabel } from '@/constants/gender';
+import { useEmployeeDetail } from '@/modules/hr/employees/hooks/use-employee-detail';
 import { employeeApi } from '@/modules/hr/employees/services/employee-api';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import type { CoreUser } from '@/modules/hr/employees/types';
 
 export default function EmployeeDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
-  const [employee, setEmployee] = useState<CoreUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { employee, isLoading, error } = useEmployeeDetail(id);
+
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await employeeApi.getUserById(id);
-        setEmployee(data);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Gagal memuat data karyawan';
-        setError(msg);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [id]);
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
@@ -75,7 +61,7 @@ export default function EmployeeDetailPage() {
   }
 
   const pos = employee.primaryPosition;
-  const showDropdown = hasPerm('employee:update') || hasPerm('employee:delete');
+  const showDropdown = hasPerm(PERM.EMPLOYEE_UPDATE) || hasPerm(PERM.EMPLOYEE_DELETE);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -93,19 +79,19 @@ export default function EmployeeDetailPage() {
           <Button isIconOnly variant="tertiary" onPress={() => router.push('/hr/employees')} aria-label="Kembali">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground">Profil Karyawan</h1>
+          <h1 className="text-xl font-semibold text-foreground">{employee.fullName}</h1>
         </div>
         {showDropdown && (
           <Dropdown>
             <Button isIconOnly variant="tertiary" aria-label="Opsi karyawan">
               <DotsThreeVertical className="h-5 w-5" />
             </Button>
-            <Dropdown.Popover>
+            <Dropdown.Popover placement="top">
               <Dropdown.Menu onAction={(key) => {
                 if (key === 'edit') router.push(`/hr/employees/${id}/edit`);
                 if (key === 'delete') setIsDeleteOpen(true);
               }}>
-                {hasPerm('employee:update') && (
+                {hasPerm(PERM.EMPLOYEE_UPDATE) && (
                   <Dropdown.Item id="edit" textValue="Edit">
                     <div className="flex items-center gap-2">
                       <PencilSimple className="h-4 w-4 text-muted-foreground" />
@@ -113,7 +99,7 @@ export default function EmployeeDetailPage() {
                     </div>
                   </Dropdown.Item>
                 )}
-                {hasPerm('employee:delete') && (
+                {hasPerm(PERM.EMPLOYEE_DELETE) && (
                   <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
                     <div className="flex items-center gap-2 text-danger">
                       <Trash className="h-4 w-4" />
@@ -129,12 +115,10 @@ export default function EmployeeDetailPage() {
 
       {/* Informasi Pribadi */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 text-sm font-semibold text-foreground uppercase tracking-wider">
-          Informasi Pribadi
-        </h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">Informasi Pribadi</h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="Nama Lengkap" value={employee.fullName} />
-          <Field label="Jenis Kelamin" value={employee.gender === 'M' ? 'Laki-laki' : employee.gender === 'F' ? 'Perempuan' : '-'} />
+          <Field label="Jenis Kelamin" value={getGenderLabel(employee.gender)} />
           <Field label="Tanggal Lahir" value={employee.birthDate ? formatDate(employee.birthDate) : '-'} />
           <Field label="No. Telepon" value={employee.phoneNumber || '-'} />
           <Field label="Email" value={employee.email} />
@@ -144,9 +128,7 @@ export default function EmployeeDetailPage() {
 
       {/* Data Kepegawaian */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 text-sm font-semibold text-foreground uppercase tracking-wider">
-          Data Kepegawaian
-        </h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">Data Kepegawaian</h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="NIP" value={employee.nip || '-'} />
           <Field label="Jabatan" value={pos?.positionName || '-'} />
@@ -155,7 +137,6 @@ export default function EmployeeDetailPage() {
         </div>
       </div>
 
-      {/* Reuse shared DeleteConfirmDialog */}
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
@@ -172,20 +153,14 @@ export default function EmployeeDetailPage() {
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium uppercase tracking-wider text-gray-400">{label}</span>
+      <span className="text-xs text-gray-400">{label}</span>
       <span className="text-sm text-foreground">{value}</span>
     </div>
   );
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 }

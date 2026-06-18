@@ -1,43 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Users, TreeStructure, Plus } from '@phosphor-icons/react';
 import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, toast } from '@heroui/react';
 
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
+import { usePositionDetail } from '@/modules/hr/positions/hooks/use-position-detail';
 import { organizationApi } from '@/modules/hr/positions/services/organization-api';
-import { findInTree } from '@/modules/hr/shared/utils/find-in-tree';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import type { PositionTree } from '@/modules/hr/positions/types';
 
 export default function PositionDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
-  const [position, setPosition] = useState<PositionTree | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { position, isLoading, error } = usePositionDetail(id);
+
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const tree = await organizationApi.fetchPositionTree();
-        const found = findInTree(tree, id);
-        if (!found) setError('Jabatan tidak ditemukan');
-        else setPosition(found);
-      } catch {
-        setError('Gagal memuat data jabatan');
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [id]);
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
@@ -77,36 +60,27 @@ export default function PositionDetailPage() {
   }
 
   const assignedUsers = position.assignedUsers ?? [];
-  const showDropdown = hasPerm('position:update') || hasPerm('position:delete');
+  const showDropdown = hasPerm(PERM.POSITION_UPDATE) || hasPerm(PERM.POSITION_DELETE);
 
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem href="/hr/positions">Jabatan</BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr/positions">Struktur Jabatan</BreadcrumbsItem>
         <BreadcrumbsItem>{position.positionName}</BreadcrumbsItem>
       </Breadcrumbs>
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button isIconOnly variant="tertiary" onPress={() => router.push('/hr/positions')} aria-label="Kembali">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">{position.positionName}</h1>
-            <span className="font-mono text-xs text-gray-400">{position.positionCode}</span>
-          </div>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-            position.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-          }`}>
-            {position.isActive ? 'Aktif' : 'Nonaktif'}
-          </span>
+          <h1 className="text-xl font-semibold text-foreground">{position.positionName}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {hasPerm('position:create') && (
-            <Button variant="secondary" onPress={() => router.push(`/hr/positions/create?parentId=${id}`)}>
+          {hasPerm(PERM.POSITION_CREATE) && (
+            <Button variant="secondary" onPress={() => router.push(`/hr/positions/create?parentId=${position.id}`)}>
               <Plus className="h-4 w-4" />
               Tambah Bawahan
             </Button>
@@ -114,19 +88,19 @@ export default function PositionDetailPage() {
           {showDropdown && (
             <Dropdown>
               <Button isIconOnly variant="tertiary" aria-label="Opsi">
-                <DotsThreeVertical className="h-4 w-4" />
+                <DotsThreeVertical className="h-5 w-5" />
               </Button>
-              <Dropdown.Popover>
+              <Dropdown.Popover placement="top">
                 <Dropdown.Menu onAction={(key) => {
                   if (key === 'edit') router.push(`/hr/positions/${id}/edit`);
                   if (key === 'delete') setIsDeleteOpen(true);
                 }}>
-                  {hasPerm('position:update') && (
+                  {hasPerm(PERM.POSITION_UPDATE) && (
                     <Dropdown.Item id="edit" textValue="Edit">
                       <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
                     </Dropdown.Item>
                   )}
-                  {hasPerm('position:delete') && (
+                  {hasPerm(PERM.POSITION_DELETE) && (
                     <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
                       <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
                     </Dropdown.Item>
@@ -138,9 +112,12 @@ export default function PositionDetailPage() {
         </div>
       </div>
 
-      {/* Section 1: Info */}
+      {/* Informasi Jabatan */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">Informasi Jabatan</h2>
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+          <TreeStructure className="h-4 w-4" />
+          Informasi Jabatan
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Kode" value={position.positionCode} />
           <Field label="Nama" value={position.positionName} />
@@ -150,7 +127,7 @@ export default function PositionDetailPage() {
         </div>
       </div>
 
-      {/* Section 2: Bawahan Langsung */}
+      {/* Bawahan Langsung */}
       <div className="rounded-xl border border-border bg-background p-6">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
           <TreeStructure className="h-4 w-4" />
@@ -181,7 +158,7 @@ export default function PositionDetailPage() {
         )}
       </div>
 
-      {/* Section 3: Penjabat Saat Ini */}
+      {/* Penjabat Saat Ini */}
       <div className="rounded-xl border border-border bg-background p-6">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
           <Users className="h-4 w-4" />
@@ -210,15 +187,14 @@ export default function PositionDetailPage() {
         )}
       </div>
 
-      {/* Delete Dialog */}
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
         name={position.positionName}
-        isDeleting={isDeleting}
         entityLabel="jabatan"
         warning="Jabatan yang masih memiliki bawahan atau karyawan aktif tidak dapat dihapus."
+        isDeleting={isDeleting}
       />
     </div>
   );
@@ -227,7 +203,7 @@ export default function PositionDetailPage() {
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium uppercase tracking-wider text-gray-400">{label}</span>
+      <span className="text-xs text-gray-400">{label}</span>
       <span className="text-sm text-foreground">{value}</span>
     </div>
   );

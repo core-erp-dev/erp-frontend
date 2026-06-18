@@ -3,15 +3,15 @@
 import { useRouter } from 'next/navigation';
 import { Alert, Button } from '@heroui/react';
 import { ArrowLeft } from '@phosphor-icons/react';
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import { EmployeeForm } from '@/modules/hr/employees/components/employee-form';
 
 export default function CreateEmployeePage() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
-  if (!hasPerm('employee:create')) {
+  if (!hasPerm(PERM.EMPLOYEE_CREATE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">
