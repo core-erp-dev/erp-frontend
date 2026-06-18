@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Spinner, Alert, Button } from '@heroui/react';
 import { ArrowLeft } from '@phosphor-icons/react';
@@ -14,7 +14,7 @@ export default function EditEmployeePage() {
   const params = useParams();
   const id = params.id as string;
   const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const hasPerm = useCallback((perm: string) => (user?.permissions ?? []).includes(perm), [user?.permissions]);
 
   const [employee, setEmployee] = useState<CoreUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function EditEmployeePage() {
         setIsLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, hasPerm]);
 
   if (!hasPerm('employee:update')) {
     return (

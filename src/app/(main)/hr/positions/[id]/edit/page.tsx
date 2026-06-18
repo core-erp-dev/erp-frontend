@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Spinner, Alert, Button } from '@heroui/react';
 import { ArrowLeft } from '@phosphor-icons/react';
@@ -15,7 +15,7 @@ export default function EditPositionPage() {
   const params = useParams();
   const id = params.id as string;
   const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const hasPerm = useCallback((perm: string) => (user?.permissions ?? []).includes(perm), [user?.permissions]);
 
   const [position, setPosition] = useState<PositionTree | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +38,7 @@ export default function EditPositionPage() {
         setIsLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, hasPerm]);
 
   if (!hasPerm('position:update')) {
     return (

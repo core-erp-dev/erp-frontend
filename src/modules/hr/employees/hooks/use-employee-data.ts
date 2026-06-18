@@ -83,7 +83,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       const data = await employeeApi.getUsers(params);
       setUsers(data.content);
       setPagination(data);
-    } catch (error) {
+    } catch (_error) {
       toast.danger('Gagal memuat data karyawan');
     } finally {
       setIsLoading(false);

@@ -9,7 +9,7 @@ import type { Key } from '@heroui/react';
 import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
   Button, TextField, Input, Label, FieldError,
-  Breadcrumbs, BreadcrumbsItem, Surface, toast,
+  Breadcrumbs, BreadcrumbsItem, Surface,
   Select, ListBox, TextArea,
   Autocomplete, EmptyState, SearchField, Tag, TagGroup, useFilter,
   Alert,
@@ -115,14 +115,15 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   }, [allPositions, isEditMode, initialData]);
 
   // Sort roles: selected first, then unselected
+  const roleIds = form.watch('roleIds');
   const sortedRoles = useMemo(() => {
-    const selectedIds = new Set(form.watch('roleIds'));
+    const selectedIds = new Set(roleIds);
     return [...roles].sort((a, b) => {
       const aSelected = selectedIds.has(a.id) ? 0 : 1;
       const bSelected = selectedIds.has(b.id) ? 0 : 1;
       return aSelected - bSelected;
     });
-  }, [roles, form.watch('roleIds')]);
+  }, [roles, roleIds]);
 
   const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
@@ -295,11 +296,15 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                       <Label>Role</Label>
                       <Autocomplete.Trigger>
                         <Autocomplete.Value>
-                          {({ defaultChildren, isPlaceholder, state }: any) => {
+                          {({ defaultChildren, isPlaceholder, state }: {
+                            defaultChildren: React.ReactNode;
+                            isPlaceholder: boolean;
+                            state: { selectedItems: Array<{ key: Key; name: string }> };
+                          }) => {
                             if (isPlaceholder || state.selectedItems.length === 0) {
                               return defaultChildren;
                             }
-                            const selectedItemsKeys = state.selectedItems.map((item: any) => item.key);
+                            const selectedItemsKeys = state.selectedItems.map((item) => item.key);
                             return (
                               <TagGroup size="sm" onRemove={onRemoveTags}>
                                 <TagGroup.List>
