@@ -18,6 +18,7 @@ import {
   ListBox,
   TextArea,
   Surface,
+  Spinner,
   toast,
 } from '@heroui/react';
 
@@ -131,6 +132,13 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       setIsSubmitting(false);
     }
   };
+  if (isLoadingPositions) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Spinner size="md" />
+      </div>
+    );
+  }
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
