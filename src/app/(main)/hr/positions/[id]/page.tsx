@@ -114,7 +114,7 @@ export default function PositionDetailPage() {
           <Field label="Nama" value={position.positionName} />
           <Field label="Deskripsi" value={position.description || '-'} />
           <Field label="Level" value={String(position.positionLevel)} />
-          <Field label="Lapor Ke" value={position.parentName || '- (Root)'} />
+          <Field label="Lapor Ke" value={position.parentName || '-'} />
         </div>
       </Surface>
 
