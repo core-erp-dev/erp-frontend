@@ -232,7 +232,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </Select>
             )} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
-              <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
+              <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
             )} />
             {!isEditMode && (
               <Controller control={form.control} name="password" render={({ field, fieldState }) => (

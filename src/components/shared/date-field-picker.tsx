@@ -8,6 +8,7 @@ interface DateFieldPickerProps {
   value: string;
   onChange: (v: string) => void;
   isDisabled: boolean;
+  isRequired?: boolean;
   isInvalid?: boolean;
   errorMessage?: string;
 }
@@ -17,6 +18,7 @@ export function DateFieldPicker({
   value,
   onChange,
   isDisabled,
+  isRequired,
   isInvalid,
   errorMessage,
 }: DateFieldPickerProps) {
@@ -27,6 +29,7 @@ export function DateFieldPicker({
         value={value ? parseDate(value) : null}
         onChange={(d) => onChange(d ? d.toString() : '')}
         isDisabled={isDisabled}
+        isRequired={isRequired}
         isInvalid={isInvalid}
       >
         <Label>{label}</Label>
