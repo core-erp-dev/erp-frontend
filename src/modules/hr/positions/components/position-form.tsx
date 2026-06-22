@@ -192,7 +192,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-6">
 
           {/* ── INFORMASI DASAR ── */}
-          <Surface variant="transparent" className="flex flex-col gap-4 rounded-3xl border p-6">
+          <Surface className="flex flex-col gap-4 rounded-3xl p-6">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Informasi Dasar</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Controller
@@ -203,7 +203,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                     name={field.name} value={field.value} onChange={field.onChange}
                     isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                     <Label>Kode Jabatan</Label>
-                    <Input placeholder="Contoh: MGR-HRD-001" />
+                    <Input variant="secondary" placeholder="Contoh: MGR-HRD-001" />
                     {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                   </TextField>
                 )}
@@ -216,7 +216,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                     name={field.name} value={field.value} onChange={field.onChange}
                     isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                     <Label>Nama Jabatan</Label>
-                    <Input placeholder="Contoh: Manager HRD" />
+                    <Input variant="secondary" placeholder="Contoh: Manager HRD" />
                     {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                   </TextField>
                 )}
@@ -230,7 +230,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   name={field.name} value={field.value ?? ''} onChange={field.onChange}
                   isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                   <Label>Deskripsi</Label>
-                  <TextArea placeholder="Deskripsi singkat jabatan" rows={2} />
+                  <TextArea variant="secondary" placeholder="Deskripsi singkat jabatan" rows={2} />
                   {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                 </TextField>
               )}
@@ -238,7 +238,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
           </Surface>
 
           {/* ── STRUKTUR & AKSES ── */}
-          <Surface variant="transparent" className="flex flex-col gap-4 rounded-3xl border p-6">
+          <Surface className="flex flex-col gap-4 rounded-3xl p-6">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Struktur & Akses</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Atasan — HeroUI Select */}

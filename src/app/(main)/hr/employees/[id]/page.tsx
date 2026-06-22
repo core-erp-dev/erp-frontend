@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, toast } from '@heroui/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -113,7 +113,7 @@ export default function EmployeeDetailPage() {
       </div>
 
       {/* Informasi Pribadi */}
-      <div className="rounded-xl border border-border bg-background p-6">
+      <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Informasi Pribadi</h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="Nama Lengkap" value={employee.fullName} />
@@ -123,10 +123,10 @@ export default function EmployeeDetailPage() {
           <Field label="Email" value={employee.email} />
           <Field label="Alamat" value={employee.address || '-'} />
         </div>
-      </div>
+      </Surface>
 
       {/* Data Kepegawaian */}
-      <div className="rounded-xl border border-border bg-background p-6">
+      <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Data Kepegawaian</h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="NIP" value={employee.nip || '-'} />
@@ -134,7 +134,7 @@ export default function EmployeeDetailPage() {
           <Field label="Tanggal Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
           <Field label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
         </div>
-      </div>
+      </Surface>
 
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}

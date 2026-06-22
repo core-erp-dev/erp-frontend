@@ -160,18 +160,18 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
 
         {/* ── INFORMASI PRIBADI ── */}
-        <Surface variant="transparent" className="flex flex-col gap-4 rounded-3xl border p-6">
+        <Surface className="flex flex-col gap-4 rounded-3xl p-6">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Informasi Pribadi</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="fullName" render={({ field, fieldState }) => (
               <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                 <Label>Nama Lengkap</Label>
-                <Input placeholder="Masukkan nama lengkap" />
+                <Input variant="secondary" placeholder="Masukkan nama lengkap" />
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
             )} />
             <Controller control={form.control} name="gender" render={({ field }) => (
-              <Select className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Pilih jenis kelamin">
+              <Select variant="secondary" className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Pilih jenis kelamin">
                 <Label>Jenis Kelamin</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
@@ -188,7 +188,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
             <Controller control={form.control} name="phoneNumber" render={({ field, fieldState }) => (
               <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                 <Label>No. Telepon</Label>
-                <Input placeholder="08xxxxxxxxxx" type="tel" />
+                <Input variant="secondary" placeholder="08xxxxxxxxxx" type="tel" />
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
             )} />
@@ -196,27 +196,27 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           <Controller control={form.control} name="email" render={({ field, fieldState }) => (
             <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
               <Label>Email</Label>
-              <Input placeholder="contoh@perusahaan.com" type="email" />
+              <Input variant="secondary" placeholder="contoh@perusahaan.com" type="email" />
               {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
             </TextField>
           )} />
           <Controller control={form.control} name="address" render={({ field, fieldState }) => (
             <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
               <Label>Alamat</Label>
-              <TextArea placeholder="Masukkan alamat" rows={3} />
+              <TextArea variant="secondary" placeholder="Masukkan alamat" rows={3} />
               {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
             </TextField>
           )} />
         </Surface>
 
         {/* ── DATA KEPEGAWAIAN ── */}
-        <Surface variant="transparent" className="flex flex-col gap-4 rounded-3xl border p-6">
+        <Surface className="flex flex-col gap-4 rounded-3xl p-6">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Data Kepegawaian</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="nip" render={({ field, fieldState }) => (
               <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                 <Label>NIP</Label>
-                <Input placeholder="Masukkan NIP" />
+                <Input variant="secondary" placeholder="Masukkan NIP" />
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
             )} />
@@ -238,7 +238,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               <Controller control={form.control} name="password" render={({ field, fieldState }) => (
                 <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                   <Label>Kata Sandi</Label>
-                  <Input placeholder="Minimal 6 karakter" type="password" />
+                  <Input variant="secondary" placeholder="Minimal 6 karakter" type="password" />
                   {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                 </TextField>
               )} />

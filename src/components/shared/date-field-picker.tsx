@@ -30,7 +30,7 @@ export function DateFieldPicker({
         isInvalid={isInvalid}
       >
         <Label>{label}</Label>
-        <DateField.Group fullWidth>
+        <DateField.Group fullWidth variant="secondary">
           <DateField.Input>
             {(s) => <DateField.Segment segment={s} />}
           </DateField.Input>

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Users, TreeStructure, Plus } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, toast } from '@heroui/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -112,7 +112,7 @@ export default function PositionDetailPage() {
       </div>
 
       {/* Informasi Jabatan */}
-      <div className="rounded-xl border border-border bg-background p-6">
+      <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
           <TreeStructure className="h-4 w-4" />
           Informasi Jabatan
@@ -124,10 +124,10 @@ export default function PositionDetailPage() {
           <Field label="Level" value={String(position.positionLevel)} />
           <Field label="Lapor Ke" value={position.parentName || '- (Root)'} />
         </div>
-      </div>
+      </Surface>
 
       {/* Bawahan Langsung */}
-      <div className="rounded-xl border border-border bg-background p-6">
+      <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
           <TreeStructure className="h-4 w-4" />
           Bawahan Langsung
@@ -155,10 +155,10 @@ export default function PositionDetailPage() {
         ) : (
           <p className="text-sm text-gray-400">Tidak ada bawahan langsung</p>
         )}
-      </div>
+      </Surface>
 
       {/* Penjabat Saat Ini */}
-      <div className="rounded-xl border border-border bg-background p-6">
+      <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
           <Users className="h-4 w-4" />
           Penjabat Saat Ini
@@ -184,7 +184,7 @@ export default function PositionDetailPage() {
         ) : (
           <p className="text-sm text-gray-400">Belum ada karyawan yang menduduki jabatan ini</p>
         )}
-      </div>
+      </Surface>
 
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}
