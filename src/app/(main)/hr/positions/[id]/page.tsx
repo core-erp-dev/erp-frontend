@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Plus, UserPlus } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, toast } from '@heroui/react';
+import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Plus, UserPlus, X } from '@phosphor-icons/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, TextField, Input, Label, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { usePositionDetail } from '@/modules/hr/positions/hooks/use-position-detail';
 import { organizationApi } from '@/modules/hr/positions/services/organization-api';
+import { employeeApi } from '@/modules/hr/employees/services/employee-api';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import type { CoreUser } from '@/modules/hr/employees/types';
 
 export default function PositionDetailPage() {
   const router = useRouter();
@@ -22,6 +24,13 @@ export default function PositionDetailPage() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Assign karyawan state
+  const [isAssignExpanded, setIsAssignExpanded] = useState(false);
+  const [assignSearch, setAssignSearch] = useState('');
+  const [assignUsers, setAssignUsers] = useState<CoreUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
@@ -37,6 +46,37 @@ export default function PositionDetailPage() {
       setIsDeleting(false);
     }
   };
+
+  const handleAssignSearch = useCallback(async (term: string) => {
+    setAssignSearch(term);
+    if (!term.trim()) { setAssignUsers([]); return; }
+    setIsSearching(true);
+    try {
+      const result = await employeeApi.getUsers({ search: term, size: 10 });
+      setAssignUsers(result.content);
+    } catch {
+      setAssignUsers([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleAssignSubmit = useCallback(async (userId: string, fullName: string) => {
+    setIsAssigning(true);
+    try {
+      await employeeApi.assignUserToPosition({ userId, positionId: id, startDate: new Date().toISOString().split('T')[0], isPrimary: false });
+      toast.success(`${fullName} berhasil ditugaskan`);
+      setIsAssignExpanded(false);
+      setAssignSearch('');
+      setAssignUsers([]);
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menugaskan karyawan';
+      toast.danger(msg);
+    } finally {
+      setIsAssigning(false);
+    }
+  }, [id, router]);
 
   if (isLoading) {
     return (
@@ -60,6 +100,7 @@ export default function PositionDetailPage() {
   }
 
   const assignedUsers = position.assignedUsers ?? [];
+  const assignedIds = new Set(assignedUsers.map((u) => u.id));
   const showDropdown = hasPerm(PERM.POSITION_UPDATE) || hasPerm(PERM.POSITION_DELETE);
 
   return (
@@ -121,7 +162,7 @@ export default function PositionDetailPage() {
       <div className="grid gap-6 sm:grid-cols-2">
         {/* Bawahan Langsung */}
         <Surface className="rounded-3xl p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
             {hasPerm(PERM.POSITION_CREATE) && (
               <Button variant="primary" size="sm" onPress={() => router.push(`/hr/positions/create?parentId=${position.id}`)}>
@@ -153,15 +194,56 @@ export default function PositionDetailPage() {
 
         {/* Daftar Karyawan */}
         <Surface className="rounded-3xl p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
-            {hasPerm(PERM.EMPLOYEE_CREATE) && (
-              <Button variant="primary" size="sm" onPress={() => router.push(`/hr/employees/create?positionId=${position.id}`)}>
-                <UserPlus className="h-4 w-4" />
-                Tugaskan
+            {hasPerm(PERM.EMPLOYEE_UPDATE) && (
+              <Button
+                variant={isAssignExpanded ? 'secondary' : 'primary'}
+                size="sm"
+                onPress={() => { setIsAssignExpanded(!isAssignExpanded); setAssignSearch(''); setAssignUsers([]); }}
+              >
+                {isAssignExpanded ? (
+                  <><X className="h-4 w-4" />Batalkan</>
+                ) : (
+                  <><UserPlus className="h-4 w-4" />Tugaskan</>
+                )}
               </Button>
             )}
           </div>
+
+          {/* Inline Assign Form */}
+          {isAssignExpanded && (
+            <div className="mb-4 space-y-3">
+              <TextField className="w-full" value={assignSearch} onChange={handleAssignSearch}>
+                <Input variant="secondary" placeholder="Cari nama, NIP, atau email..." />
+              </TextField>
+              {isSearching ? (
+                <div className="flex justify-center py-4"><Spinner size="sm" /></div>
+              ) : assignUsers.length > 0 ? (
+                <div className="max-h-48 space-y-1 overflow-y-auto">
+                  {assignUsers
+                    .filter((u) => !assignedIds.has(u.id))
+                    .map((u) => (
+                      <button
+                        key={u.id}
+                        disabled={isAssigning}
+                        onClick={() => handleAssignSubmit(u.id, u.fullName)}
+                        className="flex w-full items-center justify-between rounded-xl bg-surface-secondary px-4 py-2.5 text-left text-sm transition-colors hover:bg-surface-tertiary disabled:opacity-50"
+                      >
+                        <div>
+                          <span className="font-medium text-foreground">{u.fullName}</span>
+                          <span className="ml-2 text-xs text-gray-400">{u.nip || u.email}</span>
+                        </div>
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    ))}
+                </div>
+              ) : assignSearch.trim() ? (
+                <p className="py-2 text-center text-sm text-gray-400">Tidak ada hasil</p>
+              ) : null}
+            </div>
+          )}
+
           {assignedUsers.length > 0 ? (
             <div className="space-y-2">
               {assignedUsers.map((u) => (
