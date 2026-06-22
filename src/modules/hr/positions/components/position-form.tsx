@@ -284,6 +284,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                       className="w-full"
                       placeholder="Pilih role"
                       selectionMode="multiple"
+                      isRequired
                       value={selectedKeys}
                       onChange={(keys) => {
                         const arr = Array.isArray(keys) ? keys : keys != null ? [keys] : [];
