@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Plus, UserPlus, X } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, TextField, Input, Label, toast } from '@heroui/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, TextField, Input, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { useDebounce } from '@/hooks/use-debounce';
 import { usePositionDetail } from '@/modules/hr/positions/hooks/use-position-detail';
 import { organizationApi } from '@/modules/hr/positions/services/organization-api';
 import { employeeApi } from '@/modules/hr/employees/services/employee-api';
@@ -47,19 +48,22 @@ export default function PositionDetailPage() {
     }
   };
 
-  const handleAssignSearch = useCallback(async (term: string) => {
+  const handleAssignSearch = useCallback((term: string) => {
     setAssignSearch(term);
-    if (!term.trim()) { setAssignUsers([]); return; }
-    setIsSearching(true);
-    try {
-      const result = await employeeApi.getUsers({ search: term, size: 10 });
-      setAssignUsers(result.content);
-    } catch {
-      setAssignUsers([]);
-    } finally {
-      setIsSearching(false);
-    }
   }, []);
+
+  const debouncedSearch = useDebounce(assignSearch, 400);
+
+  useEffect(() => {
+    if (!debouncedSearch.trim()) { setAssignUsers([]); return; }
+    let cancelled = false;
+    setIsSearching(true);
+    employeeApi.getUsers({ search: debouncedSearch, size: 10 })
+      .then((result) => { if (!cancelled) setAssignUsers(result.content); })
+      .catch(() => { if (!cancelled) setAssignUsers([]); })
+      .finally(() => { if (!cancelled) setIsSearching(false); });
+    return () => { cancelled = true; };
+  }, [debouncedSearch]);
 
   const handleAssignSubmit = useCallback(async (userId: string, fullName: string) => {
     setIsAssigning(true);
@@ -214,7 +218,7 @@ export default function PositionDetailPage() {
           {/* Inline Assign Form */}
           {isAssignExpanded && (
             <div className="mb-4 space-y-3">
-              <TextField className="w-full" value={assignSearch} onChange={handleAssignSearch}>
+              <TextField className="w-full" value={assignSearch} onChange={handleAssignSearch} isDisabled={isSearching}>
                 <Input variant="secondary" placeholder="Cari nama, NIP, atau email..." />
               </TextField>
               {isSearching ? (
@@ -224,18 +228,21 @@ export default function PositionDetailPage() {
                   {assignUsers
                     .filter((u) => !assignedIds.has(u.id))
                     .map((u) => (
-                      <button
+                      <Button
                         key={u.id}
-                        disabled={isAssigning}
-                        onClick={() => handleAssignSubmit(u.id, u.fullName)}
-                        className="flex w-full items-center justify-between rounded-xl bg-surface-secondary px-4 py-2.5 text-left text-sm transition-colors hover:bg-surface-tertiary disabled:opacity-50"
+                        variant="ghost"
+                        className="w-full justify-start rounded-xl bg-surface-secondary px-4 py-2.5 text-left text-sm h-auto transition-colors hover:bg-surface-tertiary"
+                        isDisabled={isAssigning}
+                        onPress={() => handleAssignSubmit(u.id, u.fullName)}
                       >
-                        <div>
-                          <span className="font-medium text-foreground">{u.fullName}</span>
-                          <span className="ml-2 text-xs text-gray-400">{u.nip || u.email}</span>
+                        <div className="flex w-full items-center justify-between">
+                          <div>
+                            <span className="font-medium text-foreground">{u.fullName}</span>
+                            <span className="ml-2 text-xs text-gray-400">{u.nip || u.email}</span>
+                          </div>
+                          <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
                         </div>
-                        <Plus className="h-4 w-4 text-muted-foreground" />
-                      </button>
+                      </Button>
                     ))}
                 </div>
               ) : assignSearch.trim() ? (
