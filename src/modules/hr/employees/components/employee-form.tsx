@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { House, ArrowLeft, FloppyDisk, X } from '@phosphor-icons/react';
+import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
   Button,
   TextField,
@@ -118,7 +118,10 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         address: values.address || undefined,
       };
       if (isEditMode && initialData) {
-        await employeeApi.updateUser(initialData.id, base as UserUpdateRequest);
+        const updateData = base as UserUpdateRequest;
+        console.log('[EDIT] Request:', JSON.stringify(updateData, null, 2));
+        const result = await employeeApi.updateUser(initialData.id, updateData);
+        console.log('[EDIT] Response:', JSON.stringify(result, null, 2));
         toast.success('Karyawan berhasil diperbarui');
       } else {
         await employeeApi.createUser({ ...base, password: values.password } as UserCreateRequest);
@@ -221,22 +224,16 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </TextField>
             )} />
             <Controller control={form.control} name="defaultPositionId" render={({ field }) => (
-              <div className="flex items-start gap-2">
-              <Select variant="secondary" className="flex-1" selectedKey={field.value || null} onSelectionChange={(k) => k && field.onChange(String(k))} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+              <Select variant="secondary" className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => { console.log('[POSITION SELECT] onChange key:', k, 'type:', typeof k); field.onChange(k ? String(k) : undefined); }} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
                 <Label>Jabatan</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
+                    <ListBox.Item key="_none" id="_none" textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
                     {flatPositions.map((p) => <ListBox.Item key={p.id} id={String(p.id)} textValue={p.label}>{p.label}</ListBox.Item>)}
                   </ListBox>
                 </Select.Popover>
               </Select>
-              {field.value && (
-                <Button isIconOnly variant="tertiary" size="sm" aria-label="Hapus jabatan" isDisabled={isSubmitting} onPress={() => field.onChange(undefined)} className="shrink-0">
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-              </div>
             )} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
               <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
