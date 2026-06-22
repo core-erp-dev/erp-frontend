@@ -280,6 +280,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
 
                   return (
                     <Autocomplete
+                      variant="secondary"
                       className="w-full"
                       placeholder="Pilih role"
                       selectionMode="multiple"
