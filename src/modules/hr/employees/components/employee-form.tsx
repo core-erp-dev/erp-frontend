@@ -19,7 +19,6 @@ import {
   TextArea,
   Surface,
   Spinner,
-  Checkbox,
   toast,
 } from '@heroui/react';
 
@@ -71,7 +70,6 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
   const [positions, setPositions] = useState<PositionOption[]>([]);
   const [isLoadingPositions, setIsLoadingPositions] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasPositionChecked, setHasPositionChecked] = useState(false);
   const isEditMode = mode === 'edit';
 
   const form = useForm<FormValues>({
@@ -104,10 +102,9 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         joinDate: initialData.joinDate || '',
         password: '',
       });
-      setHasPositionChecked(!!initialData.primaryPosition?.positionId);
-    }
   }, [initialData, form]);
 
+  const NIL_UUID = '00000000-0000-0000-0000-000000000000';
   const flatPositions = useMemo(() => flattenPositions(positions), [positions]);
 
   const onSubmit = async (values: FormValues) => {
@@ -227,30 +224,22 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </TextField>
             )} />
             <Controller control={form.control} name="defaultPositionId" render={({ field }) => {
+              const selectedKey = field.value || NIL_UUID;
+              const handleChange = (k: React.Key | null) => {
+                console.log('[POSITION SELECT] key:', k, 'type:', typeof k);
+                field.onChange(k === NIL_UUID ? null : String(k));
+              };
               return (
-              <div className="flex flex-col gap-2 w-full">
-                <Checkbox
-                  isSelected={hasPositionChecked}
-                  onChange={(v) => {
-                    setHasPositionChecked(v);
-                    if (!v) field.onChange(undefined);
-                  }}
-                  isDisabled={isSubmitting}
-                >
-                  Punya Jabatan
-                </Checkbox>
-                {hasPositionChecked && (
-                  <Select variant="secondary" className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => { console.log('[POSITION SELECT] onChange key:', k); field.onChange(k ? String(k) : undefined); }} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
-                    <Label>Jabatan</Label>
-                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {flatPositions.map((p) => <ListBox.Item key={p.id} id={String(p.id)} textValue={p.label}>{p.label}</ListBox.Item>)}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                )}
-              </div>
+              <Select variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+                <Label>Jabatan</Label>
+                <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
+                    {flatPositions.map((p) => <ListBox.Item key={p.id} id={String(p.id)} textValue={p.label}>{p.label}</ListBox.Item>)}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
               );
             }} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
