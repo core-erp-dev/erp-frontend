@@ -120,9 +120,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       };
       if (isEditMode && initialData) {
         const updateData = base as UserUpdateRequest;
-        console.log('[EDIT] Request:', JSON.stringify(updateData, null, 2));
-        const result = await employeeApi.updateUser(initialData.id, updateData);
-        console.log('[EDIT] Response:', JSON.stringify(result, null, 2));
+        await employeeApi.updateUser(initialData.id, updateData);
         toast.success('Karyawan berhasil diperbarui');
       } else {
         await employeeApi.createUser({ ...base, password: values.password } as UserCreateRequest);
@@ -227,7 +225,6 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
             <Controller control={form.control} name="defaultPositionId" render={({ field }) => {
               const selectedKey = field.value || NIL_UUID;
               const handleChange = (k: React.Key | null) => {
-                console.log('[POSITION SELECT] key:', k, 'type:', typeof k);
                 field.onChange(k === NIL_UUID ? undefined : String(k));
               };
               return (
