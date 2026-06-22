@@ -124,53 +124,55 @@ export default function PositionDetailPage() {
         </div>
       </Surface>
 
-      {/* Bawahan Langsung */}
-      <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
-        {position.children.length > 0 ? (
-          <div className="space-y-2">
-            {position.children.map((child) => (
-              <Link
-                key={child.id}
-                href={`/hr/positions/${child.id}`}
-                className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3 text-sm transition-colors hover:bg-surface-tertiary"
-              >
-                <div>
-                  <span className="font-medium text-foreground">{child.positionName}</span>
-                  <span className="ml-2 text-xs text-gray-400">{child.positionCode}</span>
-                </div>
-                <span className="text-xs text-gray-400">{(child.assignedUsers ?? []).length} karyawan</span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-400">Tidak ada bawahan langsung</p>
-        )}
-      </Surface>
+      <div className="grid gap-6 sm:grid-cols-2">
+        {/* Bawahan Langsung */}
+        <Surface className="rounded-3xl p-6">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
+          {position.children.length > 0 ? (
+            <div className="space-y-2">
+              {position.children.map((child) => (
+                <Link
+                  key={child.id}
+                  href={`/hr/positions/${child.id}`}
+                  className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3 text-sm transition-colors hover:bg-surface-tertiary"
+                >
+                  <div>
+                    <span className="font-medium text-foreground">{child.positionName}</span>
+                    <span className="ml-2 text-xs text-gray-400">{child.positionCode}</span>
+                  </div>
+                  <span className="text-xs text-gray-400">{(child.assignedUsers ?? []).length} karyawan</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Tidak ada bawahan langsung</p>
+          )}
+        </Surface>
 
-      {/* Daftar Karyawan */}
-      <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
-        {assignedUsers.length > 0 ? (
-          <div className="space-y-2">
-            {assignedUsers.map((u) => (
-              <Link
-                key={u.id}
-                href={`/hr/employees/${u.id}`}
-                className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3 text-sm transition-colors hover:bg-surface-tertiary"
-              >
-                <div>
-                  <span className="font-medium text-foreground">{u.fullName}</span>
-                  <span className="ml-2 text-xs text-gray-400">{u.email}</span>
-                </div>
-                <span className="text-xs text-gray-400">{u.nip || '-'}</span>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-400">Belum ada karyawan di jabatan ini</p>
-        )}
-      </Surface>
+        {/* Daftar Karyawan */}
+        <Surface className="rounded-3xl p-6">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
+          {assignedUsers.length > 0 ? (
+            <div className="space-y-2">
+              {assignedUsers.map((u) => (
+                <Link
+                  key={u.id}
+                  href={`/hr/employees/${u.id}`}
+                  className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3 text-sm transition-colors hover:bg-surface-tertiary"
+                >
+                  <div>
+                    <span className="font-medium text-foreground">{u.fullName}</span>
+                    <span className="ml-2 text-xs text-gray-400">{u.email}</span>
+                  </div>
+                  <span className="text-xs text-gray-400">{u.nip || '-'}</span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Belum ada karyawan di jabatan ini</p>
+          )}
+        </Surface>
+      </div>
 
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}
