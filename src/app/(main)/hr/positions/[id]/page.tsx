@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Plus } from '@phosphor-icons/react';
+import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Plus, UserPlus } from '@phosphor-icons/react';
 import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
@@ -79,12 +79,6 @@ export default function PositionDetailPage() {
           <h1 className="text-xl font-semibold text-foreground">{position.positionName}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {hasPerm(PERM.POSITION_CREATE) && (
-            <Button variant="primary" onPress={() => router.push(`/hr/positions/create?parentId=${position.id}`)}>
-              <Plus className="h-4 w-4" />
-              Tambah Bawahan
-            </Button>
-          )}
           {showDropdown && (
             <Dropdown>
               <Button isIconOnly variant="tertiary" aria-label="Opsi">
@@ -127,7 +121,15 @@ export default function PositionDetailPage() {
       <div className="grid gap-6 sm:grid-cols-2">
         {/* Bawahan Langsung */}
         <Surface className="rounded-3xl p-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
+            <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
+            {hasPerm(PERM.POSITION_CREATE) && (
+              <Button variant="primary" size="sm" onPress={() => router.push(`/hr/positions/create?parentId=${position.id}`)}>
+                <Plus className="h-4 w-4" />
+                Tambah
+              </Button>
+            )}
+          </div>
           {position.children.length > 0 ? (
             <div className="space-y-2">
               {position.children.map((child) => (
@@ -151,7 +153,15 @@ export default function PositionDetailPage() {
 
         {/* Daftar Karyawan */}
         <Surface className="rounded-3xl p-6">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
+            <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
+            {hasPerm(PERM.EMPLOYEE_CREATE) && (
+              <Button variant="primary" size="sm" onPress={() => router.push(`/hr/employees/create?positionId=${position.id}`)}>
+                <UserPlus className="h-4 w-4" />
+                Tugaskan
+              </Button>
+            )}
+          </div>
           {assignedUsers.length > 0 ? (
             <div className="space-y-2">
               {assignedUsers.map((u) => (
