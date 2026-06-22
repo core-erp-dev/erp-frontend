@@ -235,17 +235,15 @@ export default function PositionDetailPage() {
                       <Button
                         key={u.id}
                         variant="ghost"
-                        className="w-full justify-start rounded-xl bg-surface-secondary px-4 py-2.5 text-left text-sm h-auto transition-colors hover:bg-surface-tertiary"
+                        className="w-full justify-between rounded-xl bg-surface-secondary px-4 py-2.5 text-left text-sm h-auto transition-colors hover:bg-surface-tertiary"
                         isDisabled={isAssigning}
                         onPress={() => handleAssignSubmit(u.id, u.fullName)}
                       >
-                        <div className="flex w-full items-center justify-between">
-                          <div>
-                            <span className="font-medium text-foreground">{u.fullName}</span>
-                            <span className="ml-2 text-xs text-gray-400">{u.nip || u.email}</span>
-                          </div>
-                          <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </div>
+                        <span>
+                          <span className="font-medium text-foreground">{u.fullName}</span>
+                          <span className="ml-2 text-xs text-gray-400">{u.nip || u.email}</span>
+                        </span>
+                        <Plus className="h-4 w-4 text-muted-foreground shrink-0" />
                       </Button>
                     ))}
                 </div>

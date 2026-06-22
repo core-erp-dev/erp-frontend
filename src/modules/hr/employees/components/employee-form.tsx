@@ -221,12 +221,12 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </TextField>
             )} />
             <Controller control={form.control} name="defaultPositionId" render={({ field }) => (
-              <Select variant="secondary" className="w-full" selectedKey={field.value || '_none'} onSelectionChange={(k) => field.onChange(k === '_none' ? undefined : String(k))} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+              <Select variant="secondary" className="w-full" selectedKey={field.value || ''} onSelectionChange={(k) => field.onChange(k ? String(k) : undefined)} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
                 <Label>Jabatan</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    <ListBox.Item key="_none" id="_none" textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
+                    <ListBox.Item key="" id="" textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
                     {flatPositions.map((p) => <ListBox.Item key={p.id} id={String(p.id)} textValue={p.label}>{p.label}</ListBox.Item>)}
                   </ListBox>
                 </Select.Popover>
