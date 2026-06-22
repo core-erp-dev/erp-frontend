@@ -59,7 +59,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
       </Button>
-      <Dropdown.Popover shouldFlip={true}>
+      <Dropdown.Popover placement="top">
         <Dropdown.Menu onAction={(key) => {
           if (key === 'detail') router.push(`/hr/positions/${id}`);
           if (key === 'edit') router.push(`/hr/positions/${id}/edit`);
