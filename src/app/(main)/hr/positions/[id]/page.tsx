@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Plus, UserPlus, X } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, TextField, Input, toast } from '@heroui/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, SearchField, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -218,9 +218,13 @@ export default function PositionDetailPage() {
           {/* Inline Assign Form */}
           {isAssignExpanded && (
             <div className="mb-4 space-y-3">
-              <TextField className="w-full" onChange={handleAssignSearch} isDisabled={isSearching}>
-                <Input autoFocus variant="secondary" placeholder="Cari nama, NIP, atau email..." />
-              </TextField>
+              <SearchField className="w-full" value={assignSearch} onChange={handleAssignSearch} variant="secondary" autoFocus onClear={() => { setAssignSearch(''); setAssignUsers([]); }} isDisabled={isSearching}>
+                <SearchField.Group>
+                  <SearchField.SearchIcon />
+                  <SearchField.Input placeholder="Cari nama, NIP, atau email..." />
+                  <SearchField.ClearButton />
+                </SearchField.Group>
+              </SearchField>
               {isSearching ? (
                 <div className="flex justify-center py-4"><Spinner size="sm" /></div>
               ) : assignUsers.length > 0 ? (
