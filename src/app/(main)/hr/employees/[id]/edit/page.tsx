@@ -25,7 +25,7 @@ export default function EditEmployeePage() {
             <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
-        <Button variant="secondary" onPress={() => router.push('/hr/employees')}>
+        <Button variant="secondary" onPress={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Button>

@@ -149,7 +149,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       </Breadcrumbs>
 
       <div className="flex items-center gap-3">
-        <Button isIconOnly variant="tertiary" onPress={() => router.push('/hr/employees')} aria-label="Kembali">
+        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-semibold text-foreground">
@@ -247,7 +247,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         </Surface>
 
         <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onPress={() => router.push('/hr/employees')} isDisabled={isSubmitting}>Batal</Button>
+          <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>Batal</Button>
           <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
             <FloppyDisk className="h-4 w-4" />
             {isEditMode ? 'Simpan Perubahan' : 'Simpan'}

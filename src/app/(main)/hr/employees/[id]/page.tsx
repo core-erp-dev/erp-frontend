@@ -75,7 +75,7 @@ export default function EmployeeDetailPage() {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button isIconOnly variant="tertiary" onPress={() => router.push('/hr/employees')} aria-label="Kembali">
+          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">{employee.fullName}</h1>

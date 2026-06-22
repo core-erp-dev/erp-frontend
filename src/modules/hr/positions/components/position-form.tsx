@@ -181,7 +181,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       </Breadcrumbs>
 
       <div className="flex items-center gap-3">
-        <Button isIconOnly variant="tertiary" onPress={() => router.push('/hr/positions')} aria-label="Kembali">
+        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-semibold text-foreground">
@@ -364,7 +364,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
-            <Button variant="secondary" onPress={() => router.push('/hr/positions')} isDisabled={isSubmitting}>
+            <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>
               Batal
             </Button>
             <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
