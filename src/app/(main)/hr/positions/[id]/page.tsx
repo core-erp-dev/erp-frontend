@@ -218,8 +218,8 @@ export default function PositionDetailPage() {
           {/* Inline Assign Form */}
           {isAssignExpanded && (
             <div className="mb-4 space-y-3">
-              <TextField className="w-full" value={assignSearch} onChange={handleAssignSearch} isDisabled={isSearching}>
-                <Input variant="secondary" placeholder="Cari nama, NIP, atau email..." />
+              <TextField className="w-full" onChange={handleAssignSearch} isDisabled={isSearching}>
+                <Input autoFocus variant="secondary" placeholder="Cari nama, NIP, atau email..." />
               </TextField>
               {isSearching ? (
                 <div className="flex justify-center py-4"><Spinner size="sm" /></div>
