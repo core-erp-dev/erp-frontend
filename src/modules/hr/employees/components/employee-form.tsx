@@ -220,18 +220,24 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
             )} />
-            <Controller control={form.control} name="defaultPositionId" render={({ field }) => (
-              <Select variant="secondary" className="w-full" selectedKey={field.value || ''} onSelectionChange={(k) => field.onChange(k ? String(k) : undefined)} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+            <Controller control={form.control} name="defaultPositionId" render={({ field }) => {
+              const selectedKey = field.value || '_none';
+              const handleChange = (k: React.Key | null) => {
+                field.onChange(k && k !== '_none' ? String(k) : undefined);
+              };
+              return (
+              <Select variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
                 <Label>Jabatan</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    <ListBox.Item key="" id="" textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
+                    <ListBox.Item key="_none" id="_none" textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
                     {flatPositions.map((p) => <ListBox.Item key={p.id} id={String(p.id)} textValue={p.label}>{p.label}</ListBox.Item>)}
                   </ListBox>
                 </Select.Popover>
               </Select>
-            )} />
+              );
+            }} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
               <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
             )} />
