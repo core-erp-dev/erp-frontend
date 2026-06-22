@@ -221,7 +221,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </TextField>
             )} />
             <Controller control={form.control} name="defaultPositionId" render={({ field, fieldState }) => (
-              <Select className="w-full" selectedKey={field.value != null ? String(field.value) : null} onSelectionChange={(k) => field.onChange(k ? String(k) : undefined)} isInvalid={!!fieldState.error} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+              <Select variant="secondary" className="w-full" selectedKey={field.value != null ? String(field.value) : null} onSelectionChange={(k) => field.onChange(k ? String(k) : undefined)} isInvalid={!!fieldState.error} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
                 <Label>Jabatan</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>

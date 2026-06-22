@@ -247,6 +247,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                 name="parentId"
                 render={({ field }) => (
                   <Select
+                    variant="secondary"
                     className="w-full"
                     selectedKey={field.value || null}
                     onSelectionChange={(k) => field.onChange(k ? String(k) : null)}
