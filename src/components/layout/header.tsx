@@ -53,16 +53,17 @@ export function Header() {
         </Button>
 
         <Dropdown>
-          <Dropdown.Trigger className="outline-none" aria-label="Menu profil">
-            <div className="flex items-center gap-2 rounded-full !pl-2.5 !pr-3 py-1.5 transition-colors hover:bg-[#EBEBEC] cursor-pointer">
-              <Avatar size="sm">
-                <Avatar.Fallback>{userInitial}</Avatar.Fallback>
-              </Avatar>
-              <span className="text-sm font-medium text-foreground hidden sm:inline">
-                {displayName}
-              </span>
-              <CaretDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
-            </div>
+          <Dropdown.Trigger
+            className="flex items-center gap-2 rounded-full !pl-2.5 !pr-3 py-1.5 transition-colors hover:bg-[#EBEBEC] cursor-pointer outline-none"
+            aria-label="Menu profil"
+          >
+            <Avatar size="sm">
+              <Avatar.Fallback>{userInitial}</Avatar.Fallback>
+            </Avatar>
+            <span className="text-sm font-medium text-foreground hidden sm:inline">
+              {displayName}
+            </span>
+            <CaretDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
           </Dropdown.Trigger>
           <Dropdown.Popover placement="bottom end" className="min-w-48">
             <Dropdown.Menu
