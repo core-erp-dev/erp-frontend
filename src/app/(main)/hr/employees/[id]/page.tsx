@@ -85,7 +85,7 @@ export default function EmployeeDetailPage() {
             <Button isIconOnly variant="tertiary" aria-label="Opsi karyawan">
               <DotsThreeVertical className="h-5 w-5" />
             </Button>
-            <Dropdown.Popover placement="top">
+            <Dropdown.Popover>
               <Dropdown.Menu onAction={(key) => {
                 if (key === 'edit') router.push(`/hr/employees/${id}/edit`);
                 if (key === 'delete') setIsDeleteOpen(true);
