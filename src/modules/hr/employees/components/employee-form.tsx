@@ -113,7 +113,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
     try {
       const base = {
         email: values.email, fullName: values.fullName,
-        nip: values.nip || undefined, defaultPositionId: values.defaultPositionId,
+        nip: values.nip || undefined, defaultPositionId: values.defaultPositionId || null,
         joinDate: values.joinDate, phoneNumber: values.phoneNumber || undefined,
         gender: values.gender || undefined, birthDate: values.birthDate || undefined,
         address: values.address || undefined,
@@ -228,7 +228,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               const selectedKey = field.value || NIL_UUID;
               const handleChange = (k: React.Key | null) => {
                 console.log('[POSITION SELECT] key:', k, 'type:', typeof k);
-                field.onChange(k === NIL_UUID ? null : String(k));
+                field.onChange(k === NIL_UUID ? undefined : String(k));
               };
               return (
               <Select variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
