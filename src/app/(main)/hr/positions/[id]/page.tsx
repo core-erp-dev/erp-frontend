@@ -128,12 +128,12 @@ export default function PositionDetailPage() {
       <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
         {position.children.length > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-2">
             {position.children.map((child) => (
               <Link
                 key={child.id}
                 href={`/hr/positions/${child.id}`}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-secondary"
+                className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3 text-sm transition-colors hover:bg-surface-tertiary"
               >
                 <div>
                   <span className="font-medium text-foreground">{child.positionName}</span>
@@ -152,12 +152,12 @@ export default function PositionDetailPage() {
       <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
         {assignedUsers.length > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-2">
             {assignedUsers.map((u) => (
               <Link
                 key={u.id}
                 href={`/hr/employees/${u.id}`}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-secondary"
+                className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3 text-sm transition-colors hover:bg-surface-tertiary"
               >
                 <div>
                   <span className="font-medium text-foreground">{u.fullName}</span>
