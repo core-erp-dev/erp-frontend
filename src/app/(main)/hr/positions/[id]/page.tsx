@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Users, TreeStructure, Plus } from '@phosphor-icons/react';
+import Link from 'next/link';
+import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Plus } from '@phosphor-icons/react';
 import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
@@ -79,7 +80,7 @@ export default function PositionDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           {hasPerm(PERM.POSITION_CREATE) && (
-            <Button variant="secondary" onPress={() => router.push(`/hr/positions/create?parentId=${position.id}`)}>
+            <Button variant="primary" onPress={() => router.push(`/hr/positions/create?parentId=${position.id}`)}>
               <Plus className="h-4 w-4" />
               Tambah Bawahan
             </Button>
@@ -113,10 +114,7 @@ export default function PositionDetailPage() {
 
       {/* Informasi Jabatan */}
       <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
-          <TreeStructure className="h-4 w-4" />
-          Informasi Jabatan
-        </h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Informasi Jabatan</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Kode" value={position.positionCode} />
           <Field label="Nama" value={position.positionName} />
@@ -128,28 +126,21 @@ export default function PositionDetailPage() {
 
       {/* Bawahan Langsung */}
       <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
-          <TreeStructure className="h-4 w-4" />
-          Bawahan Langsung
-        </h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
         {position.children.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {position.children.map((child) => (
-              <Button
+              <Link
                 key={child.id}
-                variant="ghost"
-                aria-label={`Buka ${child.positionName}`}
-                onPress={() => router.push(`/hr/positions/${child.id}`)}
-                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left hover:border-[#006FEE] transition-colors h-auto"
+                href={`/hr/positions/${child.id}`}
+                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-secondary"
               >
                 <div>
-                  <div className="text-sm font-medium text-foreground">{child.positionName}</div>
-                  <div className="text-xs text-gray-400">{child.positionCode}</div>
+                  <span className="font-medium text-foreground">{child.positionName}</span>
+                  <span className="ml-2 text-xs text-gray-400">{child.positionCode}</span>
                 </div>
-                <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                  {(child.assignedUsers ?? []).length} karyawan
-                </span>
-              </Button>
+                <span className="text-xs text-gray-400">{(child.assignedUsers ?? []).length} karyawan</span>
+              </Link>
             ))}
           </div>
         ) : (
@@ -157,32 +148,27 @@ export default function PositionDetailPage() {
         )}
       </Surface>
 
-      {/* Penjabat Saat Ini */}
+      {/* Daftar Karyawan */}
       <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
-          <Users className="h-4 w-4" />
-          Penjabat Saat Ini
-        </h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
         {assignedUsers.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {assignedUsers.map((u) => (
-              <Button
+              <Link
                 key={u.id}
-                variant="ghost"
-                aria-label={`Buka ${u.fullName}`}
-                onPress={() => router.push(`/hr/employees/${u.id}`)}
-                className="flex w-full items-center justify-between rounded-lg border border-border px-4 py-3 text-left hover:border-[#006FEE] transition-colors h-auto"
+                href={`/hr/employees/${u.id}`}
+                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-surface-secondary"
               >
                 <div>
-                  <div className="text-sm font-medium text-foreground">{u.fullName}</div>
-                  <div className="text-xs text-gray-400">{u.email}</div>
+                  <span className="font-medium text-foreground">{u.fullName}</span>
+                  <span className="ml-2 text-xs text-gray-400">{u.email}</span>
                 </div>
-                <span className="font-mono text-xs text-gray-400">{u.nip || '-'}</span>
-              </Button>
+                <span className="text-xs text-gray-400">{u.nip || '-'}</span>
+              </Link>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-400">Belum ada karyawan yang menduduki jabatan ini</p>
+          <p className="text-sm text-gray-400">Belum ada karyawan di jabatan ini</p>
         )}
       </Surface>
 
