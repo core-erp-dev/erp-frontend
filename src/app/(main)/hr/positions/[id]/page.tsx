@@ -41,7 +41,6 @@ export default function PositionDetailPage() {
     return (
       <div className="flex h-64 items-center justify-center">
         <Spinner size="md" />
-        <span className="ml-3 text-sm text-gray-500">Memuat data jabatan...</span>
       </div>
     );
   }

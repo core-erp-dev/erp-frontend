@@ -165,11 +165,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
 
   if (isLoadingData) {
     return (
-      <div className="flex h-40 items-center justify-center">
-        <Surface className="flex items-center gap-2 rounded-xl px-4 py-2">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-          <span className="text-sm text-muted-foreground">Memuat data...</span>
-        </Surface>
+      <div className="flex h-64 items-center justify-center">
+        <Spinner size="md" />
       </div>
     );
   }

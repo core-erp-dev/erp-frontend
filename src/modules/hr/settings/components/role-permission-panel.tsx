@@ -31,7 +31,6 @@ export function RolePermissionPanel() {
     return (
       <div className="flex items-center justify-center py-20">
         <Spinner size="md" />
-        <span className="ml-3 text-sm text-gray-500">Memuat data role...</span>
       </div>
     );
   }
