@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
+import { House, ArrowLeft, FloppyDisk, X } from '@phosphor-icons/react';
 import {
   Button,
   TextField,
@@ -220,24 +220,24 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
             )} />
-            <Controller control={form.control} name="defaultPositionId" render={({ field }) => {
-              const selectedKey = field.value || '_none';
-              const handleChange = (k: React.Key | null) => {
-                field.onChange(k && k !== '_none' ? String(k) : undefined);
-              };
-              return (
-              <Select variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+            <Controller control={form.control} name="defaultPositionId" render={({ field }) => (
+              <div className="flex items-start gap-2">
+              <Select variant="secondary" className="flex-1" selectedKey={field.value || null} onSelectionChange={(k) => k && field.onChange(String(k))} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
                 <Label>Jabatan</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    <ListBox.Item key="_none" id="_none" textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
                     {flatPositions.map((p) => <ListBox.Item key={p.id} id={String(p.id)} textValue={p.label}>{p.label}</ListBox.Item>)}
                   </ListBox>
                 </Select.Popover>
               </Select>
-              );
-            }} />
+              {field.value && (
+                <Button isIconOnly variant="tertiary" size="sm" aria-label="Hapus jabatan" isDisabled={isSubmitting} onPress={() => field.onChange(undefined)} className="shrink-0">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+              </div>
+            )} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
               <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
             )} />
