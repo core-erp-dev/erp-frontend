@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown, ArrowCounterClockwise, Copy, Check } from '@phosphor-icons/react';
 import { Table, Spinner, Button, Pagination, Dropdown } from '@heroui/react';
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import type { Position, PositionTree } from '../types';
 import type { PaginatedResponse } from '@/types/api';
 
@@ -35,8 +36,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   onRestore,
 }) => {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
   const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
@@ -44,6 +44,14 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   const pageSize = pagination?.size ?? 10;
   const startItem = totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0;
   const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  // ── Copy state ──
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const handleCopyCode = useCallback((id: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 3000);
+  }, []);
 
   // ── Kebab menu ──
   const renderActions = (id: string, name: string) => (
@@ -58,22 +66,22 @@ export const PositionTable: React.FC<PositionTableProps> = ({
           if (key === 'add-child') router.push(`/hr/positions/create?parentId=${id}`);
           if (key === 'delete') onDelete(id, name);
         }}>
-          {hasPerm('position:read') && (
+          {hasPerm(PERM.POSITION_READ) && (
             <Dropdown.Item id="detail" textValue="Detail">
               <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground" /><span>Detail</span></div>
             </Dropdown.Item>
           )}
-          {hasPerm('position:update') && (
+          {hasPerm(PERM.POSITION_UPDATE) && (
             <Dropdown.Item id="edit" textValue="Edit">
               <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
             </Dropdown.Item>
           )}
-          {hasPerm('position:create') && (
+          {hasPerm(PERM.POSITION_CREATE) && (
             <Dropdown.Item id="add-child" textValue="Tambah Bawahan">
               <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Tambah Bawahan</span></div>
             </Dropdown.Item>
           )}
-          {hasPerm('position:delete') && (
+          {hasPerm(PERM.POSITION_DELETE) && (
             <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
               <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
             </Dropdown.Item>
@@ -142,14 +150,33 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                       </Link>
                     </div>
                   </Table.Cell>
-                  <Table.Cell className="font-mono text-xs text-muted-foreground">{row.positionCode}</Table.Cell>
+                  <Table.Cell>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-foreground">{row.positionCode}</span>
+                      {!row.isDeleted && (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Salin kode ${row.positionCode}`}
+                          onPress={() => handleCopyCode(row.id, row.positionCode)}
+                        >
+                          {copiedId === row.id ? (
+                            <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </Table.Cell>
                   <Table.Cell>
                     <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">{row.userCount}</span>
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex justify-end">
                       {row.isDeleted ? (
-                        hasPerm('position:restore') && (
+                        hasPerm(PERM.POSITION_RESTORE) && (
                           <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>
@@ -185,8 +212,25 @@ export const PositionTable: React.FC<PositionTableProps> = ({
               const isDeleted = !!pos.deletedAt;
               return (
                 <Table.Row key={pos.id} id={pos.id}>
-                  <Table.Cell className={`font-mono text-xs ${isDeleted ? 'text-gray-400' : 'text-muted-foreground'}`}>
-                    {pos.positionCode}
+                  <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
+                    <div className="flex items-center gap-1">
+                      {pos.positionCode}
+                      {!isDeleted && (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Salin kode ${pos.positionCode}`}
+                          onPress={() => handleCopyCode(pos.id, pos.positionCode)}
+                        >
+                          {copiedId === pos.id ? (
+                            <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </Table.Cell>
                   <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
                     {isDeleted ? (
@@ -207,7 +251,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                   </Table.Cell>
                   <Table.Cell>
                     {isDeleted ? (
-                      hasPerm('position:restore') && (
+                      hasPerm(PERM.POSITION_RESTORE) && (
                         <div className="flex justify-end">
                           <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
