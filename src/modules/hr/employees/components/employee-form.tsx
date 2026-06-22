@@ -228,7 +228,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 field.onChange(k === NIL_UUID ? undefined : String(k));
               };
               return (
-              <Select variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
+              <Select key={selectedKey} variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
                 <Label>Jabatan</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
