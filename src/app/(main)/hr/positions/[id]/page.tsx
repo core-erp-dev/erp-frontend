@@ -113,7 +113,7 @@ export default function PositionDetailPage() {
 
       {/* Informasi Jabatan */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
           <TreeStructure className="h-4 w-4" />
           Informasi Jabatan
         </h2>
@@ -128,7 +128,7 @@ export default function PositionDetailPage() {
 
       {/* Bawahan Langsung */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
           <TreeStructure className="h-4 w-4" />
           Bawahan Langsung
         </h2>
@@ -159,7 +159,7 @@ export default function PositionDetailPage() {
 
       {/* Penjabat Saat Ini */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-foreground">
           <Users className="h-4 w-4" />
           Penjabat Saat Ini
         </h2>

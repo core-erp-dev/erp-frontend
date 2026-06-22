@@ -114,7 +114,7 @@ export default function EmployeeDetailPage() {
 
       {/* Informasi Pribadi */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">Informasi Pribadi</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Informasi Pribadi</h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="Nama Lengkap" value={employee.fullName} />
           <Field label="Jenis Kelamin" value={getGenderLabel(employee.gender)} />
@@ -127,7 +127,7 @@ export default function EmployeeDetailPage() {
 
       {/* Data Kepegawaian */}
       <div className="rounded-xl border border-border bg-background p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-400">Data Kepegawaian</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Data Kepegawaian</h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="NIP" value={employee.nip || '-'} />
           <Field label="Jabatan" value={pos?.positionName || '-'} />
