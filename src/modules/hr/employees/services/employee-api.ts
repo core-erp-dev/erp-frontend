@@ -88,4 +88,15 @@ export const employeeApi = {
     );
     return response.data.data.tree;
   },
+
+  getUserPositions: async (userId: string): Promise<UserPositionResponse[]> => {
+    const response = await api.get<ApiResponse<UserPositionResponse[]>>(
+      `/api/v1/users/${userId}/positions`,
+    );
+    return response.data.data;
+  },
+
+  deactivateUserPosition: async (userPositionId: string): Promise<void> => {
+    await api.patch(`/api/v1/employees/user-positions/${userPositionId}/deactivate`);
+  },
 };

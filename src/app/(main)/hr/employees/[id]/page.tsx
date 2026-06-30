@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, toast } from '@heroui/react';
+import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, MedalMilitary, Briefcase } from '@phosphor-icons/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, Badge, toast } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -134,6 +134,44 @@ export default function EmployeeDetailPage() {
           <Field label="Tanggal Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
           <Field label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
         </div>
+      </Surface>
+
+      {/* Daftar Jabatan */}
+      <Surface className="rounded-3xl p-6">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Jabatan</h2>
+        {(() => {
+          const activePositions = (employee.positions ?? []).filter(p => p.isActive);
+          if (activePositions.length === 0) {
+            return <p className="text-sm text-gray-400">Belum memiliki jabatan</p>;
+          }
+          return (
+            <div className="space-y-2">
+              {activePositions.map(up => (
+                <div key={up.id} className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {up.isPrimary
+                      ? <MedalMilitary className="h-5 w-5 text-amber-500" />
+                      : <Briefcase className="h-5 w-5 text-muted-foreground" />
+                    }
+                    <div>
+                      <span className="font-medium text-foreground">{up.positionName}</span>
+                      <span className="ml-2 text-xs text-gray-400">{up.positionCode}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={up.isPrimary ? 'primary' : 'secondary'} size="sm">
+                      {up.isPrimary ? 'Utama' : 'Rangkap'}
+                    </Badge>
+                    <span className="text-xs text-gray-400">
+                      {formatDate(up.startDate)}
+                      {up.endDate ? ` · s/d ${formatDate(up.endDate)}` : ''}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </Surface>
 
       <DeleteConfirmDialog

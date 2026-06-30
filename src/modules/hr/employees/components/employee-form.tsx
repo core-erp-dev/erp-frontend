@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
+import { House, ArrowLeft, FloppyDisk, Briefcase, X, Plus } from '@phosphor-icons/react';
 import {
   Button,
   TextField,
@@ -19,13 +19,15 @@ import {
   TextArea,
   Surface,
   Spinner,
+  SearchField,
   toast,
 } from '@heroui/react';
 
 import { DateFieldPicker } from '@/components/shared/date-field-picker';
 import { GENDER, GENDER_LABEL } from '@/constants/gender';
 import { employeeApi } from '../services/employee-api';
-import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption } from '../types';
+import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption, UserPositionResponse } from '../types';
+import { useDebounce } from '@/hooks/use-debounce';
 
 const getFormSchema = (isEditMode: boolean) =>
   z.object({
@@ -107,6 +109,66 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
 
   const NIL_UUID = '00000000-0000-0000-0000-000000000000';
   const flatPositions = useMemo(() => flattenPositions(positions), [positions]);
+
+  // ── Multi-position: secondary positions (edit mode only) ──
+  const [secondaryPositions, setSecondaryPositions] = useState<UserPositionResponse[]>([]);
+  const [isAssignExpanded, setIsAssignExpanded] = useState(false);
+  const [assignSearch, setAssignSearch] = useState('');
+  const [assignResults, setAssignResults] = useState<PositionOption[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const debouncedAssignSearch = useDebounce(assignSearch, 400);
+
+  // Load user positions on mount (edit mode)
+  useEffect(() => {
+    if (isEditMode && initialData) {
+      employeeApi.getUserPositions(initialData.id).then(setSecondaryPositions).catch(() => {});
+    }
+  }, [isEditMode, initialData]);
+
+  // Debounced position search for inline assign
+  useEffect(() => {
+    if (!debouncedAssignSearch.trim()) { setAssignResults([]); return; }
+    let cancelled = false;
+    setIsSearching(true);
+    // Use the already-loaded position tree for instant search
+    const q = debouncedAssignSearch.toLowerCase();
+    const filtered = positions.filter(p => p.positionName.toLowerCase().includes(q) || p.positionCode.toLowerCase().includes(q)).slice(0, 10);
+    if (!cancelled) { setAssignResults(filtered); setIsSearching(false); }
+    return () => { cancelled = true; };
+  }, [debouncedAssignSearch, positions]);
+
+  const handleAssignSecondary = async (positionId: string) => {
+    if (!initialData) return;
+    setIsAssigning(true);
+    try {
+      const result = await employeeApi.assignUserToPosition({
+        userId: initialData.id,
+        positionId,
+        startDate: new Date().toISOString().split('T')[0],
+        isPrimary: false,
+      });
+      setSecondaryPositions(prev => [...prev, result]);
+      setIsAssignExpanded(false);
+      setAssignSearch('');
+      setAssignResults([]);
+      toast.success('Jabatan rangkap berhasil ditambahkan');
+    } catch (err: unknown) {
+      toast.danger(err instanceof Error ? err.message : 'Gagal menambah jabatan');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleRemoveSecondary = async (up: UserPositionResponse) => {
+    try {
+      await employeeApi.deactivateUserPosition(up.id);
+      setSecondaryPositions(prev => prev.filter(p => p.id !== up.id));
+      toast.success('Jabatan rangkap dilepas');
+    } catch (err: unknown) {
+      toast.danger(err instanceof Error ? err.message : 'Gagal melepas jabatan');
+    }
+  };
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
@@ -254,6 +316,94 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
             )}
           </div>
         </Surface>
+
+        {/* ── JABATAN RANGKAP (edit mode only) ── */}
+        {isEditMode && (
+          <Surface className="flex flex-col gap-4 rounded-3xl p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Jabatan Rangkap</h2>
+              <Button
+                variant={isAssignExpanded ? 'secondary' : 'primary'}
+                size="sm"
+                onPress={() => { setIsAssignExpanded(!isAssignExpanded); setAssignSearch(''); setAssignResults([]); }}
+                isDisabled={isSubmitting || isAssigning}
+              >
+                {isAssignExpanded ? <><X className="h-4 w-4" />Batal</> : <><Plus className="h-4 w-4" />Tambah Rangkap</>}
+              </Button>
+            </div>
+
+            {/* Inline assign */}
+            {isAssignExpanded && (
+              <div className="space-y-2">
+                <SearchField value={assignSearch} onChange={setAssignSearch} variant="secondary" autoFocus isDisabled={isAssigning}>
+                  <SearchField.Group>
+                    <SearchField.SearchIcon />
+                    <SearchField.Input placeholder="Cari jabatan..." />
+                    <SearchField.ClearButton />
+                  </SearchField.Group>
+                </SearchField>
+                {isSearching ? (
+                  <div className="flex justify-center py-2"><Spinner size="sm" /></div>
+                ) : assignResults.length > 0 ? (
+                  <div className="max-h-48 space-y-1 overflow-y-auto">
+                    {assignResults
+                      .filter(pos => !secondaryPositions.some(up => up.positionId === pos.id))
+                      .map(pos => (
+                        <Button
+                          key={pos.id}
+                          variant="ghost"
+                          className="w-full justify-between rounded-xl bg-surface-secondary px-4 py-2.5 text-left text-sm h-auto"
+                          isDisabled={isAssigning}
+                          onPress={() => handleAssignSecondary(pos.id)}
+                        >
+                          <span>
+                            <span className="font-medium text-foreground">{pos.positionName}</span>
+                            <span className="ml-2 text-xs text-gray-400">{pos.positionCode}</span>
+                          </span>
+                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        </Button>
+                      ))}
+                  </div>
+                ) : assignSearch.trim() ? (
+                  <p className="py-2 text-center text-sm text-gray-400">Tidak ada hasil</p>
+                ) : null}
+              </div>
+            )}
+
+            {/* Existing secondary positions */}
+            {(() => {
+              const nonPrimary = secondaryPositions.filter(p => !p.isPrimary && p.isActive);
+              if (nonPrimary.length === 0 && !isAssignExpanded) {
+                return <p className="text-sm text-gray-400">Tidak ada jabatan rangkap</p>;
+              }
+              return (
+                <div className="space-y-2">
+                  {nonPrimary.map(up => (
+                    <div key={up.id} className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Briefcase className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <span className="font-medium text-foreground">{up.positionName}</span>
+                          <span className="ml-2 text-xs text-gray-400">{up.positionCode}</span>
+                        </div>
+                      </div>
+                      <Button
+                        isIconOnly
+                        variant="danger-soft"
+                        size="sm"
+                        aria-label={`Lepas ${up.positionName}`}
+                        isDisabled={isSubmitting || isAssigning}
+                        onPress={() => handleRemoveSecondary(up)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </Surface>
+        )}
 
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>Batal</Button>

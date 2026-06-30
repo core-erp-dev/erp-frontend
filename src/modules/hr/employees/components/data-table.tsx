@@ -118,7 +118,32 @@ export const DataTable: React.FC<DataTableProps> = ({
                     {emp.email}
                   </Table.Cell>
                   <Table.Cell className={isDeleted ? 'text-gray-400' : ''}>
-                    {emp.primaryPosition ? emp.primaryPosition.positionName : '-'}
+                    {(() => {
+                      const activePositions = (emp.positions ?? []).filter(p => p.isActive);
+                      if (activePositions.length === 0) return '-';
+                      const primary = activePositions.find(p => p.isPrimary);
+                      const others = activePositions.filter(p => !p.isPrimary);
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          {primary && (
+                            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                              {primary.positionName}
+                            </span>
+                          )}
+                          {!primary && activePositions.length > 0 && (
+                            <span className="text-sm text-foreground">{activePositions[0].positionName}</span>
+                          )}
+                          {others.length > 0 && (
+                            <span
+                              className="inline-flex cursor-help items-center rounded-full bg-surface-secondary px-1.5 py-0.5 text-xs text-muted-foreground"
+                              title={others.map(p => `${p.positionName} (Rangkap)`).join('\n')}
+                            >
+                              +{others.length}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">

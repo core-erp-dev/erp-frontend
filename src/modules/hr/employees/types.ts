@@ -16,6 +16,7 @@ export interface CoreUser {
   roles: CoreRole[];
   permissions: string[];
   primaryPosition: PrimaryPosition | null;
+  positions: UserPositionResponse[];
 }
 
 export interface CoreRole {
