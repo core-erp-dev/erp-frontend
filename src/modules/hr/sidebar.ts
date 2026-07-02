@@ -1,5 +1,5 @@
 import type React from 'react';
-import { Users, TreeStructure, Gear, Lock } from '@phosphor-icons/react';
+import { Users, TreeStructure, Gear, Lock, Target, ClipboardText, ChartBar, Checks, FileC, SquaresFour } from '@phosphor-icons/react';
 
 export interface SidebarItem {
   title: string;
@@ -36,49 +36,43 @@ export const hrSidebar: SidebarItem[] = [
   },
 
   // ==============================
-  // KPI MODULE — DIKARANTINA (commented out)
-  // Aktifkan kembali setelah modul Organisasi selesai di-test.
+  // KPI MODULE
   // ==============================
-  // {
-  //   title: 'Dashboard',
-  //   href: '/hr',
-  //   icon: SquaresFour,
-  //   module: 'hr',
-  // },
-  // {
-  //   title: 'Tugas KPI',
-  //   href: '/hr/kpi/tasks',
-  //   icon: Target,
-  //   module: 'hr',
-  //   roles: ['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER', 'EMPLOYEE'],
-  // },
-  // {
-  //   title: 'KPI Korporat',
-  //   href: '/hr/kpi/corporate',
-  //   icon: ClipboardText,
-  //   module: 'hr',
-  //   roles: ['SUPER_ADMIN', 'HR_ADMIN'],
-  // },
-  // {
-  //   title: 'Capaian KPI',
-  //   href: '/hr/kpi/performance',
-  //   icon: ChartBar,
-  //   module: 'hr',
-  // },
-  // {
-  //   title: 'Persetujuan KPI',
-  //   href: '/hr/kpi/approvals',
-  //   icon: Checks,
-  //   module: 'hr',
-  //   roles: ['SUPER_ADMIN', 'HR_ADMIN'],
-  // },
-  // {
-  //   title: 'Persetujuan Laporan',
-  //   href: '/hr/kpi/approvals/reports',
-  //   icon: FileC,
-  //   module: 'hr',
-  //   roles: ['SUPER_ADMIN', 'HR_ADMIN', 'MANAGER'],
-  // },
+  {
+    title: 'Tugas KPI',
+    href: '/hr/kpi/tasks',
+    icon: Target,
+    module: 'hr',
+    permissions: ['task:read'],
+  },
+  {
+    title: 'KPI Korporat',
+    href: '/hr/kpi/corporate',
+    icon: ClipboardText,
+    module: 'hr',
+    permissions: ['kpi:read'],
+  },
+  {
+    title: 'Capaian KPI',
+    href: '/hr/kpi/performance',
+    icon: ChartBar,
+    module: 'hr',
+    permissions: ['performance:read'],
+  },
+  {
+    title: 'Persetujuan KPI',
+    href: '/hr/kpi/approvals',
+    icon: Checks,
+    module: 'hr',
+    permissions: ['task:approve'],
+  },
+  {
+    title: 'Persetujuan Laporan',
+    href: '/hr/kpi/approvals/reports',
+    icon: FileC,
+    module: 'hr',
+    permissions: ['report:approve'],
+  },
 
   // ==============================
   // GRUP: PENGATURAN
