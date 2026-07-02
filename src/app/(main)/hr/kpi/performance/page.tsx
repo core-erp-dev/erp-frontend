@@ -29,7 +29,7 @@ function SummaryCardSkeleton() {
 export default function KpiPerformancePage() {
   const { hasPerm } = usePermission();
   const router = useRouter();
-  const [data
+  const [data, setData] = useState<PerformanceSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
