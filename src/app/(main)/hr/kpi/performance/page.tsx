@@ -7,8 +7,13 @@ import {
   Card,
   Select,
   ListBox,
+  Button,
+  Alert,
 } from "@heroui/react";
-import { Target, TrendUp, FileC, Clock } from "@phosphor-icons/react";
+import { Target, TrendUp, FileC, Clock, ArrowLeft } from "@phosphor-icons/react";
+import { usePermission } from "@/hooks/use-permission";
+import { PERM } from "@/constants/permissions";
+import { useRouter } from "next/navigation";
 import { kpiReportApi } from "@/modules/hr/kpi/services/report-api";
 import { PerformanceSummaryResponse } from "@/modules/hr/kpi/types";
 
@@ -22,11 +27,22 @@ function SummaryCardSkeleton() {
 }
 
 export default function KpiPerformancePage() {
-  const [data, setData] = useState<PerformanceSummaryResponse | null>(null);
+  const { hasPerm } = usePermission();
+  const router = useRouter();
+  const [data
   const [isLoading, setIsLoading] = useState(true);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  useEffect(() => {
+  if (!hasPerm(PERM.PERFORMANCE_READ)) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Akses Ditolak</Alert.Title></Alert.Content></Alert>
+        <Button variant="secondary" onPress={() => router.back()}><ArrowLeft className="h-4 w-4" />Kembali</Button>
+      </div>
+    );
+  }
+
+  useEffect
     const fetchData = async () => {
       setIsLoading(true);
       try {

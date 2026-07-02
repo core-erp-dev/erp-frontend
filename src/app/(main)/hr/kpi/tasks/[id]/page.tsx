@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { usePermission } from "@/hooks/use-permission";
+import { PERM } from "@/constants/permissions";
 import {
   Tabs,
   ProgressBar,
   Skeleton,
   Card,
   Button,
+  Alert,
   toast,
 } from "@heroui/react";
 import {
@@ -34,9 +37,19 @@ import { DailyReportModal } from "@/modules/hr/kpi/components/daily-report-modal
 import { AmendModal } from "@/modules/hr/kpi/components/amend-modal";
 
 export default function TaskDetailPage() {
+  const { hasPerm } = usePermission();
   const params = useParams();
   const router = useRouter();
   const taskId = params.id as string;
+
+  if (!hasPerm(PERM.TASK_READ)) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Akses Ditolak</Alert.Title></Alert.Content></Alert>
+        <Button variant="secondary" onPress={() => router.back()}><ArrowLeft className="h-4 w-4" />Kembali</Button>
+      </div>
+    );
+  }
 
   const [task, setTask] = useState<KpiTask | null>(null);
   const [reports, setReports] = useState<KpiReport[]>([]);
@@ -134,7 +147,7 @@ export default function TaskDetailPage() {
       {/* Back Button */}
       <Button
         variant="tertiary"
-        onPress={() => router.push("/hr/kpi/tasks")}
+        onPress={() => router.back()}
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground w-fit px-0"
       >
         <ArrowLeft className="h-4 w-4" />

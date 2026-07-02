@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, ArrowsClockwise, Info } from '@phosphor-icons/react';
 import { Button, Skeleton, Select, ListBox } from '@heroui/react';
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import { CorporateKpiTree } from '@/modules/hr/kpi/components/corporate-kpi-tree';
 import { CorporateKpiFormModal } from '@/modules/hr/kpi/components/corporate-kpi-form-modal';
 import { CorporateKpiDeleteDialog } from '@/modules/hr/kpi/components/corporate-kpi-delete-dialog';
@@ -19,18 +20,12 @@ import { toast } from '@heroui/react';
 
 const YEAR_OPTIONS = [2024, 2025, 2026, 2027];
 
-function hasRole(roles: string[] | undefined, allowed: string[]): boolean {
-  if (!roles) return false;
-  return roles.some((r) => allowed.includes(r));
-}
-
 export default function CorporateKpiPage() {
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const roles = user?.roles ?? [];
+  const { hasPerm } = usePermission();
 
-  const canView = hasRole(roles, ['SUPER_ADMIN', 'HR_ADMIN', 'USER_APPROVER']);
-  const canEdit = hasRole(roles, ['SUPER_ADMIN', 'HR_ADMIN']);
+  const canView = hasPerm(PERM.KPI_READ);
+  const canEdit = hasPerm(PERM.KPI_UPDATE);
 
   useEffect(() => {
     if (!canView) {

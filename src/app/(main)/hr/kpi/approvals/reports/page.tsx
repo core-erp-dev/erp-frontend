@@ -37,12 +37,23 @@ const STATUS_OPTIONS: { value: ReportApprovalStatus | ""; label: string }[] = [
 ];
 
 export default function ReportApprovalPage() {
-  const [reports, setReports] = useState<KpiReport[]>([]);
+  const { hasPerm } = usePermission();
+  const router = useRouter();
+  const [reports
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ReportApprovalStatus | "">("PENDING");
   const [pagination, setPagination] = useState<PaginatedResponse<KpiReport> | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+
+  if (!hasPerm(PERM.REPORT_APPROVE)) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Akses Ditolak</Alert.Title></Alert.Content></Alert>
+        <Button variant="secondary" onPress={() => router.back()}><ArrowLeft className="h-4 w-4" />Kembali</Button>
+      </div>
+    );
+  }
 
   // Modal states
   const [selectedReport, setSelectedReport] = useState<KpiReport | null>(null);

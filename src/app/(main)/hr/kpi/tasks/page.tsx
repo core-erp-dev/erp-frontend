@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { Plus, ArrowsClockwise, Warning } from "@phosphor-icons/react";
-import { Button, SearchField, Select } from "@heroui/react";
+import { Plus, ArrowsClockwise, Warning, ArrowLeft } from "@phosphor-icons/react";
+import { Button, SearchField, Select, Alert } from "@heroui/react";
 import { ListBox } from "@heroui/react";
 
+import { usePermission } from "@/hooks/use-permission";
+import { PERM } from "@/constants/permissions";
+import { useRouter } from "next/navigation";
 import { TaskDataTable } from "@/modules/hr/kpi/components/task-data-table";
 import { TaskFormModal } from "@/modules/hr/kpi/components/task-form-modal";
 import { DeleteTaskDialog } from "@/modules/hr/kpi/components/delete-task-dialog";
@@ -27,6 +30,8 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export default function KpiTasksPage() {
+  const { hasPerm } = usePermission();
+  const router = useRouter();
   const {
     tasks,
     isLoading,
@@ -72,6 +77,20 @@ export default function KpiTasksPage() {
     [tasks],
   );
   const showBanner = pendingTargetCount > 0 || rejectedCount > 0;
+
+  if (!hasPerm(PERM.TASK_READ)) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content><Alert.Title>Akses Ditolak</Alert.Title></Alert.Content>
+        </Alert>
+        <Button variant="secondary" onPress={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />Kembali
+        </Button>
+      </div>
+    );
+  }
 
   const onFormSubmit = async (data: CreateTaskRequest | UpdateTaskRequest) => {
     if (selectedTask) {
@@ -215,10 +234,12 @@ export default function KpiTasksPage() {
                 className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
               />
             </Button>
+            {hasPerm(PERM.TASK_CREATE) && (
             <Button variant="primary" onPress={handleCreateTask}>
               <Plus className="h-4 w-4" />
               Tambah Tugas
             </Button>
+            )}
           </div>
         </div>
       </div>

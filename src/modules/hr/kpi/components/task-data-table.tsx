@@ -179,7 +179,7 @@ export const TaskDataTable: React.FC<TaskDataTableProps> = ({
                         >
                           <DotsThreeVertical className="h-4 w-4 text-muted-foreground" />
                         </Button>
-                        <Dropdown.Popover placement="bottom right" className="min-w-48">
+                        <Dropdown.Popover placement="top" className="min-w-48">
                           <Dropdown.Menu
                             aria-label={`Menu aksi untuk ${task.taskName}`}
                             onAction={(key) => {

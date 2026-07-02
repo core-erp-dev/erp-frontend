@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { ArrowsClockwise, CheckCircle } from "@phosphor-icons/react";
-import { Button, Skeleton } from "@heroui/react";
+import { ArrowsClockwise, CheckCircle, ArrowLeft } from "@phosphor-icons/react";
+import { Button, Skeleton, Alert } from "@heroui/react";
+import { usePermission } from "@/hooks/use-permission";
+import { PERM } from "@/constants/permissions";
+import { useRouter } from "next/navigation";
 import { ApprovalModal } from "@/modules/hr/kpi/components/approval-modal";
 import { useKpiTaskData } from "@/modules/hr/kpi/hooks/use-task-data";
 import { useKpiTaskForm } from "@/modules/hr/kpi/hooks/use-task-form";
@@ -14,6 +17,8 @@ import {
 } from "@/modules/hr/kpi/types";
 
 export default function KpiApprovalsPage() {
+  const { hasPerm } = usePermission();
+  const router = useRouter();
   const {
     tasks,
     isLoading,
@@ -31,6 +36,15 @@ export default function KpiApprovalsPage() {
     handleApprovalModalClose,
     isApprovalModalOpen,
   } = useKpiTaskForm();
+
+  if (!hasPerm(PERM.TASK_APPROVE)) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>Akses Ditolak</Alert.Title></Alert.Content></Alert>
+        <Button variant="secondary" onPress={() => router.back()}><ArrowLeft className="h-4 w-4" />Kembali</Button>
+      </div>
+    );
+  }
 
   // Set filter to only show PENDING_ADMIN_APPROVAL
   useEffect(() => {
