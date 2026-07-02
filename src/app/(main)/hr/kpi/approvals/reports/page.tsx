@@ -39,7 +39,7 @@ const STATUS_OPTIONS: { value: ReportApprovalStatus | ""; label: string }[] = [
 export default function ReportApprovalPage() {
   const { hasPerm } = usePermission();
   const router = useRouter();
-  const [reports
+  const [reports, setReports] = useState<KpiReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ReportApprovalStatus | "">("PENDING");
