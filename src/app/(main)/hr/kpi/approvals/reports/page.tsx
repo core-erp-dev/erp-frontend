@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { usePermission } from "@/hooks/use-permission";
+import { PERM } from "@/constants/permissions";
+import { useRouter } from "next/navigation";
 import {
   Button,
   Skeleton,
   SearchField,
+  Alert,
 } from "@heroui/react";
 import {
   ArrowsClockwise,
@@ -12,6 +16,7 @@ import {
   XCircle,
   Eye,
   Funnel,
+  ArrowLeft,
 } from "@phosphor-icons/react";
 import { kpiReportApi } from "@/modules/hr/kpi/services/report-api";
 import {
@@ -40,11 +45,6 @@ export default function ReportApprovalPage() {
   const { hasPerm } = usePermission();
   const router = useRouter();
   const [reports, setReports] = useState<KpiReport[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ReportApprovalStatus | "">("PENDING");
-  const [pagination, setPagination] = useState<PaginatedResponse<KpiReport> | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
 
   if (!hasPerm(PERM.REPORT_APPROVE)) {
     return (
@@ -54,6 +54,12 @@ export default function ReportApprovalPage() {
       </div>
     );
   }
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ReportApprovalStatus | "">("PENDING");
+  const [pagination, setPagination] = useState<PaginatedResponse<KpiReport> | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Modal states
   const [selectedReport, setSelectedReport] = useState<KpiReport | null>(null);
