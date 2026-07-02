@@ -42,7 +42,7 @@ export default function KpiPerformancePage() {
     );
   }
 
-  useEffect
+  useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
