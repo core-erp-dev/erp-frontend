@@ -34,6 +34,29 @@ export const PERM = {
 
   // Permission
   PERMISSION_READ: 'permission:read',
+
+  // Task (KPI)
+  TASK_READ: 'task:read',
+  TASK_CREATE: 'task:create',
+  TASK_UPDATE: 'task:update',
+  TASK_DELETE: 'task:delete',
+  TASK_APPROVE: 'task:approve',
+
+  // Report
+  REPORT_READ: 'report:read',
+  REPORT_CREATE: 'report:create',
+  REPORT_UPDATE: 'report:update',
+  REPORT_APPROVE: 'report:approve',
+  REPORT_AMEND: 'report:amend',
+
+  // Corporate KPI
+  KPI_READ: 'kpi:read',
+  KPI_CREATE: 'kpi:create',
+  KPI_UPDATE: 'kpi:update',
+  KPI_DELETE: 'kpi:delete',
+
+  // Performance
+  PERFORMANCE_READ: 'performance:read',
 } as const;
 
 export type PermissionCode = (typeof PERM)[keyof typeof PERM];
