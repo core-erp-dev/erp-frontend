@@ -1,16 +1,13 @@
 import type React from 'react';
-import { Users, TreeStructure, Gear, Lock, Target, ClipboardText, ChartBar, Checks, FileC, SquaresFour } from '@phosphor-icons/react';
+import { Users, TreeStructure, Gear, Lock, Target, ClipboardText, ChartBar, User, Clipboard } from '@phosphor-icons/react';
 
 export interface SidebarItem {
   title: string;
   href: string;
   icon: string | React.FC<{ className?: string }>;
   module: string;
-  /** Optional group label for visual grouping */
   group?: string;
-  /** Optional list of roles that can see this item. If omitted, visible to all users. */
   roles?: string[];
-  /** Optional list of permissions that can see this item. More granular than roles. */
   permissions?: string[];
 }
 
@@ -36,42 +33,47 @@ export const hrSidebar: SidebarItem[] = [
   },
 
   // ==============================
-  // KPI MODULE
+  // GRUP: KPI v1
   // ==============================
-  {
-    title: 'Tugas KPI',
-    href: '/hr/kpi/tasks',
-    icon: Target,
-    module: 'hr',
-    permissions: ['task:read'],
-  },
   {
     title: 'KPI Korporat',
     href: '/hr/kpi/corporate',
     icon: ClipboardText,
     module: 'hr',
-    permissions: ['kpi:read'],
+    group: 'KPI',
+    permissions: ['kpi_corporate:read'],
   },
   {
-    title: 'Capaian KPI',
-    href: '/hr/kpi/performance',
+    title: 'Dashboard KPI',
+    href: '/hr/kpi/dashboard',
     icon: ChartBar,
     module: 'hr',
-    permissions: ['performance:read'],
+    group: 'KPI',
+    permissions: ['kpi_dashboard:read'],
   },
   {
-    title: 'Persetujuan KPI',
-    href: '/hr/kpi/approvals',
-    icon: Checks,
+    title: 'Tugas KPI',
+    href: '/hr/kpi/tasks',
+    icon: Clipboard,
     module: 'hr',
-    permissions: ['task:approve'],
+    group: 'KPI',
+    permissions: ['kpi_task:read'],
   },
   {
-    title: 'Persetujuan Laporan',
-    href: '/hr/kpi/approvals/reports',
-    icon: FileC,
+    title: 'Persetujuan Tugas',
+    href: '/hr/kpi/task-approvals',
+    icon: Target,
     module: 'hr',
-    permissions: ['report:approve'],
+    group: 'KPI',
+    permissions: ['kpi_task_change:read', 'kpi_task_change:approve'],
+  },
+  {
+    title: 'Laporan Harian',
+    href: '/hr/kpi/reports',
+    icon: User,
+    module: 'hr',
+    group: 'KPI',
+    permissions: ['kpi_report:read'],
   },
 
   // ==============================
