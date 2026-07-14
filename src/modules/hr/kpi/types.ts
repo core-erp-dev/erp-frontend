@@ -1,6 +1,71 @@
 import { ApiResponse, PaginatedResponse } from '@/types/api';
 
-// ===== Task (KpiJabatanAktivitas) =====
+// ============================================================================
+// KPI v1 — Corporate KPI
+// ============================================================================
+
+export type CorporateKpiStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE';
+
+export const CORPORATE_KPI_STATUS_LABELS: Record<CorporateKpiStatus, string> = {
+  DRAFT: 'Draft',
+  ACTIVE: 'Aktif',
+  INACTIVE: 'Nonaktif',
+};
+
+export interface CorporateKpiResponse {
+  id: string;
+  indicatorCode: string;
+  indicatorName: string;
+  unit: string;
+  parentId: string | null;
+  parentName: string | null;
+  children: CorporateKpiResponse[];
+  annualTarget: number;
+  annualRealization: number;
+  achievementPercentage: number;
+  targetScore: number;
+  actualScore: number;
+  periodYear: number;
+  status: CorporateKpiStatus;
+  deletedAt: string | null;
+  linkedTaskCount: number;
+  childCount: number;
+  leaf: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCorporateKpiRequest {
+  indicatorCode: string;
+  indicatorName: string;
+  parentId?: string | null;
+  unit?: string;
+  annualTarget?: number;
+  targetScore?: number;
+  periodYear: number;
+}
+
+export interface UpdateCorporateKpiRequest {
+  indicatorCode?: string;
+  indicatorName?: string;
+  parentId?: string | null;
+  unit?: string;
+  annualTarget?: number;
+  targetScore?: number;
+  periodYear?: number;
+}
+
+// ============================================================================
+// KPI v1 — Task
+// ============================================================================
+
+export type KpiTaskStatus = 'ACTIVE' | 'CANCELLED' | 'COMPLETED';
+
+export const KPI_TASK_STATUS_LABELS: Record<KpiTaskStatus, string> = {
+  ACTIVE: 'Aktif',
+  CANCELLED: 'Dibatalkan',
+  COMPLETED: 'Selesai',
+};
 
 export interface AssignedEmployeeInfo {
   userId: string;
@@ -9,141 +74,124 @@ export interface AssignedEmployeeInfo {
   email: string;
 }
 
-export interface KpiTask {
+export interface KpiTaskResponse {
   id: string;
-  positionId: string;
-  positionName: string;
-  positionCode: string;
-  parentTaskId: string | null;
-  parentTaskName: string | null;
+  assignedToUserPositionId: string;
+  assignedUserId: string;
+  assignedUserName: string;
+  assignedPositionId: string;
+  assignedPositionName: string;
   corporateKpiId: string;
   corporateKpiName: string;
+  parentTaskId: string | null;
+  parentTaskName: string | null;
   taskCode: string;
   taskName: string;
-  unit: string;  // was 'satuan' — backend sends 'unit'
+  unit: string;
   annualTarget: number;
-  annualRealization: number;
+  directRealization: number;
+  childRealization: number;
+  totalRealization: number;
   achievementPercentage: number;
   periodYear: number;
   status: KpiTaskStatus;
-  createdBy: string;
-  createdByName: string;
-  updatedBy: string | null;
-  updatedByName: string | null;
+  assignedByUserPositionId: string;
+  assignedByUserId: string;
+  assignedByUserName: string;
+  assignedByPositionId: string;
+  assignedByPositionName: string;
+  childTaskCount: number;
+  assignedEmployees: AssignedEmployeeInfo[];
   createdAt: string;
   updatedAt: string;
-  assignedEmployees: AssignedEmployeeInfo[];
-  childTaskCount: number;
 }
 
-export type KpiTaskStatus =
-  | 'PENDING_TARGET'
-  | 'PENDING_ADMIN_APPROVAL'
-  | 'ACTIVE'
-  | 'REJECTED_BY_ADMIN'
-  | 'DELETED';
-
-export const KPI_TASK_STATUS_LABELS: Record<KpiTaskStatus, string> = {
-  PENDING_TARGET: 'Menunggu Target',
-  PENDING_ADMIN_APPROVAL: 'Menunggu Persetujuan',
-  ACTIVE: 'Aktif',
-  REJECTED_BY_ADMIN: 'Ditolak',
-  DELETED: 'Dihapus',
-};
-
-export const KPI_TASK_STATUS_COLORS: Record<KpiTaskStatus, string> = {
-  PENDING_TARGET: 'bg-warning/10 text-warning border-warning/20',
-  PENDING_ADMIN_APPROVAL: 'bg-info/10 text-info border-info/20',
-  ACTIVE: 'bg-success/10 text-success border-success/20',
-  REJECTED_BY_ADMIN: 'bg-danger/10 text-danger border-danger/20',
-  DELETED: 'bg-muted/10 text-muted-foreground border-muted/20',
-};
-
-// ===== Request DTOs =====
-
-export interface CreateTaskRequest {
-  positionId: string;
-  parentTaskId?: string | null;
+export interface CreateTaskChangeRequest {
+  assignedToUserPositionId: string;
   corporateKpiId: string;
+  parentTaskId?: string | null;
   taskName: string;
-  annualTarget?: number | null;
+  taskCode?: string;
+  unit?: string;
+  annualTarget?: number;
   periodYear: number;
 }
 
-export interface UpdateTaskRequest {
+export interface UpdateTaskChangeRequest {
   taskName?: string;
-  annualTarget?: number | null;
-  periodYear?: number;
+  taskCode?: string;
+  unit?: string;
+  annualTarget?: number;
+  corporateKpiId?: string;
 }
 
-export interface TaskApprovalRequest {
-  taskId?: string;
-  action: 'APPROVE' | 'REJECT';
-  rejectReason?: string;
+export interface DeleteTaskChangeRequest {
+  reason: string;
 }
 
 export interface TaskFilterParams {
-  search?: string;
-  status?: KpiTaskStatus;
+  status?: string;
   positionId?: string;
   periodYear?: number;
-  employeeId?: string;
-  page?: number;
-  size?: number;
+  search?: string;
   sortBy?: string;
   sortDirection?: string;
+  page?: number;
+  size?: number;
 }
 
-// ===== Response DTOs =====
+// ============================================================================
+// KPI v1 — Task Change Request (Admin)
+// ============================================================================
 
-export interface TaskApprovalResponse {
-  taskId: string;
-  previousStatus: KpiTaskStatus;
-  currentStatus: KpiTaskStatus;
-  message: string;
+export type TaskChangeRequestType = 'CREATE' | 'UPDATE' | 'DELETE';
+
+export type TaskChangeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export const CHANGE_REQUEST_STATUS_LABELS: Record<TaskChangeRequestStatus, string> = {
+  PENDING: 'Menunggu',
+  APPROVED: 'Disetujui',
+  REJECTED: 'Ditolak',
+};
+
+export const CHANGE_REQUEST_TYPE_LABELS: Record<TaskChangeRequestType, string> = {
+  CREATE: 'Pembuatan',
+  UPDATE: 'Perubahan',
+  DELETE: 'Pembatalan',
+};
+
+export interface KpiTaskChangeRequestResponse {
+  id: string;
+  taskId: string | null;
+  requestType: TaskChangeRequestType;
+  status: TaskChangeRequestStatus;
+  previousData: string | null;
+  proposedData: string;
+  requestedById: string;
+  requestedByName: string;
+  requestedByUserPositionId: string;
+  requestedByUserPositionName: string;
+  requestedAt: string;
+  reviewedById: string | null;
+  reviewedByName: string | null;
+  reviewedByUserPositionId: string | null;
+  reviewedByUserPositionName: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface TaskDeleteResponse {
-  taskId: string;
-  deletedChildCount: number;
+export interface TaskChangeApprovalRequest {
+  action: 'APPROVE' | 'REJECT';
+  reviewNote?: string;
+  rejectReason?: string;
 }
 
-export interface SubordinateTaskResponse {
-  taskId: string;
-  taskCode: string;
-  taskName: string;
-  unit: string;  // was 'satuan' — backend sends 'unit'
-  positionId: string;
-  positionName: string;
-  annualTarget: number;
-  annualRealization: number;
-  achievementPercentage: number;
-  status: KpiTaskStatus;
-  employeeId: string | null;
-  employeeName: string | null;
-}
-
-export interface PerformanceSummaryResponse {
-  employeeId: string;
-  employeeName: string;
-  positionName: string;
-  tahun?: number;
-  totalAssignedTasks: number;
-  activeTasks: number;
-  completedTasks: number;
-  totalTarget: number;
-  totalRealization: number;
-  achievementPercentage: number;
-  totalReportsSubmitted: number;
-  totalReportsApproved: number;
-  totalReportsPending: number;
-  totalReportsRejected: number;
-}
-
-// Re-export api types for convenience
-export type { ApiResponse, PaginatedResponse };
-
-// ===== Report (KpiIndividuHarian) =====
+// ============================================================================
+// KPI v1 — Report
+// ============================================================================
 
 export type ReportApprovalStatus =
   | 'PENDING'
@@ -158,50 +206,49 @@ export const REPORT_STATUS_LABELS: Record<ReportApprovalStatus, string> = {
   PENDING_REVISION: 'Revisi',
 };
 
-export const REPORT_STATUS_COLORS: Record<ReportApprovalStatus, string> = {
-  PENDING: 'bg-warning/10 text-warning border-warning/20',
-  APPROVED: 'bg-success/10 text-success border-success/20',
-  REJECTED: 'bg-danger/10 text-danger border-danger/20',
-  PENDING_REVISION: 'bg-info/10 text-info border-info/20',
-};
-
-export interface KpiReport {
+export interface KpiReportResponse {
   id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeNip: string;
+  reporterUserPositionId: string;
+  reporterPositionName: string;
   taskId: string;
   taskName: string;
   taskCode: string;
   positionId: string;
   positionName: string;
   reportDate: string;
+  clockTime: string;
   description: string;
   dailyTarget: number;
   dailyRealization: number;
   unit: string;
-  evidencePath: string | null;     // was evidenceFilePath
-  evidenceUrl: string | null;      // was evidenceFileUrl
+  evidencePath: string | null;
+  evidenceUrl: string | null;
   approvalStatus: ReportApprovalStatus;
-  isLocked: boolean;
-  approverId: string | null;       // was approvedBy
-  approverName: string | null;     // was approvedByName
+  locked: boolean;
+  approverId: string | null;
+  approverName: string | null;
+  approvedByUserPositionId: string | null;
+  approvedByUserPositionName: string | null;
   approvedAt: string | null;
   rejectReason: string | null;
-  employeeId: string;              // was reportedBy
-  employeeName: string;            // was reportedByName
-  employeeNip: string;
+  amendedFromId: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateReportRequest {
+export interface CreateKpiReportRequest {
   taskId: string;
   reportDate: string;
-  description: string;
-  dailyTarget: number;
-  dailyRealization: number;
+  description?: string;
+  dailyTarget?: number;
+  dailyRealization?: number;
   unit?: string;
 }
 
-export interface UpdateReportRequest {
+export interface UpdateKpiReportRequest {
   reportDate?: string;
   description?: string;
   dailyTarget?: number;
@@ -219,69 +266,79 @@ export interface ReportAmendRequest {
   reason: string;
 }
 
+export interface KpiReportApprovalResponse {
+  reportId: string;
+  previousStatus: string;
+  currentStatus: string;
+  approvedByUserPositionId: string;
+  approvedByUserPositionName: string;
+  message: string;
+}
+
+export interface KpiPendingCountResponse {
+  pendingReportCount: number;
+  pendingTaskChangeCount: number;
+}
+
 export interface ReportFilterParams {
-  taskId?: string;
   employeeId?: string;
-  approvalStatus?: ReportApprovalStatus;
+  taskId?: string;
+  approvalStatus?: string;
   month?: number;
   year?: number;
+  sortBy?: string;
+  sortDirection?: string;
   page?: number;
   size?: number;
 }
 
-export interface ReportApprovalResponse {
-  reportId: string;
-  previousStatus: ReportApprovalStatus;
-  currentStatus: ReportApprovalStatus;
-  message: string;
+// ============================================================================
+// KPI v1 — Dashboard
+// ============================================================================
+
+export interface CorporateKpiSummary {
+  id: string;
+  indicatorCode: string;
+  indicatorName: string;
+  achievementPercentage: number;
+  actualScore: number;
+  targetScore: number;
 }
 
-export interface PendingCountResponse {
-  pendingReportCount: number;
+export interface KpiDashboardResponse {
+  employeeId: string;
+  employeeName: string;
+  positionName: string;
+  totalAssignedTasks: number;
+  activeTasks: number;
+  completedTasks: number;
+  cancelledTasks: number;
+  totalTarget: number;
+  totalRealization: number;
+  achievementPercentage: number;
+  totalReportsSubmitted: number;
+  totalReportsApproved: number;
+  totalReportsPending: number;
+  totalReportsRejected: number;
+  corporateKpiSummaries: CorporateKpiSummary[];
 }
 
-export interface PerformanceFilterParams {
+export interface DashboardFilterParams {
   employeeId?: string;
   year?: number;
 }
 
-// ===== Corporate KPI (KpiCorporate) =====
+// ============================================================================
+// KPI v1 — Assignable User Positions (P0A)
+// ============================================================================
 
-export interface CorporateKpiResponse {
-  id: string;
-  indicatorCode: string;
-  indicatorName: string;
-  parentId: string | null;
-  parentName: string | null;
-  children: CorporateKpiResponse[];
-  formulaComponent1: string | null;
-  formulaComponent2: string | null;
-  formulaComponent3: string | null;
-  formulaExpression: string | null;
-  achievementValue: number;
-  weight: number;
-  score: number;
-  result: number;
-  businessTarget: number;
-  periodYear: number;
-  linkedTaskCount: number;
-  createdAt: string;
-  updatedAt: string;
+export interface AssignableUserPosition {
+  userPositionId: string;
+  userId: string;
+  userName: string;
+  positionId: string;
+  positionName: string;
 }
 
-export interface CreateCorporateKpiRequest {
-  indicatorCode: string;
-  indicatorName: string;
-  parentId?: string | null;
-  weight?: number;
-  businessTarget?: number;
-  periodYear: number;
-}
-
-export interface UpdateCorporateKpiRequest {
-  indicatorCode?: string;
-  indicatorName?: string;
-  parentId?: string | null;
-  weight?: number;
-  businessTarget?: number;
-}
+// Re-export api types for convenience
+export type { ApiResponse, PaginatedResponse };
