@@ -17,7 +17,7 @@ export const hrSidebar: SidebarItem[] = [
   // ==============================
   {
     title: 'Karyawan',
-    href: '/hr/employees',
+    href: '/hr/organization/employees',
     icon: Users,
     module: 'hr',
     group: 'ORGANISASI',
@@ -25,7 +25,7 @@ export const hrSidebar: SidebarItem[] = [
   },
   {
     title: 'Struktur Jabatan',
-    href: '/hr/positions',
+    href: '/hr/organization/positions',
     icon: TreeStructure,
     module: 'hr',
     group: 'ORGANISASI',

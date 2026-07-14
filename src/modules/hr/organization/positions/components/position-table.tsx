@@ -1,0 +1,327 @@
+'use client';
+
+import React, { useState, useCallback } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown, ArrowCounterClockwise, Copy, Check } from '@phosphor-icons/react';
+import { Table, Spinner, Button, Pagination, Dropdown } from '@heroui/react';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
+import type { Position, PositionTree } from '../types';
+import type { PaginatedResponse } from '@/types/api';
+
+interface PositionTableProps {
+  positions?: Position[];
+  pagination?: PaginatedResponse<Position> | null;
+  onPageChange?: (page: number) => void;
+  treePositions?: PositionTree[];
+  expandedIds?: Set<string>;
+  onToggleExpand?: (id: string) => void;
+  isLoading?: boolean;
+  viewMode: 'table' | 'tree';
+  onDelete: (id: string, name: string) => void;
+  onRestore?: (id: string, name: string) => void;
+}
+
+export const PositionTable: React.FC<PositionTableProps> = ({
+  positions = [],
+  pagination = null,
+  onPageChange,
+  treePositions = [],
+  expandedIds = new Set(),
+  onToggleExpand,
+  isLoading = false,
+  viewMode,
+  onDelete,
+  onRestore,
+}) => {
+  const router = useRouter();
+  const { hasPerm } = usePermission();
+
+  const currentPage = pagination ? pagination.page : 1;
+  const totalPages = pagination ? pagination.totalPages : 1;
+  const totalItems = pagination ? pagination.totalElements : 0;
+  const pageSize = pagination?.size ?? 10;
+  const startItem = totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
+
+  // ── Copy state ──
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const handleCopyCode = useCallback((id: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 3000);
+  }, []);
+
+  // ── Kebab menu ──
+  const renderActions = (id: string, name: string) => (
+    <Dropdown>
+      <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${name}`}>
+        <DotsThreeVertical className="h-4 w-4" />
+      </Button>
+      <Dropdown.Popover placement="top">
+        <Dropdown.Menu onAction={(key) => {
+          if (key === 'detail') router.push(`/hr/organization/positions/${id}`);
+          if (key === 'edit') router.push(`/hr/organization/positions/${id}/edit`);
+          if (key === 'add-child') router.push(`/hr/organization/positions/create?parentId=${id}`);
+          if (key === 'delete') onDelete(id, name);
+        }}>
+          {hasPerm(PERM.POSITION_READ) && (
+            <Dropdown.Item id="detail" textValue="Detail">
+              <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground" /><span>Detail</span></div>
+            </Dropdown.Item>
+          )}
+          {hasPerm(PERM.POSITION_UPDATE) && (
+            <Dropdown.Item id="edit" textValue="Edit">
+              <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
+            </Dropdown.Item>
+          )}
+          {hasPerm(PERM.POSITION_CREATE) && (
+            <Dropdown.Item id="add-child" textValue="Tambah Bawahan">
+              <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Tambah Bawahan</span></div>
+            </Dropdown.Item>
+          )}
+          {hasPerm(PERM.POSITION_DELETE) && (
+            <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+              <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
+            </Dropdown.Item>
+          )}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <Spinner size="md" />
+      </div>
+    );
+  }
+
+  const isEmpty = viewMode === 'table' ? positions.length === 0 : treePositions.length === 0;
+  if (isEmpty) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+        <Tray className="h-8 w-8" />
+        <span className="text-sm">Tidak ada data</span>
+      </div>
+    );
+  }
+
+  // ── TREE VIEW ──
+  if (viewMode === 'tree') {
+    const treeRows = buildTreeRows(treePositions, expandedIds, 0);
+    return (
+      <Table key="tree">
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Struktur Jabatan" className="min-w-[700px]">
+            <Table.Header>
+              <Table.Column id="tree-name" isRowHeader>Nama Jabatan</Table.Column>
+              <Table.Column id="tree-code">Kode</Table.Column>
+              <Table.Column id="tree-users">Karyawan</Table.Column>
+              <Table.Column id="tree-actions" className="text-center">{''}</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {treeRows.map((row) => (
+                <Table.Row key={row.id} id={row.id}>
+                  <Table.Cell>
+                    <div className="flex items-center" style={{ paddingLeft: row.depth * 24 }}>
+                      {row.hasChildren ? (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={expandedIds.has(row.id) ? 'Ciutkan' : 'Perluas'}
+                          onPress={() => onToggleExpand?.(row.id)}
+                          className="mr-1 h-5 w-5 min-w-0"
+                        >
+                          {expandedIds.has(row.id) ? (
+                            <CaretDown className="h-3.5 w-3.5 text-gray-500" />
+                          ) : (
+                            <CaretRight className="h-3.5 w-3.5 text-gray-500" />
+                          )}
+                        </Button>
+                      ) : (
+                        <span className="mr-1 w-5" />
+                      )}
+                      <Link href={`/hr/organization/positions/${row.id}`} className="font-medium text-foreground hover:underline">
+                        {row.positionName}
+                      </Link>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-foreground">{row.positionCode}</span>
+                      {!row.isDeleted && (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Salin kode ${row.positionCode}`}
+                          onPress={() => handleCopyCode(row.id, row.positionCode)}
+                        >
+                          {copiedId === row.id ? (
+                            <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">{row.userCount}</span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex justify-end">
+                      {row.isDeleted ? (
+                        hasPerm(PERM.POSITION_RESTORE) && (
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
+                            <ArrowCounterClockwise className="h-4 w-4" />
+                          </Button>
+                        )
+                      ) : (
+                        renderActions(row.id, row.positionName)
+                      )}
+                    </div>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
+    );
+  }
+
+  // ── TABLE VIEW ──
+  return (
+    <Table key="table">
+      <Table.ScrollContainer>
+        <Table.Content aria-label="Daftar Jabatan" className="min-w-[700px]">
+          <Table.Header>
+            <Table.Column id="code" isRowHeader>Kode</Table.Column>
+            <Table.Column id="name">Nama Jabatan</Table.Column>
+            <Table.Column id="parent">Lapor Ke</Table.Column>
+            <Table.Column id="users">Karyawan</Table.Column>
+            <Table.Column id="actions" className="text-center">{''}</Table.Column>
+          </Table.Header>
+          <Table.Body>
+            {positions.map((pos) => {
+              const isDeleted = !!pos.deletedAt;
+              return (
+                <Table.Row key={pos.id} id={pos.id}>
+                  <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
+                    <div className="flex items-center gap-1">
+                      {pos.positionCode}
+                      {!isDeleted && (
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Salin kode ${pos.positionCode}`}
+                          onPress={() => handleCopyCode(pos.id, pos.positionCode)}
+                        >
+                          {copiedId === pos.id ? (
+                            <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
+                    {isDeleted ? (
+                      <span>{pos.positionName}</span>
+                    ) : (
+                      <Link href={`/hr/organization/positions/${pos.id}`} className="text-foreground hover:underline font-medium">
+                        {pos.positionName}
+                      </Link>
+                    )}
+                  </Table.Cell>
+                  <Table.Cell className={isDeleted ? 'text-gray-400' : 'text-muted-foreground'}>
+                    {pos.parentName || '-'}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                      {(pos.assignedUsers ?? []).length}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {isDeleted ? (
+                      hasPerm(PERM.POSITION_RESTORE) && (
+                        <div className="flex justify-end">
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
+                            <ArrowCounterClockwise className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex justify-end">{renderActions(pos.id, pos.positionName)}</div>
+                    )}
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
+
+      {!isLoading && totalItems > 0 && (
+        <Table.Footer>
+          <Pagination>
+            <Pagination.Summary>{startItem} to {endItem} of {totalItems} hasil</Pagination.Summary>
+            <Pagination.Content>
+              <Pagination.Item>
+                <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange?.(currentPage - 1)}>
+                  <Pagination.PreviousIcon /> Sebelumnya
+                </Pagination.Previous>
+              </Pagination.Item>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <Pagination.Item key={p}>
+                  <Pagination.Link isActive={p === currentPage} onPress={() => onPageChange?.(p)}>{p}</Pagination.Link>
+                </Pagination.Item>
+              ))}
+              <Pagination.Item>
+                <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange?.(currentPage + 1)}>
+                  Selanjutnya <Pagination.NextIcon />
+                </Pagination.Next>
+              </Pagination.Item>
+            </Pagination.Content>
+          </Pagination>
+        </Table.Footer>
+      )}
+    </Table>
+  );
+};
+
+interface TreeRow {
+  id: string;
+  positionName: string;
+  positionCode: string;
+  userCount: number;
+  depth: number;
+  hasChildren: boolean;
+  isDeleted: boolean;
+}
+
+function buildTreeRows(nodes: PositionTree[], expandedIds: Set<string>, depth: number): TreeRow[] {
+  const rows: TreeRow[] = [];
+  for (const node of nodes) {
+    rows.push({
+      id: node.id,
+      positionName: node.positionName,
+      positionCode: node.positionCode,
+      userCount: (node.assignedUsers ?? []).length,
+      depth,
+      hasChildren: node.children.length > 0,
+      isDeleted: !!node.deletedAt,
+    });
+    if (node.children.length > 0 && expandedIds.has(node.id)) {
+      rows.push(...buildTreeRows(node.children, expandedIds, depth + 1));
+    }
+  }
+  return rows;
+}
