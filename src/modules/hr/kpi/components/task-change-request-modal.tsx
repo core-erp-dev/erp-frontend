@@ -61,45 +61,6 @@ export const TaskChangeRequestModal: React.FC<TaskChangeRequestModalProps> = ({
   corporateKpis, onClose,
   onSubmitCreate, onSubmitUpdate, onSubmitDelete,
 }) => {
-  // P0A: single-step assignable position search
-  const [positionSearch, setPositionSearch] = useState('');
-  const debouncedSearch = useDebounce(positionSearch, 400);
-  const [positionResults, setPositionResults] = useState<AssignableUserPosition[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<AssignableUserPosition | null>(null);
-
-  // Search assignable positions
-  useEffect(() => {
-    if (!isOpen || mode !== 'create') return;
-    if (!debouncedSearch.trim()) { setPositionResults([]); return; }
-    let cancelled = false;
-    setIsSearching(true);
-    kpiAssignableApi.getAssignableUserPositions(debouncedSearch)
-      .then((r) => {
-        if (!cancelled) setPositionResults(r);
-      })
-      .catch(() => { if (!cancelled) setPositionResults([]); })
-      .finally(() => { if (!cancelled) setIsSearching(false); });
-    return () => { cancelled = true; };
-  }, [debouncedSearch, isOpen, mode]);
-
-  // Reset state on close
-  useEffect(() => {
-    if (!isOpen) {
-      setPositionSearch('');
-      setPositionResults([]);
-      setSelectedPosition(null);
-    }
-  }, [isOpen]);
-
-  const getModalTitle = () => {
-    switch (mode) {
-      case 'create': return 'Ajukan Tugas';
-      case 'update': return 'Ajukan Perubahan Tugas';
-      case 'delete': return 'Ajukan Pembatalan Tugas';
-    }
-  };
-
   const leafKpis = corporateKpis.filter((k) => k.leaf);
 
   if (mode === 'delete') {
@@ -125,64 +86,88 @@ export const TaskChangeRequestModal: React.FC<TaskChangeRequestModalProps> = ({
   return (
     <CreateForm
       isOpen={isOpen} isSubmitting={isSubmitting} leafKpis={leafKpis}
-      positionSearch={positionSearch} setPositionSearch={setPositionSearch}
-      positionResults={positionResults} isSearching={isSearching}
-      selectedPosition={selectedPosition} setSelectedPosition={setSelectedPosition}
       onClose={onClose} onSubmit={onSubmitCreate}
     />
   );
 };
 
-// ===== CREATE FORM (P0A: single-step assignable positions) =====
+// ===== CREATE FORM =====
 function CreateForm({
   isOpen, isSubmitting, leafKpis,
-  positionSearch, setPositionSearch, positionResults, isSearching,
-  selectedPosition, setSelectedPosition,
   onClose, onSubmit,
 }: {
   isOpen: boolean; isSubmitting: boolean; leafKpis: CorporateKpiResponse[];
-  positionSearch: string; setPositionSearch: (v: string) => void;
-  positionResults: AssignableUserPosition[]; isSearching: boolean;
-  selectedPosition: AssignableUserPosition | null;
-  setSelectedPosition: (pos: AssignableUserPosition | null) => void;
   onClose: () => void;
   onSubmit: (data: CreateTaskChangeRequest) => void;
 }) {
-  const { register, handleSubmit, control, reset, setValue, formState: { errors } } = useForm<CreateFormValues>({
+  const form = useForm<CreateFormValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { assignedToUserPositionId: '', corporateKpiId: '', taskName: '', unit: '', annualTarget: 0, periodYear: new Date().getFullYear() },
+    defaultValues: {
+      assignedToUserPositionId: '', corporateKpiId: '', taskName: '',
+      unit: '', annualTarget: 0, periodYear: new Date().getFullYear(),
+    },
   });
 
-  useEffect(() => { if (isOpen) reset(); }, [isOpen, reset]);
+  // Position search state
+  const [positionSearch, setPositionSearch] = useState('');
+  const debouncedSearch = useDebounce(positionSearch, 400);
+  const [positionResults, setPositionResults] = useState<AssignableUserPosition[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<AssignableUserPosition | null>(null);
 
-  // Clear selected position when search changes
+  // Reset form + search on open
+  useEffect(() => {
+    if (isOpen) {
+      form.reset();
+      setPositionSearch('');
+      setPositionResults([]);
+      setSelectedPosition(null);
+    }
+  }, [isOpen, form]);
+
+  // Search assignable positions
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!debouncedSearch.trim()) { setPositionResults([]); return; }
+    let cancelled = false;
+    setIsSearching(true);
+    kpiAssignableApi.getAssignableUserPositions(debouncedSearch)
+      .then((r) => { if (!cancelled) setPositionResults(r); })
+      .catch(() => { if (!cancelled) setPositionResults([]); })
+      .finally(() => { if (!cancelled) setIsSearching(false); });
+    return () => { cancelled = true; };
+  }, [debouncedSearch, isOpen]);
+
+  // Clear selected position when search changes and no longer matches
   useEffect(() => {
     if (positionSearch !== '' && selectedPosition) {
-      // Only clear if selected position no longer matches search
-      const nameMatches = selectedPosition.userName.toLowerCase().includes(positionSearch.toLowerCase()) ||
-        selectedPosition.positionName.toLowerCase().includes(positionSearch.toLowerCase());
+      const q = positionSearch.toLowerCase();
+      const nameMatches = selectedPosition.userName.toLowerCase().includes(q) ||
+        selectedPosition.positionName.toLowerCase().includes(q);
       if (!nameMatches) {
         setSelectedPosition(null);
-        setValue('assignedToUserPositionId', '');
+        form.setValue('assignedToUserPositionId', '', { shouldValidate: true });
       }
     }
   }, [positionSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelectPosition = useCallback((pos: AssignableUserPosition) => {
+  const handleSelectPosition = useCallback((pos: AssignableUserPosition | null) => {
     setSelectedPosition(pos);
-    setValue('assignedToUserPositionId', pos.userPositionId);
-  }, [setValue]);
+    form.setValue('assignedToUserPositionId', pos ? pos.userPositionId : '', { shouldValidate: true });
+    // Close results after selection
+    if (pos) setPositionResults([]);
+  }, [form]);
 
-  const handleSave = useCallback(() => {
-    handleSubmit((v) => onSubmit({
+  const handleSubmitForm = useCallback((v: CreateFormValues) => {
+    onSubmit({
       assignedToUserPositionId: v.assignedToUserPositionId,
       corporateKpiId: v.corporateKpiId,
       taskName: v.taskName,
       unit: v.unit || undefined,
       annualTarget: v.annualTarget,
       periodYear: v.periodYear,
-    }))();
-  }, [handleSubmit, onSubmit]);
+    });
+  }, [onSubmit]);
 
   return (
     <Modal>
@@ -191,113 +176,213 @@ function CreateForm({
           <Modal.Dialog className="sm:max-w-[560px]">
             <Modal.Header className="items-center text-center"><Modal.Heading>Ajukan Tugas</Modal.Heading></Modal.Header>
             <Modal.Body>
-              <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-                {/* P0A: Single-step assignable position search */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Cari Pegawai</Label>
-                  <SearchField value={positionSearch} onChange={setPositionSearch} variant="secondary">
-                    <SearchField.Group>
-                      <SearchField.SearchIcon />
-                      <SearchField.Input placeholder="Cari nama atau jabatan..." />
-                      <SearchField.ClearButton />
-                    </SearchField.Group>
-                  </SearchField>
-                  {isSearching && (
-                    <div className="flex justify-center py-2"><Spinner size="sm" /></div>
-                  )}
-                  {!isSearching && positionResults.length > 0 && (
-                    <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {positionResults.map((pos) => (
-                        <Button
-                          key={pos.userPositionId} variant="ghost"
-                          className={`w-full justify-start rounded-xl px-3 py-2 h-auto ${
-                            selectedPosition?.userPositionId === pos.userPositionId
-                              ? 'bg-primary/10' : 'bg-surface-secondary'
-                          }`}
-                          onPress={() => {
-                            if (selectedPosition?.userPositionId === pos.userPositionId) {
-                              setSelectedPosition(null);
-                              setValue('assignedToUserPositionId', '');
-                            } else {
-                              handleSelectPosition(pos);
-                            }
-                          }}
+              <form id="create-task-form" onSubmit={form.handleSubmit(handleSubmitForm)}>
+                <Surface className="flex flex-col gap-4 rounded-3xl p-6">
+                  {/* Assignable position selector — matches employee-form Controller pattern */}
+                  <Controller
+                    control={form.control}
+                    name="assignedToUserPositionId"
+                    render={({ fieldState }) => (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">Cari Pegawai</Label>
+                        <SearchField
+                          value={positionSearch}
+                          onChange={setPositionSearch}
+                          variant="secondary"
+                          isDisabled={isSubmitting}
                         >
-                          <div className="flex flex-col items-start text-left">
-                            <span className="text-sm font-medium">{pos.userName}</span>
-                            <span className="text-xs text-gray-400">{pos.positionName}</span>
+                          <SearchField.Group>
+                            <SearchField.SearchIcon />
+                            <SearchField.Input placeholder="Cari nama atau jabatan..." />
+                            <SearchField.ClearButton />
+                          </SearchField.Group>
+                        </SearchField>
+
+                        {/* Loading */}
+                        {isSearching && (
+                          <div className="flex justify-center py-2"><Spinner size="sm" /></div>
+                        )}
+
+                        {/* Results */}
+                        {!isSearching && positionResults.length > 0 && (
+                          <div className="max-h-44 space-y-1 overflow-y-auto">
+                            {positionResults.map((pos) => (
+                              <Button
+                                key={pos.userPositionId}
+                                variant="ghost"
+                                className={`w-full justify-start rounded-xl px-4 py-2.5 text-left h-auto ${
+                                  selectedPosition?.userPositionId === pos.userPositionId
+                                    ? 'bg-primary/10' : 'bg-surface-secondary'
+                                }`}
+                                isDisabled={isSubmitting}
+                                onPress={() => handleSelectPosition(
+                                  selectedPosition?.userPositionId === pos.userPositionId ? null : pos
+                                )}
+                              >
+                                <span>
+                                  <span className="font-medium text-foreground">{pos.userName}</span>
+                                  <span className="ml-2 text-xs text-gray-400">{pos.positionName}</span>
+                                </span>
+                              </Button>
+                            ))}
                           </div>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                  {!isSearching && positionSearch.trim() && positionResults.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Pegawai tidak ditemukan.</p>
-                  )}
-                </div>
+                        )}
 
-                {/* Selected position indicator */}
-                {selectedPosition && (
-                  <input type="hidden" {...register('assignedToUserPositionId')} />
-                )}
+                        {/* Empty state */}
+                        {!isSearching && positionSearch.trim() && positionResults.length === 0 && (
+                          <p className="text-xs text-muted-foreground">Pegawai tidak ditemukan.</p>
+                        )}
 
-                {/* KPI selector */}
-                <Controller
-                  name="corporateKpiId"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      key={field.value || NIL_UUID}
-                      variant="secondary"
-                      isRequired
-                      selectedKey={field.value || NIL_UUID}
-                      onSelectionChange={(k: React.Key | null) => field.onChange(k === NIL_UUID ? '' : String(k))}
-                      aria-label="Indikator KPI Korporat"
-                    >
-                      <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                      <Select.Popover>
-                        <ListBox>
-                          {leafKpis.length === 0 && (
-                            <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="Tidak ada indikator leaf">Tidak ada indikator leaf tersedia</ListBox.Item>
-                          )}
-                          {leafKpis.map((kpi) => (
-                            <ListBox.Item key={kpi.id} id={kpi.id} textValue={kpi.indicatorName}>
-                              {kpi.indicatorCode} — {kpi.indicatorName}
-                            </ListBox.Item>
-                          ))}
-                        </ListBox>
-                      </Select.Popover>
-                    </Select>
-                  )}
-                />
+                        {/* Validation error */}
+                        {fieldState.error && (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        )}
+                      </div>
+                    )}
+                  />
 
-                <TextField isRequired isInvalid={!!errors.taskName}>
-                  <Label>Nama Tugas</Label>
-                  <Input variant="secondary" placeholder="Masukkan nama tugas" {...register('taskName')} />
-                  <FieldError />
-                </TextField>
-                <TextField isInvalid={!!errors.unit}>
-                  <Label>Satuan</Label>
-                  <Input variant="secondary" placeholder="Cth: Persen" {...register('unit')} />
-                  <FieldError />
-                </TextField>
-                <TextField isInvalid={!!errors.annualTarget}>
-                  <Label>Target Tahunan</Label>
-                  <Input variant="secondary" type="number" placeholder="0" {...register('annualTarget', { valueAsNumber: true })} />
-                  <FieldError />
-                </TextField>
-                <TextField isRequired isInvalid={!!errors.periodYear}>
-                  <Label>Tahun Periode</Label>
-                  <Input variant="secondary" type="number" {...register('periodYear', { valueAsNumber: true })} />
-                  <FieldError />
-                </TextField>
-              </Surface>
+                  {/* KPI selector */}
+                  <Controller
+                    control={form.control}
+                    name="corporateKpiId"
+                    render={({ field, fieldState }) => (
+                      <Select
+                        key={field.value || NIL_UUID}
+                        variant="secondary"
+                        isRequired
+                        isDisabled={isSubmitting}
+                        isInvalid={!!fieldState.error}
+                        selectedKey={field.value || NIL_UUID}
+                        onSelectionChange={(k: React.Key | null) =>
+                          field.onChange(k === NIL_UUID ? '' : String(k))
+                        }
+                        aria-label="Indikator KPI Korporat"
+                        placeholder="Pilih indikator"
+                      >
+                        <Label>Indikator KPI Korporat</Label>
+                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {leafKpis.length === 0 && (
+                              <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="Tidak ada indikator leaf">
+                                Tidak ada indikator leaf tersedia
+                              </ListBox.Item>
+                            )}
+                            {leafKpis.map((kpi) => (
+                              <ListBox.Item key={kpi.id} id={kpi.id} textValue={kpi.indicatorName}>
+                                {kpi.indicatorCode} — {kpi.indicatorName}
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </Select>
+                    )}
+                  />
+
+                  <Controller
+                    control={form.control}
+                    name="taskName"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        isRequired
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value}
+                        onChange={field.onChange}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Nama Tugas</Label>
+                        <Input variant="secondary" placeholder="Masukkan nama tugas" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+
+                  <Controller
+                    control={form.control}
+                    name="unit"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value}
+                        onChange={field.onChange}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Satuan</Label>
+                        <Input variant="secondary" placeholder="Cth: Persen" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+
+                  <Controller
+                    control={form.control}
+                    name="annualTarget"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value === 0 ? '' : String(field.value)}
+                        onChange={(v) => field.onChange(v === '' ? 0 : Number(v))}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Target Tahunan</Label>
+                        <Input variant="secondary" type="number" placeholder="0" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+
+                  <Controller
+                    control={form.control}
+                    name="periodYear"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        isRequired
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value === 0 ? '' : String(field.value)}
+                        onChange={(v) => field.onChange(v === '' ? 0 : Number(v))}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Tahun Periode</Label>
+                        <Input variant="secondary" type="number" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+
+                  {/* Info: Kode Tugas dibuat otomatis oleh sistem */}
+                  <p className="text-xs text-muted-foreground">
+                    Kode tugas dibuat otomatis oleh sistem saat disetujui.
+                  </p>
+                </Surface>
+              </form>
             </Modal.Body>
             <Modal.Footer className="flex-col-reverse">
-              <Button className="w-full" variant="primary" onPress={handleSave} isDisabled={isSubmitting} isPending={isSubmitting}>
+              <Button
+                className="w-full"
+                variant="primary"
+                type="submit"
+                form="create-task-form"
+                isDisabled={isSubmitting}
+                isPending={isSubmitting}
+              >
                 {isSubmitting ? 'Mengirim...' : 'Ajukan'}
               </Button>
-              <Button className="w-full" variant="secondary" slot="close" onPress={onClose} isDisabled={isSubmitting}>Batal</Button>
+              <Button className="w-full" variant="secondary" slot="close" onPress={onClose} isDisabled={isSubmitting}>
+                Batal
+              </Button>
             </Modal.Footer>
             <Modal.CloseTrigger />
           </Modal.Dialog>
@@ -316,21 +401,21 @@ function UpdateForm({
   leafKpis: CorporateKpiResponse[]; onClose: () => void;
   onSubmit: (data: UpdateTaskChangeRequest) => void;
 }) {
-  const { register, handleSubmit, control, reset, formState: { errors } } = useForm<UpdateFormValues>({
+  const form = useForm<UpdateFormValues>({
     resolver: zodResolver(updateSchema),
     defaultValues: { taskName: '', unit: '', annualTarget: 0, corporateKpiId: '' },
   });
 
   useEffect(() => {
     if (isOpen && task) {
-      reset({
+      form.reset({
         taskName: task.taskName,
         unit: task.unit ?? '',
         annualTarget: task.annualTarget,
         corporateKpiId: task.corporateKpiId ?? '',
       });
     }
-  }, [isOpen, task, reset]);
+  }, [isOpen, task, form]);
 
   const handleSubmitForm = useCallback((v: UpdateFormValues) => {
     onSubmit({
@@ -341,10 +426,6 @@ function UpdateForm({
     });
   }, [onSubmit]);
 
-  const handleUpdateSave = useCallback(() => {
-    handleSubmit(handleSubmitForm)();
-  }, [handleSubmit, handleSubmitForm]);
-
   return (
     <Modal>
       <Modal.Backdrop isOpen={isOpen} isDismissable={false} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -352,56 +433,119 @@ function UpdateForm({
           <Modal.Dialog className="sm:max-w-[520px]">
             <Modal.Header className="items-center text-center"><Modal.Heading>Ajukan Perubahan Tugas</Modal.Heading></Modal.Header>
             <Modal.Body>
-              <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-                <TextField isRequired isInvalid={!!errors.taskName}>
-                  <Label>Nama Tugas</Label>
-                  <Input variant="secondary" placeholder="Masukkan nama tugas" {...register('taskName')} />
-                  <FieldError />
-                </TextField>
-                <TextField isInvalid={!!errors.unit}>
-                  <Label>Satuan</Label>
-                  <Input variant="secondary" placeholder="Cth: Persen" {...register('unit')} />
-                  <FieldError />
-                </TextField>
-                <TextField isInvalid={!!errors.annualTarget}>
-                  <Label>Target Tahunan</Label>
-                  <Input variant="secondary" type="number" placeholder="0" {...register('annualTarget', { valueAsNumber: true })} />
-                  <FieldError />
-                </TextField>
-                {leafKpis.length > 0 && (
+              <form id="update-task-form" onSubmit={form.handleSubmit(handleSubmitForm)}>
+                <Surface className="flex flex-col gap-4 rounded-3xl p-6">
                   <Controller
-                    name="corporateKpiId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        key={field.value || NIL_UUID}
-                        variant="secondary"
-                        selectedKey={field.value || NIL_UUID}
-                        onSelectionChange={(k: React.Key | null) => field.onChange(k === NIL_UUID ? '' : String(k))}
-                        aria-label="Indikator KPI Korporat"
+                    control={form.control}
+                    name="taskName"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        isRequired
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value}
+                        onChange={field.onChange}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
                       >
-                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                        <Select.Popover>
-                          <ListBox>
-                            <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="Tidak Diubah">Tidak Diubah</ListBox.Item>
-                            {leafKpis.map((kpi) => (
-                              <ListBox.Item key={kpi.id} id={kpi.id} textValue={kpi.indicatorName}>
-                                {kpi.indicatorCode} — {kpi.indicatorName}
-                              </ListBox.Item>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
+                        <Label>Nama Tugas</Label>
+                        <Input variant="secondary" placeholder="Masukkan nama tugas" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
                     )}
                   />
-                )}
-              </Surface>
+                  <Controller
+                    control={form.control}
+                    name="unit"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value}
+                        onChange={field.onChange}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Satuan</Label>
+                        <Input variant="secondary" placeholder="Cth: Persen" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+                  <Controller
+                    control={form.control}
+                    name="annualTarget"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value === 0 ? '' : String(field.value)}
+                        onChange={(v) => field.onChange(v === '' ? 0 : Number(v))}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Target Tahunan</Label>
+                        <Input variant="secondary" type="number" placeholder="0" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+                  {leafKpis.length > 0 && (
+                    <Controller
+                      control={form.control}
+                      name="corporateKpiId"
+                      render={({ field, fieldState }) => (
+                        <Select
+                          key={field.value || NIL_UUID}
+                          variant="secondary"
+                          isDisabled={isSubmitting}
+                          isInvalid={!!fieldState.error}
+                          selectedKey={field.value || NIL_UUID}
+                          onSelectionChange={(k: React.Key | null) =>
+                            field.onChange(k === NIL_UUID ? '' : String(k))
+                          }
+                          aria-label="Indikator KPI Korporat"
+                          placeholder="Tidak Diubah"
+                        >
+                          <Label>Indikator KPI Korporat</Label>
+                          <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                          <Select.Popover>
+                            <ListBox>
+                              <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="Tidak Diubah">
+                                Tidak Diubah
+                              </ListBox.Item>
+                              {leafKpis.map((kpi) => (
+                                <ListBox.Item key={kpi.id} id={kpi.id} textValue={kpi.indicatorName}>
+                                  {kpi.indicatorCode} — {kpi.indicatorName}
+                                </ListBox.Item>
+                              ))}
+                            </ListBox>
+                          </Select.Popover>
+                          {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                        </Select>
+                      )}
+                    />
+                  )}
+                </Surface>
+              </form>
             </Modal.Body>
             <Modal.Footer className="flex-col-reverse">
-              <Button className="w-full" variant="primary" onPress={handleUpdateSave} isDisabled={isSubmitting} isPending={isSubmitting}>
+              <Button
+                className="w-full"
+                variant="primary"
+                type="submit"
+                form="update-task-form"
+                isDisabled={isSubmitting}
+                isPending={isSubmitting}
+              >
                 {isSubmitting ? 'Mengirim...' : 'Ajukan Perubahan'}
               </Button>
-              <Button className="w-full" variant="secondary" slot="close" onPress={onClose} isDisabled={isSubmitting}>Batal</Button>
+              <Button className="w-full" variant="secondary" slot="close" onPress={onClose} isDisabled={isSubmitting}>
+                Batal
+              </Button>
             </Modal.Footer>
             <Modal.CloseTrigger />
           </Modal.Dialog>
@@ -420,16 +564,16 @@ function DeleteForm({
   onClose: () => void;
   onSubmit: (data: DeleteTaskChangeRequest) => void;
 }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<DeleteFormValues>({
+  const form = useForm<DeleteFormValues>({
     resolver: zodResolver(deleteSchema),
     defaultValues: { reason: '' },
   });
 
-  useEffect(() => { if (isOpen) reset(); }, [isOpen, reset]);
+  useEffect(() => { if (isOpen) form.reset(); }, [isOpen, form]);
 
-  const handleDeleteSave = useCallback(() => {
-    handleSubmit(onSubmit)();
-  }, [handleSubmit, onSubmit]);
+  const handleSubmitForm = useCallback((v: DeleteFormValues) => {
+    onSubmit(v);
+  }, [onSubmit]);
 
   return (
     <Modal>
@@ -440,24 +584,50 @@ function DeleteForm({
               <Modal.Heading>Ajukan Pembatalan Tugas</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-                {task && (
-                  <p className="text-sm text-muted-foreground">
-                    Tugas <strong className="text-foreground">{task.taskName}</strong> ({task.taskCode}) akan dibatalkan setelah disetujui Admin KPI. Laporan yang sudah ada tetap tersimpan.
-                  </p>
-                )}
-                <TextField isRequired isInvalid={!!errors.reason}>
-                  <Label>Alasan Pembatalan</Label>
-                  <TextArea variant="secondary" placeholder="Jelaskan alasan pembatalan..." rows={3} {...register('reason')} />
-                  <FieldError />
-                </TextField>
-              </Surface>
+              <form id="delete-task-form" onSubmit={form.handleSubmit(handleSubmitForm)}>
+                <Surface className="flex flex-col gap-4 rounded-3xl p-6">
+                  {task && (
+                    <p className="text-sm text-muted-foreground">
+                      Tugas <strong className="text-foreground">{task.taskName}</strong> ({task.taskCode}) akan dibatalkan setelah disetujui Admin KPI. Laporan yang sudah ada tetap tersimpan.
+                    </p>
+                  )}
+                  <Controller
+                    control={form.control}
+                    name="reason"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        isRequired
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value}
+                        onChange={field.onChange}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Alasan Pembatalan</Label>
+                        <TextArea variant="secondary" placeholder="Jelaskan alasan pembatalan..." rows={3} />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+                </Surface>
+              </form>
             </Modal.Body>
             <Modal.Footer className="flex-col-reverse">
-              <Button className="w-full" variant="primary" onPress={handleDeleteSave} isDisabled={isSubmitting} isPending={isSubmitting}>
+              <Button
+                className="w-full"
+                variant="primary"
+                type="submit"
+                form="delete-task-form"
+                isDisabled={isSubmitting}
+                isPending={isSubmitting}
+              >
                 {isSubmitting ? 'Mengirim...' : 'Ajukan Pembatalan'}
               </Button>
-              <Button className="w-full" variant="secondary" slot="close" onPress={onClose} isDisabled={isSubmitting}>Batal</Button>
+              <Button className="w-full" variant="secondary" slot="close" onPress={onClose} isDisabled={isSubmitting}>
+                Batal
+              </Button>
             </Modal.Footer>
             <Modal.CloseTrigger />
           </Modal.Dialog>
