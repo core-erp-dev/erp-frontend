@@ -9,10 +9,6 @@ const moduleLabels: Record<string, string> = {
   position: 'Jabatan',
   user: 'Pengguna',
   role: 'Role & Permission',
-  task: 'Tugas KPI',
-  report: 'Laporan',
-  kpi: 'KPI Korporat',
-  performance: 'Capaian',
   permission: 'Permission',
 };
 
