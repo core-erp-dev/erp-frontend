@@ -88,12 +88,13 @@ export interface KpiTaskResponse {
   taskCode: string;
   taskName: string;
   unit: string;
-  annualTarget: number;
+  target: number;
   directRealization: number;
   childRealization: number;
   totalRealization: number;
   achievementPercentage: number;
   periodYear: number;
+  periodMonth: number;
   status: KpiTaskStatus;
   assignedByUserPositionId: string;
   assignedByUserId: string;
@@ -113,16 +114,19 @@ export interface CreateTaskChangeRequest {
   taskName: string;
   taskCode?: string;
   unit?: string;
-  annualTarget?: number;
+  target?: number;
   periodYear: number;
+  periodMonth: number;
 }
 
 export interface UpdateTaskChangeRequest {
   taskName?: string;
   taskCode?: string;
   unit?: string;
-  annualTarget?: number;
+  target?: number;
   corporateKpiId?: string;
+  periodYear?: number;
+  periodMonth?: number;
 }
 
 export interface DeleteTaskChangeRequest {

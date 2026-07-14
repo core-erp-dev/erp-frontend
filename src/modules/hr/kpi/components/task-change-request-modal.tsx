@@ -15,8 +15,10 @@ import {
 } from '../types';
 import { kpiAssignableApi } from '../services/kpi-v1-api';
 import { useDebounce } from '@/hooks/use-debounce';
+import { MONTH_OPTIONS } from '../utils';
 
 const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+const CURRENT_YEAR = new Date().getFullYear();
 
 type RequestMode = 'create' | 'update' | 'delete';
 
@@ -25,15 +27,18 @@ const createSchema = z.object({
   corporateKpiId: z.string().min(1, 'Pilih indikator KPI Korporat'),
   taskName: z.string().min(1, 'Nama tugas wajib diisi'),
   unit: z.string().optional(),
-  annualTarget: z.number().min(0, 'Target minimal 0'),
-  periodYear: z.number().min(2020, 'Tahun minimal 2020'),
+  target: z.number().min(1, 'Target harus lebih besar dari 0'),
+  periodYear: z.number().min(2000, 'Tahun harus berada antara 2000 dan 2100').max(2100, 'Tahun harus berada antara 2000 dan 2100'),
+  periodMonth: z.number().min(1, 'Pilih bulan tugas').max(12, 'Pilih bulan tugas'),
 });
 
 const updateSchema = z.object({
   taskName: z.string().min(1, 'Nama tugas wajib diisi'),
   unit: z.string().optional(),
-  annualTarget: z.number().min(0, 'Target minimal 0'),
+  target: z.number().min(1, 'Target harus lebih besar dari 0'),
   corporateKpiId: z.string().optional(),
+  periodYear: z.number().min(2000, 'Tahun harus berada antara 2000 dan 2100').max(2100, 'Tahun harus berada antara 2000 dan 2100').optional(),
+  periodMonth: z.number().min(1, 'Pilih bulan tugas').max(12, 'Pilih bulan tugas').optional(),
 });
 
 const deleteSchema = z.object({
@@ -104,7 +109,7 @@ function CreateForm({
     resolver: zodResolver(createSchema),
     defaultValues: {
       assignedToUserPositionId: '', corporateKpiId: '', taskName: '',
-      unit: '', annualTarget: 0, periodYear: new Date().getFullYear(),
+      unit: '', target: 0, periodYear: CURRENT_YEAR, periodMonth: 0,
     },
   });
 
@@ -164,8 +169,9 @@ function CreateForm({
       corporateKpiId: v.corporateKpiId,
       taskName: v.taskName,
       unit: v.unit || undefined,
-      annualTarget: v.annualTarget,
+      target: v.target,
       periodYear: v.periodYear,
+      periodMonth: v.periodMonth,
     });
   }, [onSubmit]);
 
@@ -178,7 +184,7 @@ function CreateForm({
             <Modal.Body>
               <form id="create-task-form" onSubmit={form.handleSubmit(handleSubmitForm)}>
                 <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-                  {/* Assignable position selector — matches employee-form Controller pattern */}
+                  {/* Assignable position selector */}
                   <Controller
                     control={form.control}
                     name="assignedToUserPositionId"
@@ -315,7 +321,7 @@ function CreateForm({
                         isDisabled={isSubmitting}
                       >
                         <Label>Satuan</Label>
-                        <Input variant="secondary" placeholder="Cth: Persen" />
+                        <Input variant="secondary" placeholder="Cth: Laporan" />
                         {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                       </TextField>
                     )}
@@ -323,9 +329,10 @@ function CreateForm({
 
                   <Controller
                     control={form.control}
-                    name="annualTarget"
+                    name="target"
                     render={({ field, fieldState }) => (
                       <TextField
+                        isRequired
                         validationBehavior="aria"
                         className="w-full"
                         name={field.name}
@@ -334,10 +341,44 @@ function CreateForm({
                         isInvalid={!!fieldState.error}
                         isDisabled={isSubmitting}
                       >
-                        <Label>Target Tahunan</Label>
+                        <Label>Target</Label>
                         <Input variant="secondary" type="number" placeholder="0" />
                         {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                       </TextField>
+                    )}
+                  />
+
+                  {/* Month selector */}
+                  <Controller
+                    control={form.control}
+                    name="periodMonth"
+                    render={({ field, fieldState }) => (
+                      <Select
+                        key={field.value || NIL_UUID}
+                        variant="secondary"
+                        isRequired
+                        isDisabled={isSubmitting}
+                        isInvalid={!!fieldState.error}
+                        selectedKey={field.value ? String(field.value) : NIL_UUID}
+                        onSelectionChange={(k: React.Key | null) =>
+                          field.onChange(k === NIL_UUID ? 0 : Number(k))
+                        }
+                        aria-label="Bulan"
+                        placeholder="Pilih bulan"
+                      >
+                        <Label>Bulan</Label>
+                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {MONTH_OPTIONS.map((m) => (
+                              <ListBox.Item key={String(m.value)} id={String(m.value)} textValue={m.label}>
+                                {m.label}
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </Select>
                     )}
                   />
 
@@ -355,7 +396,7 @@ function CreateForm({
                         isInvalid={!!fieldState.error}
                         isDisabled={isSubmitting}
                       >
-                        <Label>Tahun Periode</Label>
+                        <Label>Tahun</Label>
                         <Input variant="secondary" type="number" />
                         {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                       </TextField>
@@ -403,7 +444,7 @@ function UpdateForm({
 }) {
   const form = useForm<UpdateFormValues>({
     resolver: zodResolver(updateSchema),
-    defaultValues: { taskName: '', unit: '', annualTarget: 0, corporateKpiId: '' },
+    defaultValues: { taskName: '', unit: '', target: 0, corporateKpiId: '', periodYear: undefined, periodMonth: undefined },
   });
 
   useEffect(() => {
@@ -411,19 +452,24 @@ function UpdateForm({
       form.reset({
         taskName: task.taskName,
         unit: task.unit ?? '',
-        annualTarget: task.annualTarget,
+        target: task.target,
         corporateKpiId: task.corporateKpiId ?? '',
+        periodYear: task.periodYear,
+        periodMonth: task.periodMonth,
       });
     }
   }, [isOpen, task, form]);
 
   const handleSubmitForm = useCallback((v: UpdateFormValues) => {
-    onSubmit({
+    const payload: UpdateTaskChangeRequest = {
       taskName: v.taskName,
       unit: v.unit || undefined,
-      annualTarget: v.annualTarget,
+      target: v.target,
       corporateKpiId: v.corporateKpiId || undefined,
-    });
+    };
+    if (v.periodYear != null) payload.periodYear = v.periodYear;
+    if (v.periodMonth != null) payload.periodMonth = v.periodMonth;
+    onSubmit(payload);
   }, [onSubmit]);
 
   return (
@@ -469,16 +515,17 @@ function UpdateForm({
                         isDisabled={isSubmitting}
                       >
                         <Label>Satuan</Label>
-                        <Input variant="secondary" placeholder="Cth: Persen" />
+                        <Input variant="secondary" placeholder="Cth: Laporan" />
                         {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                       </TextField>
                     )}
                   />
                   <Controller
                     control={form.control}
-                    name="annualTarget"
+                    name="target"
                     render={({ field, fieldState }) => (
                       <TextField
+                        isRequired
                         validationBehavior="aria"
                         className="w-full"
                         name={field.name}
@@ -487,12 +534,70 @@ function UpdateForm({
                         isInvalid={!!fieldState.error}
                         isDisabled={isSubmitting}
                       >
-                        <Label>Target Tahunan</Label>
+                        <Label>Target</Label>
                         <Input variant="secondary" type="number" placeholder="0" />
                         {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                       </TextField>
                     )}
                   />
+
+                  {/* Month selector */}
+                  <Controller
+                    control={form.control}
+                    name="periodMonth"
+                    render={({ field, fieldState }) => (
+                      <Select
+                        key={field.value ? String(field.value) : NIL_UUID}
+                        variant="secondary"
+                        isDisabled={isSubmitting}
+                        isInvalid={!!fieldState.error}
+                        selectedKey={field.value ? String(field.value) : NIL_UUID}
+                        onSelectionChange={(k: React.Key | null) =>
+                          field.onChange(k === NIL_UUID ? undefined : Number(k))
+                        }
+                        aria-label="Bulan"
+                        placeholder="Tidak Diubah"
+                      >
+                        <Label>Bulan</Label>
+                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="Tidak Diubah">
+                              Tidak Diubah
+                            </ListBox.Item>
+                            {MONTH_OPTIONS.map((m) => (
+                              <ListBox.Item key={String(m.value)} id={String(m.value)} textValue={m.label}>
+                                {m.label}
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </Select>
+                    )}
+                  />
+
+                  {/* Year */}
+                  <Controller
+                    control={form.control}
+                    name="periodYear"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        validationBehavior="aria"
+                        className="w-full"
+                        name={field.name}
+                        value={field.value == null ? '' : String(field.value)}
+                        onChange={(v) => field.onChange(v === '' ? undefined : Number(v))}
+                        isInvalid={!!fieldState.error}
+                        isDisabled={isSubmitting}
+                      >
+                        <Label>Tahun</Label>
+                        <Input variant="secondary" type="number" placeholder="Tidak Diubah" />
+                        {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      </TextField>
+                    )}
+                  />
+
                   {leafKpis.length > 0 && (
                     <Controller
                       control={form.control}
