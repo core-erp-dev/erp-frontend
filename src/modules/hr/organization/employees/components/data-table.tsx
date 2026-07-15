@@ -9,7 +9,8 @@ import {
   Button,
   Pagination,
 } from '@heroui/react';
-import { useAuthStore } from '@/store/auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import { CoreUser, PaginatedResponse } from '../types';
 
 interface DataTableProps {
@@ -29,8 +30,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   onDelete,
   onRestore,
 }) => {
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
   const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
@@ -103,7 +103,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   <Table.Cell>
                     {isDeleted ? (
                       <span className="font-medium text-gray-400">{emp.fullName}</span>
-                    ) : hasPerm('employee:read') ? (
+                    ) : hasPerm(PERM.EMPLOYEE_READ) ? (
                       <Link
                         href={`/hr/organization/employees/${emp.id}`}
                         className="text-foreground hover:underline font-medium"
@@ -149,7 +149,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                     <div className="flex items-center justify-end gap-1">
                       {isDeleted ? (
                         // Deleted row: only show restore button
-                        hasPerm('employee:restore') && (
+                        hasPerm(PERM.EMPLOYEE_RESTORE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"
@@ -163,7 +163,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                       ) : (
                         // Active row: normal actions
                         <>
-                          {hasPerm('employee:read') && (
+                          {hasPerm(PERM.EMPLOYEE_READ) && (
                             <Button
                               isIconOnly
                               variant="tertiary"
@@ -176,7 +176,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               </Link>
                             </Button>
                           )}
-                          {hasPerm('employee:update') && (
+                          {hasPerm(PERM.EMPLOYEE_UPDATE) && (
                             <Button
                               isIconOnly
                               variant="tertiary"
@@ -189,7 +189,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               </Link>
                             </Button>
                           )}
-                          {hasPerm('employee:delete') && (
+                          {hasPerm(PERM.EMPLOYEE_DELETE) && (
                             <Button
                               isIconOnly
                               variant="danger-soft"

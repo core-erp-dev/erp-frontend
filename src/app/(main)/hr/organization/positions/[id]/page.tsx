@@ -9,8 +9,8 @@ import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { useDebounce } from '@/hooks/use-debounce';
+import { DetailField } from '@/components/shared/detail-field';
 import { usePositionDetail } from '@/modules/hr/organization/positions/hooks/use-position-detail';
-import { organizationApi } from '@/modules/hr/organization/positions/services/organization-api';
 import { employeeApi } from '@/modules/hr/organization/employees/services/employee-api';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import type { CoreUser } from '@/modules/hr/organization/employees/types';
@@ -21,10 +21,9 @@ export default function PositionDetailPage() {
   const id = params.id as string;
   const { hasPerm } = usePermission();
 
-  const { position, isLoading, error } = usePositionDetail(id);
+  const { position, isLoading, error, deletePosition, isDeleting } = usePositionDetail(id);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Assign karyawan state
   const [isAssignExpanded, setIsAssignExpanded] = useState(false);
@@ -34,17 +33,10 @@ export default function PositionDetailPage() {
   const [isAssigning, setIsAssigning] = useState(false);
 
   const handleDeleteConfirm = async () => {
-    setIsDeleting(true);
-    try {
-      await organizationApi.deletePosition(id);
-      toast.success('Jabatan berhasil dihapus');
+    const success = await deletePosition();
+    if (success) {
       setIsDeleteOpen(false);
       router.push('/hr/organization/positions');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal menghapus jabatan';
-      toast.danger(msg);
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -155,11 +147,11 @@ export default function PositionDetailPage() {
       <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Informasi Jabatan</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Kode" value={position.positionCode} />
-          <Field label="Nama" value={position.positionName} />
-          <Field label="Deskripsi" value={position.description || '-'} />
-          <Field label="Level" value={String(position.positionLevel)} />
-          <Field label="Lapor Ke" value={position.parentName || '-'} />
+          <DetailField label="Kode" value={position.positionCode} />
+          <DetailField label="Nama" value={position.positionName} />
+          <DetailField label="Deskripsi" value={position.description || '-'} />
+          <DetailField label="Level" value={String(position.positionLevel)} />
+          <DetailField label="Lapor Ke" value={position.parentName || '-'} />
         </div>
       </Surface>
 
@@ -284,15 +276,6 @@ export default function PositionDetailPage() {
         warning="Jabatan yang masih memiliki bawahan atau karyawan aktif tidak dapat dihapus."
         isDeleting={isDeleting}
       />
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs text-gray-400">{label}</span>
-      <span className="text-sm text-foreground">{value}</span>
     </div>
   );
 }

@@ -1,19 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { toast } from '@heroui/react';
 import { employeeApi } from '../services/employee-api';
 import type { CoreUser } from '../types';
+import { extractErrorMessage } from '@/types/api';
 
 interface UseEmployeeDetailReturn {
   employee: CoreUser | null;
   isLoading: boolean;
   error: string | null;
+  deleteEmployee: () => Promise<boolean>;
+  isDeleting: boolean;
 }
 
 export function useEmployeeDetail(id: string): UseEmployeeDetailReturn {
   const [employee, setEmployee] = useState<CoreUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,5 +40,21 @@ export function useEmployeeDetail(id: string): UseEmployeeDetailReturn {
     return () => { cancelled = true; };
   }, [id]);
 
-  return { employee, isLoading, error };
+  const deleteEmployee = useCallback(async (): Promise<boolean> => {
+    setIsDeleting(true);
+    try {
+      await employeeApi.deleteUser(id);
+      toast.success('Karyawan berhasil dihapus', {
+        description: 'Karyawan tidak lagi aktif dalam sistem.',
+      });
+      return true;
+    } catch (err) {
+      toast.danger(extractErrorMessage(err, 'Gagal menghapus karyawan'));
+      return false;
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [id]);
+
+  return { employee, isLoading, error, deleteEmployee, isDeleting };
 }

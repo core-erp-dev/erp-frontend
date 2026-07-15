@@ -16,9 +16,9 @@ import {
 } from '@heroui/react';
 
 import { organizationApi } from '@/modules/hr/organization/positions/services/organization-api';
-import { roleApi } from '@/modules/hr/settings/services/role-api';
 import type { PositionTree, PositionRequest, PositionUpdateRequest } from '@/modules/hr/organization/positions/types';
 import type { RoleResponse } from '@/modules/hr/organization/employees/types';
+import { usePositionFormData } from '../hooks/use-position-form-data';
 
 const formSchema = z.object({
   positionCode: z.string().min(1, 'Kode jabatan wajib diisi'),
@@ -41,9 +41,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   const searchParams = useSearchParams();
   const isEditMode = mode === 'edit';
 
-  const [allPositions, setAllPositions] = useState<PositionTree[]>([]);
-  const [roles, setRoles] = useState<RoleResponse[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const { allPositions, roles, isLoadingData, submitCreate, submitUpdate } = usePositionFormData(isEditMode, initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -62,23 +60,6 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       roleIds: [],
     },
   });
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const [tree, rolesList] = await Promise.all([
-          organizationApi.fetchPositionTree(),
-          roleApi.getRoles(),
-        ]);
-        setAllPositions(tree);
-        setRoles(rolesList);
-      } catch {
-        // fail silently
-      } finally {
-        setIsLoadingData(false);
-      }
-    })();
-  }, []);
 
   useEffect(() => {
     if (initialData && roles.length > 0) {
@@ -128,38 +109,29 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     setSubmitError(null);
-    try {
-      if (isEditMode && initialData) {
-        const payload: PositionUpdateRequest = {
-          positionCode: values.positionCode,
-          positionName: values.positionName,
-          description: values.description || undefined,
-          parentId: values.parentId,
-        };
-        await organizationApi.updatePosition(initialData.id, payload);
 
-        const currentRoles = await organizationApi.getPositionRoles(initialData.id);
-        const currentIds = currentRoles.map((r) => r.id);
-        const toAdd = values.roleIds.filter((id) => !currentIds.includes(id));
-        const toRemove = currentIds.filter((id) => !values.roleIds.includes(id));
-        for (const roleId of toAdd) await organizationApi.assignRoleToPosition(initialData.id, roleId);
-        for (const roleId of toRemove) await organizationApi.removeRoleFromPosition(initialData.id, roleId);
-      } else {
-        const payload: PositionRequest = {
-          positionCode: values.positionCode,
-          positionName: values.positionName,
-          description: values.description || undefined,
-          parentId: values.parentId || undefined,
-        };
-        const newPos = await organizationApi.createPosition(payload);
-        for (const roleId of values.roleIds) await organizationApi.assignRoleToPosition(newPos.id, roleId);
-      }
-      onSuccess();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan';
-      setSubmitError(msg);
-    } finally {
+    if (isEditMode && initialData) {
+      const payload: PositionUpdateRequest = {
+        positionCode: values.positionCode,
+        positionName: values.positionName,
+        description: values.description || undefined,
+        parentId: values.parentId,
+      };
+      const ok = await submitUpdate(initialData.id, payload, values.roleIds);
       setIsSubmitting(false);
+      if (ok) onSuccess();
+      else setSubmitError('Gagal memperbarui jabatan');
+    } else {
+      const payload: PositionRequest = {
+        positionCode: values.positionCode,
+        positionName: values.positionName,
+        description: values.description || undefined,
+        parentId: values.parentId || undefined,
+      };
+      const newId = await submitCreate(payload, values.roleIds);
+      setIsSubmitting(false);
+      if (newId) onSuccess();
+      else setSubmitError('Gagal menambahkan jabatan');
     }
   };
 

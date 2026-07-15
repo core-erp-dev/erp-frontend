@@ -25,9 +25,9 @@ import {
 
 import { DateFieldPicker } from '@/components/shared/date-field-picker';
 import { GENDER, GENDER_LABEL } from '@/constants/gender';
-import { employeeApi } from '../services/employee-api';
 import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption, UserPositionResponse } from '../types';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useEmployeeFormData } from '../hooks/use-employee-form-data';
 
 const getFormSchema = (isEditMode: boolean) =>
   z.object({
@@ -69,10 +69,20 @@ function flattenPositions(tree: PositionOption[], prefix = ''): { id: string; la
 
 export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps) {
   const router = useRouter();
-  const [positions, setPositions] = useState<PositionOption[]>([]);
-  const [isLoadingPositions, setIsLoadingPositions] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const isEditMode = mode === 'edit';
+
+  const {
+    positions,
+    isLoadingPositions,
+    secondaryPositions,
+    isLoadingSecondary,
+    assignSecondary,
+    removeSecondary,
+    submitCreate,
+    submitUpdate,
+  } = useEmployeeFormData(isEditMode, initialData);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(getFormSchema(isEditMode)),
@@ -83,12 +93,6 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       joinDate: '', password: '',
     },
   });
-
-  useEffect(() => {
-    (async () => {
-      try { setPositions(await employeeApi.getPositions()); } catch { /* positions fetch failed — dropdown will be empty */ } finally { setIsLoadingPositions(false); }
-    })();
-  }, []);
 
   useEffect(() => {
     if (initialData) {
@@ -111,7 +115,6 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
   const flatPositions = useMemo(() => flattenPositions(positions), [positions]);
 
   // ── Multi-position: secondary positions (edit mode only) ──
-  const [secondaryPositions, setSecondaryPositions] = useState<UserPositionResponse[]>([]);
   const [isAssignExpanded, setIsAssignExpanded] = useState(false);
   const [assignSearch, setAssignSearch] = useState('');
   const [assignResults, setAssignResults] = useState<PositionOption[]>([]);
@@ -119,19 +122,11 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
   const [isAssigning, setIsAssigning] = useState(false);
   const debouncedAssignSearch = useDebounce(assignSearch, 400);
 
-  // Load user positions on mount (edit mode)
-  useEffect(() => {
-    if (isEditMode && initialData) {
-      employeeApi.getUserPositions(initialData.id).then(setSecondaryPositions).catch(() => {});
-    }
-  }, [isEditMode, initialData]);
-
   // Debounced position search for inline assign
   useEffect(() => {
     if (!debouncedAssignSearch.trim()) { setAssignResults([]); return; }
     let cancelled = false;
     setIsSearching(true);
-    // Use the already-loaded position tree for instant search
     const q = debouncedAssignSearch.toLowerCase();
     const filtered = positions.filter(p => p.positionName.toLowerCase().includes(q) || p.positionCode.toLowerCase().includes(q)).slice(0, 10);
     if (!cancelled) { setAssignResults(filtered); setIsSearching(false); }
@@ -141,60 +136,36 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
   const handleAssignSecondary = async (positionId: string) => {
     if (!initialData) return;
     setIsAssigning(true);
-    try {
-      const result = await employeeApi.assignUserToPosition({
-        userId: initialData.id,
-        positionId,
-        startDate: new Date().toISOString().split('T')[0],
-        isPrimary: false,
-      });
-      setSecondaryPositions(prev => [...prev, result]);
+    const ok = await assignSecondary(positionId, initialData.id);
+    setIsAssigning(false);
+    if (ok) {
       setIsAssignExpanded(false);
       setAssignSearch('');
       setAssignResults([]);
-      toast.success('Jabatan rangkap berhasil ditambahkan');
-    } catch (err: unknown) {
-      toast.danger(err instanceof Error ? err.message : 'Gagal menambah jabatan');
-    } finally {
-      setIsAssigning(false);
     }
   };
 
   const handleRemoveSecondary = async (up: UserPositionResponse) => {
-    try {
-      await employeeApi.deactivateUserPosition(up.id);
-      setSecondaryPositions(prev => prev.filter(p => p.id !== up.id));
-      toast.success('Jabatan rangkap dilepas');
-    } catch (err: unknown) {
-      toast.danger(err instanceof Error ? err.message : 'Gagal melepas jabatan');
-    }
+    await removeSecondary(up);
   };
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
-    try {
-      const base = {
-        email: values.email, fullName: values.fullName,
-        nip: values.nip || undefined, defaultPositionId: values.defaultPositionId || null,
-        joinDate: values.joinDate, phoneNumber: values.phoneNumber || undefined,
-        gender: values.gender || undefined, birthDate: values.birthDate || undefined,
-        address: values.address || undefined,
-      };
-      if (isEditMode && initialData) {
-        const updateData = base as UserUpdateRequest;
-        await employeeApi.updateUser(initialData.id, updateData);
-        toast.success('Karyawan berhasil diperbarui');
-      } else {
-        await employeeApi.createUser({ ...base, password: values.password } as UserCreateRequest);
-        toast.success('Karyawan berhasil ditambahkan');
-      }
-      onSuccess();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan';
-      toast.danger(msg);
-    } finally {
-      setIsSubmitting(false);
+    const base = {
+      email: values.email, fullName: values.fullName,
+      nip: values.nip || undefined, defaultPositionId: values.defaultPositionId || null,
+      joinDate: values.joinDate, phoneNumber: values.phoneNumber || undefined,
+      gender: values.gender || undefined, birthDate: values.birthDate || undefined,
+      address: values.address || undefined,
+    };
+    let ok: boolean;
+    if (isEditMode && initialData) {
+      ok = await submitUpdate(initialData.id, base as UserUpdateRequest);
+    } else {
+      ok = await submitCreate({ ...base, password: values.password } as UserCreateRequest & { password: string });
     }
+    setIsSubmitting(false);
+    if (ok) onSuccess();
   };
   if (isLoadingPositions) {
     return (

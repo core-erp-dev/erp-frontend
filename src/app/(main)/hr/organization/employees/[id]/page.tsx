@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, MedalMilitary, Briefcase } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, Badge, toast } from '@heroui/react';
+import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, Badge } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { getGenderLabel } from '@/constants/gender';
+import { DetailField, formatDate } from '@/components/shared/detail-field';
 import { useEmployeeDetail } from '@/modules/hr/organization/employees/hooks/use-employee-detail';
-import { employeeApi } from '@/modules/hr/organization/employees/services/employee-api';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 
 export default function EmployeeDetailPage() {
@@ -18,23 +18,15 @@ export default function EmployeeDetailPage() {
   const id = params.id as string;
   const { hasPerm } = usePermission();
 
-  const { employee, isLoading, error } = useEmployeeDetail(id);
+  const { employee, isLoading, error, deleteEmployee, isDeleting } = useEmployeeDetail(id);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteConfirm = async () => {
-    setIsDeleting(true);
-    try {
-      await employeeApi.deleteUser(id);
-      toast.success('Karyawan berhasil dihapus');
+    const success = await deleteEmployee();
+    if (success) {
       setIsDeleteOpen(false);
       router.push('/hr/organization/employees');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal menghapus karyawan';
-      toast.danger(msg);
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -116,12 +108,12 @@ export default function EmployeeDetailPage() {
       <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Informasi Pribadi</h2>
         <div className="grid gap-6 sm:grid-cols-2">
-          <Field label="Nama Lengkap" value={employee.fullName} />
-          <Field label="Jenis Kelamin" value={getGenderLabel(employee.gender)} />
-          <Field label="Tanggal Lahir" value={employee.birthDate ? formatDate(employee.birthDate) : '-'} />
-          <Field label="No. Telepon" value={employee.phoneNumber || '-'} />
-          <Field label="Email" value={employee.email} />
-          <Field label="Alamat" value={employee.address || '-'} />
+          <DetailField label="Nama Lengkap" value={employee.fullName} />
+          <DetailField label="Jenis Kelamin" value={getGenderLabel(employee.gender)} />
+          <DetailField label="Tanggal Lahir" value={formatDate(employee.birthDate)} />
+          <DetailField label="No. Telepon" value={employee.phoneNumber || '-'} />
+          <DetailField label="Email" value={employee.email} />
+          <DetailField label="Alamat" value={employee.address || '-'} />
         </div>
       </Surface>
 
@@ -129,10 +121,10 @@ export default function EmployeeDetailPage() {
       <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Data Kepegawaian</h2>
         <div className="grid gap-6 sm:grid-cols-2">
-          <Field label="NIP" value={employee.nip || '-'} />
-          <Field label="Jabatan" value={pos?.positionName || '-'} />
-          <Field label="Tanggal Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
-          <Field label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
+          <DetailField label="NIP" value={employee.nip || '-'} />
+          <DetailField label="Jabatan" value={pos?.positionName || '-'} />
+          <DetailField label="Tanggal Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
+          <DetailField label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
         </div>
       </Surface>
 
@@ -185,19 +177,4 @@ export default function EmployeeDetailPage() {
       />
     </div>
   );
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs text-gray-400">{label}</span>
-      <span className="text-sm text-foreground">{value}</span>
-    </div>
-  );
-}
-
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 }
