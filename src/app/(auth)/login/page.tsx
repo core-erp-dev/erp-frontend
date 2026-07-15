@@ -95,10 +95,10 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen bg-[#006FEE]">
       {/* ==================== LEFT COLUMN (Desktop Only) ==================== */}
-      <div className="hidden md:flex md:w-1/2 xl:w-[55%] flex-col justify-center px-12 xl:px-20 relative overflow-hidden">
+      <div className="hidden md:flex md:w-1/2 xl:w-[55%] flex-col justify-center px-12 xl:px-20 relative overflow-visible">
         {/* Geometric accent circle */}
         <div
-          className="absolute -bottom-100 -left-100 w-300 h-300 rounded-full pointer-events-none"
+          className="absolute -bottom-[750px] -left-[750px] w-[1500px] h-[1500px] rounded-full pointer-events-none"
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
         />
 
