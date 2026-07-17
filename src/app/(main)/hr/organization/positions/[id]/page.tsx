@@ -151,6 +151,7 @@ export default function PositionDetailPage() {
           <DetailField label="Nama" value={position.positionName} />
           <DetailField label="Deskripsi" value={position.description || '-'} />
           <DetailField label="Level" value={String(position.positionLevel)} />
+          <DetailField label="Bagian/Unit" value={position.unitName || '-'} />
           <DetailField label="Lapor Ke" value={position.parentName || '-'} />
         </div>
       </Surface>

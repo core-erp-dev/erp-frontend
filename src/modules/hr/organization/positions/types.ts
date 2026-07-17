@@ -15,6 +15,7 @@ export interface Position {
   parentId: string | null;
   parentName: string | null;
   positionLevel: number;
+  unitName: string | null;
   isActive: boolean;
   deletedAt: string | null;
   createdAt?: string;
@@ -32,6 +33,7 @@ export interface PositionRequest {
   positionName: string;
   description?: string;
   parentId?: string | null;
+  unitName?: string | null;
   positionLevel?: number;
 }
 
@@ -40,6 +42,7 @@ export interface PositionUpdateRequest {
   positionName?: string;
   description?: string;
   parentId?: string | null;
+  unitName?: string | null;
   positionLevel?: number;
 }
 

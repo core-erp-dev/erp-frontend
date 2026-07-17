@@ -25,6 +25,7 @@ const formSchema = z.object({
   positionName: z.string().min(1, 'Nama jabatan wajib diisi'),
   description: z.string().optional(),
   parentId: z.string().nullable().optional(),
+  unitName: z.string().max(100, 'Nama bagian/unit maksimal 100 karakter').optional(),
   roleIds: z.array(z.number()).min(1, 'Pilih minimal 1 role'),
 });
 
@@ -57,6 +58,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       positionName: '',
       description: '',
       parentId: queryParentId || null,
+      unitName: '',
       roleIds: [],
     },
   });
@@ -69,6 +71,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
           positionName: initialData.positionName,
           description: initialData.description ?? '',
           parentId: initialData.parentId,
+          unitName: initialData.unitName ?? '',
           roleIds: posRoles.map((r) => r.id),
         });
       });
@@ -116,6 +119,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         positionName: values.positionName,
         description: values.description || undefined,
         parentId: values.parentId,
+        unitName: values.unitName?.trim() || null,
       };
       const ok = await submitUpdate(initialData.id, payload, values.roleIds);
       setIsSubmitting(false);
@@ -127,6 +131,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         positionName: values.positionName,
         description: values.description || undefined,
         parentId: values.parentId || undefined,
+        unitName: values.unitName?.trim() || null,
       };
       const newId = await submitCreate(payload, values.roleIds);
       setIsSubmitting(false);
@@ -237,6 +242,20 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                       </ListBox>
                     </Select.Popover>
                   </Select>
+                )}
+              />
+              {/* Nama Bagian/Unit */}
+              <Controller
+                control={form.control}
+                name="unitName"
+                render={({ field, fieldState }) => (
+                  <TextField validationBehavior="aria" className="w-full"
+                    name={field.name} value={field.value ?? ''} onChange={field.onChange}
+                    isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                    <Label>Nama Bagian/Unit</Label>
+                    <Input variant="secondary" placeholder="Contoh: Hublang" />
+                    {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                  </TextField>
                 )}
               />
               {/* Role — Autocomplete Multiselect + Search */}

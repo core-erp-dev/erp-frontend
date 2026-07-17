@@ -148,6 +148,9 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                       <Link href={`/hr/organization/positions/${row.id}`} className="font-medium text-foreground hover:underline">
                         {row.positionName}
                       </Link>
+                      {row.unitName && (
+                        <span className="ml-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">{row.unitName}</span>
+                      )}
                     </div>
                   </Table.Cell>
                   <Table.Cell>
@@ -213,7 +216,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
               return (
                 <Table.Row key={pos.id} id={pos.id}>
                   <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       {pos.positionCode}
                       {!isDeleted && (
                         <Button
@@ -233,13 +236,18 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     </div>
                   </Table.Cell>
                   <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
-                    {isDeleted ? (
-                      <span>{pos.positionName}</span>
-                    ) : (
-                      <Link href={`/hr/organization/positions/${pos.id}`} className="text-foreground hover:underline font-medium">
-                        {pos.positionName}
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isDeleted ? (
+                        <span>{pos.positionName}</span>
+                      ) : (
+                        <Link href={`/hr/organization/positions/${pos.id}`} className="text-foreground hover:underline font-medium">
+                          {pos.positionName}
+                        </Link>
+                      )}
+                      {pos.unitName && (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">{pos.unitName}</span>
+                      )}
+                    </div>
                   </Table.Cell>
                   <Table.Cell className={isDeleted ? 'text-gray-400' : 'text-muted-foreground'}>
                     {pos.parentName || '-'}
@@ -301,6 +309,7 @@ interface TreeRow {
   id: string;
   positionName: string;
   positionCode: string;
+  unitName: string | null;
   userCount: number;
   depth: number;
   hasChildren: boolean;
@@ -314,6 +323,7 @@ function buildTreeRows(nodes: PositionTree[], expandedIds: Set<string>, depth: n
       id: node.id,
       positionName: node.positionName,
       positionCode: node.positionCode,
+      unitName: node.unitName ?? null,
       userCount: (node.assignedUsers ?? []).length,
       depth,
       hasChildren: node.children.length > 0,
