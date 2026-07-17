@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Button,
   Avatar,
@@ -19,7 +20,12 @@ import {
 import { logout } from "@/lib/auth";
 import { useAuthStore } from "@/store/auth-store";
 
-export function Header() {
+interface HeaderProps {
+  showSearch?: boolean;
+  showLogo?: boolean;
+}
+
+export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
@@ -30,16 +36,35 @@ export function Header() {
 
   return (
     <header className="flex h-16 items-center bg-[#f5f5f5] px-6">
-      {/* Center: Searchbar */}
-      <div className="flex flex-1 justify-center">
-        <SearchField aria-label="Cari">
-          <SearchField.Group>
-            <SearchField.SearchIcon />
-            <SearchField.Input placeholder="Cari" className="w-[320px]" />
-            <SearchField.ClearButton aria-label="Hapus pencarian" />
-          </SearchField.Group>
-        </SearchField>
-      </div>
+      {/* Left: Logo */}
+      {showLogo && (
+        <div className="flex items-center gap-2.5 pt-1">
+          <Image
+            src="/logo/text-logo.svg"
+            alt="STI one"
+            width={64}
+            height={20}
+            priority
+            style={{ height: "auto", width: "auto" }}
+          />
+        </div>
+      )}
+
+      {/* Center: Searchbar (optional) */}
+      {showSearch && (
+        <div className="flex flex-1 justify-center">
+          <SearchField aria-label="Cari">
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Cari" className="w-[320px]" />
+              <SearchField.ClearButton aria-label="Hapus pencarian" />
+            </SearchField.Group>
+          </SearchField>
+        </div>
+      )}
+
+      {/* Spacer to push right items (when no search field) */}
+      {!showSearch && <div className="flex-1" />}
 
       {/* Right: Notification + Profile */}
       <div className="flex items-center gap-2">

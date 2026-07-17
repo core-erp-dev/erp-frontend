@@ -28,6 +28,11 @@ export const PERM = {
 
   // Role
   ROLE_READ: 'role:read',
+  ROLE_CREATE: 'role:create',
+  ROLE_UPDATE: 'role:update',
+  ROLE_DELETE: 'role:delete',
+  ROLE_RESTORE: 'role:restore',
+  ROLE_READ_DELETED: 'role:read_deleted',
   ROLE_MANAGE_PERMISSIONS: 'role:manage_permissions',
 
   // Permission

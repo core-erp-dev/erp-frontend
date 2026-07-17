@@ -1,35 +1,46 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from '@heroui/react';
 import { roleApi } from '../services/role-api';
 import type { Role, Permission } from '../types';
 
-export function useRoleData() {
+export interface UseRoleDataReturn {
+  roles: Role[];
+  deletedRoles: Role[];
+  permissions: Permission[];
+  isLoading: boolean;
+  includeDeleted: boolean;
+  setIncludeDeleted: (val: boolean) => void;
+  refresh: () => Promise<void>;
+  deleteRole: (id: number) => Promise<boolean>;
+  restoreRole: (id: number) => Promise<boolean>;
+  togglePermission: (roleId: number, permissionCode: string, hasPermission: boolean) => Promise<void>;
+}
+
+export function useRoleData(): UseRoleDataReturn {
   const [roles, setRoles] = useState<Role[]>([]);
+  const [deletedRoles, setDeletedRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [includeDeleted, setIncludeDeleted] = useState(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setIsLoading(true);
     try {
-      const [rolesData, permsData] = await Promise.all([
+      const [rolesData, deletedData, permsData] = await Promise.all([
         roleApi.getRoles(),
+        roleApi.getDeletedRoles(),
         roleApi.getPermissions(),
       ]);
       setRoles(rolesData);
+      setDeletedRoles(deletedData);
       setPermissions(permsData);
-      // Auto-select first role
-      if (rolesData.length > 0 && !selectedRole) {
-        setSelectedRole(rolesData[0]);
-      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal memuat data';
-      setError(msg);
+      toast.danger(msg);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, []);
 
@@ -37,49 +48,64 @@ export function useRoleData() {
     fetchData();
   }, [fetchData]);
 
-  const togglePermission = async (roleId: number, permissionCode: string, hasPermission: boolean) => {
+  const refresh = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
+
+  const deleteRole = useCallback(async (id: number): Promise<boolean> => {
+    try {
+      await roleApi.deleteRole(id);
+      toast.success('Role berhasil dihapus');
+      await fetchData();
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menghapus role';
+      toast.danger(msg);
+      return false;
+    }
+  }, [fetchData]);
+
+  const restoreRole = useCallback(async (id: number): Promise<boolean> => {
+    try {
+      await roleApi.restoreRole(id);
+      toast.success('Role berhasil dipulihkan');
+      await fetchData();
+      return true;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal memulihkan role';
+      toast.danger(msg);
+      return false;
+    }
+  }, [fetchData]);
+
+  const togglePermission = useCallback(async (roleId: number, permissionCode: string, hasPermission: boolean) => {
     const perm = permissions.find((p) => p.permissionCode === permissionCode);
     if (!perm) return;
 
     try {
-      let updatedRole: Role;
       if (hasPermission) {
-        updatedRole = await roleApi.removePermissionFromRole(roleId, perm.id);
+        await roleApi.removePermissionFromRole(roleId, perm.id);
       } else {
-        updatedRole = await roleApi.addPermissionToRole(roleId, perm.id);
+        await roleApi.addPermissionToRole(roleId, perm.id);
       }
-
-      // Update roles list
-      setRoles((prev) => prev.map((r) => (r.id === roleId ? updatedRole : r)));
-      // Update selected role
-      if (selectedRole?.id === roleId) {
-        setSelectedRole(updatedRole);
-      }
+      toast.success('Permission berhasil diperbarui');
+      await fetchData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal mengubah permission';
-      setError(msg);
+      toast.danger(msg);
     }
-  };
-
-  // Group permissions by module
-  const permissionsByModule = permissions.reduce(
-    (acc, perm) => {
-      if (!acc[perm.module]) acc[perm.module] = [];
-      acc[perm.module].push(perm);
-      return acc;
-    },
-    {} as Record<string, Permission[]>,
-  );
+  }, [permissions, fetchData]);
 
   return {
     roles,
+    deletedRoles,
     permissions,
-    permissionsByModule,
-    selectedRole,
-    setSelectedRole,
-    loading,
-    error,
+    isLoading,
+    includeDeleted,
+    setIncludeDeleted,
+    refresh,
+    deleteRole,
+    restoreRole,
     togglePermission,
-    refetch: fetchData,
   };
 }

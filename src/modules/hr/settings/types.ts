@@ -9,8 +9,24 @@ export interface Permission {
 export interface Role {
   id: number;
   roleCode: string;
+  roleName: string;
   description: string;
+  deletedAt: string | null;
   permissions: string[];
+}
+
+export interface CreateRoleRequest {
+  roleCode: string;
+  roleName: string;
+  description?: string;
+  permissionIds?: number[];
+}
+
+export interface UpdateRoleRequest {
+  roleCode: string;
+  roleName: string;
+  description?: string;
+  permissionIds?: number[];
 }
 
 export interface RolePermissionRequest {

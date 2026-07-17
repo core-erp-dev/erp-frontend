@@ -1,17 +1,93 @@
 'use client';
 
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button } from '@heroui/react';
-import { ArrowLeft } from '@phosphor-icons/react';
-import { useAuthStore } from '@/store/auth-store';
-import { RolePermissionPanel } from '@/modules/hr/settings/components/role-permission-panel';
+import { Plus, House, ArrowsClockwise, Eye, Check, X } from '@phosphor-icons/react';
+import {
+  Breadcrumbs,
+  BreadcrumbsItem,
+  Button,
+  SearchField,
+  Alert,
+  Spinner,
+} from '@heroui/react';
+
+import { usePermission } from '@/hooks/use-permission';
+import { useRoleData } from '@/modules/hr/settings/hooks/use-role-data';
+import { RoleTable } from '@/modules/hr/settings/components/role-table';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { PERM } from '@/constants/permissions';
+import type { Role } from '@/modules/hr/settings/types';
 
 export default function RolesPage() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const hasPerm = (perm: string) => (user?.permissions ?? []).includes(perm);
+  const { hasPerm } = usePermission();
 
-  if (!hasPerm('role:read')) {
+  const {
+    roles,
+    deletedRoles,
+    isLoading,
+    includeDeleted,
+    setIncludeDeleted,
+    refresh,
+    deleteRole,
+    restoreRole,
+  } = useRoleData();
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  const debouncedSearch = useCallback(
+    (() => {
+      let timeout: NodeJS.Timeout;
+      return (value: string) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => setSearch(value), 400);
+      };
+    })(),
+    [],
+  );
+
+  useEffect(() => {
+    debouncedSearch(searchInput);
+  }, [searchInput, debouncedSearch]);
+
+  const handleDeleteRole = useCallback((role: Role) => {
+    setSelectedRole(role);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!selectedRole) return;
+    setIsDeleting(true);
+    try {
+      await deleteRole(selectedRole.id);
+      setIsDeleteDialogOpen(false);
+      setSelectedRole(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedRole, deleteRole]);
+
+  const handleRestore = useCallback(async (id: number) => {
+    await restoreRole(id);
+  }, [restoreRole]);
+
+  const filteredRoles = roles.filter((role) =>
+    search
+      ? role.roleCode.toLowerCase().includes(search.toLowerCase()) ||
+        role.roleName.toLowerCase().includes(search.toLowerCase())
+      : true,
+  );
+
+  const displayRoles = includeDeleted
+    ? [...filteredRoles, ...deletedRoles].sort((a, b) => b.id - a.id)
+    : filteredRoles;
+
+  if (!hasPerm(PERM.ROLE_READ)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">
@@ -20,23 +96,118 @@ export default function RolesPage() {
             <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
-        <Button variant="secondary" onPress={() => router.push('/hr/settings')}>
-          <ArrowLeft className="h-4 w-4" />
-          Kembali
-        </Button>
       </div>
     );
   }
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Hak Akses & Role</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Kelola role dan permission untuk mengatur akses pengguna ke sistem.
-        </p>
+      <Breadcrumbs>
+        <BreadcrumbsItem href="/">
+          <House className="h-4 w-4" />
+        </BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
+        <BreadcrumbsItem>Hak Akses & Role</BreadcrumbsItem>
+      </Breadcrumbs>
+
+      {/* Title + Actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-foreground">Semua Role</h1>
+          <Button
+            isIconOnly
+            variant="tertiary"
+            size="sm"
+            className="pointer-events-none text-sm font-medium"
+            aria-label={`Total ${displayRoles.length} role`}
+          >
+            {displayRoles.length}
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => refresh()}
+            isDisabled={isLoading}
+            aria-label="Muat ulang data role"
+          >
+            <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          {hasPerm(PERM.ROLE_CREATE) && (
+            <Button variant="primary" onPress={() => router.push('/hr/settings/roles/create')}>
+              <Plus className="h-4 w-4" />
+              Tambah Role
+            </Button>
+          )}
+        </div>
       </div>
-      <RolePermissionPanel />
+
+      {/* Search + Toggle Deleted */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {hasPerm(PERM.ROLE_READ_DELETED) && (
+            <Button
+              variant="tertiary"
+              aria-label="Tampilkan terhapus"
+              onPress={() => setIncludeDeleted(!includeDeleted)}
+            >
+              <Eye className="h-4 w-4" />
+              Terhapus
+              {includeDeleted && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <Check className="h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
+          {search && (
+            <Button isIconOnly variant="tertiary" aria-label="Reset filter" onPress={() => { setSearchInput(''); setSearch(''); }}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <SearchField
+          name="search"
+          value={searchInput}
+          onChange={setSearchInput}
+          className="w-72"
+        >
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input aria-label="Cari role" placeholder="Cari Kode/Nama Role" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <div className="flex h-64 items-center justify-center">
+          <Spinner size="md" />
+        </div>
+      ) : (
+        <RoleTable
+          roles={displayRoles}
+          includeDeleted={includeDeleted}
+          onView={(id) => router.push(`/hr/settings/roles/${id}`)}
+          onEdit={(id) => router.push(`/hr/settings/roles/${id}/edit`)}
+          onDelete={handleDeleteRole}
+          onRestore={handleRestore}
+        />
+      )}
+
+      {/* Delete Dialog */}
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => { setIsDeleteDialogOpen(false); setSelectedRole(null); }}
+        onConfirm={handleDeleteConfirm}
+        name={selectedRole?.roleName || ''}
+        entityLabel="role"
+        warning="Role tidak akan bisa digunakan setelah dihapus."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
