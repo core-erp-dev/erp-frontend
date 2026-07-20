@@ -52,7 +52,7 @@ export default function EmployeeDetailPage() {
   }
 
   const pos = employee.primaryPosition;
-  const showDropdown = hasPerm(PERM.EMPLOYEE_UPDATE) || hasPerm(PERM.EMPLOYEE_DELETE);
+  const showDropdown = hasPerm(PERM.USER_UPDATE) || hasPerm(PERM.USER_DELETE);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -82,7 +82,7 @@ export default function EmployeeDetailPage() {
                 if (key === 'edit') router.push(`/hr/organization/employees/${id}/edit`);
                 if (key === 'delete') setIsDeleteOpen(true);
               }}>
-                {hasPerm(PERM.EMPLOYEE_UPDATE) && (
+                {hasPerm(PERM.USER_UPDATE) && (
                   <Dropdown.Item id="edit" textValue="Edit">
                     <div className="flex items-center gap-2">
                       <PencilSimple className="h-4 w-4 text-muted-foreground" />
@@ -90,7 +90,7 @@ export default function EmployeeDetailPage() {
                     </div>
                   </Dropdown.Item>
                 )}
-                {hasPerm(PERM.EMPLOYEE_DELETE) && (
+                {hasPerm(PERM.USER_DELETE) && (
                   <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
                     <div className="flex items-center gap-2 text-danger">
                       <Trash className="h-4 w-4" />

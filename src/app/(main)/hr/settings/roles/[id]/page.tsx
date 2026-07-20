@@ -11,7 +11,6 @@ import { useRoleDetail } from '@/modules/hr/settings/hooks/use-role-detail';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 
 const moduleLabels: Record<string, string> = {
-  employee: 'Karyawan',
   position: 'Jabatan',
   user: 'Pengguna',
   role: 'Role & Permission',

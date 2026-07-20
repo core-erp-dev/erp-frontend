@@ -41,7 +41,6 @@ interface RoleFormProps {
 }
 
 const moduleLabels: Record<string, string> = {
-  employee: 'Karyawan',
   position: 'Jabatan',
   user: 'Pengguna',
   role: 'Role & Permission',

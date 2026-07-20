@@ -5,7 +5,6 @@ import { useRoleData } from '../hooks/use-role-data';
 import type { Role } from '../types';
 
 const moduleLabels: Record<string, string> = {
-  employee: 'Karyawan',
   position: 'Jabatan',
   user: 'Pengguna',
   role: 'Role & Permission',

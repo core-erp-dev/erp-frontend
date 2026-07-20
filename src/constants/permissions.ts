@@ -3,13 +3,13 @@
  * Must match core_permissions.permission_code in backend migration.
  */
 export const PERM = {
-  // Employee
-  EMPLOYEE_READ: 'employee:read',
-  EMPLOYEE_CREATE: 'employee:create',
-  EMPLOYEE_UPDATE: 'employee:update',
-  EMPLOYEE_DELETE: 'employee:delete',
-  EMPLOYEE_READ_DELETED: 'employee:read_deleted',
-  EMPLOYEE_RESTORE: 'employee:restore',
+  // User
+  USER_READ: 'user:read',
+  USER_CREATE: 'user:create',
+  USER_UPDATE: 'user:update',
+  USER_DELETE: 'user:delete',
+  USER_READ_DELETED: 'user:read_deleted',
+  USER_RESTORE: 'user:restore',
 
   // Position
   POSITION_READ: 'position:read',
@@ -19,12 +19,7 @@ export const PERM = {
   POSITION_READ_DELETED: 'position:read_deleted',
   POSITION_RESTORE: 'position:restore',
   POSITION_ASSIGN_ROLE: 'position:assign_role',
-
-  // User
-  USER_READ: 'user:read',
-  USER_CREATE: 'user:create',
-  USER_UPDATE: 'user:update',
-  USER_DELETE: 'user:delete',
+  POSITION_ASSIGN_USER: 'position:assign_user',
 
   // Role
   ROLE_READ: 'role:read',

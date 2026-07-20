@@ -69,7 +69,7 @@ export const employeeApi = {
     data: AssignUserPositionRequest,
   ): Promise<UserPositionResponse> => {
     const response = await api.post<ApiResponse<UserPositionResponse>>(
-      '/api/v1/employees/user-positions',
+      '/api/v1/user-positions',
       data,
     );
     return response.data.data;
@@ -84,7 +84,7 @@ export const employeeApi = {
 
   getPositions: async (): Promise<PositionOption[]> => {
     const response = await api.get<ApiResponse<{ tree: PositionOption[] }>>(
-      '/api/v1/employees/positions/tree',
+      '/api/v1/positions/tree',
     );
     return response.data.data.tree;
   },
@@ -97,6 +97,6 @@ export const employeeApi = {
   },
 
   deactivateUserPosition: async (userPositionId: string): Promise<void> => {
-    await api.patch(`/api/v1/employees/user-positions/${userPositionId}/deactivate`);
+    await api.patch(`/api/v1/user-positions/${userPositionId}/deactivate`);
   },
 };

@@ -11,7 +11,7 @@ export default function CreateEmployeePage() {
   const router = useRouter();
   const { hasPerm } = usePermission();
 
-  if (!hasPerm(PERM.EMPLOYEE_CREATE)) {
+  if (!hasPerm(PERM.USER_CREATE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

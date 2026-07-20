@@ -21,7 +21,7 @@ export const hrSidebar: SidebarItem[] = [
     icon: Users,
     module: 'hr',
     group: 'ORGANISASI',
-    permissions: ['employee:read'],
+    permissions: ['user:read'],
   },
   {
     title: 'Struktur Jabatan',

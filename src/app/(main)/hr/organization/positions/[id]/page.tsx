@@ -193,7 +193,7 @@ export default function PositionDetailPage() {
         <Surface className="rounded-3xl p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
-            {hasPerm(PERM.EMPLOYEE_UPDATE) && (
+            {hasPerm(PERM.POSITION_ASSIGN_USER) && (
               <Button
                 variant={isAssignExpanded ? 'secondary' : 'primary'}
                 size="sm"

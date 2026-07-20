@@ -152,7 +152,7 @@ export default function EmployeePage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {hasPerm(PERM.EMPLOYEE_CREATE) && (
+          {hasPerm(PERM.USER_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/hr/organization/employees/create')}>
               <Plus className="h-4 w-4" />
               Tambah Karyawan
@@ -217,7 +217,7 @@ export default function EmployeePage() {
           </Dropdown>
 
           {/* Toggle: Tampilkan Karyawan Terhapus */}
-          {hasPerm(PERM.EMPLOYEE_READ_DELETED) && (
+          {hasPerm(PERM.USER_READ_DELETED) && (
             <Button variant="tertiary" aria-label="Tampilkan terhapus" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
               <Eye className="h-4 w-4" />
               Terhapus
