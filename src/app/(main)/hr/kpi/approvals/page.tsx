@@ -1,3 +1,5 @@
+'use client';
+
 import { Surface } from '@heroui/react';
 import { Checks } from '@phosphor-icons/react';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/hr/kpi/constants';

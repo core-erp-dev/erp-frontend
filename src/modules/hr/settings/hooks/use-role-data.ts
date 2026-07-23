@@ -10,6 +10,7 @@ export interface UseRoleDataReturn {
   deletedRoles: Role[];
   permissions: Permission[];
   isLoading: boolean;
+  error: string | null;
   includeDeleted: boolean;
   setIncludeDeleted: (val: boolean) => void;
   refresh: () => Promise<void>;
@@ -23,10 +24,12 @@ export function useRoleData(): UseRoleDataReturn {
   const [deletedRoles, setDeletedRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [includeDeleted, setIncludeDeleted] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const [rolesData, deletedData, permsData] = await Promise.all([
         roleApi.getRoles(),
@@ -38,6 +41,7 @@ export function useRoleData(): UseRoleDataReturn {
       setPermissions(permsData);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Gagal memuat data';
+      setError(msg);
       toast.danger(msg);
     } finally {
       setIsLoading(false);
@@ -101,6 +105,7 @@ export function useRoleData(): UseRoleDataReturn {
     deletedRoles,
     permissions,
     isLoading,
+    error,
     includeDeleted,
     setIncludeDeleted,
     refresh,

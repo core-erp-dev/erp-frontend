@@ -7,9 +7,11 @@ const createJestConfig = nextJest({
 
 const config: Config = {
   testEnvironment: 'jsdom',
-  setupFiles: ['<rootDir>/jest.setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@heroui/react$': '<rootDir>/src/__mocks__/heroui-react.tsx',
+    '^@phosphor-icons/react$': '<rootDir>/src/__mocks__/phosphor-icons-react.tsx',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   transformIgnorePatterns: [

@@ -1,8 +1,9 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import { Spinner, Button } from '@heroui/react';
 import { useRoleData } from '../hooks/use-role-data';
-import type { Role } from '../types';
+import type { Role, Permission } from '../types';
 
 const moduleLabels: Record<string, string> = {
   position: 'Jabatan',
@@ -14,15 +15,23 @@ const moduleLabels: Record<string, string> = {
 export function RolePermissionPanel() {
   const {
     roles,
-    permissionsByModule,
-    selectedRole,
-    setSelectedRole,
-    loading,
+    permissions,
+    isLoading,
     error,
     togglePermission,
   } = useRoleData();
 
-  if (loading) {
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+
+  const permissionsByModule = useMemo<Record<string, Permission[]>>(() => {
+    return permissions.reduce<Record<string, Permission[]>>((acc, perm) => {
+      if (!acc[perm.module]) acc[perm.module] = [];
+      acc[perm.module].push(perm);
+      return acc;
+    }, {});
+  }, [permissions]);
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Spinner size="md" />
