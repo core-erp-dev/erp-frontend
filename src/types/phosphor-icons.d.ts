@@ -61,4 +61,6 @@ declare module "@phosphor-icons/react" {
   export const ArrowsInSimple: FC<IconProps>;
   export const Briefcase: FC<IconProps>;
   export const MedalMilitary: FC<IconProps>;
+  export const Buildings: FC<IconProps>;
+  export const Article: FC<IconProps>;
 }

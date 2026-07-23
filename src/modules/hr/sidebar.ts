@@ -1,5 +1,6 @@
 import type React from 'react';
 import { Users, TreeStructure, Gear, Lock } from '@phosphor-icons/react';
+import { kpiSidebar } from '@/modules/hr/kpi/sidebar';
 
 export interface SidebarItem {
   title: string;
@@ -12,6 +13,11 @@ export interface SidebarItem {
 }
 
 export const hrSidebar: SidebarItem[] = [
+  // ==============================
+  // GRUP: KPI
+  // ==============================
+  ...kpiSidebar,
+
   // ==============================
   // GRUP: ORGANISASI
   // ==============================
