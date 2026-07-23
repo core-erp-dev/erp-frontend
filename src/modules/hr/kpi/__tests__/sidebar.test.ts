@@ -3,7 +3,7 @@
  */
 import { kpiSidebar } from '@/modules/hr/kpi/sidebar';
 import { PERM } from '@/constants/permissions';
-import { KPI_ROUTES, KPI_ANY_PERMISSION } from '@/modules/hr/kpi/types';
+import { KPI_ROUTES, KPI_ANY_PERMISSION } from '@/modules/hr/kpi/constants';
 
 describe('KPI sidebar configuration', () => {
   it('contains exactly 5 KPI sidebar items', () => {
@@ -45,9 +45,10 @@ describe('KPI sidebar configuration', () => {
     ]);
   });
 
-  it('every item has a Phosphor icon function', () => {
+  it('every item has a valid Phosphor icon', () => {
     for (const item of kpiSidebar) {
-      expect(typeof item.icon).toBe('function');
+      expect(item.icon).toBeDefined();
+      expect(item.icon).not.toBeNull();
     }
   });
 

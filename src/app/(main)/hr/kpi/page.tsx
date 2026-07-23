@@ -1,8 +1,6 @@
-'use client';
-
 import { Surface } from '@heroui/react';
 import { ChartBar } from '@phosphor-icons/react';
-import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/hr/kpi/types';
+import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/hr/kpi/constants';
 
 export default function KpiOverviewPage() {
   return (

@@ -1,5 +1,5 @@
 import { ChartBar, Buildings, ClipboardText, Article, Checks } from '@phosphor-icons/react';
-import { KPI_ROUTES, KPI_ANY_PERMISSION } from './types';
+import { KPI_ROUTES, KPI_ANY_PERMISSION } from './constants';
 import type { SidebarItem } from '@/modules/hr/sidebar';
 import { PERM } from '@/constants/permissions';
 

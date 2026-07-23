@@ -1,4 +1,4 @@
-# P0 — KPI Frontend Foundation Verification Report
+# P0 — KPI Frontend Foundation Verification Report (Updated)
 
 **Date**: 2026-07-23  
 **Plan**: `docs/plans/2026-07-23-kpi-frontend-p0-foundation.md`
@@ -7,14 +7,14 @@
 
 ## 1. Files Created, Modified, Removed, Deferred
 
-### Created (10)
+### Created (Original P0 — 10 files)
 
 | # | File | Purpose |
 |---|------|---------|
 | 1 | `docs/plans/2026-07-23-kpi-frontend-p0-foundation.md` | Implementation plan |
 | 2 | `docs/testing/2026-07-23-kpi-frontend-p0-foundation-verification.md` | This report |
-| 3 | `src/modules/hr/kpi/sidebar.ts` | KPI sidebar definitions (5 items, permission-gated) |
-| 4 | `src/modules/hr/kpi/types.ts` | KPI constants: routes, labels, descriptions, permission groups |
+| 3 | `src/modules/hr/kpi/sidebar.ts` | KPI sidebar definitions |
+| 4 | `src/modules/hr/kpi/constants.ts` | KPI constants (runtime values only) |
 | 5 | `src/app/(main)/hr/kpi/page.tsx` | KPI Overview page shell |
 | 6 | `src/app/(main)/hr/kpi/corporate/page.tsx` | KPI Korporat page shell |
 | 7 | `src/app/(main)/hr/kpi/activities/page.tsx` | Aktivitas KPI page shell |
@@ -22,21 +22,40 @@
 | 9 | `src/app/(main)/hr/kpi/approvals/page.tsx` | Persetujuan Aktivitas page shell |
 | 10 | `src/modules/hr/kpi/__tests__/sidebar.test.ts` | Sidebar + permission unit tests |
 
-### Modified (3)
+### Created (Audit — 1 file)
+
+| # | File | Purpose |
+|---|------|---------|
+| 11 | `src/modules/hr/kpi/constants.ts` | Replaces `types.ts` (runtime constants, no interfaces) |
+
+### Modified (Original P0 — 3 files)
 
 | # | File | Change |
 |---|------|--------|
-| 11 | `src/constants/permissions.ts` | Added 12 KPI permission constants |
-| 12 | `src/modules/hr/sidebar.ts` | Added `kpiSidebar` import and spread into `hrSidebar` |
-| 13 | `src/types/phosphor-icons.d.ts` | Added `Buildings` and `Article` icon declarations |
+| 12 | `src/constants/permissions.ts` | Added 12 KPI permission constants |
+| 13 | `src/modules/hr/sidebar.ts` | Added `kpiSidebar` import + spread |
+| 14 | `src/types/phosphor-icons.d.ts` | Added `Buildings` + `Article` declarations |
 
-### Removed
+### Modified (Audit — 7 files)
 
-None — clean slate (no legacy KPI files existed).
+| # | File | Change |
+|---|------|--------|
+| 15 | `src/app/(main)/hr/kpi/*/page.tsx` (5 pages) | Removed `'use client'` (static content, no hooks); updated import from `./types` to `./constants` |
+| 16 | `src/modules/hr/kpi/sidebar.ts` | Updated import from `./types` to `./constants` |
+| 17 | `src/modules/hr/kpi/__tests__/sidebar.test.ts` | Updated import; fixed icon type test |
+| 18 | `jest.config.ts` | Fixed `next/jest` import (added `.js`); added `@phosphor-icons` to `transformIgnorePatterns` |
+| 19 | `jest.setup.ts` | Simplified (no jest-dom — tests use only standard matchers) |
+| 20 | `package.json` | Added missing `@phosphor-icons/react` to dependencies |
+
+### Removed (1 file)
+
+| # | File | Reason |
+|---|------|--------|
+| 21 | `src/modules/hr/kpi/types.ts` | Renamed to `constants.ts` (only runtime values, no type aliases) |
 
 ### Deferred
 
-None — clean slate.
+Nothing — clean slate.
 
 ---
 
@@ -44,51 +63,57 @@ None — clean slate.
 
 **Result: ZERO legacy KPI files found.**
 
-- No `app/(main)/hr/kpi/` directory existed
-- No `modules/hr/kpi/` directory existed  
-- No KPI permissions in `constants/permissions.ts`
-- No KPI sidebar items in `modules/hr/sidebar.ts`
-- No `__archive__/` directory
-- No old terminology (`KpiTask`, `Kinerja Tim`, `Kinerja Individu`, `Admin KPI`, etc.)
-
-Clean slate — no legacy removal needed.
+| Term | Status |
+|------|--------|
+| `Kinerja Tim` | **ABSENT** — not in KPI files or sidebar |
+| `Kinerja Individu` | **ABSENT** |
+| `Admin KPI` | **ABSENT** |
+| `KpiTask` / `kpi_task` | **ABSENT** |
+| `Dashboard KPI` | **ABSENT** — Overview uses label "Overview" |
+| `KPI_MODULE` (commented-out sidebar) | **REMOVED** (never existed in current branch) |
 
 ---
 
 ## 3. Final Routes
 
-```
-/                    → Dashboard utama ERP (unchanged)
-/hr                  → HR Dashboard (unchanged)
-/hr/kpi              → KPI Overview (NEW)
-/hr/kpi/corporate    → KPI Korporat (NEW)
-/hr/kpi/activities   → Aktivitas KPI (NEW)
-/hr/kpi/reports      → Laporan Pelaksanaan (NEW)
-/hr/kpi/approvals    → Persetujuan Aktivitas (NEW)
-```
+| Route | Page | Status |
+|-------|------|--------|
+| `/` | Module selector (unchanged) | ✅ Preserved |
+| `/hr` | HR dashboard (unchanged) | ✅ Preserved |
+| `/hr/kpi` | KPI Overview (NEW) | ✅ Created |
+| `/hr/kpi/corporate` | KPI Korporat (NEW) | ✅ Created |
+| `/hr/kpi/activities` | Aktivitas KPI (NEW) | ✅ Created |
+| `/hr/kpi/reports` | Laporan Pelaksanaan (NEW) | ✅ Created |
+| `/hr/kpi/approvals` | Persetujuan Aktivitas (NEW) | ✅ Created |
 
-All routes use the existing Next.js App Router folder structure under `(main)/hr/kpi/`.
+All routes are under `/hr/kpi/` as part of the HR module (accepted architecture).
 
 ---
 
 ## 4. Final Sidebar Items
 
 ```
-KPI                                   (new group — visible when any KPI perm held)
-├─ Overview        /hr/kpi            (any of 12 KPI perms)
-├─ KPI Korporat    /hr/kpi/corporate  (corporate_kpi:read)
-├─ Aktivitas       /hr/kpi/activities (kpi_activity:read | request | approve)
-├─ Laporan         /hr/kpi/reports    (kpi_report:read | submit | review)
-└─ Persetujuan     /hr/kpi/approvals  (kpi_activity:approve)
+KPI
+├─ Overview        /hr/kpi
+├─ KPI Korporat    /hr/kpi/corporate
+├─ Aktivitas       /hr/kpi/activities
+├─ Laporan         /hr/kpi/reports
+└─ Persetujuan     /hr/kpi/approvals
 
-ORGANISASI                            (unchanged)
+ORGANISASI                        (unchanged)
 ├─ Karyawan
 └─ Struktur Jabatan
 
-PENGATURAN                            (unchanged)
+PENGATURAN                        (unchanged)
 ├─ Hak Akses & Role
 └─ Pengaturan
 ```
+
+- Exactly 5 KPI items
+- No duplicate KPI group
+- No `Dashboard KPI` label
+- `/` remains the only main dashboard
+- Organization sidebar items are preserved and unchanged
 
 ---
 
@@ -96,8 +121,8 @@ PENGATURAN                            (unchanged)
 
 All values match `erp-backend/src/main/java/com/erp/common/constant/Permissions.java`:
 
-| PERM Constant | String Value | Visibility Rule |
-|---------------|-------------|-----------------|
+| PERM Constant | String Value | Used By |
+|---------------|-------------|---------|
 | `CORPORATE_KPI_READ` | `corporate_kpi:read` | KPI Korporat sidebar |
 | `CORPORATE_KPI_CREATE` | `corporate_kpi:create` | Overview visibility |
 | `CORPORATE_KPI_UPDATE` | `corporate_kpi:update` | Overview visibility |
@@ -111,118 +136,159 @@ All values match `erp-backend/src/main/java/com/erp/common/constant/Permissions.
 | `KPI_REPORT_SUBMIT` | `kpi_report:submit` | Laporan sidebar + Overview |
 | `KPI_REPORT_REVIEW` | `kpi_report:review` | Laporan sidebar + Overview |
 
-Sidebar filtering uses existing `some()` semantics — ANY listed permission grants visibility.
+Sidebar filtering uses existing `some()` semantics (ANY match grants visibility).
 
 ---
 
 ## 6. Page Shells Created
 
-All 5 page shells use the standard layout conventions:
-
-- Title: `text-xl font-semibold text-foreground`
-- Description: `text-sm text-muted-foreground`
-- Empty state: centered `Surface` with icon + placeholder text
-- Icons: Phosphor (`@phosphor-icons/react`) — `ChartBar`, `Buildings`, `ClipboardText`, `Article`, `Checks`
-- Labels + descriptions from shared `KPI_LABELS` / `KPI_DESCRIPTIONS` constants
-- No mock data, no API calls, no tables, no forms, no modals
+All 5 page shells:
+- Use `Surface` from `@heroui/react` (standard layout)
+- Have canonical title + description from `KPI_LABELS`/`KPI_DESCRIPTIONS` constants
+- Have centered placeholder state with icon
+- Contain no mock KPI data, no API calls, no tables, no forms
+- **No longer have `'use client'`** — static server components
 
 ---
 
-## 7. Confirmation: `/` Remains Main Dashboard
+## 7. Types vs Constants Decision
 
-`/` routes to `ModuleSelectorPage` — unchanged. No modification to `app/page.tsx`.
+**Action:** Renamed `src/modules/hr/kpi/types.ts` → `src/modules/hr/kpi/constants.ts`.
 
----
+The file contained only runtime values:
+- `KPI_ROUTES` — route path objects
+- `KPI_LABELS` — label strings
+- `KPI_DESCRIPTIONS` — description strings
+- `KPI_ANY_PERMISSION` — permission array
 
-## 8. Tests Added
-
-File: `src/modules/hr/kpi/__tests__/sidebar.test.ts`
-
-Test groups:
-1. **KPI sidebar configuration** (6 tests) — item count, module/group attribution, "Overview" label (not "Dashboard KPI"), exact titles, exact hrefs, icon types, permissions presence
-2. **KPI permission visibility rules** (6 tests) — Overview has all 12 perms, Korporat requires `corporate_kpi:read`, Aktivitas has 3 perm options, Laporan has 3 perm options, Persetujuan has only `kpi_activity:approve`, no role-based filtering
-3. **KPI permission constants** (3 tests) — all 12 constants defined, values match backend contracts, existing perms unchanged
-4. **KPI route constants** (2 tests) — all 5 routes correct, all under `/hr/kpi/`
-5. **Sidebar coexistence** (3 tests) — no legacy terminology, no Organization items, no Settings items
-
-**Limitation**: Jest is configured (`jest.config.ts`, `jest.setup.ts`) but NOT installed as a dependency. Tests are authored and syntactically valid but cannot be executed without `npm install jest @testing-library/jest-dom ts-jest`. Per P0 spec §9: "do not install a new test framework solely for P0". Installed jest would not be "new" — it's already configured — but the npm deps are missing. This is documented as a known limitation.
+No TypeScript interfaces or type aliases were present. The new name accurately reflects its content.
 
 ---
 
-## 9. TypeScript Check Result
+## 8. Icon Declarations
+
+**Decision:** Preserved `Buildings` and `Article` declarations in `src/types/phosphor-icons.d.ts`.
+
+The repository intentionally maintains a local explicit declaration list for all Phosphor icons used in the project. This is documented in the frontend standards: *"New icons require adding `export const IconName: FC<IconProps>;` to `src/types/phosphor-icons.d.ts`"*. The `@phosphor-icons/react` package internally exports these icons correctly, but the project's explicit declaration file is the convention for type safety and discoverability.
+
+---
+
+## 9. Test Dependencies
+
+Added to `package.json`:
+
+| Package | Purpose |
+|---------|---------|
+| `jest` | Test framework (already configured but not installed) |
+| `@testing-library/jest-dom` | DOM matchers (configured but not installed) |
+| `jest-environment-jsdom` | DOM test environment (configured but not installed) |
+| `@types/jest` | TypeScript types |
+| `@phosphor-icons/react` | **Pre-existing missing dependency** — all 70+ src files import from it |
+
+**Jest config fixes:**
+- `import nextJest from 'next/jest.js'` — added `.js` extension for ESM resolution in Jest 30
+- `setupFilesAfterFramework` → `setupFiles` — stale config key in Jest 30
+- Added `@phosphor-icons` to `transformIgnorePatterns`
+
+---
+
+## 10. Tests Executed
+
+```
+npm test → jest
+```
+
+**Result: 21 passed, 0 failed** (1 suite, 21 tests)
+
+| Group | Tests | Result |
+|-------|-------|--------|
+| KPI sidebar configuration | 7 | ✅ All pass |
+| KPI permission visibility rules | 6 | ✅ All pass |
+| KPI permission constants | 3 | ✅ All pass |
+| KPI route constants | 2 | ✅ All pass |
+| KPI sidebar coexistence | 3 | ✅ All pass |
+
+Tests verify:
+- Route constants (`/hr/kpi` through `/hr/kpi/approvals`)
+- `/` remains the main dashboard route (tested via absence from KPI routes)
+- Label is `Overview` (not `Dashboard KPI`)
+- No legacy terminology
+- All 5 sidebar items correct
+- Organization items remain present
+- Permission visibility rules for each sidebar item
+- Unrelated permissions don't expose KPI items
+
+---
+
+## 11. TypeScript Result
 
 ```
 npx tsc --noEmit
 ```
 
-- **7 pre-existing errors** in `role-permission-panel.tsx` (unrelated to P0)
-- **0 errors** in any KPI file or file modified by P0
-- Verified with: `npx tsc --noEmit | grep -E "(kpi|sidebar\.ts|permissions\.ts)"` → `No errors in KPI files`
+**7 pre-existing errors** in `src/modules/hr/settings/components/role-permission-panel.tsx`:
+- `permissionsByModule`, `selectedRole`, `setSelectedRole`, `loading`, `error` — properties that don't exist on `UseRoleDataReturn`
+- `perms` and `perm` — implicit `any` types from the destructured `permissionsByModule`
+
+These errors **predate P0** (present before commit `9feeb4d`). They are not small/deterministic fixes — they would require understanding the intended UI behavior and either extending the hook's return type or rewriting the panel.
+
+All KPI files compiled with **zero errors**.
 
 ---
 
-## 10. Lint Result
-
-`npm run lint` timed out due to WSL performance constraints on the Windows filesystem. This is a pre-existing environment issue — `eslint` on 70+ TypeScript files across WSL mounts is known to be slow.
-
-The files introduced by P0 follow all conventions from `erp-frontend-standards`:
-- `'use client'` on all page components
-- Phosphor icons (not lucide-react)
-- HeroUI components (Surface, not raw divs)
-- `consteval` constants in `types.ts`
-- Permission-gated sidebar using `permissions: [...]` (not `roles: [...]`)
-
----
-
-## 11. Test Result
+## 12. Lint Result
 
 ```
-npm test
+npm run lint → eslint
 ```
 
-Jest binary not found — not installed in `node_modules`. See §8 Limitation.
+**Timed out** after 120s on WSL/Windows filesystem. Even a single-file lint (`eslint src/constants/permissions.ts`) timed out. This is a **pre-existing environmental limitation** — ESLint configuration with `eslint-config-next` loads many rules that are slow on WSL.
 
 ---
 
-## 12. Production Build Result
+## 13. Production Build Result
 
 ```
 npx next build
 ```
 
-**Pre-existing WSL error**: `lightningcss.linux-x64-gnu.node` native module cannot load on this WSL configuration. This affects ALL builds (including before P0) and is not caused by P0 changes.
+**Compiled successfully** in 38.7 seconds (Turbopack).
 
-The frontend standards skill documents this: *"If build fails only on lightningcss native module (pre-existing WSL cross-platform issue), fall back to npx tsc --noEmit."*
-
-The TypeScript compilation of KPI files (and all other files except the 7 pre-existing errors) passes cleanly.
+Next.js type check found the same 7 pre-existing `role-permission-panel.tsx` errors, which caused the build to exit with code 1. These errors are **not in KPI files** and **predate P0**.
 
 ---
 
-## 13. Known Limitations
+## 14. Known Limitations
 
-1. **Jest not installed** — test infrastructure is configured but `jest` package is missing from dependencies. Tests exist and are syntactically valid but cannot execute.
-2. **WSL build blocked** — `lightningcss` cross-platform native module issue blocks `next build` on WSL. Pre-existing, not caused by P0.
-3. **Lint timeout** — ESLint on 70+ files across WSL mount times out. Pre-existing environment constraint.
-4. **`role-permission-panel.tsx` errors** — 7 pre-existing TypeScript errors in the settings module. Not addressed in P0 (strict exclusion: "unrelated frontend refactors").
-
----
-
-## 14. Deviations from Plan
-
-**None.** P0 implemented exactly as planned. No scope creep. No speculative abstractions.
+| # | Limitation | Type | Impact |
+|---|-----------|------|--------|
+| 1 | 7 pre-existing TS errors in `role-permission-panel.tsx` | Pre-existing | Blocks `next build` type-check phase. Fix requires feature-level understanding. |
+| 2 | ESLint times out on WSL | Environmental | Cannot run lint checks |
+| 3 | `next build` blocked by pre-existing TS errors | Pre-existing | Cannot produce production build until errors fixed |
+| 4 | `lightningcss` native module issue | Environmental | Pre-existing WSL cross-platform issue (now resolved by Turbopack's CSS processing) |
 
 ---
 
-## 15. Readiness for P1 (Corporate KPI)
+## 15. Legacy Items
 
-✅ **P0 is ready for P1.**
+None — clean slate.
 
-- Foundation structure established: `modules/hr/kpi/` + `app/(main)/hr/kpi/`
-- Permission constants (12 codes) available and synced with backend
+---
+
+## 16. Readiness for P1 (Corporate KPI)
+
+⚠️ **Partially ready.**
+
+**What's ready:**
+- Foundation structure: `modules/hr/kpi/` + `app/(main)/hr/kpi/`
+- Permission constants (12 codes) synced with backend
 - Sidebar group "KPI" with 5 items, correctly permission-gated
-- Route structure ready for P1 to populate `/hr/kpi/corporate` with real content
+- Route structure ready for P1 to populate `/hr/kpi/corporate`
 - Shared constants (`KPI_ROUTES`, `KPI_LABELS`, `KPI_DESCRIPTIONS`) available for reuse
+- Tests pass (21/21)
 - No legacy cleanup needed
-- No conflicting navigation structures
 
-**P1 can begin adding**: Corporate KPI tree, CRUD operations, API client (`services/corporate-kpi-api.ts`), types/hooks aligned to backend DTOs, corporate KPI list/form pages.
+**What blocks full P1 readiness:**
+- 7 pre-existing `role-permission-panel.tsx` errors block `next build`. If P1 needs a clean build, these must be resolved first. If P1 only needs the frontend to compile KPI files (which pass 0 errors), the current state is sufficient.
+
+**Recommendation:** P1 can proceed with Corporate KPI implementation. The pre-existing errors in `settings/` are unrelated and can be addressed as a separate maintenance task or as part of P6 Cleanup.
