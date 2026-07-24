@@ -18,3 +18,4 @@ export const Tray = createIcon('Tray');
 export const Plus = createIcon('Plus');
 export const PencilSimple = createIcon('PencilSimple');
 export const X = createIcon('X');
+export const ArrowCounterClockwise = createIcon('ArrowCounterClockwise');

@@ -10,7 +10,8 @@ import { useCorporateKpiData } from '@/modules/hr/kpi/corporate/use-corporate-kp
 import { CorporateKpiFilters } from '@/modules/hr/kpi/corporate/corporate-kpi-filters';
 import { CorporateKpiTable } from '@/modules/hr/kpi/corporate/corporate-kpi-table';
 import { KpiNodeFormModal, type FormMode } from '@/modules/hr/kpi/corporate/kpi-node-form-modal';
-import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest } from '@/modules/hr/kpi/corporate/corporate-kpi.types';
+import { LifecycleDialog } from '@/modules/hr/kpi/corporate/corporate-kpi-lifecycle-dialog';
+import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, LifecycleActionType } from '@/modules/hr/kpi/corporate/corporate-kpi.types';
 
 export default function KpiCorporatePage() {
   const { hasPerm } = usePermission();
@@ -18,6 +19,7 @@ export default function KpiCorporatePage() {
   const canCreate = hasPerm(PERM.CORPORATE_KPI_CREATE);
   const canUpdate = hasPerm(PERM.CORPORATE_KPI_UPDATE);
   const canViewDeleted = hasPerm(PERM.CORPORATE_KPI_READ_DELETED);
+  const canRestore = hasPerm(PERM.CORPORATE_KPI_RESTORE);
 
   const currentYear = new Date().getFullYear();
 
@@ -27,32 +29,27 @@ export default function KpiCorporatePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  // ── Modal state ──
+  // ── Create/Edit modal state ──
   const [modalMode, setModalMode] = useState<FormMode | null>(null);
   const [editNode, setEditNode] = useState<CorporateKpiNode | undefined>(undefined);
   const [preselectedParentId, setPreselectedParentId] = useState<string | undefined>(undefined);
 
+  // ── Lifecycle dialog state ──
+  const [lifecycleAction, setLifecycleAction] = useState<LifecycleActionType | null>(null);
+  const [lifecycleNode, setLifecycleNode] = useState<CorporateKpiNode | null>(null);
+
   // ── Server data ──
   const {
-    tree,
-    deletedList,
-    isLoadingTree,
-    isLoadingDeleted,
-    treeError,
-    deletedError,
-    hasLoadedDeleted,
-    fetchTree,
-    fetchDeleted,
-    isMutating,
-    createNode,
-    updateNode,
+    tree, deletedList, isLoadingTree, isLoadingDeleted,
+    treeError, deletedError, hasLoadedDeleted,
+    fetchTree, fetchDeleted,
+    isMutating, createNode, updateNode,
+    pendingLifecycle, changeStatus, deleteKpi, restoreKpi,
   } = useCorporateKpiData();
 
   // Fetch tree on mount and when year changes
   useEffect(() => {
-    if (canRead) {
-      fetchTree(selectedYear);
-    }
+    if (canRead) fetchTree(selectedYear);
   }, [canRead, selectedYear, fetchTree]);
 
   // Fetch deleted data when first switching to deleted view
@@ -62,7 +59,7 @@ export default function KpiCorporatePage() {
     }
   }, [viewMode, hasLoadedDeleted, canViewDeleted, fetchDeleted]);
 
-  // ── Handlers ──
+  // ── Generic handlers ──
 
   const handleYearChange = useCallback((year: number) => setSelectedYear(year), []);
   const handleViewModeChange = useCallback((mode: 'current' | 'deleted') => setViewMode(mode), []);
@@ -90,7 +87,7 @@ export default function KpiCorporatePage() {
 
   const handleCollapseAll = useCallback(() => setExpandedIds(new Set()), []);
 
-  // ── Modal handlers ──
+  // ── Create/Edit modal handlers ──
 
   const openCreateAspect = useCallback(() => {
     setModalMode('CREATE_ASPECT');
@@ -120,26 +117,50 @@ export default function KpiCorporatePage() {
     async (data: CreateKpiRequest | UpdateKpiRequest, id?: string): Promise<boolean> => {
       let result: CorporateKpiNode | null = null;
       if (id) {
-        // Update
         result = await updateNode(id, data as UpdateKpiRequest);
-        if (result) {
-          closeModal();
-          return true;
-        }
+        if (result) { closeModal(); return true; }
       } else {
-        // Create
         result = await createNode(data as CreateKpiRequest);
-        if (result) {
-          closeModal();
-          return true;
-        }
+        if (result) { closeModal(); return true; }
       }
       return false;
     },
     [createNode, updateNode, closeModal],
   );
 
-  // All Aspects in the current year, for the parent selector
+  // ── Lifecycle handlers ──
+
+  const openLifecycle = useCallback((action: LifecycleActionType, node: CorporateKpiNode) => {
+    setLifecycleAction(action);
+    setLifecycleNode(node);
+  }, []);
+
+  const closeLifecycle = useCallback(() => {
+    setLifecycleAction(null);
+    setLifecycleNode(null);
+  }, []);
+
+  const handleLifecycleConfirm = useCallback(async () => {
+    if (!lifecycleAction || !lifecycleNode) return;
+    let ok = false;
+    switch (lifecycleAction) {
+      case 'activate':
+        ok = await changeStatus(lifecycleNode.id, 'ACTIVE');
+        break;
+      case 'deactivate':
+        ok = await changeStatus(lifecycleNode.id, 'INACTIVE');
+        break;
+      case 'delete':
+        ok = await deleteKpi(lifecycleNode.id);
+        break;
+      case 'restore':
+        ok = await restoreKpi(lifecycleNode.id);
+        break;
+    }
+    if (ok) closeLifecycle();
+  }, [lifecycleAction, lifecycleNode, changeStatus, deleteKpi, restoreKpi, closeLifecycle]);
+
+  // All Aspects for parent selector
   const aspects = useMemo(() => {
     const result: CorporateKpiNode[] = [];
     const collect = (nodes: typeof tree) => {
@@ -225,6 +246,10 @@ export default function KpiCorporatePage() {
         onRetryDeleted={fetchDeleted}
         onCreateIndicator={canCreate ? openCreateIndicator : undefined}
         onEdit={canUpdate ? openEdit : undefined}
+        onActivate={canUpdate ? (node) => openLifecycle('activate', node) : undefined}
+        onDeactivate={canUpdate ? (node) => openLifecycle('deactivate', node) : undefined}
+        onDelete={(node) => openLifecycle('delete', node)}
+        onRestore={canRestore ? (node) => openLifecycle('restore', node) : undefined}
       />
 
       {/* Create/Edit Modal */}
@@ -239,6 +264,18 @@ export default function KpiCorporatePage() {
           aspects={aspects}
           selectedYear={selectedYear}
           isSubmitting={isMutating}
+        />
+      )}
+
+      {/* Lifecycle Confirmation Dialog */}
+      {lifecycleAction && lifecycleNode && (
+        <LifecycleDialog
+          action={lifecycleAction}
+          node={lifecycleNode}
+          isOpen={true}
+          isPending={pendingLifecycle !== null}
+          onConfirm={handleLifecycleConfirm}
+          onCancel={closeLifecycle}
         />
       )}
     </div>

@@ -236,3 +236,40 @@ describe('update', () => {
     await expect(corporateKpiApi.update('bad-id', { code: 'X', name: 'X', parentId: null, unit: null, targetValue: null, description: null })).rejects.toThrow('Not found');
   });
 });
+
+/* ── lifecycle ── */
+
+describe('changeStatus', () => {
+  it('calls PATCH /api/v1/corporate-kpis/{id}/status', async () => {
+    mockedApi.patch.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
+    });
+    const result = await corporateKpiApi.changeStatus('asp-1', { status: 'ACTIVE' });
+    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/corporate-kpis/asp-1/status', { status: 'ACTIVE' });
+    expect(result).toEqual(mockNode);
+  });
+
+  it('propagates backend errors', async () => {
+    mockedApi.patch.mockRejectedValueOnce(new Error('Cannot activate'));
+    await expect(corporateKpiApi.changeStatus('bad-id', { status: 'ACTIVE' })).rejects.toThrow('Cannot activate');
+  });
+});
+
+describe('deleteNode', () => {
+  it('calls PATCH /api/v1/corporate-kpis/{id}/delete', async () => {
+    mockedApi.patch.mockResolvedValueOnce({ data: { status: 200, message: 'Deleted' } });
+    await corporateKpiApi.deleteNode('asp-1');
+    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/corporate-kpis/asp-1/delete');
+  });
+});
+
+describe('restoreNode', () => {
+  it('calls POST /api/v1/corporate-kpis/{id}/restore', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
+    });
+    const result = await corporateKpiApi.restoreNode('asp-1');
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/corporate-kpis/asp-1/restore');
+    expect(result).toEqual(mockNode);
+  });
+});

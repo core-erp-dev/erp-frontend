@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Table, Spinner, Badge, Button } from '@heroui/react';
-import { CaretDown, CaretRight, Tray, PencilSimple, Plus } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { CorporateKpiNode, KpiStatus } from './corporate-kpi.types';
@@ -86,6 +86,11 @@ export interface CorporateKpiTableProps {
   /* ── P1.2 action callbacks ── */
   onCreateIndicator?: (aspectId: string) => void;
   onEdit?: (node: CorporateKpiNode) => void;
+  /* ── P1.3 lifecycle callbacks ── */
+  onActivate?: (node: CorporateKpiNode) => void;
+  onDeactivate?: (node: CorporateKpiNode) => void;
+  onDelete?: (node: CorporateKpiNode) => void;
+  onRestore?: (node: CorporateKpiNode) => void;
 }
 
 /* ── Component ── */
@@ -106,11 +111,18 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
   onRetryDeleted,
   onCreateIndicator,
   onEdit,
+  onActivate,
+  onDeactivate,
+  onDelete,
+  onRestore,
 }) => {
   const { hasPerm } = usePermission();
   const canCreate = hasPerm(PERM.CORPORATE_KPI_CREATE);
   const canUpdate = hasPerm(PERM.CORPORATE_KPI_UPDATE);
-  const hasMutationPerms = canCreate || canUpdate;
+  const canDelete = hasPerm(PERM.CORPORATE_KPI_DELETE);
+  const canRestore = hasPerm(PERM.CORPORATE_KPI_RESTORE);
+  const hasLifecyclePerms = hasPerm(PERM.CORPORATE_KPI_UPDATE) || canDelete || canRestore;
+  const hasMutationPerms = canCreate || canUpdate || hasLifecyclePerms;
 
   /* ── Current view ── */
 
@@ -264,12 +276,68 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                               size="sm"
                               aria-label="Edit"
                               onPress={() => {
-                                // Find the full node from tree
                                 const full = findNodeById(tree, row.id);
                                 if (full) onEdit(full);
                               }}
                             >
                               <PencilSimple className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {/* P1.3 lifecycle: Activate/Deactivate/Delete */}
+                          {onActivate && row.status === 'DRAFT' && (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Activate"
+                              onPress={() => {
+                                const full = findNodeById(tree, row.id);
+                                if (full) onActivate(full);
+                              }}
+                            >
+                              <span className="text-xs font-bold text-green-600">A</span>
+                            </Button>
+                          )}
+                          {onActivate && row.status === 'INACTIVE' && (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Activate"
+                              onPress={() => {
+                                const full = findNodeById(tree, row.id);
+                                if (full) onActivate(full);
+                              }}
+                            >
+                              <span className="text-xs font-bold text-green-600">A</span>
+                            </Button>
+                          )}
+                          {onDeactivate && row.status === 'ACTIVE' && (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Deactivate"
+                              onPress={() => {
+                                const full = findNodeById(tree, row.id);
+                                if (full) onDeactivate(full);
+                              }}
+                            >
+                              <span className="text-xs font-bold text-orange-600">D</span>
+                            </Button>
+                          )}
+                          {canDelete && onDelete && (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Delete"
+                              onPress={() => {
+                                const full = findNodeById(tree, row.id);
+                                if (full) onDelete(full);
+                              }}
+                            >
+                              <span className="text-xs font-bold text-red-600">X</span>
                             </Button>
                           )}
                         </div>
@@ -335,6 +403,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
             <Table.Column id="year">Year</Table.Column>
             <Table.Column id="parent">Parent Aspect</Table.Column>
             <Table.Column id="status">Status</Table.Column>
+            {canRestore && onRestore && <Table.Column id="actions">Actions</Table.Column>}
           </Table.Header>
           <Table.Body>
             {searchFiltered.map((node) => (
@@ -345,6 +414,19 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                 <Table.Cell className="text-muted-foreground">{node.year}</Table.Cell>
                 <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>
                 <Table.Cell><Badge variant={statusVariant[node.status]}>{node.status}</Badge></Table.Cell>
+                {canRestore && onRestore && (
+                  <Table.Cell>
+                    <Button
+                      isIconOnly
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Restore"
+                      onPress={() => onRestore(node)}
+                    >
+                      <ArrowCounterClockwise className="h-4 w-4" />
+                    </Button>
+                  </Table.Cell>
+                )}
               </Table.Row>
             ))}
           </Table.Body>

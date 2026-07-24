@@ -43,3 +43,11 @@ export interface UpdateKpiRequest {
   description: string | null;
   // Note: nodeType and year are immutable — NOT sent in update.
 }
+
+/* ── Lifecycle (P1.3) ── */
+
+export interface ChangeStatusRequest {
+  status: KpiStatus;
+}
+
+export type LifecycleActionType = 'activate' | 'deactivate' | 'delete' | 'restore';
