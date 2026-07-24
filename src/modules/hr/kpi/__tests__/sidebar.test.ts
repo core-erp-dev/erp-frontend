@@ -73,11 +73,11 @@ describe('KPI permission visibility rules', () => {
     expect(corporate.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
   });
 
-  it('Activities is visible with any activity permission', () => {
+  it('Activities is visible with read or request permission only (not approve)', () => {
     const activities = kpiSidebar.find((i) => i.href === KPI_ROUTES.activities)!;
-    expect(activities.permissions).toEqual(
-      expect.arrayContaining([PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_APPROVE]),
-    );
+    expect(activities.permissions).toHaveLength(2);
+    expect(activities.permissions).toEqual([PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST]);
+    expect(activities.permissions).not.toContain(PERM.KPI_ACTIVITY_APPROVE);
   });
 
   it('Reports is visible with any report permission', () => {

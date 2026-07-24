@@ -1,0 +1,120 @@
+'use client';
+
+import React from 'react';
+import { Table, Badge, ProgressBar, Button } from '@heroui/react';
+import { Eye, Tray } from '@phosphor-icons/react';
+import {
+  ACTIVITY_STATUS_LABEL,
+  ACTIVITY_STATUS_VARIANT,
+  type KpiActivityResponse,
+} from './activity.types';
+
+interface ActivityTableProps {
+  items: KpiActivityResponse[];
+  isLoading: boolean;
+  error: string | null;
+  onViewDetail: (id: string) => void;
+  /** Only show view button, no mutation actions. P2.2 adds them. */
+}
+
+export function ActivityTable({ items, isLoading, error, onViewDetail }: ActivityTableProps) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center rounded-3xl bg-surface-secondary p-12 text-sm text-danger">
+        {error}
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <span className="text-sm text-muted-foreground">Loading activities...</span>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+        <Tray className="h-8 w-8" />
+        <span className="text-sm">No activities found.</span>
+      </div>
+    );
+  }
+
+  return (
+    <Table aria-label="KPI Activities">
+      <Table.ScrollContainer>
+        <Table.Content aria-label="Activities" className="min-w-[800px]">
+          <Table.Header>
+            <Table.Column isRowHeader id="activityName">Activity Name</Table.Column>
+            <Table.Column id="parentActivity">Parent Activity</Table.Column>
+            <Table.Column id="corporateKpi">Corporate KPI</Table.Column>
+            <Table.Column id="period">Period</Table.Column>
+            <Table.Column id="target">Target</Table.Column>
+            <Table.Column id="realized">Realized</Table.Column>
+            <Table.Column id="progress">Progress</Table.Column>
+            <Table.Column id="status">Status</Table.Column>
+            <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>
+          </Table.Header>
+          <Table.Body>
+            {items.map((item) => (
+              <Table.Row key={item.id} id={String(item.id)}>
+                <Table.Cell className="font-medium text-foreground">
+                  {item.activityName}
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">
+                  {item.parentActivityName || '-'}
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">
+                  {item.corporateKpiName}
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">
+                  {`${item.periodYear}-${String(item.periodMonth).padStart(2, '0')}`}
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">
+                  {`${item.targetValue} ${item.unit}`}
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">
+                  {`${item.realizedValue} ${item.unit}`}
+                </Table.Cell>
+                <Table.Cell>
+                  <div className="flex items-center gap-2">
+                    <ProgressBar
+                      aria-label="Progress"
+                      value={item.progressPercent}
+                      className="w-20"
+                      size="sm"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {Math.round(item.progressPercent)}%
+                    </span>
+                  </div>
+                </Table.Cell>
+                <Table.Cell>
+                  <Badge variant={ACTIVITY_STATUS_VARIANT[item.status]} size="sm">
+                    {ACTIVITY_STATUS_LABEL[item.status]}
+                  </Badge>
+                </Table.Cell>
+                <Table.Cell>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      isIconOnly
+                      variant="tertiary"
+                      size="sm"
+                      aria-label={`View detail for ${item.activityName}`}
+                      onPress={() => onViewDetail(item.id)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
+    </Table>
+  );
+}
