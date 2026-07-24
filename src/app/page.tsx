@@ -8,8 +8,8 @@ import { Header } from '@/components/layout/header';
 
 const modules = [
   {
-    title: 'Sumber Daya Manusia',
-    description: 'Kelola karyawan, hierarki organisasi, dan operasional HR.',
+    title: 'Human Resources',
+    description: 'Manage employees, organization hierarchy, and HR operations.',
     href: '/hr',
     icon: Users,
     color: 'text-blue-600',
@@ -30,7 +30,7 @@ export default function ModuleSelectorPage() {
             <div className="mb-12 text-center">
               <h1 className="text-3xl font-bold text-foreground">erpsystem</h1>
               <p className="mt-2 text-muted-foreground">
-                Pilih modul untuk memulai
+                Select a module to get started
               </p>
             </div>
 

@@ -31,22 +31,22 @@ import { useEmployeeFormData } from '../hooks/use-employee-form-data';
 
 const getFormSchema = (isEditMode: boolean) =>
   z.object({
-    fullName: z.string().min(1, 'Nama lengkap wajib diisi'),
+    fullName: z.string().min(1, 'Full name is required'),
     birthDate: z.string().optional(),
     gender: z.string().optional(),
     phoneNumber: z.string().optional().refine((val) => !val || /^[0-9+\-\s()]*$/.test(val), {
-      message: 'Nomor telepon hanya boleh berisi angka',
+      message: 'Phone number must only contain digits',
     }),
-    email: z.string().email('Format email tidak valid'),
+    email: z.string().email('Invalid email format'),
     address: z.string().optional(),
     nip: z.string().optional(),
     defaultPositionId: z.string().optional(),
     joinDate: isEditMode
       ? z.string().optional()
-      : z.string().min(1, 'Tanggal bergabung wajib diisi'),
+      : z.string().min(1, 'Join date is required'),
     password: isEditMode
       ? z.string().optional().or(z.literal(''))
-      : z.string().min(6, 'Kata sandi minimal 6 karakter'),
+      : z.string().min(6, 'Password must be at least 6 characters'),
   });
 
 type FormValues = z.infer<ReturnType<typeof getFormSchema>>;
@@ -179,35 +179,35 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem href="/hr/organization/employees">Karyawan</BreadcrumbsItem>
-        <BreadcrumbsItem>{isEditMode ? 'Edit' : 'Tambah'}</BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr/organization/employees">Employees</BreadcrumbsItem>
+        <BreadcrumbsItem>{isEditMode ? 'Edit' : 'Add'}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center gap-3">
-        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
+        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-semibold text-foreground">
-          {isEditMode ? 'Edit Karyawan' : 'Tambah Karyawan Baru'}
+          {isEditMode ? 'Edit Employee' : 'Add New Employee'}
         </h1>
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
 
-        {/* ── INFORMASI PRIBADI ── */}
+        {/* ── PERSONAL INFORMATION ── */}
         <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Informasi Pribadi</h2>
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Personal Information</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="fullName" render={({ field, fieldState }) => (
               <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                <Label>Nama Lengkap</Label>
-                <Input variant="secondary" placeholder="Masukkan nama lengkap" />
+                <Label>Full Name</Label>
+                <Input variant="secondary" placeholder="Enter full name" />
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
             )} />
             <Controller control={form.control} name="gender" render={({ field }) => (
-              <Select variant="secondary" className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Pilih jenis kelamin">
-                <Label>Jenis Kelamin</Label>
+              <Select variant="secondary" className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Select gender">
+                <Label>Gender</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
@@ -218,11 +218,11 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </Select>
             )} />
             <Controller control={form.control} name="birthDate" render={({ field }) => (
-              <DateFieldPicker label="Tanggal Lahir" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} />
+              <DateFieldPicker label="Date of Birth" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} />
             )} />
             <Controller control={form.control} name="phoneNumber" render={({ field, fieldState }) => (
               <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                <Label>No. Telepon</Label>
+                <Label>Phone Number</Label>
                 <Input variant="secondary" placeholder="08xxxxxxxxxx" type="tel" />
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
@@ -231,27 +231,27 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           <Controller control={form.control} name="email" render={({ field, fieldState }) => (
             <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
               <Label>Email</Label>
-              <Input variant="secondary" placeholder="contoh@perusahaan.com" type="email" />
+              <Input variant="secondary" placeholder="example@company.com" type="email" />
               {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
             </TextField>
           )} />
           <Controller control={form.control} name="address" render={({ field, fieldState }) => (
             <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-              <Label>Alamat</Label>
-              <TextArea variant="secondary" placeholder="Masukkan alamat" rows={3} />
+              <Label>Address</Label>
+              <TextArea variant="secondary" placeholder="Enter address" rows={3} />
               {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
             </TextField>
           )} />
         </Surface>
 
-        {/* ── DATA KEPEGAWAIAN ── */}
+        {/* ── EMPLOYMENT DATA ── */}
         <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Data Kepegawaian</h2>
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Employment Data</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="nip" render={({ field, fieldState }) => (
               <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
                 <Label>NIP</Label>
-                <Input variant="secondary" placeholder="Masukkan NIP" />
+                <Input variant="secondary" placeholder="Enter NIP" />
                 {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
               </TextField>
             )} />
@@ -261,12 +261,12 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 field.onChange(k === NIL_UUID ? undefined : String(k));
               };
               return (
-              <Select key={selectedKey} variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Pilih jabatan">
-                <Label>Jabatan</Label>
+              <Select key={selectedKey} variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Select position">
+                <Label>Position</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
-                    <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="Tanpa Jabatan">Tanpa Jabatan</ListBox.Item>
+                    <ListBox.Item key={NIL_UUID} id={NIL_UUID} textValue="No Position">No Position</ListBox.Item>
                     {flatPositions.map((p) => <ListBox.Item key={p.id} id={String(p.id)} textValue={p.label}>{p.label}</ListBox.Item>)}
                   </ListBox>
                 </Select.Popover>
@@ -274,13 +274,13 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               );
             }} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
-              <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
+              <DateFieldPicker label="Join Date" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
             )} />
             {!isEditMode && (
               <Controller control={form.control} name="password" render={({ field, fieldState }) => (
                 <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                  <Label>Kata Sandi</Label>
-                  <Input variant="secondary" placeholder="Minimal 6 karakter" type="password" />
+                  <Label>Password</Label>
+                  <Input variant="secondary" placeholder="At least 6 characters" type="password" />
                   {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                 </TextField>
               )} />
@@ -288,18 +288,18 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           </div>
         </Surface>
 
-        {/* ── JABATAN RANGKAP (edit mode only) ── */}
+        {/* ── SECONDARY POSITIONS (edit mode only) ── */}
         {isEditMode && (
           <Surface className="flex flex-col gap-4 rounded-3xl p-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Jabatan Rangkap</h2>
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Secondary Positions</h2>
               <Button
                 variant={isAssignExpanded ? 'secondary' : 'primary'}
                 size="sm"
                 onPress={() => { setIsAssignExpanded(!isAssignExpanded); setAssignSearch(''); setAssignResults([]); }}
                 isDisabled={isSubmitting || isAssigning}
               >
-                {isAssignExpanded ? <><X className="h-4 w-4" />Batal</> : <><Plus className="h-4 w-4" />Tambah Rangkap</>}
+                {isAssignExpanded ? <><X className="h-4 w-4" />Cancel</> : <><Plus className="h-4 w-4" />Add Secondary</>}
               </Button>
             </div>
 
@@ -309,7 +309,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 <SearchField value={assignSearch} onChange={setAssignSearch} variant="secondary" autoFocus isDisabled={isAssigning}>
                   <SearchField.Group>
                     <SearchField.SearchIcon />
-                    <SearchField.Input placeholder="Cari jabatan..." />
+                    <SearchField.Input placeholder="Search positions..." />
                     <SearchField.ClearButton />
                   </SearchField.Group>
                 </SearchField>
@@ -336,7 +336,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                       ))}
                   </div>
                 ) : assignSearch.trim() ? (
-                  <p className="py-2 text-center text-sm text-gray-400">Tidak ada hasil</p>
+                  <p className="py-2 text-center text-sm text-gray-400">No results</p>
                 ) : null}
               </div>
             )}
@@ -345,7 +345,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
             {(() => {
               const nonPrimary = secondaryPositions.filter(p => !p.isPrimary && p.isActive);
               if (nonPrimary.length === 0 && !isAssignExpanded) {
-                return <p className="text-sm text-gray-400">Tidak ada jabatan rangkap</p>;
+                return <p className="text-sm text-gray-400">No secondary positions</p>;
               }
               return (
                 <div className="space-y-2">
@@ -362,7 +362,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                         isIconOnly
                         variant="danger-soft"
                         size="sm"
-                        aria-label={`Lepas ${up.positionName}`}
+                        aria-label={`Remove ${up.positionName}`}
                         isDisabled={isSubmitting || isAssigning}
                         onPress={() => handleRemoveSecondary(up)}
                       >
@@ -377,10 +377,10 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         )}
 
         <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>Batal</Button>
+          <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>Cancel</Button>
           <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
             <FloppyDisk className="h-4 w-4" />
-            {isEditMode ? 'Simpan Perubahan' : 'Simpan'}
+            {isEditMode ? 'Save Changes' : 'Save'}
           </Button>
         </div>
       </form>

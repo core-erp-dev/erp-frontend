@@ -71,12 +71,12 @@ export function Sidebar() {
     {} as Record<string, SidebarItem[]>,
   );
 
-  // Separate main groups from PENGATURAN
+  // Separate main groups from SETTINGS
   const mainGroups = Object.entries(groups).filter(
-    ([key]) => key !== "PENGATURAN" && key !== "default",
+    ([key]) => key !== "SETTINGS" && key !== "default",
   );
   const defaultGroup = groups["default"] || [];
-  const settingsGroup = groups["PENGATURAN"] || [];
+  const settingsGroup = groups["SETTINGS"] || [];
 
   const renderItem = (item: SidebarItem) => {
     const isActive = pathname === item.href;
@@ -127,7 +127,7 @@ export function Sidebar() {
         </span>
       </div>
 
-      {/* Ganti Modul button */}
+      {/* Switch Module button */}
       <div className="px-4 pb-2">
         <Button
           variant="primary"
@@ -136,7 +136,7 @@ export function Sidebar() {
           onPress={() => router.push("/")}
         >
           <SquaresFour className="h-5 w-5" weight="regular" />
-          Ganti Modul
+          Switch Module
         </Button>
       </div>
 
@@ -151,11 +151,11 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Bottom group (PENGATURAN) */}
+        {/* Bottom group (SETTINGS) */}
         {settingsGroup.length > 0 && (
           <div className="mt-4">
             <Separator className="mb-3" />
-            {renderGroup("PENGATURAN", settingsGroup)}
+            {renderGroup("SETTINGS", settingsGroup)}
           </div>
         )}
       </nav>

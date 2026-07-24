@@ -32,7 +32,7 @@ export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
   const userInitial = user?.username
     ? user.username.charAt(0).toUpperCase()
     : "U";
-  const displayName = user?.username || "Pengguna";
+  const displayName = user?.username || "User";
 
   return (
     <header className="flex h-16 items-center bg-[#f5f5f5] px-6">
@@ -53,11 +53,11 @@ export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
       {/* Center: Searchbar (optional) */}
       {showSearch && (
         <div className="flex flex-1 justify-center">
-          <SearchField aria-label="Cari">
+          <SearchField aria-label="Search">
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input placeholder="Cari" className="w-[320px]" />
-              <SearchField.ClearButton aria-label="Hapus pencarian" />
+              <SearchField.Input placeholder="Search" className="w-[320px]" />
+              <SearchField.ClearButton aria-label="Clear search" />
             </SearchField.Group>
           </SearchField>
         </div>
@@ -72,7 +72,7 @@ export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
           variant="tertiary"
           size="md"
           isIconOnly
-          aria-label="Notifikasi"
+          aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
         </Button>
@@ -80,7 +80,7 @@ export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
         <Dropdown>
           <Dropdown.Trigger
             className="flex items-center gap-2 rounded-full !pl-2.5 !pr-3 py-1.5 transition-colors hover:bg-[#EBEBEC] cursor-pointer outline-none"
-            aria-label="Menu profil"
+            aria-label="Profile menu"
           >
             <Avatar size="sm">
               <Avatar.Fallback>{userInitial}</Avatar.Fallback>
@@ -102,27 +102,27 @@ export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
                 }
               }}
             >
-              <Dropdown.Item id="profile" textValue="Profil">
+              <Dropdown.Item id="profile" textValue="Profile">
                 <div className="flex items-center gap-2">
                   <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-normal">Profil</Label>
+                  <Label className="font-normal">Profile</Label>
                 </div>
               </Dropdown.Item>
-              <Dropdown.Item id="account-settings" textValue="Pengaturan Akun">
+              <Dropdown.Item id="account-settings" textValue="Account Settings">
                 <div className="flex items-center gap-2">
                   <Gear className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-normal">Pengaturan Akun</Label>
+                  <Label className="font-normal">Account Settings</Label>
                 </div>
               </Dropdown.Item>
               <Separator />
               <Dropdown.Item
                 id="logout"
-                textValue="Keluar"
+                textValue="Sign Out"
                 variant="danger"
               >
                 <div className="flex items-center gap-2 text-danger">
                   <SignOut className="h-4 w-4" />
-                  <Label className="font-normal">Keluar</Label>
+                  <Label className="font-normal">Sign Out</Label>
                 </div>
               </Dropdown.Item>
             </Dropdown.Menu>

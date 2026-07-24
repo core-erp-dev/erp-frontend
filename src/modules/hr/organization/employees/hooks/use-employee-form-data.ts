@@ -56,10 +56,10 @@ export function useEmployeeFormData(isEditMode: boolean, initialData?: CoreUser 
         isPrimary: false,
       });
       setSecondaryPositions(prev => [...prev, result]);
-      toast.success('Jabatan rangkap berhasil ditambahkan');
+      toast.success('Secondary position added successfully');
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal menambah jabatan'));
+      toast.danger(extractErrorMessage(err, 'Failed to add position'));
       return false;
     }
   }, []);
@@ -68,10 +68,10 @@ export function useEmployeeFormData(isEditMode: boolean, initialData?: CoreUser 
     try {
       await employeeApi.deactivateUserPosition(up.id);
       setSecondaryPositions(prev => prev.filter(p => p.id !== up.id));
-      toast.success('Jabatan rangkap dilepas');
+      toast.success('Secondary position removed');
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal melepas jabatan'));
+      toast.danger(extractErrorMessage(err, 'Failed to remove position'));
       return false;
     }
   }, []);
@@ -79,10 +79,10 @@ export function useEmployeeFormData(isEditMode: boolean, initialData?: CoreUser 
   const submitCreate = useCallback(async (data: UserCreateRequest & { password: string }): Promise<boolean> => {
     try {
       await employeeApi.createUser(data);
-      toast.success('Karyawan berhasil ditambahkan');
+      toast.success('Employee created successfully');
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal menambahkan karyawan'));
+      toast.danger(extractErrorMessage(err, 'Failed to create employee'));
       return false;
     }
   }, []);
@@ -90,10 +90,10 @@ export function useEmployeeFormData(isEditMode: boolean, initialData?: CoreUser 
   const submitUpdate = useCallback(async (id: string, data: UserUpdateRequest): Promise<boolean> => {
     try {
       await employeeApi.updateUser(id, data);
-      toast.success('Karyawan berhasil diperbarui');
+      toast.success('Employee updated successfully');
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal memperbarui karyawan'));
+      toast.danger(extractErrorMessage(err, 'Failed to update employee'));
       return false;
     }
   }, []);

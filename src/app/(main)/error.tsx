@@ -20,10 +20,10 @@ export default function MainError({
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
         <WarningCircle className="h-8 w-8 text-red-500" />
       </div>
-      <h2 className="text-xl font-semibold text-gray-900">Terjadi Kesalahan</h2>
-      <p className="text-gray-500">Terjadi kesalahan yang tidak terduga.</p>
+      <h2 className="text-xl font-semibold text-gray-900">Something Went Wrong</h2>
+      <p className="text-gray-500">An unexpected error occurred.</p>
       <Button onPress={reset} variant="secondary" className="mt-2">
-        Coba Lagi
+        Try Again
       </Button>
     </div>
   );

@@ -56,7 +56,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   // ── Kebab menu ──
   const renderActions = (id: string, name: string) => (
     <Dropdown>
-      <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${name}`}>
+      <Button isIconOnly variant="tertiary" size="sm" aria-label={`Actions ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
       </Button>
       <Dropdown.Popover placement="top">
@@ -77,13 +77,13 @@ export const PositionTable: React.FC<PositionTableProps> = ({
             </Dropdown.Item>
           )}
           {hasPerm(PERM.POSITION_CREATE) && (
-            <Dropdown.Item id="add-child" textValue="Tambah Bawahan">
-              <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Tambah Bawahan</span></div>
+            <Dropdown.Item id="add-child" textValue="Add Subordinate">
+              <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Add Subordinate</span></div>
             </Dropdown.Item>
           )}
           {hasPerm(PERM.POSITION_DELETE) && (
-            <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
-              <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
+            <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+              <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
             </Dropdown.Item>
           )}
         </Dropdown.Menu>
@@ -104,7 +104,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
         <Tray className="h-8 w-8" />
-        <span className="text-sm">Tidak ada data</span>
+        <span className="text-sm">No data available</span>
       </div>
     );
   }
@@ -115,11 +115,11 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     return (
       <Table key="tree">
         <Table.ScrollContainer>
-          <Table.Content aria-label="Struktur Jabatan" className="min-w-[700px]">
+          <Table.Content aria-label="Position Structure" className="min-w-[700px]">
             <Table.Header>
-              <Table.Column id="tree-name" isRowHeader>Nama Jabatan</Table.Column>
-              <Table.Column id="tree-code">Kode</Table.Column>
-              <Table.Column id="tree-users">Karyawan</Table.Column>
+              <Table.Column id="tree-name" isRowHeader>Position Name</Table.Column>
+              <Table.Column id="tree-code">Code</Table.Column>
+              <Table.Column id="tree-users">Employees</Table.Column>
               <Table.Column id="tree-actions" className="text-center">{''}</Table.Column>
             </Table.Header>
             <Table.Body>
@@ -132,7 +132,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={expandedIds.has(row.id) ? 'Ciutkan' : 'Perluas'}
+                          aria-label={expandedIds.has(row.id) ? 'Collapse' : 'Expand'}
                           onPress={() => onToggleExpand?.(row.id)}
                           className="mr-1 h-5 w-5 min-w-0"
                         >
@@ -161,7 +161,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Salin kode ${row.positionCode}`}
+                          aria-label={`Copy code ${row.positionCode}`}
                           onPress={() => handleCopyCode(row.id, row.positionCode)}
                         >
                           {copiedId === row.id ? (
@@ -180,7 +180,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     <div className="flex justify-end">
                       {row.isDeleted ? (
                         hasPerm(PERM.POSITION_RESTORE) && (
-                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>
                         )
@@ -202,12 +202,12 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   return (
     <Table key="table">
       <Table.ScrollContainer>
-        <Table.Content aria-label="Daftar Jabatan" className="min-w-[700px]">
+        <Table.Content aria-label="Position List" className="min-w-[700px]">
           <Table.Header>
-            <Table.Column id="code" isRowHeader>Kode</Table.Column>
-            <Table.Column id="name">Nama Jabatan</Table.Column>
-            <Table.Column id="parent">Lapor Ke</Table.Column>
-            <Table.Column id="users">Karyawan</Table.Column>
+            <Table.Column id="code" isRowHeader>Code</Table.Column>
+            <Table.Column id="name">Position Name</Table.Column>
+            <Table.Column id="parent">Reports To</Table.Column>
+            <Table.Column id="users">Employees</Table.Column>
             <Table.Column id="actions" className="text-center">{''}</Table.Column>
           </Table.Header>
           <Table.Body>
@@ -223,7 +223,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Salin kode ${pos.positionCode}`}
+                          aria-label={`Copy code ${pos.positionCode}`}
                           onPress={() => handleCopyCode(pos.id, pos.positionCode)}
                         >
                           {copiedId === pos.id ? (
@@ -261,7 +261,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     {isDeleted ? (
                       hasPerm(PERM.POSITION_RESTORE) && (
                         <div className="flex justify-end">
-                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>
                         </div>
@@ -280,11 +280,11 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       {!isLoading && totalItems > 0 && (
         <Table.Footer>
           <Pagination>
-            <Pagination.Summary>{startItem} to {endItem} of {totalItems} hasil</Pagination.Summary>
+            <Pagination.Summary>{startItem} to {endItem} of {totalItems} results</Pagination.Summary>
             <Pagination.Content>
               <Pagination.Item>
                 <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange?.(currentPage - 1)}>
-                  <Pagination.PreviousIcon /> Sebelumnya
+                  <Pagination.PreviousIcon /> Previous
                 </Pagination.Previous>
               </Pagination.Item>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
@@ -294,7 +294,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
               ))}
               <Pagination.Item>
                 <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange?.(currentPage + 1)}>
-                  Selanjutnya <Pagination.NextIcon />
+                  Next <Pagination.NextIcon />
                 </Pagination.Next>
               </Pagination.Item>
             </Pagination.Content>

@@ -25,7 +25,7 @@ export default function PositionDetailPage() {
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  // Assign karyawan state
+  // Assign employee state
   const [isAssignExpanded, setIsAssignExpanded] = useState(false);
   const [assignSearch, setAssignSearch] = useState('');
   const [assignUsers, setAssignUsers] = useState<CoreUser[]>([]);
@@ -61,13 +61,13 @@ export default function PositionDetailPage() {
     setIsAssigning(true);
     try {
       await employeeApi.assignUserToPosition({ userId, positionId: id, startDate: new Date().toISOString().split('T')[0], isPrimary: false });
-      toast.success(`${fullName} berhasil ditugaskan`);
+      toast.success(`${fullName} successfully assigned`);
       setIsAssignExpanded(false);
       setAssignSearch('');
       setAssignUsers([]);
       router.refresh();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal menugaskan karyawan';
+      const msg = err instanceof Error ? err.message : 'Failed to assign employee';
       toast.danger(msg);
     } finally {
       setIsAssigning(false);
@@ -88,7 +88,7 @@ export default function PositionDetailPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>{error || 'Jabatan tidak ditemukan'}</Alert.Title>
+            <Alert.Title>{error || 'Position not found'}</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
@@ -104,13 +104,13 @@ export default function PositionDetailPage() {
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem href="/hr/organization/positions">Struktur Jabatan</BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr/organization/positions">Position Structure</BreadcrumbsItem>
         <BreadcrumbsItem>{position.positionName}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
+          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">{position.positionName}</h1>
@@ -118,7 +118,7 @@ export default function PositionDetailPage() {
         <div className="flex items-center gap-2">
           {showDropdown && (
             <Dropdown>
-              <Button isIconOnly variant="tertiary" aria-label="Opsi">
+              <Button isIconOnly variant="tertiary" aria-label="Options">
                 <DotsThreeVertical className="h-5 w-5" />
               </Button>
               <Dropdown.Popover>
@@ -132,8 +132,8 @@ export default function PositionDetailPage() {
                     </Dropdown.Item>
                   )}
                   {hasPerm(PERM.POSITION_DELETE) && (
-                    <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
-                      <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
+                    <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+                      <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
                     </Dropdown.Item>
                   )}
                 </Dropdown.Menu>
@@ -143,16 +143,16 @@ export default function PositionDetailPage() {
         </div>
       </div>
 
-      {/* Informasi Jabatan */}
+      {/* Position Information */}
       <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Informasi Jabatan</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Position Information</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <DetailField label="Kode" value={position.positionCode} />
-          <DetailField label="Nama" value={position.positionName} />
-          <DetailField label="Deskripsi" value={position.description || '-'} />
+          <DetailField label="Code" value={position.positionCode} />
+          <DetailField label="Name" value={position.positionName} />
+          <DetailField label="Description" value={position.description || '-'} />
           <DetailField label="Level" value={String(position.positionLevel)} />
-          <DetailField label="Bagian/Unit" value={position.unitName || '-'} />
-          <DetailField label="Lapor Ke" value={position.parentName || '-'} />
+          <DetailField label="Department/Unit" value={position.unitName || '-'} />
+          <DetailField label="Reports To" value={position.parentName || '-'} />
         </div>
       </Surface>
 
@@ -160,11 +160,11 @@ export default function PositionDetailPage() {
         {/* Bawahan Langsung */}
         <Surface className="rounded-3xl p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Bawahan Langsung</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Direct Subordinates</h2>
             {hasPerm(PERM.POSITION_CREATE) && (
               <Button variant="primary" size="sm" onPress={() => router.push(`/hr/organization/positions/create?parentId=${position.id}`)}>
                 <Plus className="h-4 w-4" />
-                Tambah
+                Add
               </Button>
             )}
           </div>
@@ -180,19 +180,19 @@ export default function PositionDetailPage() {
                     <span className="font-medium text-foreground">{child.positionName}</span>
                     <span className="ml-2 text-xs text-gray-400">{child.positionCode}</span>
                   </div>
-                  <span className="text-xs text-gray-400">{(child.assignedUsers ?? []).length} karyawan</span>
+                  <span className="text-xs text-gray-400">{(child.assignedUsers ?? []).length} employees</span>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Tidak ada bawahan langsung</p>
+            <p className="text-sm text-gray-400">No direct subordinates</p>
           )}
         </Surface>
 
         {/* Daftar Karyawan */}
         <Surface className="rounded-3xl p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Karyawan</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Employee List</h2>
             {hasPerm(PERM.POSITION_ASSIGN_USER) && (
               <Button
                 variant={isAssignExpanded ? 'secondary' : 'primary'}
@@ -200,9 +200,9 @@ export default function PositionDetailPage() {
                 onPress={() => { setIsAssignExpanded(!isAssignExpanded); setAssignSearch(''); setAssignUsers([]); }}
               >
                 {isAssignExpanded ? (
-                  <><X className="h-4 w-4" />Batalkan</>
+                  <><X className="h-4 w-4" />Cancel</>
                 ) : (
-                  <><UserPlus className="h-4 w-4" />Tugaskan</>
+                  <><UserPlus className="h-4 w-4" />Assign</>
                 )}
               </Button>
             )}
@@ -214,7 +214,7 @@ export default function PositionDetailPage() {
               <SearchField className="w-full" value={assignSearch} onChange={handleAssignSearch} variant="secondary" autoFocus onClear={() => { setAssignSearch(''); setAssignUsers([]); }} isDisabled={isSearching}>
                 <SearchField.Group>
                   <SearchField.SearchIcon />
-                  <SearchField.Input placeholder="Cari nama, NIP, atau email..." />
+                  <SearchField.Input placeholder="Search name, NIP, or email..." />
                   <SearchField.ClearButton />
                 </SearchField.Group>
               </SearchField>
@@ -241,7 +241,7 @@ export default function PositionDetailPage() {
                     ))}
                 </div>
               ) : assignSearch.trim() ? (
-                <p className="py-2 text-center text-sm text-gray-400">Tidak ada hasil</p>
+                <p className="py-2 text-center text-sm text-gray-400">No results</p>
               ) : null}
             </div>
           )}
@@ -263,7 +263,7 @@ export default function PositionDetailPage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Belum ada karyawan di jabatan ini</p>
+            <p className="text-sm text-gray-400">No employees in this position</p>
           )}
         </Surface>
       </div>
@@ -273,8 +273,8 @@ export default function PositionDetailPage() {
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
         name={position.positionName}
-        entityLabel="jabatan"
-        warning="Jabatan yang masih memiliki bawahan atau karyawan aktif tidak dapat dihapus."
+        entityLabel="position"
+        warning="Position that still has subordinates or active employees cannot be deleted."
         isDeleting={isDeleting}
       />
     </div>

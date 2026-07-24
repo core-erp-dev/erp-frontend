@@ -44,7 +44,7 @@ export default function EmployeeDetailPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>{error || 'Karyawan tidak ditemukan'}</Alert.Title>
+            <Alert.Title>{error || 'Employee not found'}</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
@@ -61,20 +61,20 @@ export default function EmployeeDetailPage() {
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem href="/hr/organization/employees">Karyawan</BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr/organization/employees">Employees</BreadcrumbsItem>
         <BreadcrumbsItem>{employee.fullName}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
+          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">{employee.fullName}</h1>
         </div>
         {showDropdown && (
           <Dropdown>
-            <Button isIconOnly variant="tertiary" aria-label="Opsi karyawan">
+            <Button isIconOnly variant="tertiary" aria-label="Employee options">
               <DotsThreeVertical className="h-5 w-5" />
             </Button>
             <Dropdown.Popover>
@@ -91,10 +91,10 @@ export default function EmployeeDetailPage() {
                   </Dropdown.Item>
                 )}
                 {hasPerm(PERM.USER_DELETE) && (
-                  <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+                  <Dropdown.Item id="delete" textValue="Delete" variant="danger">
                     <div className="flex items-center gap-2 text-danger">
                       <Trash className="h-4 w-4" />
-                      <span>Hapus</span>
+                      <span>Delete</span>
                     </div>
                   </Dropdown.Item>
                 )}
@@ -104,37 +104,37 @@ export default function EmployeeDetailPage() {
         )}
       </div>
 
-      {/* Informasi Pribadi */}
+      {/* Personal Information */}
       <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Informasi Pribadi</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Personal Information</h2>
         <div className="grid gap-6 sm:grid-cols-2">
-          <DetailField label="Nama Lengkap" value={employee.fullName} />
-          <DetailField label="Jenis Kelamin" value={getGenderLabel(employee.gender)} />
-          <DetailField label="Tanggal Lahir" value={formatDate(employee.birthDate)} />
-          <DetailField label="No. Telepon" value={employee.phoneNumber || '-'} />
+          <DetailField label="Full Name" value={employee.fullName} />
+          <DetailField label="Gender" value={getGenderLabel(employee.gender)} />
+          <DetailField label="Date of Birth" value={formatDate(employee.birthDate)} />
+          <DetailField label="Phone Number" value={employee.phoneNumber || '-'} />
           <DetailField label="Email" value={employee.email} />
-          <DetailField label="Alamat" value={employee.address || '-'} />
+          <DetailField label="Address" value={employee.address || '-'} />
         </div>
       </Surface>
 
-      {/* Data Kepegawaian */}
+      {/* Employment Data */}
       <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Data Kepegawaian</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Employment Data</h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <DetailField label="NIP" value={employee.nip || '-'} />
-          <DetailField label="Jabatan" value={pos?.positionName || '-'} />
-          <DetailField label="Tanggal Bergabung" value={formatDate(employee.joinDate || employee.createdAt)} />
+          <DetailField label="Position" value={pos?.positionName || '-'} />
+          <DetailField label="Join Date" value={formatDate(employee.joinDate || employee.createdAt)} />
           <DetailField label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
         </div>
       </Surface>
 
-      {/* Daftar Jabatan */}
+      {/* Position List */}
       <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Daftar Jabatan</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Position List</h2>
         {(() => {
           const activePositions = (employee.positions ?? []).filter(p => p.isActive);
           if (activePositions.length === 0) {
-            return <p className="text-sm text-gray-400">Belum memiliki jabatan</p>;
+            return <p className="text-sm text-gray-400">No positions assigned</p>;
           }
           return (
             <div className="space-y-2">
@@ -152,11 +152,11 @@ export default function EmployeeDetailPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={up.isPrimary ? 'primary' : 'secondary'} size="sm">
-                      {up.isPrimary ? 'Utama' : 'Rangkap'}
+                      {up.isPrimary ? 'Primary' : 'Secondary'}
                     </Badge>
                     <span className="text-xs text-gray-400">
                       {formatDate(up.startDate)}
-                      {up.endDate ? ` · s/d ${formatDate(up.endDate)}` : ''}
+                      {up.endDate ? ` · to ${formatDate(up.endDate)}` : ''}
                     </span>
                   </div>
                 </div>
@@ -171,8 +171,8 @@ export default function EmployeeDetailPage() {
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
         name={employee.fullName}
-        entityLabel="karyawan"
-        warning="Karyawan tidak akan bisa mengakses sistem setelah dihapus."
+        entityLabel="employee"
+        warning="Employee will no longer be able to access the system after deletion."
         isDeleting={isDeleting}
       />
     </div>

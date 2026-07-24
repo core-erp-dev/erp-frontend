@@ -85,7 +85,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       setUsers(data.content);
       setPagination(data);
     } catch (_error) {
-      toast.danger('Gagal memuat data karyawan');
+      toast.danger('Failed to load employee data');
     } finally {
       setIsLoading(false);
     }
@@ -145,13 +145,13 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const createUser = async (data: UserCreateRequest): Promise<boolean> => {
     try {
       await employeeApi.createUser(data);
-      toast.success('Karyawan berhasil ditambahkan', {
-        description: 'Data karyawan baru berhasil disimpan.',
+      toast.success('Employee created successfully', {
+        description: 'Employee data saved successfully.',
       });
       await fetchUsers(filters);
       return true;
     } catch (error) {
-      toast.danger(extractErrorMessage(error, 'Gagal menambahkan karyawan'));
+      toast.danger(extractErrorMessage(error, 'Failed to create employee'));
       return false;
     }
   };
@@ -159,13 +159,13 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const updateUser = async (id: string, data: UserUpdateRequest): Promise<boolean> => {
     try {
       await employeeApi.updateUser(id, data);
-      toast.success('Data karyawan berhasil diperbarui', {
-        description: 'Perubahan data karyawan telah disimpan.',
+      toast.success('Employee updated successfully', {
+        description: 'Employee changes saved.',
       });
       await fetchUsers(filters);
       return true;
     } catch (error) {
-      toast.danger(extractErrorMessage(error, 'Gagal memperbarui karyawan'));
+      toast.danger(extractErrorMessage(error, 'Failed to update employee'));
       return false;
     }
   };
@@ -173,13 +173,13 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const deleteUser = async (id: string): Promise<boolean> => {
     try {
       await employeeApi.deleteUser(id);
-      toast.success('Karyawan berhasil dihapus', {
-        description: 'Karyawan tidak lagi aktif dalam sistem.',
+      toast.success('Employee deleted successfully', {
+        description: 'Employee is no longer active in the system.',
       });
       await fetchUsers(filters);
       return true;
     } catch (error) {
-      toast.danger(extractErrorMessage(error, 'Gagal menghapus karyawan'));
+      toast.danger(extractErrorMessage(error, 'Failed to delete employee'));
       return false;
     }
   };
@@ -187,13 +187,13 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const restoreUser = async (id: string): Promise<boolean> => {
     try {
       await employeeApi.restoreUser(id);
-      toast.success('Karyawan berhasil dipulihkan', {
-        description: 'Data karyawan telah dikembalikan.',
+      toast.success('Employee restored successfully', {
+        description: 'Employee data has been recovered.',
       });
       await fetchUsers(filters);
       return true;
     } catch (error) {
-      toast.danger(extractErrorMessage(error, 'Gagal memulihkan karyawan'));
+      toast.danger(extractErrorMessage(error, 'Failed to restore employee'));
       return false;
     }
   };
@@ -201,13 +201,13 @@ export function useEmployeeData(): UseEmployeeDataReturn {
   const assignPosition = async (data: AssignUserPositionRequest): Promise<boolean> => {
     try {
       await employeeApi.assignUserToPosition(data);
-      toast.success('Jabatan berhasil ditetapkan', {
-        description: 'Karyawan telah berhasil ditempatkan pada jabatan terkait.',
+      toast.success('Position assigned successfully', {
+        description: 'Employee has been assigned to the position.',
       });
       await fetchUsers(filters);
       return true;
     } catch (error) {
-      toast.danger(extractErrorMessage(error, 'Gagal menetapkan jabatan karyawan'));
+      toast.danger(extractErrorMessage(error, 'Failed to assign employee position'));
       return false;
     }
   };

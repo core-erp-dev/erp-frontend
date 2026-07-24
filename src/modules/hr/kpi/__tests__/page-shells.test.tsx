@@ -33,9 +33,9 @@ function assertNoFakeMetrics(): void {
   const text = allText();
   expect(text).not.toMatch(/\b\d+(?:\.\d+)?%\b/); // percentage values
   expect(text).not.toMatch(/\bTarget \d+/i);
-  expect(text).not.toMatch(/\bCapaian \d+/i);
-  expect(text).not.toMatch(/\b(Tercapai|Tidak Tercapai)\b/i);
-  expect(text).not.toMatch(/\bRealisasi\b/);
+  expect(text).not.toMatch(/\bProgress \d+/i);
+  expect(text).not.toMatch(/\b(Achieved|Not Achieved)\b/i);
+  expect(text).not.toMatch(/\bActual\b/i);
 }
 
 // ── Overview ────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ describe('KPI Overview page shell', () => {
   });
 
   it('renders a placeholder indicating Overview is pending integration', () => {
-    expect(allText()).toMatch(/tersedia setelah/i);
+    expect(allText()).toMatch(/available after/i);
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);
@@ -64,7 +64,7 @@ describe('KPI Overview page shell', () => {
 
 // ── Corporate ───────────────────────────────────────────────────────────────
 
-describe('KPI Korporat page shell', () => {
+describe('Corporate KPI page shell', () => {
   beforeEach(() => {
     render(<KpiCorporatePage />);
   });
@@ -88,7 +88,7 @@ describe('KPI Korporat page shell', () => {
 
 // ── Activities ──────────────────────────────────────────────────────────────
 
-describe('KPI Aktivitas page shell', () => {
+describe('KPI Activities page shell', () => {
   beforeEach(() => {
     render(<KpiActivitiesPage />);
   });
@@ -112,7 +112,7 @@ describe('KPI Aktivitas page shell', () => {
 
 // ── Reports ─────────────────────────────────────────────────────────────────
 
-describe('KPI Laporan page shell', () => {
+describe('KPI Reports page shell', () => {
   beforeEach(() => {
     render(<KpiReportsPage />);
   });
@@ -136,7 +136,7 @@ describe('KPI Laporan page shell', () => {
 
 // ── Approvals ───────────────────────────────────────────────────────────────
 
-describe('KPI Persetujuan page shell', () => {
+describe('KPI Approvals page shell', () => {
   beforeEach(() => {
     render(<KpiApprovalsPage />);
   });

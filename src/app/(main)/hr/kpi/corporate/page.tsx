@@ -15,7 +15,7 @@ export default function KpiCorporatePage() {
       <Surface className="flex flex-col items-center justify-center gap-3 rounded-3xl p-12">
         <Buildings className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Manajemen KPI Korporat akan diimplementasikan pada fase P1.
+          Corporate KPI management will be implemented in phase P1.
         </p>
       </Surface>
     </div>

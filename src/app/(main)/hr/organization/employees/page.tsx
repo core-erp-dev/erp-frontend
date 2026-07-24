@@ -24,10 +24,10 @@ import { flattenPositionTree } from '@/modules/hr/organization/shared/utils/flat
 import type { CoreUser } from '@/modules/hr/organization/employees/types';
 
 const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
-  { field: 'fullName', label: 'Nama (A-Z)', dir: 'asc' },
-  { field: 'fullName', label: 'Nama (Z-A)', dir: 'desc' },
-  { field: 'createdAt', label: 'Terbaru', dir: 'desc' },
-  { field: 'createdAt', label: 'Terlama', dir: 'asc' },
+  { field: 'fullName', label: 'Name (A-Z)', dir: 'asc' },
+  { field: 'fullName', label: 'Name (Z-A)', dir: 'desc' },
+  { field: 'createdAt', label: 'Newest', dir: 'desc' },
+  { field: 'createdAt', label: 'Oldest', dir: 'asc' },
 ];
 
 export default function EmployeePage() {
@@ -125,19 +125,19 @@ export default function EmployeePage() {
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem>Karyawan</BreadcrumbsItem>
+        <BreadcrumbsItem>Employees</BreadcrumbsItem>
       </Breadcrumbs>
 
-      {/* Row 1: Title + Refresh + Tambah */}
+      {/* Row 1: Title + Refresh + Add */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-foreground">Semua Karyawan</h1>
+          <h1 className="text-xl font-semibold text-foreground">Employees</h1>
           <Button
             isIconOnly
             variant="tertiary"
             size="sm"
             className="pointer-events-none text-sm font-medium"
-            aria-label={`Total ${pagination?.totalElements ?? 0} karyawan`}
+            aria-label={`Total ${pagination?.totalElements ?? 0} employees`}
           >
             {pagination?.totalElements ?? 0}
           </Button>
@@ -148,14 +148,14 @@ export default function EmployeePage() {
             variant="tertiary"
             onPress={() => refresh()}
             isDisabled={isLoading}
-            aria-label="Muat ulang data karyawan"
+            aria-label="Refresh employee data"
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           {hasPerm(PERM.USER_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/hr/organization/employees/create')}>
               <Plus className="h-4 w-4" />
-              Tambah Karyawan
+              Add Employee
             </Button>
           )}
         </div>
@@ -182,7 +182,7 @@ export default function EmployeePage() {
                 onSelectionChange={handleFilterChange}
               >
                 <Dropdown.Section>
-                  <Header>Jabatan</Header>
+                  <Header>Position</Header>
                   {flatPositions.map((pos) => (
                     <Dropdown.Item key={pos.id} id={`pos:${pos.id}`} textValue={pos.positionName}>
                       <Dropdown.ItemIndicator />
@@ -195,9 +195,9 @@ export default function EmployeePage() {
           </Dropdown>
 
           <Dropdown>
-            <Button variant="tertiary" aria-label="Urutkan">
+            <Button variant="tertiary" aria-label="Sort">
               <FunnelSimple className="h-4 w-4" />
-              Urut
+              Sort
               {!isDefaultSort && (
                 <>
                   <span className="mx-0.5 h-4 w-px bg-border" />
@@ -216,11 +216,11 @@ export default function EmployeePage() {
             </Dropdown.Popover>
           </Dropdown>
 
-          {/* Toggle: Tampilkan Karyawan Terhapus */}
+          {/* Toggle: Show Deleted Employees */}
           {hasPerm(PERM.USER_READ_DELETED) && (
-            <Button variant="tertiary" aria-label="Tampilkan terhapus" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
+            <Button variant="tertiary" aria-label="Show deleted" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
               <Eye className="h-4 w-4" />
-              Terhapus
+              Deleted
               {filters.includeDeleted && (
                 <>
                   <span className="mx-0.5 h-4 w-px bg-border" />
@@ -231,7 +231,7 @@ export default function EmployeePage() {
           )}
 
           {hasActiveFilters && (
-            <Button isIconOnly variant="tertiary" aria-label="Reset filter" onPress={resetFilters}>
+            <Button isIconOnly variant="tertiary" aria-label="Reset filters" onPress={resetFilters}>
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -245,7 +245,7 @@ export default function EmployeePage() {
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
-            <SearchField.Input aria-label="Cari karyawan" placeholder="Cari NIP, Nama, Email" />
+            <SearchField.Input aria-label="Search employees" placeholder="Search NIP, Name, Email" />
             <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
@@ -269,8 +269,8 @@ export default function EmployeePage() {
         onClose={() => { setIsDeleteDialogOpen(false); setSelectedUser(null); }}
         onConfirm={handleDeleteConfirm}
         name={selectedUser?.fullName || ''}
-        entityLabel="karyawan"
-        warning="Karyawan tidak akan bisa mengakses sistem setelah dihapus."
+        entityLabel="employee"
+        warning="The employee will not be able to access the system after deletion."
         isDeleting={isDeleting}
       />
     </div>

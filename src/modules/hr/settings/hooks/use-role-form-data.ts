@@ -52,10 +52,10 @@ export function useRoleFormData(): UseRoleFormDataReturn {
   const submitCreate = useCallback(async (data: CreateRoleRequest): Promise<boolean> => {
     try {
       await roleApi.createRole(data);
-      toast.success('Role berhasil dibuat');
+      toast.success('Role created successfully');
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal membuat role';
+      const msg = err instanceof Error ? err.message : 'Failed to create role';
       toast.danger(msg);
       return false;
     }
@@ -64,10 +64,10 @@ export function useRoleFormData(): UseRoleFormDataReturn {
   const submitUpdate = useCallback(async (id: number, data: UpdateRoleRequest): Promise<boolean> => {
     try {
       await roleApi.updateRole(id, data);
-      toast.success('Role berhasil diperbarui');
+      toast.success('Role updated successfully');
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal memperbarui role';
+      const msg = err instanceof Error ? err.message : 'Failed to update role';
       toast.danger(msg);
       return false;
     }

@@ -27,10 +27,10 @@ describe('KPI sidebar configuration', () => {
     const titles = kpiSidebar.map((i) => i.title);
     expect(titles).toEqual([
       'Overview',
-      'KPI Korporat',
-      'Aktivitas',
-      'Laporan',
-      'Persetujuan',
+      'Corporate KPI',
+      'Activities',
+      'Reports',
+      'Approvals',
     ]);
   });
 
@@ -68,26 +68,26 @@ describe('KPI permission visibility rules', () => {
     expect(overview.permissions).toEqual(expect.arrayContaining(KPI_ANY_PERMISSION));
   });
 
-  it('KPI Korporat requires corporate_kpi:read', () => {
+  it('Corporate KPI requires corporate_kpi:read', () => {
     const corporate = kpiSidebar.find((i) => i.href === KPI_ROUTES.corporate)!;
     expect(corporate.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
   });
 
-  it('Aktivitas is visible with any activity permission', () => {
+  it('Activities is visible with any activity permission', () => {
     const activities = kpiSidebar.find((i) => i.href === KPI_ROUTES.activities)!;
     expect(activities.permissions).toEqual(
       expect.arrayContaining([PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_APPROVE]),
     );
   });
 
-  it('Laporan is visible with any report permission', () => {
+  it('Reports is visible with any report permission', () => {
     const reports = kpiSidebar.find((i) => i.href === KPI_ROUTES.reports)!;
     expect(reports.permissions).toEqual(
       expect.arrayContaining([PERM.KPI_REPORT_READ, PERM.KPI_REPORT_SUBMIT, PERM.KPI_REPORT_REVIEW]),
     );
   });
 
-  it('Persetujuan requires kpi_activity:approve only', () => {
+  it('Approvals requires kpi_activity:approve only', () => {
     const approvals = kpiSidebar.find((i) => i.href === KPI_ROUTES.approvals)!;
     expect(approvals.permissions).toEqual([PERM.KPI_ACTIVITY_APPROVE]);
     expect(approvals.permissions).toHaveLength(1);

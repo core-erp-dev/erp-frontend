@@ -14,14 +14,14 @@ export default function HRDashboardPage() {
       </Breadcrumbs>
 
       <div className="mt-4">
-        <h1 className="text-3xl font-bold tracking-tight">Dasbor</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Selamat datang di Dasbor HR
+          Welcome to the HR Dashboard
         </p>
       </div>
 
       <div className="mt-6">
-        {/* Konten dasbor akan ditampilkan di sini */}
+        {/* Dashboard content will be displayed here */}
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ export const kpiSidebar: SidebarItem[] = [
     permissions: [...KPI_ANY_PERMISSION] as unknown as string[],
   },
   {
-    title: 'KPI Korporat',
+    title: 'Corporate KPI',
     href: KPI_ROUTES.corporate,
     icon: Buildings,
     module: 'hr',
@@ -26,7 +26,7 @@ export const kpiSidebar: SidebarItem[] = [
     permissions: [PERM.CORPORATE_KPI_READ],
   },
   {
-    title: 'Aktivitas',
+    title: 'Activities',
     href: KPI_ROUTES.activities,
     icon: ClipboardText,
     module: 'hr',
@@ -34,7 +34,7 @@ export const kpiSidebar: SidebarItem[] = [
     permissions: [PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_APPROVE],
   },
   {
-    title: 'Laporan',
+    title: 'Reports',
     href: KPI_ROUTES.reports,
     icon: Article,
     module: 'hr',
@@ -42,7 +42,7 @@ export const kpiSidebar: SidebarItem[] = [
     permissions: [PERM.KPI_REPORT_READ, PERM.KPI_REPORT_SUBMIT, PERM.KPI_REPORT_REVIEW],
   },
   {
-    title: 'Persetujuan',
+    title: 'Approvals',
     href: KPI_ROUTES.approvals,
     icon: Checks,
     module: 'hr',

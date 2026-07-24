@@ -11,8 +11,8 @@ import { useRoleDetail } from '@/modules/hr/settings/hooks/use-role-detail';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 
 const moduleLabels: Record<string, string> = {
-  position: 'Jabatan',
-  user: 'Pengguna',
+  position: 'Position',
+  user: 'User',
   role: 'Role & Permission',
   permission: 'Permission',
 };
@@ -49,7 +49,7 @@ export default function RoleDetailPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>{error || 'Role tidak ditemukan'}</Alert.Title>
+            <Alert.Title>{error || 'Role not found'}</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
@@ -75,20 +75,20 @@ export default function RoleDetailPage() {
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem href="/hr/settings/roles">Hak Akses & Role</BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr/settings/roles">Access Control & Roles</BreadcrumbsItem>
         <BreadcrumbsItem>{role.roleName}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
+          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">{role.roleName}</h1>
         </div>
         {showDropdown && (
           <Dropdown>
-            <Button isIconOnly variant="tertiary" aria-label="Opsi role">
+            <Button isIconOnly variant="tertiary" aria-label="Role options">
               <DotsThreeVertical className="h-5 w-5" />
             </Button>
             <Dropdown.Popover>
@@ -105,10 +105,10 @@ export default function RoleDetailPage() {
                   </Dropdown.Item>
                 )}
                 {hasPerm(PERM.ROLE_DELETE) && (
-                  <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+                  <Dropdown.Item id="delete" textValue="Delete" variant="danger">
                     <div className="flex items-center gap-2 text-danger">
                       <Trash className="h-4 w-4" />
-                      <span>Hapus</span>
+                      <span>Delete</span>
                     </div>
                   </Dropdown.Item>
                 )}
@@ -121,19 +121,19 @@ export default function RoleDetailPage() {
       {/* Informasi Role */}
       <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">
-          Informasi Role
+          Role Information
         </h2>
         <div className="grid gap-6 sm:grid-cols-3">
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Kode Role</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Role Code</p>
             <p className="text-sm font-medium text-foreground">{role.roleCode}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Nama Role</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Role Name</p>
             <p className="text-sm font-medium text-foreground">{role.roleName}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Deskripsi</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Description</p>
             <p className="text-sm text-foreground">{role.description || '-'}</p>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function RoleDetailPage() {
           Permissions
         </h2>
         {role.permissions.length === 0 ? (
-          <p className="text-sm text-gray-400">Tidak ada permission</p>
+          <p className="text-sm text-gray-400">No permissions</p>
         ) : (
           <div className="space-y-4">
             {Object.entries(groupedPermissions).map(([module, perms]) => (
@@ -176,7 +176,7 @@ export default function RoleDetailPage() {
         onConfirm={handleDeleteConfirm}
         name={role.roleName}
         entityLabel="role"
-        warning="Role tidak akan bisa digunakan setelah dihapus."
+        warning="Role will no longer be usable after deletion."
         isDeleting={isDeleting}
       />
     </div>

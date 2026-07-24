@@ -14,46 +14,46 @@ export interface SidebarItem {
 
 export const hrSidebar: SidebarItem[] = [
   // ==============================
-  // GRUP: KPI
+  // GROUP: KPI
   // ==============================
   ...kpiSidebar,
 
   // ==============================
-  // GRUP: ORGANISASI
+  // GROUP: ORGANIZATION
   // ==============================
   {
-    title: 'Karyawan',
+    title: 'Employees',
     href: '/hr/organization/employees',
     icon: Users,
     module: 'hr',
-    group: 'ORGANISASI',
+    group: 'ORGANIZATION',
     permissions: ['user:read'],
   },
   {
-    title: 'Struktur Jabatan',
+    title: 'Position Structure',
     href: '/hr/organization/positions',
     icon: TreeStructure,
     module: 'hr',
-    group: 'ORGANISASI',
+    group: 'ORGANIZATION',
     permissions: ['position:read'],
   },
 
   // ==============================
-  // GRUP: PENGATURAN
+  // GROUP: SETTINGS
   // ==============================
   {
-    title: 'Hak Akses & Role',
+    title: 'Access Control & Roles',
     href: '/hr/settings/roles',
     icon: Lock,
     module: 'hr',
-    group: 'PENGATURAN',
+    group: 'SETTINGS',
     permissions: ['role:read'],
   },
   {
-    title: 'Pengaturan',
+    title: 'Settings',
     href: '/hr/settings',
     icon: Gear,
     module: 'hr',
-    group: 'PENGATURAN',
+    group: 'SETTINGS',
   },
 ];

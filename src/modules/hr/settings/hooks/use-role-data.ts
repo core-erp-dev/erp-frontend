@@ -59,11 +59,11 @@ export function useRoleData(): UseRoleDataReturn {
   const deleteRole = useCallback(async (id: number): Promise<boolean> => {
     try {
       await roleApi.deleteRole(id);
-      toast.success('Role berhasil dihapus');
+      toast.success('Role deleted successfully');
       await fetchData();
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal menghapus role';
+      const msg = err instanceof Error ? err.message : 'Failed to delete role';
       toast.danger(msg);
       return false;
     }
@@ -72,11 +72,11 @@ export function useRoleData(): UseRoleDataReturn {
   const restoreRole = useCallback(async (id: number): Promise<boolean> => {
     try {
       await roleApi.restoreRole(id);
-      toast.success('Role berhasil dipulihkan');
+      toast.success('Role restored successfully');
       await fetchData();
       return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal memulihkan role';
+      const msg = err instanceof Error ? err.message : 'Failed to restore role';
       toast.danger(msg);
       return false;
     }

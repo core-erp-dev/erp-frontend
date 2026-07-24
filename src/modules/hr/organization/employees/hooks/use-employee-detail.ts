@@ -30,7 +30,7 @@ export function useEmployeeDetail(id: string): UseEmployeeDetailReturn {
         if (!cancelled) setEmployee(data);
       } catch (err: unknown) {
         if (!cancelled) {
-          const msg = err instanceof Error ? err.message : 'Gagal memuat data karyawan';
+          const msg = err instanceof Error ? err.message : 'Failed to load employee data';
           setError(msg);
         }
       } finally {
@@ -44,12 +44,12 @@ export function useEmployeeDetail(id: string): UseEmployeeDetailReturn {
     setIsDeleting(true);
     try {
       await employeeApi.deleteUser(id);
-      toast.success('Karyawan berhasil dihapus', {
-        description: 'Karyawan tidak lagi aktif dalam sistem.',
+      toast.success('Employee deleted successfully', {
+        description: 'Employee is no longer active in the system.',
       });
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal menghapus karyawan'));
+      toast.danger(extractErrorMessage(err, 'Failed to delete employee'));
       return false;
     } finally {
       setIsDeleting(false);

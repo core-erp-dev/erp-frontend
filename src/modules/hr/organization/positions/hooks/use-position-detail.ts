@@ -30,11 +30,11 @@ export function usePositionDetail(id: string): UsePositionDetailReturn {
         const tree = await organizationApi.fetchPositionTree();
         const found = findInTree(tree, id);
         if (!cancelled) {
-          if (!found) setError('Jabatan tidak ditemukan');
+          if (!found) setError('Position not found');
           else setPosition(found);
         }
       } catch {
-        if (!cancelled) setError('Gagal memuat data jabatan');
+        if (!cancelled) setError('Failed to load position data');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -46,10 +46,10 @@ export function usePositionDetail(id: string): UsePositionDetailReturn {
     setIsDeleting(true);
     try {
       await organizationApi.deletePosition(id);
-      toast.success('Jabatan berhasil dihapus');
+      toast.success('Position deleted successfully');
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal menghapus jabatan'));
+      toast.danger(extractErrorMessage(err, 'Failed to delete position'));
       return false;
     } finally {
       setIsDeleting(false);

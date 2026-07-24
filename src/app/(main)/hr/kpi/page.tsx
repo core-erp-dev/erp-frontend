@@ -15,7 +15,7 @@ export default function KpiOverviewPage() {
       <Surface className="flex flex-col items-center justify-center gap-3 rounded-3xl p-12">
         <ChartBar className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Overview akan tersedia setelah data KPI Korporat, Aktivitas, dan Laporan terintegrasi.
+          Overview will be available after Corporate KPI, Activities, and Reports data is integrated.
         </p>
       </Surface>
     </div>

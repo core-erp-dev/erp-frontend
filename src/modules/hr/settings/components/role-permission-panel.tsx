@@ -6,8 +6,8 @@ import { useRoleData } from '../hooks/use-role-data';
 import type { Role, Permission } from '../types';
 
 const moduleLabels: Record<string, string> = {
-  position: 'Jabatan',
-  user: 'Pengguna',
+  position: 'Position',
+  user: 'User',
   role: 'Role & Permission',
   permission: 'Permission',
 };
@@ -52,7 +52,7 @@ export function RolePermissionPanel() {
       {/* Left: Role list */}
       <div className="w-64 shrink-0 space-y-2">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-gray-400">
-          Daftar Role
+          Role List
         </h3>
         {roles.map((role) => (
           <RoleCard
@@ -117,7 +117,7 @@ export function RolePermissionPanel() {
           </div>
         ) : (
           <div className="flex h-40 items-center justify-center text-gray-400">
-            Pilih role di sebelah kiri untuk melihat permission
+            Select a role on the left to view permissions
           </div>
         )}
       </div>
@@ -137,7 +137,7 @@ function RoleCard({
   return (
     <Button
       variant="ghost"
-      aria-label={`Pilih role ${role.roleCode}`}
+      aria-label={`Select role ${role.roleCode}`}
       onPress={onSelect}
       className={`w-full rounded-xl border px-4 py-3 text-left transition-colors h-auto ${
         isSelected

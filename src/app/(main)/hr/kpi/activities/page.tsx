@@ -15,7 +15,7 @@ export default function KpiActivitiesPage() {
       <Surface className="flex flex-col items-center justify-center gap-3 rounded-3xl p-12">
         <ClipboardText className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Manajemen Aktivitas KPI akan diimplementasikan pada fase P2.
+          KPI Activity management will be implemented in phase P2.
         </p>
       </Surface>
     </div>

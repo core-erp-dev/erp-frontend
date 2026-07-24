@@ -79,13 +79,13 @@ export default function LoginPage() {
       const message = error.response?.data?.message;
 
       if (status === 401) {
-        setApiError('Email/NIP atau kata sandi salah');
+        setApiError('Invalid email/NIP or password');
       } else if (status === 500) {
-        setApiError('Server error, coba lagi nanti');
+        setApiError('Server error, please try again later');
       } else if (status === 0 || !status) {
-        setApiError('Koneksi gagal, periksa jaringan Anda');
+        setApiError('Connection failed, check your network');
       } else {
-        setApiError(message || 'Login gagal, coba lagi');
+        setApiError(message || 'Login failed, please try again');
       }
     } finally {
       setIsLoading(false);
@@ -113,7 +113,7 @@ export default function LoginPage() {
 
           {/* Tagline */}
           <p className="text-base xl:text-lg text-white/80 leading-relaxed">
-            Platform ERP terintegrasi untuk mengelola operasional, SDM, dan performa bisnis Anda.
+            Integrated ERP platform to manage operations, HR, and business performance.
           </p>
         </div>
       </div>
@@ -144,9 +144,9 @@ export default function LoginPage() {
             </div>
 
             <Card.Header className="md:pt-6">
-              <Card.Title>Masuk</Card.Title>
+              <Card.Title>Sign In</Card.Title>
               <Card.Description>
-                Masukkan kredensial Anda untuk mengakses akun
+                Enter your credentials to access your account
               </Card.Description>
             </Card.Header>
 
@@ -154,10 +154,10 @@ export default function LoginPage() {
               <Card.Content>
                 <div className="flex flex-col gap-4">
                   <TextField name="username" isInvalid={isUsernameEmpty}>
-                    <Label>Email atau NIP</Label>
+                    <Label>Email or NIP</Label>
                     <Input
                       type="text"
-                      placeholder="Masukkan email atau NIP"
+                      placeholder="Enter email or NIP"
                       variant="secondary"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
@@ -165,12 +165,12 @@ export default function LoginPage() {
                       autoComplete="username"
                     />
                     {isUsernameEmpty && (
-                      <FieldError>Email/NIP tidak boleh kosong</FieldError>
+                      <FieldError>Email/NIP is required</FieldError>
                     )}
                   </TextField>
 
                   <TextField name="password" isInvalid={isPasswordEmpty}>
-                    <Label>Kata Sandi</Label>
+                    <Label>Password</Label>
                     <Input
                       type="password"
                       placeholder="••••••••"
@@ -181,7 +181,7 @@ export default function LoginPage() {
                       autoComplete="current-password"
                     />
                     {isPasswordEmpty && (
-                      <FieldError>Kata sandi tidak boleh kosong</FieldError>
+                      <FieldError>Password is required</FieldError>
                     )}
                   </TextField>
                 </div>
@@ -192,10 +192,10 @@ export default function LoginPage() {
                   {isLoading ? (
                     <>
                       <CircleNotch className="mr-2 h-4 w-4 animate-spin" />
-                      Memuat...
+                      Loading...
                     </>
                   ) : (
-                    'Masuk'
+                    'Sign In'
                   )}
                 </Button>
               </Card.Footer>

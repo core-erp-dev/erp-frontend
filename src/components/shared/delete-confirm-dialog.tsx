@@ -10,7 +10,7 @@ interface DeleteConfirmDialogProps {
   onConfirm: () => Promise<void>;
   /** Display name of the entity being deleted */
   name: string;
-  /** Label for the entity type (e.g. "karyawan", "jabatan") */
+  /** Label for the entity type (e.g. "employee", "position") */
   entityLabel: string;
   /** Optional additional warning message */
   warning?: string;
@@ -41,12 +41,12 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
               <Modal.Icon className="bg-danger-soft text-danger-soft-foreground">
                 <Warning className="size-5" />
               </Modal.Icon>
-              <Modal.Heading>Konfirmasi Hapus</Modal.Heading>
+              <Modal.Heading>Confirm Delete</Modal.Heading>
             </Modal.Header>
 
             <Modal.Body>
               <p className="text-sm text-muted-foreground text-center">
-                Apakah Anda yakin ingin menghapus {entityLabel}{' '}
+                Are you sure you want to delete this {entityLabel}{' '}
                 <strong className="text-foreground">{name}</strong>?
                 {warning && (
                   <>
@@ -65,7 +65,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
                 isDisabled={isDeleting}
                 isPending={isDeleting}
               >
-                {isDeleting ? 'Menghapus...' : 'Hapus'}
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </Button>
               <Button
                 className="w-full"
@@ -74,7 +74,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
                 onPress={onClose}
                 isDisabled={isDeleting}
               >
-                Batal
+                Cancel
               </Button>
             </Modal.Footer>
             <Modal.CloseTrigger />

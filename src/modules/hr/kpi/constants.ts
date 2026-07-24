@@ -15,18 +15,18 @@ export const KPI_ROUTES = {
 // ── Labels ────────────────────────────────────────────────────────────────
 export const KPI_LABELS = {
   overview: 'Overview',
-  corporate: 'KPI Korporat',
-  activities: 'Aktivitas KPI',
-  reports: 'Laporan Pelaksanaan',
-  approvals: 'Persetujuan Aktivitas',
+  corporate: 'Corporate KPI',
+  activities: 'KPI Activities',
+  reports: 'Execution Reports',
+  approvals: 'Activity Approvals',
 } as const;
 
 export const KPI_DESCRIPTIONS = {
-  overview: 'Ringkasan performa KPI organisasi.',
-  corporate: 'Kelola pohon KPI korporat dan target tahunan.',
-  activities: 'Kelola aktivitas KPI, buat permintaan perubahan, dan pantau progres.',
-  reports: 'Sampaikan laporan pelaksanaan, unggah bukti, dan tinjau laporan tim.',
-  approvals: 'Setujui atau tolak permintaan perubahan aktivitas KPI.',
+  overview: 'Organization KPI performance summary.',
+  corporate: 'Manage the corporate KPI tree and annual targets.',
+  activities: 'Manage KPI activities, create change requests, and monitor progress.',
+  reports: 'Submit execution reports, upload evidence, and review team reports.',
+  approvals: 'Approve or reject KPI activity change requests.',
 } as const;
 
 // ── Permission Groups (for sidebar visibility) ─────────────────────────────

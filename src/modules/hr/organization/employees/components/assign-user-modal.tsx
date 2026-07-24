@@ -84,24 +84,24 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
   const activeUsers = users.filter((u) => !u.deletedAt);
 
   const getSelectedUserName = () => {
-    if (!formData.userId) return "Karyawan tidak ditemukan";
+    if (!formData.userId) return "Employee not found";
     const user = activeUsers.find((u) => u.id === formData.userId);
     return user
-      ? `${user.fullName} (${user.nip || "Tanpa NIP"})`
-      : "Karyawan tidak ditemukan";
+      ? `${user.fullName} (${user.nip || "No NIP"})`
+      : "Employee not found";
   };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.userId) {
-      newErrors.userId = "Data karyawan tidak valid";
+      newErrors.userId = "Invalid employee data";
     }
     if (!formData.positionId) {
-      newErrors.positionId = "Pilih jabatan terlebih dahulu";
+      newErrors.positionId = "Please select a position first";
     }
     if (!formData.startDate) {
-      newErrors.startDate = "Tanggal mulai wajib diisi";
+      newErrors.startDate = "Start date is required";
     }
 
     setErrors(newErrors);
@@ -141,7 +141,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
             <Modal.CloseTrigger />
 
             <Modal.Header>
-              <Modal.Heading className="px-2">Atur Jabatan Karyawan</Modal.Heading>
+              <Modal.Heading className="px-2">Assign Employee</Modal.Heading>
             </Modal.Header>
 
             <Modal.Body className="p-2">
@@ -157,7 +157,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                   name="userName"
                   isInvalid={!!errors.userId}
                 >
-                  <Label>Karyawan</Label>
+                  <Label>Employee</Label>
                   <Input value={getSelectedUserName()} />
                   {errors.userId && <FieldError>{errors.userId}</FieldError>}
                 </TextField>
@@ -166,7 +166,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                   isRequired
                   validationBehavior="aria"
                   className="w-full"
-                  placeholder="Cari dan pilih jabatan..."
+                  placeholder="Search and select position..."
                   selectionMode="single"
                   selectedKey={
                     formData.positionId ? formData.positionId.toString() : null
@@ -181,7 +181,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                   isInvalid={!!errors.positionId}
                   isDisabled={isLoading}
                 >
-                  <Label>Jabatan</Label>
+                  <Label>Position</Label>
                   <Autocomplete.Trigger>
                     <Autocomplete.Value />
                     <Autocomplete.ClearButton />
@@ -192,13 +192,13 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                       <SearchField autoFocus name="search" variant="secondary">
                         <SearchField.Group>
                           <SearchField.SearchIcon />
-                          <SearchField.Input placeholder="Cari jabatan..." />
+                          <SearchField.Input placeholder="Search positions..." />
                           <SearchField.ClearButton />
                         </SearchField.Group>
                       </SearchField>
                       <ListBox
                         renderEmptyState={() => (
-                          <EmptyState>Jabatan tidak ditemukan</EmptyState>
+                          <EmptyState>Position not found</EmptyState>
                         )}
                       >
                         {flatPositions.map(({ position }) => (
@@ -207,7 +207,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                             id={position.id.toString()}
                             textValue={position.positionName}
                           >
-                            {/* Render polos, tidak menjorok dan tanpa kode */}
+                            {/* Plain render, no indentation and without code */}
                             {position.positionName}
                             <ListBox.ItemIndicator />
                           </ListBox.Item>
@@ -238,7 +238,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                     setErrors((prev) => ({ ...prev, startDate: "" }));
                   }}
                 >
-                  <Label>Tanggal Mulai</Label>
+                  <Label>Start Date</Label>
                   <DateField.Group fullWidth>
                     <DateField.Input>
                       {(segment) => <DateField.Segment segment={segment} />}
@@ -253,7 +253,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                     <FieldError>{errors.startDate}</FieldError>
                   )}
                   <DatePicker.Popover>
-                    <Calendar aria-label="Pilih tanggal mulai">
+                    <Calendar aria-label="Select start date">
                       <Calendar.Header>
                         <Calendar.YearPickerTrigger>
                           <Calendar.YearPickerTriggerHeading />
@@ -283,7 +283,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                   </DatePicker.Popover>
                 </DatePicker>
 
-                {/* Switch di sebelah Kanan, Teks di Kiri */}
+                {/* Switch on the right, text on the left */}
                 <Switch
                   isSelected={formData.isPrimary}
                   onChange={(isSelected) =>
@@ -294,10 +294,10 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                 >
                   <Switch.Content>
                     <Label className="text-sm font-medium">
-                      Jadikan Jabatan Utama
+                      Set as Primary Position
                     </Label>
                     <Description className="text-xs text-muted-foreground block mt-0.5">
-                      Jabatan utama sebelumnya akan otomatis ditutup.
+                      Previous primary position will be automatically closed.
                     </Description>
                   </Switch.Content>
                   <Switch.Control>
@@ -313,7 +313,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                 onPress={onClose}
                 isDisabled={isLoading}
               >
-                Batal
+                Cancel
               </Button>
               <Button
                 type="submit"
@@ -322,7 +322,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                 isDisabled={isLoading}
                 isPending={isLoading}
               >
-                {isLoading ? "Menyimpan..." : "Simpan Jabatan"}
+                {isLoading ? "Saving..." : "Save Position"}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

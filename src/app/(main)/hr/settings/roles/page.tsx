@@ -93,7 +93,7 @@ export default function RolesPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Akses Ditolak</Alert.Title>
+            <Alert.Title>Access Denied</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
@@ -107,19 +107,19 @@ export default function RolesPage() {
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem>Hak Akses & Role</BreadcrumbsItem>
+        <BreadcrumbsItem>Access Control & Roles</BreadcrumbsItem>
       </Breadcrumbs>
 
       {/* Title + Actions */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-foreground">Semua Role</h1>
+          <h1 className="text-xl font-semibold text-foreground">Roles</h1>
           <Button
             isIconOnly
             variant="tertiary"
             size="sm"
             className="pointer-events-none text-sm font-medium"
-            aria-label={`Total ${displayRoles.length} role`}
+            aria-label={`Total ${displayRoles.length} roles`}
           >
             {displayRoles.length}
           </Button>
@@ -130,14 +130,14 @@ export default function RolesPage() {
             variant="tertiary"
             onPress={() => refresh()}
             isDisabled={isLoading}
-            aria-label="Muat ulang data role"
+            aria-label="Refresh role data"
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           {hasPerm(PERM.ROLE_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/hr/settings/roles/create')}>
               <Plus className="h-4 w-4" />
-              Tambah Role
+              Add Role
             </Button>
           )}
         </div>
@@ -149,11 +149,11 @@ export default function RolesPage() {
           {hasPerm(PERM.ROLE_READ_DELETED) && (
             <Button
               variant="tertiary"
-              aria-label="Tampilkan terhapus"
+              aria-label="Show deleted"
               onPress={() => setIncludeDeleted(!includeDeleted)}
             >
               <Eye className="h-4 w-4" />
-              Terhapus
+              Deleted
               {includeDeleted && (
                 <>
                   <span className="mx-0.5 h-4 w-px bg-border" />
@@ -163,7 +163,7 @@ export default function RolesPage() {
             </Button>
           )}
           {search && (
-            <Button isIconOnly variant="tertiary" aria-label="Reset filter" onPress={() => { setSearchInput(''); setSearch(''); }}>
+            <Button isIconOnly variant="tertiary" aria-label="Reset search" onPress={() => { setSearchInput(''); setSearch(''); }}>
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -176,7 +176,7 @@ export default function RolesPage() {
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
-            <SearchField.Input aria-label="Cari role" placeholder="Cari Kode/Nama Role" />
+            <SearchField.Input aria-label="Search roles" placeholder="Search Code/Name" />
             <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
@@ -205,7 +205,7 @@ export default function RolesPage() {
         onConfirm={handleDeleteConfirm}
         name={selectedRole?.roleName || ''}
         entityLabel="role"
-        warning="Role tidak akan bisa digunakan setelah dihapus."
+        warning="The role will no longer be usable after deletion."
         isDeleting={isDeleting}
       />
     </div>

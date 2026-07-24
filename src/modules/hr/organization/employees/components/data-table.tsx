@@ -50,13 +50,13 @@ export const DataTable: React.FC<DataTableProps> = ({
   return (
     <Table>
       <Table.ScrollContainer>
-        <Table.Content aria-label="Data Karyawan" className="min-w-[700px]">
+        <Table.Content aria-label="Employee Data" className="min-w-[700px]">
           <Table.Header>
             <Table.Column id="nip" isRowHeader>NIP</Table.Column>
-            <Table.Column id="nama">Nama</Table.Column>
+            <Table.Column id="nama">Name</Table.Column>
             <Table.Column id="email">Email</Table.Column>
-            <Table.Column id="jabatan">Jabatan</Table.Column>
-            <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
+            <Table.Column id="jabatan">Position</Table.Column>
+            <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
           </Table.Header>
           <Table.Body
             renderEmptyState={() =>
@@ -67,7 +67,7 @@ export const DataTable: React.FC<DataTableProps> = ({
               ) : (
                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                   <Tray className="h-8 w-8" />
-                  <span className="text-sm">Tidak ada data</span>
+                  <span className="text-sm">No data available</span>
                 </div>
               )
             }
@@ -88,7 +88,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Salin NIP ${emp.nip}`}
+                          aria-label={`Copy NIP ${emp.nip}`}
                           onPress={() => handleCopyNip(emp.id, emp.nip!)}
                         >
                           {copiedId === emp.id ? (
@@ -136,7 +136,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                           {others.length > 0 && (
                             <span
                               className="inline-flex cursor-help items-center rounded-full bg-surface-secondary px-1.5 py-0.5 text-xs text-muted-foreground"
-                              title={others.map(p => `${p.positionName} (Rangkap)`).join('\n')}
+                              title={others.map(p => `${p.positionName} (Secondary)`).join('\n')}
                             >
                               +{others.length}
                             </span>
@@ -154,7 +154,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                             isIconOnly
                             variant="tertiary"
                             size="sm"
-                            aria-label={`Pulihkan ${emp.fullName}`}
+                            aria-label={`Restore ${emp.fullName}`}
                             onPress={() => onRestore(emp)}
                           >
                             <ArrowCounterClockwise className="h-4 w-4" />
@@ -168,7 +168,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               isIconOnly
                               variant="tertiary"
                               size="sm"
-                              aria-label={`Detail ${emp.fullName}`}
+                              aria-label={`View ${emp.fullName}`}
                               onPress={() => {}}
                             >
                               <Link href={`/hr/organization/employees/${emp.id}`}>
@@ -194,7 +194,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               isIconOnly
                               variant="danger-soft"
                               size="sm"
-                              aria-label={`Hapus ${emp.fullName}`}
+                              aria-label={`Delete ${emp.fullName}`}
                               onPress={() => onDelete(emp)}
                             >
                               <Trash className="h-4 w-4" />
@@ -215,7 +215,7 @@ export const DataTable: React.FC<DataTableProps> = ({
         <Table.Footer>
           <Pagination size="sm">
             <Pagination.Summary>
-              {startItem} to {endItem} of {totalItems} hasil
+              {startItem} to {endItem} of {totalItems} results
             </Pagination.Summary>
             <Pagination.Content>
               <Pagination.Item>
@@ -224,7 +224,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   onPress={() => onPageChange(currentPage - 1)}
                 >
                   <Pagination.PreviousIcon />
-                  Sebelumnya
+                  Previous
                 </Pagination.Previous>
               </Pagination.Item>
               {pages.map((p) => (
@@ -242,7 +242,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   isDisabled={currentPage === totalPages}
                   onPress={() => onPageChange(currentPage + 1)}
                 >
-                  Selanjutnya
+                  Next
                   <Pagination.NextIcon />
                 </Pagination.Next>
               </Pagination.Item>

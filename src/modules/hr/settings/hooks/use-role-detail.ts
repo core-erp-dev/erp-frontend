@@ -33,7 +33,7 @@ export function useRoleDetail(id: string): UseRoleDetailReturn {
       setRole(roleData);
       setPermissions(permsData);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal memuat data role';
+      const msg = err instanceof Error ? err.message : 'Failed to load role data';
       setError(msg);
     } finally {
       setIsLoading(false);

@@ -15,7 +15,7 @@ export default function KpiReportsPage() {
       <Surface className="flex flex-col items-center justify-center gap-3 rounded-3xl p-12">
         <Article className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Manajemen Laporan Pelaksanaan akan diimplementasikan pada fase P3.
+          Execution Report management will be implemented in phase P3.
         </p>
       </Surface>
     </div>

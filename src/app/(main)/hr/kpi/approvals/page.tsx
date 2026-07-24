@@ -15,7 +15,7 @@ export default function KpiApprovalsPage() {
       <Surface className="flex flex-col items-center justify-center gap-3 rounded-3xl p-12">
         <Checks className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Persetujuan Aktivitas akan diimplementasikan pada fase P2.
+          Activity Approvals will be implemented in phase P2.
         </p>
       </Surface>
     </div>

@@ -23,7 +23,7 @@ export function DateFieldPicker({
   errorMessage,
 }: DateFieldPickerProps) {
   return (
-    <I18nProvider locale="id-ID">
+    <I18nProvider locale="en-GB">
       <DatePicker
         className="w-full"
         value={value ? parseDate(value) : null}
@@ -45,7 +45,7 @@ export function DateFieldPicker({
         </DateField.Group>
         {errorMessage && <FieldError>{errorMessage}</FieldError>}
         <DatePicker.Popover>
-          <Calendar aria-label={`Pilih ${label.toLowerCase()}`}>
+          <Calendar aria-label={`Select ${label.toLowerCase()}`}>
             <Calendar.Header>
               <Calendar.YearPickerTrigger>
                 <Calendar.YearPickerTriggerHeading />

@@ -44,7 +44,7 @@ export function usePositionFormData(isEditMode: boolean, initialData?: PositionT
       for (const roleId of roleIds) await organizationApi.assignRoleToPosition(newPos.id, roleId);
       return newPos.id;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal menambahkan jabatan'));
+      toast.danger(extractErrorMessage(err, 'Failed to create position'));
       return null;
     }
   }, []);
@@ -61,7 +61,7 @@ export function usePositionFormData(isEditMode: boolean, initialData?: PositionT
       for (const roleId of toRemove) await organizationApi.removeRoleFromPosition(id, roleId);
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal memperbarui jabatan'));
+      toast.danger(extractErrorMessage(err, 'Failed to update position'));
       return false;
     }
   }, []);

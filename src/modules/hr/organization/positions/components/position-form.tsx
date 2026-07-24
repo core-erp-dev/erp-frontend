@@ -21,12 +21,12 @@ import type { RoleResponse } from '@/modules/hr/organization/employees/types';
 import { usePositionFormData } from '../hooks/use-position-form-data';
 
 const formSchema = z.object({
-  positionCode: z.string().min(1, 'Kode jabatan wajib diisi'),
-  positionName: z.string().min(1, 'Nama jabatan wajib diisi'),
+  positionCode: z.string().min(1, 'Position code is required'),
+  positionName: z.string().min(1, 'Position name is required'),
   description: z.string().optional(),
   parentId: z.string().nullable().optional(),
-  unitName: z.string().max(100, 'Nama bagian/unit maksimal 100 karakter').optional(),
-  roleIds: z.array(z.number()).min(1, 'Pilih minimal 1 role'),
+  unitName: z.string().max(100, 'Unit name max 100 characters').optional(),
+  roleIds: z.array(z.number()).min(1, 'Select at least 1 role'),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -48,7 +48,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
 
   const { contains } = useFilter({ sensitivity: 'base' });
 
-  // Get parentId from query params (for "Tambah Bawahan")
+  // Get parentId from query params (for "Add Subordinate")
   const queryParentId = searchParams.get('parentId');
 
   const form = useForm<FormValues>({
@@ -124,7 +124,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       const ok = await submitUpdate(initialData.id, payload, values.roleIds);
       setIsSubmitting(false);
       if (ok) onSuccess();
-      else setSubmitError('Gagal memperbarui jabatan');
+      else setSubmitError('Failed to update position');
     } else {
       const payload: PositionRequest = {
         positionCode: values.positionCode,
@@ -136,7 +136,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       const newId = await submitCreate(payload, values.roleIds);
       setIsSubmitting(false);
       if (newId) onSuccess();
-      else setSubmitError('Gagal menambahkan jabatan');
+      else setSubmitError('Failed to add position');
     }
   };
 
@@ -153,24 +153,24 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem href="/hr/organization/positions">Jabatan</BreadcrumbsItem>
-        <BreadcrumbsItem>{isEditMode ? 'Edit' : 'Tambah'}</BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr/organization/positions">Positions</BreadcrumbsItem>
+        <BreadcrumbsItem>{isEditMode ? 'Edit' : 'Add'}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center gap-3">
-        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Kembali">
+        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-semibold text-foreground">
-          {isEditMode ? 'Edit Jabatan' : 'Tambah Jabatan Baru'}
+          {isEditMode ? 'Edit Position' : 'Add New Position'}
         </h1>
       </div>
 
       <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-6">
 
-          {/* ── INFORMASI DASAR ── */}
+          {/* ── BASIC INFORMATION ── */}
           <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Informasi Dasar</h2>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Basic Information</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Controller
                 control={form.control}
@@ -179,8 +179,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   <TextField isRequired validationBehavior="aria" className="w-full"
                     name={field.name} value={field.value} onChange={field.onChange}
                     isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                    <Label>Kode Jabatan</Label>
-                    <Input variant="secondary" placeholder="Contoh: MGR-HRD-001" />
+                    <Label>Position Code</Label>
+                    <Input variant="secondary" placeholder="Example: MGR-HRD-001" />
                     {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                   </TextField>
                 )}
@@ -192,8 +192,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   <TextField isRequired validationBehavior="aria" className="w-full"
                     name={field.name} value={field.value} onChange={field.onChange}
                     isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                    <Label>Nama Jabatan</Label>
-                    <Input variant="secondary" placeholder="Contoh: Manager HRD" />
+                    <Label>Position Name</Label>
+                    <Input variant="secondary" placeholder="Example: HRD Manager" />
                     {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                   </TextField>
                 )}
@@ -206,19 +206,19 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                 <TextField validationBehavior="aria" className="w-full"
                   name={field.name} value={field.value ?? ''} onChange={field.onChange}
                   isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                  <Label>Deskripsi</Label>
-                  <TextArea variant="secondary" placeholder="Deskripsi singkat jabatan" rows={2} />
+                  <Label>Description</Label>
+                  <TextArea variant="secondary" placeholder="Brief position description" rows={2} />
                   {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                 </TextField>
               )}
             />
           </Surface>
 
-          {/* ── STRUKTUR & AKSES ── */}
+          {/* ── STRUCTURE & ACCESS ── */}
           <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Struktur & Akses</h2>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Structure & Access</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Atasan — HeroUI Select */}
+              {/* Supervisor — HeroUI Select */}
               <Controller
                 control={form.control}
                 name="parentId"
@@ -229,13 +229,13 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                     selectedKey={field.value || null}
                     onSelectionChange={(k) => field.onChange(k ? String(k) : null)}
                     isDisabled={isSubmitting}
-                    placeholder="Tanpa atasan"
+                    placeholder="No supervisor"
                   >
-                    <Label>Atasan</Label>
+                    <Label>Supervisor</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox>
-                        <ListBox.Item id="" textValue="Tanpa atasan">Tanpa atasan</ListBox.Item>
+                        <ListBox.Item id="" textValue="No supervisor">No supervisor</ListBox.Item>
                         {flatParents.map((p) => (
                           <ListBox.Item key={p.id} id={p.id} textValue={p.label}>{p.label}</ListBox.Item>
                         ))}
@@ -244,7 +244,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   </Select>
                 )}
               />
-              {/* Nama Bagian/Unit */}
+              {/* Unit/Department Name */}
               <Controller
                 control={form.control}
                 name="unitName"
@@ -252,8 +252,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   <TextField validationBehavior="aria" className="w-full"
                     name={field.name} value={field.value ?? ''} onChange={field.onChange}
                     isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
-                    <Label>Nama Bagian/Unit</Label>
-                    <Input variant="secondary" placeholder="Contoh: Hublang" />
+                    <Label>Unit Name</Label>
+                    <Input variant="secondary" placeholder="Example: HR Department" />
                     {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
                   </TextField>
                 )}
@@ -273,7 +273,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                     <Autocomplete
                       variant="secondary"
                       className="w-full"
-                      placeholder="Pilih role"
+                      placeholder="Select role"
                       selectionMode="multiple"
                       isRequired
                       value={selectedKeys}
@@ -320,11 +320,11 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                           <SearchField autoFocus name="search" variant="secondary">
                             <SearchField.Group>
                               <SearchField.SearchIcon />
-                              <SearchField.Input placeholder="Cari role..." />
+                              <SearchField.Input placeholder="Search role..." />
                               <SearchField.ClearButton />
                             </SearchField.Group>
                           </SearchField>
-                          <ListBox renderEmptyState={() => <EmptyState>Role tidak ditemukan</EmptyState>}>
+                          <ListBox renderEmptyState={() => <EmptyState>No roles found</EmptyState>}>
                             {sortedRoles.map((role) => (
                               <ListBox.Item key={role.id} id={String(role.id)} textValue={role.roleCode}>
                                 <div className="flex flex-col">
@@ -359,11 +359,11 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>
-              Batal
+              Cancel
             </Button>
             <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
               <FloppyDisk className="h-4 w-4" />
-              Simpan
+              Save
             </Button>
           </div>
         </form>

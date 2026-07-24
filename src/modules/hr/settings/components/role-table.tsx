@@ -23,7 +23,7 @@ export function RoleTable({ roles, includeDeleted, onView, onEdit, onDelete, onR
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
         <Tray className="h-8 w-8" />
-        <span className="text-sm">Tidak ada data</span>
+        <span className="text-sm">No data available</span>
       </div>
     );
   }
@@ -31,13 +31,13 @@ export function RoleTable({ roles, includeDeleted, onView, onEdit, onDelete, onR
   return (
     <Table>
       <Table.ScrollContainer>
-        <Table.Content aria-label="Daftar role" className="min-w-[700px]">
+        <Table.Content aria-label="Role List" className="min-w-[700px]">
           <Table.Header>
-            <Table.Column id="code" isRowHeader>Kode</Table.Column>
-            <Table.Column id="name">Nama</Table.Column>
-            <Table.Column id="description">Deskripsi</Table.Column>
+            <Table.Column id="code" isRowHeader>Code</Table.Column>
+            <Table.Column id="name">Name</Table.Column>
+            <Table.Column id="description">Description</Table.Column>
             <Table.Column id="permissions">Permissions</Table.Column>
-            <Table.Column id="actions" className="text-right">Aksi</Table.Column>
+            <Table.Column id="actions" className="text-right">Actions</Table.Column>
           </Table.Header>
           <Table.Body>
             {roles.map((role) => (
@@ -70,7 +70,7 @@ export function RoleTable({ roles, includeDeleted, onView, onEdit, onDelete, onR
                           isIconOnly
                           variant="tertiary"
                           size="sm"
-                          aria-label={`Pulihkan ${role.roleName}`}
+                          aria-label={`Restore ${role.roleName}`}
                           onPress={() => onRestore(role.id)}
                         >
                           <ArrowCounterClockwise className="h-4 w-4" />
@@ -83,7 +83,7 @@ export function RoleTable({ roles, includeDeleted, onView, onEdit, onDelete, onR
                             isIconOnly
                             variant="tertiary"
                             size="sm"
-                            aria-label={`Lihat ${role.roleName}`}
+                            aria-label={`View ${role.roleName}`}
                             onPress={() => onView(role.id)}
                           >
                             <Eye className="h-4 w-4" />
@@ -107,7 +107,7 @@ export function RoleTable({ roles, includeDeleted, onView, onEdit, onDelete, onR
                             isIconOnly
                             variant="danger-soft"
                             size="sm"
-                            aria-label={`Hapus ${role.roleName}`}
+                            aria-label={`Delete ${role.roleName}`}
                             onPress={() => onDelete(role)}
                           >
                             <Trash className="h-4 w-4" />

@@ -24,12 +24,12 @@ import type { PositionTree } from '@/modules/hr/organization/positions/types';
 import { useDebounce } from '@/hooks/use-debounce';
 
 const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
-  { field: 'positionName', label: 'Nama (A-Z)', dir: 'asc' },
-  { field: 'positionName', label: 'Nama (Z-A)', dir: 'desc' },
-  { field: 'positionCode', label: 'Kode (A-Z)', dir: 'asc' },
-  { field: 'positionCode', label: 'Kode (Z-A)', dir: 'desc' },
-  { field: 'positionLevel', label: 'Level (Terendah)', dir: 'asc' },
-  { field: 'positionLevel', label: 'Level (Tertinggi)', dir: 'desc' },
+  { field: 'positionName', label: 'Name (A-Z)', dir: 'asc' },
+  { field: 'positionName', label: 'Name (Z-A)', dir: 'desc' },
+  { field: 'positionCode', label: 'Code (A-Z)', dir: 'asc' },
+  { field: 'positionCode', label: 'Code (Z-A)', dir: 'desc' },
+  { field: 'positionLevel', label: 'Level (Lowest)', dir: 'asc' },
+  { field: 'positionLevel', label: 'Level (Highest)', dir: 'desc' },
 ];
 
 export default function PositionsPage() {
@@ -90,11 +90,11 @@ export default function PositionsPage() {
   const handleRestoreRequest = useCallback(async (id: string, name: string) => {
     try {
       await organizationApi.restorePosition(id);
-      toast.success(`Jabatan "${name}" berhasil dipulihkan`);
+      toast.success(`Position "${name}" restored successfully`);
       refreshTable();
       refreshTree();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Gagal memulihkan jabatan';
+      const msg = err instanceof Error ? err.message : 'Failed to restore position';
       toast.danger(msg);
     }
   }, [refreshTable, refreshTree]);
@@ -162,19 +162,19 @@ export default function PositionsPage() {
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem>Struktur Jabatan</BreadcrumbsItem>
+        <BreadcrumbsItem>Position Structure</BreadcrumbsItem>
       </Breadcrumbs>
 
-      {/* Row 1: Title + Refresh + Tambah */}
+      {/* Row 1: Title + Refresh + Add */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-foreground">Struktur Jabatan</h1>
+          <h1 className="text-xl font-semibold text-foreground">Position Structure</h1>
           <Button
             isIconOnly
             variant="tertiary"
             size="sm"
             className="pointer-events-none text-sm font-medium"
-            aria-label={`Total ${viewMode === 'table' ? totalItems : treePositions.length} jabatan`}
+            aria-label={`Total ${viewMode === 'table' ? totalItems : treePositions.length} positions`}
           >
             {viewMode === 'table' ? totalItems : treePositions.length}
           </Button>
@@ -186,7 +186,7 @@ export default function PositionsPage() {
             variant="tertiary"
             onPress={() => { refreshTable(); refreshTree(); }}
             isDisabled={isLoading || isLoadingTree}
-            aria-label="Muat ulang"
+            aria-label="Refresh"
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
@@ -194,7 +194,7 @@ export default function PositionsPage() {
           {hasPerm(PERM.POSITION_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/hr/organization/positions/create')}>
               <Plus className="h-4 w-4" />
-              Tambah Jabatan
+              Add Position
             </Button>
           )}
         </div>
@@ -209,8 +209,8 @@ export default function PositionsPage() {
             onSelectionChange={(key) => handleViewModeChange(key as 'table' | 'tree')}
           >
             <Tabs.ListContainer>
-              <Tabs.List aria-label="Tampilan">
-                <Tabs.Tab id="table">Tabel<Tabs.Indicator /></Tabs.Tab>
+              <Tabs.List aria-label="View">
+                <Tabs.Tab id="table">Table<Tabs.Indicator /></Tabs.Tab>
                 <Tabs.Tab id="tree">Tree<Tabs.Indicator /></Tabs.Tab>
               </Tabs.List>
             </Tabs.ListContainer>
@@ -220,14 +220,14 @@ export default function PositionsPage() {
             <Button
               variant="tertiary"
               onPress={allExpanded ? handleCollapseAll : handleExpandAll}
-              aria-label={allExpanded ? 'Ciutkan semua' : 'Perluas semua'}
+              aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
             >
               {allExpanded ? (
                 <ArrowsInSimple className="h-4 w-4" />
               ) : (
                 <ArrowsOutSimple className="h-4 w-4" />
               )}
-              {allExpanded ? 'Ciutkan Semua' : 'Perluas Semua'}
+              {allExpanded ? 'Collapse All' : 'Expand All'}
             </Button>
           )}
 
@@ -235,9 +235,9 @@ export default function PositionsPage() {
             <>
               {/* Sort Dropdown */}
               <Dropdown>
-                <Button variant="tertiary" aria-label="Urutkan">
+                <Button variant="tertiary" aria-label="Sort">
                   <FunnelSimple className="h-4 w-4" />
-                  Urut
+                  Sort
                   {!isDefaultSort && (
                     <>
                       <span className="mx-0.5 h-4 w-px bg-border" />
@@ -256,11 +256,11 @@ export default function PositionsPage() {
                 </Dropdown.Popover>
               </Dropdown>
 
-              {/* Toggle: Tampilkan Terhapus */}
+              {/* Toggle: Show Deleted */}
               {hasPerm(PERM.POSITION_READ_DELETED) && (
-                <Button variant="tertiary" aria-label="Tampilkan terhapus" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
+                <Button variant="tertiary" aria-label="Show deleted" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
                   <Eye className="h-4 w-4" />
-                  Terhapus
+                  Deleted
                   {filters.includeDeleted && (
                     <>
                       <span className="mx-0.5 h-4 w-px bg-border" />
@@ -272,7 +272,7 @@ export default function PositionsPage() {
 
               {/* Reset */}
               {hasActiveFilters && (
-                <Button isIconOnly variant="tertiary" aria-label="Reset filter" onPress={resetFilters}>
+                <Button isIconOnly variant="tertiary" aria-label="Reset filters" onPress={resetFilters}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -289,7 +289,7 @@ export default function PositionsPage() {
           >
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input aria-label="Cari jabatan" placeholder="Cari kode atau nama jabatan" />
+              <SearchField.Input aria-label="Search positions" placeholder="Search code or name" />
               <SearchField.ClearButton />
             </SearchField.Group>
           </SearchField>
@@ -319,8 +319,8 @@ export default function PositionsPage() {
         onConfirm={handleDeleteConfirm}
         name={deleteTarget?.name || ''}
         isDeleting={isDeleting}
-        entityLabel="jabatan"
-        warning="Jabatan yang masih memiliki bawahan atau karyawan aktif tidak dapat dihapus."
+        entityLabel="position"
+        warning="A position with active subordinates or employees cannot be deleted."
       />
     </div>
   );

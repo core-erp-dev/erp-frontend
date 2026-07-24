@@ -75,7 +75,7 @@ export function usePositionData(): UsePositionDataReturn {
       setPositions(data.content);
       setPagination(data);
     } catch {
-      toast.danger('Gagal memuat data jabatan');
+      toast.danger('Failed to load position data');
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +92,7 @@ export function usePositionData(): UsePositionDataReturn {
       const tree = await organizationApi.fetchPositionTree();
       setTreePositions(tree);
     } catch {
-      toast.danger('Gagal memuat struktur jabatan');
+      toast.danger('Failed to load position structure');
     } finally {
       setIsLoadingTree(false);
     }
@@ -135,12 +135,12 @@ export function usePositionData(): UsePositionDataReturn {
   const deletePosition = useCallback(async (id: string): Promise<boolean> => {
     try {
       await organizationApi.deletePosition(id);
-      toast.success('Jabatan berhasil dihapus');
+      toast.success('Position deleted successfully');
       await fetchPositions(filters);
       await fetchTree();
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Gagal menghapus jabatan'));
+      toast.danger(extractErrorMessage(err, 'Failed to delete position'));
       return false;
     }
   }, [fetchPositions, fetchTree, filters]);

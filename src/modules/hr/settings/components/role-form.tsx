@@ -25,8 +25,8 @@ import type { CreateRoleRequest, UpdateRoleRequest, Role } from '../types';
 
 const getFormSchema = (isEditMode: boolean) =>
   z.object({
-    roleCode: z.string().min(1, 'Kode role wajib diisi'),
-    roleName: z.string().min(1, 'Nama role wajib diisi'),
+    roleCode: z.string().min(1, 'Role code is required'),
+    roleName: z.string().min(1, 'Role name is required'),
     description: z.string().optional(),
     permissionIds: z.array(z.number()).optional(),
   });
@@ -41,8 +41,8 @@ interface RoleFormProps {
 }
 
 const moduleLabels: Record<string, string> = {
-  position: 'Jabatan',
-  user: 'Pengguna',
+  position: 'Position',
+  user: 'User',
   role: 'Role & Permission',
   permission: 'Permission',
 };
@@ -125,13 +125,13 @@ export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
         <BreadcrumbsItem href="/hr">HR</BreadcrumbsItem>
-        <BreadcrumbsItem href="/hr/settings/roles">Hak Akses & Role</BreadcrumbsItem>
-        <BreadcrumbsItem>{isEditMode ? 'Edit Role' : 'Tambah Role'}</BreadcrumbsItem>
+        <BreadcrumbsItem href="/hr/settings/roles">Access Control & Roles</BreadcrumbsItem>
+        <BreadcrumbsItem>{isEditMode ? 'Edit Role' : 'Create Role'}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <Surface className="rounded-3xl p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">
-          Informasi Role
+          Role Information
         </h2>
         <div className="grid gap-6 sm:grid-cols-2">
           <Controller
@@ -139,7 +139,7 @@ export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps
             control={control}
             render={({ field, fieldState: { error } }) => (
               <TextField isRequired isInvalid={!!error}>
-                <Label>Kode Role</Label>
+                <Label>Role Code</Label>
                 <Input variant="secondary" placeholder="ROLE_MANAGER" {...field} />
                 <FieldError />
               </TextField>
@@ -151,7 +151,7 @@ export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps
             control={control}
             render={({ field, fieldState: { error } }) => (
               <TextField isRequired isInvalid={!!error}>
-                <Label>Nama Role</Label>
+                <Label>Role Name</Label>
                 <Input variant="secondary" placeholder="Manager" {...field} />
                 <FieldError />
               </TextField>
@@ -163,8 +163,8 @@ export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps
             control={control}
             render={({ field }) => (
               <TextField>
-                <Label>Deskripsi</Label>
-                <TextArea variant="secondary" placeholder="Deskripsi role..." rows={3} {...field} />
+                <Label>Description</Label>
+                <TextArea variant="secondary" placeholder="Role description..." rows={3} {...field} />
               </TextField>
             )}
           />
@@ -226,11 +226,11 @@ export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps
       <div className="flex items-center gap-3 justify-end">
         <Button variant="secondary" onPress={() => router.back()}>
           <X className="h-4 w-4" />
-          Batal
+          Cancel
         </Button>
         <Button variant="primary" onPress={handleSave}>
           <FloppyDisk className="h-4 w-4" />
-          Simpan
+          Save
         </Button>
       </div>
     </div>
