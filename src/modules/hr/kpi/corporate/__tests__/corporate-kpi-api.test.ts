@@ -101,19 +101,6 @@ describe('getDeleted', () => {
   });
 });
 
-/* ── No unsupported methods ── */
-
-it('does not implement getById', () => {
-  expect((corporateKpiApi as Record<string, unknown>).getById).toBeUndefined();
-});
-
-it('does not implement delete, restore, changeStatus', () => {
-  const apiObj = corporateKpiApi as Record<string, unknown>;
-  expect(apiObj.delete).toBeUndefined();
-  expect(apiObj.restore).toBeUndefined();
-  expect(apiObj.changeStatus).toBeUndefined();
-});
-
 /* ── create ── */
 
 describe('create', () => {

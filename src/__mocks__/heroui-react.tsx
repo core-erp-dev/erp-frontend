@@ -3,8 +3,17 @@ import React from 'react';
 /* ── Simple mock factory ── */
 
 function mk(name: string, displayName?: string): React.FC<Record<string, unknown>> {
-  const Cmp: React.FC<Record<string, unknown>> = ({ children, ...props }) =>
-    React.createElement('div', { ...props, 'data-mock': name }, children as React.ReactNode[]);
+  const Cmp: React.FC<Record<string, unknown>> = ({ children, ...props }) => {
+    const { onPress, isDisabled, ...rest } = props as Record<string, unknown>;
+    const extra: Record<string, unknown> = { ...rest, 'data-mock': name };
+    if (isDisabled !== undefined) extra.disabled = isDisabled;
+    if (onPress) extra.onClick = onPress;
+    // Buttons must render as <button> for isDisabled/toBeDisabled to work
+    if (name === 'Button') {
+      return React.createElement('button', extra, children as React.ReactNode[]);
+    }
+    return React.createElement('div', extra, children as React.ReactNode[]);
+  };
   Cmp.displayName = displayName || name;
   return Cmp;
 }
