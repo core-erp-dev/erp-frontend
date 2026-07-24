@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Table, Badge, ProgressBar, Button } from '@heroui/react';
-import { Eye, Tray } from '@phosphor-icons/react';
+import { Eye, Tray, TreeStructure, PencilSimple, X as XIcon } from '@phosphor-icons/react';
 import {
   ACTIVITY_STATUS_LABEL,
   ACTIVITY_STATUS_VARIANT,
@@ -14,10 +14,17 @@ interface ActivityTableProps {
   isLoading: boolean;
   error: string | null;
   onViewDetail: (id: string) => void;
-  /** Only show view button, no mutation actions. P2.2 adds them. */
+  /** P2.2 mutation actions — only active when kpi_activity:request is granted. */
+  canRequest?: boolean;
+  onCreateChild?: (activity: KpiActivityResponse) => void;
+  onUpdate?: (activity: KpiActivityResponse) => void;
+  onCancel?: (activity: KpiActivityResponse) => void;
 }
 
-export function ActivityTable({ items, isLoading, error, onViewDetail }: ActivityTableProps) {
+export function ActivityTable({
+  items, isLoading, error, onViewDetail,
+  canRequest, onCreateChild, onUpdate, onCancel,
+}: ActivityTableProps) {
   if (error) {
     return (
       <div className="flex items-center justify-center rounded-3xl bg-surface-secondary p-12 text-sm text-danger">
@@ -43,6 +50,8 @@ export function ActivityTable({ items, isLoading, error, onViewDetail }: Activit
     );
   }
 
+  const showActions = canRequest && (onCreateChild || onUpdate || onCancel);
+
   return (
     <Table aria-label="KPI Activities">
       <Table.ScrollContainer>
@@ -56,7 +65,7 @@ export function ActivityTable({ items, isLoading, error, onViewDetail }: Activit
             <Table.Column id="realized">Realized</Table.Column>
             <Table.Column id="progress">Progress</Table.Column>
             <Table.Column id="status">Status</Table.Column>
-            <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>
+            {showActions && <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>}
           </Table.Header>
           <Table.Body>
             {items.map((item) => (
@@ -97,19 +106,58 @@ export function ActivityTable({ items, isLoading, error, onViewDetail }: Activit
                     {ACTIVITY_STATUS_LABEL[item.status]}
                   </Badge>
                 </Table.Cell>
-                <Table.Cell>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      isIconOnly
-                      variant="tertiary"
-                      size="sm"
-                      aria-label={`View detail for ${item.activityName}`}
-                      onPress={() => onViewDetail(item.id)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </Table.Cell>
+                {showActions && (
+                  <Table.Cell>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        isIconOnly
+                        variant="tertiary"
+                        size="sm"
+                        aria-label={`View detail for ${item.activityName}`}
+                        onPress={() => onViewDetail(item.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {item.status === 'ACTIVE' && (
+                        <>
+                          {onCreateChild && (
+                            <Button
+                              isIconOnly
+                              variant="tertiary"
+                              size="sm"
+                              aria-label={`Create child for ${item.activityName}`}
+                              onPress={() => onCreateChild(item)}
+                            >
+                              <TreeStructure className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {onUpdate && (
+                            <Button
+                              isIconOnly
+                              variant="tertiary"
+                              size="sm"
+                              aria-label={`Update ${item.activityName}`}
+                              onPress={() => onUpdate(item)}
+                            >
+                              <PencilSimple className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {onCancel && (
+                            <Button
+                              isIconOnly
+                              variant="danger-soft"
+                              size="sm"
+                              aria-label={`Cancel ${item.activityName}`}
+                              onPress={() => onCancel(item)}
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </Table.Cell>
+                )}
               </Table.Row>
             ))}
           </Table.Body>

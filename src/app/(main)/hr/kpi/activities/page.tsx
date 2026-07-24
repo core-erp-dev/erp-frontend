@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Alert, Tabs } from '@heroui/react';
+import { Alert, Button, Tabs } from '@heroui/react';
+import { Plus } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/hr/kpi/constants';
@@ -9,6 +10,9 @@ import { useActivityData } from '@/modules/hr/kpi/activity/use-activity-data';
 import { ActivityTable } from '@/modules/hr/kpi/activity/activity-table';
 import { RequestTable } from '@/modules/hr/kpi/activity/request-table';
 import { KpiActivityDetailModal } from '@/modules/hr/kpi/activity/kpi-activity-detail-modal';
+import { ActivityFormModal } from '@/modules/hr/kpi/activity/activity-form-modal';
+import { ActivityCancelDialog } from '@/modules/hr/kpi/activity/activity-cancel-dialog';
+import type { ActivityFormMode, KpiActivityResponse } from '@/modules/hr/kpi/activity/activity.types';
 
 type TabId = 'my-activities' | 'managed-activities' | 'my-requests';
 
@@ -16,6 +20,7 @@ export default function KpiActivitiesPage() {
   const { hasPerm, hasAnyPerm } = usePermission();
   const canRead = hasPerm(PERM.KPI_ACTIVITY_READ);
   const canRequest = hasPerm(PERM.KPI_ACTIVITY_REQUEST);
+  const canReadCorporateKpi = hasPerm(PERM.CORPORATE_KPI_READ);
   const canAccess = hasAnyPerm(PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST);
 
   // ── Tabs (permission-aware) ──
@@ -31,7 +36,6 @@ export default function KpiActivitiesPage() {
 
   const firstTab = tabs[0]?.id || 'my-activities';
   const [activeTab, setActiveTab] = useState<TabId>(firstTab);
-
   const initialTab = tabs.find((t) => t.id === activeTab) ? activeTab : firstTab;
 
   // ── Server data ──
@@ -73,6 +77,43 @@ export default function KpiActivitiesPage() {
     setDetailModal({ isOpen: false, mode: 'ACTIVITY', entityId: null });
   }, []);
 
+  // ── Form modal state (P2.2) ──
+  const [formModal, setFormModal] = useState<{
+    isOpen: boolean;
+    mode: ActivityFormMode;
+    activity: KpiActivityResponse | null;
+  }>({ isOpen: false, mode: 'CREATE_ROOT', activity: null });
+
+  const openCreateRoot = useCallback(() => {
+    setFormModal({ isOpen: true, mode: 'CREATE_ROOT', activity: null });
+  }, []);
+
+  const openCreateChild = useCallback((activity: KpiActivityResponse) => {
+    setFormModal({ isOpen: true, mode: 'CREATE_CHILD', activity });
+  }, []);
+
+  const openUpdate = useCallback((activity: KpiActivityResponse) => {
+    setFormModal({ isOpen: true, mode: 'UPDATE', activity });
+  }, []);
+
+  const closeFormModal = useCallback(() => {
+    setFormModal({ isOpen: false, mode: 'CREATE_ROOT', activity: null });
+  }, []);
+
+  // ── Cancel dialog state (P2.2) ──
+  const [cancelDialog, setCancelDialog] = useState<{
+    isOpen: boolean;
+    activity: KpiActivityResponse | null;
+  }>({ isOpen: false, activity: null });
+
+  const openCancel = useCallback((activity: KpiActivityResponse) => {
+    setCancelDialog({ isOpen: true, activity });
+  }, []);
+
+  const closeCancel = useCallback(() => {
+    setCancelDialog({ isOpen: false, activity: null });
+  }, []);
+
   // ── Permission guard ──
   if (!canAccess) {
     return (
@@ -91,11 +132,21 @@ export default function KpiActivitiesPage() {
     );
   }
 
+  const canCreateRoot = canRequest && canReadCorporateKpi;
+
   return (
     <div className="flex w-full flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.activities}</h1>
-        <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.activities}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.activities}</h1>
+          <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.activities}</p>
+        </div>
+        {canCreateRoot && (
+          <Button variant="primary" size="sm" onPress={openCreateRoot}>
+            <Plus className="h-4 w-4" />
+            Create Activity
+          </Button>
+        )}
       </div>
 
       <Tabs
@@ -122,6 +173,10 @@ export default function KpiActivitiesPage() {
                 isLoading={isLoadingMy}
                 error={myError}
                 onViewDetail={openActivityDetail}
+                canRequest={canRequest}
+                onCreateChild={canRequest ? openCreateChild : undefined}
+                onUpdate={canRequest ? openUpdate : undefined}
+                onCancel={canRequest ? openCancel : undefined}
               />
             )}
             {tab.id === 'managed-activities' && (
@@ -152,6 +207,25 @@ export default function KpiActivitiesPage() {
         mode={detailModal.mode}
         entityId={detailModal.entityId}
       />
+
+      {/* Form Modal (P2.2) */}
+      <ActivityFormModal
+        key={formModal.isOpen ? `${formModal.mode}-${formModal.activity?.id || 'new'}` : 'closed'}
+        isOpen={formModal.isOpen}
+        onClose={closeFormModal}
+        mode={formModal.mode}
+        activity={formModal.activity}
+      />
+
+      {/* Cancel Dialog (P2.2) */}
+      {cancelDialog.activity && (
+        <ActivityCancelDialog
+          key={cancelDialog.isOpen ? cancelDialog.activity.id : 'closed'}
+          isOpen={cancelDialog.isOpen}
+          onClose={closeCancel}
+          activity={cancelDialog.activity}
+        />
+      )}
     </div>
   );
 }

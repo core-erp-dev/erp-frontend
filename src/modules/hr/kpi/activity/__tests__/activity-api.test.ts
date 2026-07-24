@@ -172,3 +172,150 @@ describe('getRequestById', () => {
     await expect(activityApi.getRequestById('bad-id')).rejects.toThrow('Not found');
   });
 });
+
+/* ── P2.2 ── Assignable UserPositions ── */
+
+describe('getAssignableUserPositionsForRoot', () => {
+  it('calls GET /api/v1/kpi-activities/assignable-user-positions', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: [{ userPositionId: 'up-1', userId: 'u-1', userFullName: 'Test', positionId: 'p-1', positionName: 'Manager', isPrimary: true, isSelf: true }] },
+    });
+    const result = await activityApi.getAssignableUserPositionsForRoot();
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/assignable-user-positions');
+    expect(result).toHaveLength(1);
+    expect(result[0].userFullName).toBe('Test');
+  });
+});
+
+describe('getAssignableUserPositionsForChild', () => {
+  it('calls GET /api/v1/kpi-activities/{parentId}/assignable-user-positions', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: [] },
+    });
+    const result = await activityApi.getAssignableUserPositionsForChild('parent-1');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/parent-1/assignable-user-positions');
+    expect(result).toEqual([]);
+  });
+});
+
+/* ── P2.2 ── Root Create ── */
+
+describe('submitRootCreate', () => {
+  const payload = {
+    corporateKpiId: 'ck-1',
+    assignedToUserPositionId: 'up-1',
+    activityName: 'Test Activity',
+    unit: '%',
+    targetValue: 15,
+    periodYear: 2026,
+    periodMonth: 3,
+  };
+
+  it('calls POST /api/v1/kpi-activity-requests/root-create with correct payload', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'Created', data: { id: 'req-1', requestType: 'CREATE', status: 'PENDING' } },
+    });
+    const result = await activityApi.submitRootCreate(payload);
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/root-create', payload);
+    expect(result.status).toBe('PENDING');
+  });
+
+  it('does not include parentActivityId in payload', () => {
+    const keys = Object.keys(payload);
+    expect(keys).not.toContain('parentActivityId');
+  });
+});
+
+/* ── P2.2 ── Child Create ── */
+
+describe('submitChildCreate', () => {
+  const payload = {
+    parentActivityId: 'parent-1',
+    assignedToUserPositionId: 'up-2',
+    activityName: 'Child Activity',
+    unit: 'units',
+    targetValue: 10,
+  };
+
+  it('calls POST /api/v1/kpi-activity-requests/child-create with correct payload', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'Created', data: { id: 'req-2', requestType: 'CREATE', status: 'PENDING' } },
+    });
+    const result = await activityApi.submitChildCreate(payload);
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/child-create', payload);
+    expect(result.status).toBe('PENDING');
+  });
+
+  it('excludes inherited fields corporateKpiId, periodYear, periodMonth', () => {
+    const keys = Object.keys(payload);
+    expect(keys).not.toContain('corporateKpiId');
+    expect(keys).not.toContain('periodYear');
+    expect(keys).not.toContain('periodMonth');
+  });
+});
+
+/* ── P2.2 ── Update ── */
+
+describe('submitUpdate', () => {
+  const payload = {
+    activityId: 'act-1',
+    activityName: 'Updated Name',
+    description: 'Updated description',
+    unit: '%',
+    targetValue: 20,
+  };
+
+  it('calls POST /api/v1/kpi-activity-requests/update with correct payload', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'Created', data: { id: 'req-3', requestType: 'UPDATE', status: 'PENDING' } },
+    });
+    const result = await activityApi.submitUpdate(payload);
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/update', payload);
+    expect(result.requestType).toBe('UPDATE');
+  });
+
+  it('excludes immutable fields', () => {
+    const keys = Object.keys(payload);
+    expect(keys).not.toContain('parentActivityId');
+    expect(keys).not.toContain('corporateKpiId');
+    expect(keys).not.toContain('assignedToUserPositionId');
+    expect(keys).not.toContain('periodYear');
+    expect(keys).not.toContain('periodMonth');
+  });
+
+  it('description is always sent as string', () => {
+    expect(payload).toHaveProperty('description');
+    expect(typeof payload.description).toBe('string');
+  });
+});
+
+/* ── P2.2 ── Cancel ── */
+
+describe('submitCancel', () => {
+  const payload = { activityId: 'act-1', cancellationReason: 'No longer needed' };
+
+  it('calls POST /api/v1/kpi-activity-requests/cancel with correct payload', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'Created', data: { id: 'req-4', requestType: 'CANCEL', status: 'PENDING' } },
+    });
+    const result = await activityApi.submitCancel(payload);
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/cancel', payload);
+    expect(result.requestType).toBe('CANCEL');
+  });
+
+  it('has exactly activityId and cancellationReason', () => {
+    const keys = Object.keys(payload);
+    expect(keys).toEqual(['activityId', 'cancellationReason']);
+  });
+});
+
+/* ── P2.2 ── Error propagation ── */
+
+describe('P2.2 error propagation', () => {
+  it('submitRootCreate propagates errors', async () => {
+    mockedApi.post.mockRejectedValueOnce(new Error('Corporate KPI must be an ACTIVE INDICATOR'));
+    await expect(activityApi.submitRootCreate({
+      corporateKpiId: 'bad', assignedToUserPositionId: 'up', activityName: 'x', unit: '%', targetValue: 1, periodYear: 2026, periodMonth: 1,
+    })).rejects.toThrow('Corporate KPI must be an ACTIVE INDICATOR');
+  });
+});

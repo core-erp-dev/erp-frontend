@@ -1,6 +1,8 @@
 /**
- * KPI Activity — DTOs matching backend contracts (P2.1 read-only).
- * Backend source: KpiActivityResponse.java, KpiActivityChangeRequestResponse.java
+ * KPI Activity — DTOs matching backend contracts.
+ * Backend source: KpiActivityResponse.java, KpiActivityChangeRequestResponse.java,
+ * CreateRootActivityRequest.java, CreateChildActivityRequest.java,
+ * UpdateKpiActivityRequest.java, CancelKpiActivityRequest.java
  */
 
 /* ── Activity Response ── */
@@ -61,6 +63,60 @@ export interface KpiActivityChangeRequestResponse {
 
 export type KpiActivityRequestType = 'CREATE' | 'UPDATE' | 'CANCEL';
 export type KpiActivityRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/* ── Assignable UserPosition (P2.2) ── */
+
+export interface AssignableUserPositionResponse {
+  userPositionId: string;
+  userId: string;
+  userFullName: string;
+  positionId: string;
+  positionName: string;
+  isPrimary: boolean;
+  isSelf: boolean;
+}
+
+/* ── Request DTOs (P2.2) ── */
+
+export interface CreateRootActivityPayload {
+  corporateKpiId: string;
+  assignedToUserPositionId: string;
+  activityName: string;
+  unit: string;
+  targetValue: number;
+  periodYear: number;
+  periodMonth: number;
+  description?: string;
+  // parentActivityId must NOT be sent — backend has @Null
+}
+
+export interface CreateChildActivityPayload {
+  parentActivityId: string;
+  assignedToUserPositionId: string;
+  activityName: string;
+  unit: string;
+  targetValue: number;
+  description?: string;
+  // corporateKpiId, periodYear, periodMonth: backend has @Null — omit entirely
+}
+
+export interface UpdateKpiActivityPayload {
+  activityId: string;
+  activityName: string;
+  description: string | null;  // always sent: current, null (clear), or new text
+  unit: string;
+  targetValue: number;
+  // Immutable fields must NOT appear in JSON
+}
+
+export interface CancelKpiActivityPayload {
+  activityId: string;
+  cancellationReason: string;
+}
+
+/* ── Form mode discriminant (P2.2) ── */
+
+export type ActivityFormMode = 'CREATE_ROOT' | 'CREATE_CHILD' | 'UPDATE';
 
 /* ── Friendly display labels (English only) ── */
 

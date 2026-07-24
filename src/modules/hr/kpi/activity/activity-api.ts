@@ -1,14 +1,22 @@
 import { api } from '@/lib/axios';
 import { extractErrorMessage } from '@/types/api';
 import type { ApiResponse } from '@/types/api';
-import type { KpiActivityResponse, KpiActivityChangeRequestResponse } from './activity.types';
+import type {
+  KpiActivityResponse,
+  KpiActivityChangeRequestResponse,
+  AssignableUserPositionResponse,
+  CreateRootActivityPayload,
+  CreateChildActivityPayload,
+  UpdateKpiActivityPayload,
+  CancelKpiActivityPayload,
+} from './activity.types';
 
 /**
- * KPI Activity API — P2.1 read-only methods.
+ * KPI Activity API.
  * Backend: KpiActivityController, KpiActivityChangeRequestController
  */
 export const activityApi = {
-  /* ── Activity reads ── */
+  /* ── Activity reads (P2.1) ── */
 
   getMyActivities: async (): Promise<KpiActivityResponse[]> => {
     const response = await api.get<ApiResponse<KpiActivityResponse[]>>('/api/v1/kpi-activities/my');
@@ -25,7 +33,7 @@ export const activityApi = {
     return response.data.data;
   },
 
-  /* ── Request reads ── */
+  /* ── Request reads (P2.1) ── */
 
   getMyRequests: async (): Promise<KpiActivityChangeRequestResponse[]> => {
     const response = await api.get<ApiResponse<KpiActivityChangeRequestResponse[]>>('/api/v1/kpi-activity-requests/my');
@@ -36,9 +44,43 @@ export const activityApi = {
     const response = await api.get<ApiResponse<KpiActivityChangeRequestResponse>>(`/api/v1/kpi-activity-requests/${id}`);
     return response.data.data;
   },
+
+  /* ── Assignable UserPositions (P2.2) ── */
+
+  getAssignableUserPositionsForRoot: async (): Promise<AssignableUserPositionResponse[]> => {
+    const response = await api.get<ApiResponse<AssignableUserPositionResponse[]>>('/api/v1/kpi-activities/assignable-user-positions');
+    return response.data.data;
+  },
+
+  getAssignableUserPositionsForChild: async (parentActivityId: string): Promise<AssignableUserPositionResponse[]> => {
+    const response = await api.get<ApiResponse<AssignableUserPositionResponse[]>>(`/api/v1/kpi-activities/${parentActivityId}/assignable-user-positions`);
+    return response.data.data;
+  },
+
+  /* ── Request mutations (P2.2) ── */
+
+  submitRootCreate: async (payload: CreateRootActivityPayload): Promise<KpiActivityChangeRequestResponse> => {
+    const response = await api.post<ApiResponse<KpiActivityChangeRequestResponse>>('/api/v1/kpi-activity-requests/root-create', payload);
+    return response.data.data;
+  },
+
+  submitChildCreate: async (payload: CreateChildActivityPayload): Promise<KpiActivityChangeRequestResponse> => {
+    const response = await api.post<ApiResponse<KpiActivityChangeRequestResponse>>('/api/v1/kpi-activity-requests/child-create', payload);
+    return response.data.data;
+  },
+
+  submitUpdate: async (payload: UpdateKpiActivityPayload): Promise<KpiActivityChangeRequestResponse> => {
+    const response = await api.post<ApiResponse<KpiActivityChangeRequestResponse>>('/api/v1/kpi-activity-requests/update', payload);
+    return response.data.data;
+  },
+
+  submitCancel: async (payload: CancelKpiActivityPayload): Promise<KpiActivityChangeRequestResponse> => {
+    const response = await api.post<ApiResponse<KpiActivityChangeRequestResponse>>('/api/v1/kpi-activity-requests/cancel', payload);
+    return response.data.data;
+  },
 };
 
-/** Read-error wrapper (P2.1). */
+/** Error extractor (read). */
 export function extractActivityError(error: unknown): string {
   return extractErrorMessage(error, 'Failed to load activity data.');
 }
