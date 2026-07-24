@@ -109,6 +109,7 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
           if (mountedRef.current) setTree(data);
         } catch {
           // Refresh failure is non-fatal; mutation already succeeded
+          toast.danger('Corporate KPI saved, but the tree refresh failed. You may retry manually.');
         }
       }
       return result;
@@ -132,6 +133,7 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
           if (mountedRef.current) setTree(data);
         } catch {
           // Refresh failure is non-fatal
+          toast.danger('Corporate KPI saved, but the tree refresh failed. You may retry manually.');
         }
       }
       return result;

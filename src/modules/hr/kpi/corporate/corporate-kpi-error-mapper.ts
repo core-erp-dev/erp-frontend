@@ -39,5 +39,6 @@ export function mapKpiError(error: unknown, fallback: string): string {
     if (raw.includes(key)) return message;
   }
 
-  return raw || fallback;
+  // Unknown technical errors: use a safe generic fallback instead of passing raw content
+  return fallback;
 }

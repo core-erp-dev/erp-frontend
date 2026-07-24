@@ -10,7 +10,6 @@ import { useCorporateKpiData } from '@/modules/hr/kpi/corporate/use-corporate-kp
 import { CorporateKpiFilters } from '@/modules/hr/kpi/corporate/corporate-kpi-filters';
 import { CorporateKpiTable } from '@/modules/hr/kpi/corporate/corporate-kpi-table';
 import { KpiNodeFormModal, type FormMode } from '@/modules/hr/kpi/corporate/kpi-node-form-modal';
-import { mapKpiError } from '@/modules/hr/kpi/corporate/corporate-kpi-error-mapper';
 import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest } from '@/modules/hr/kpi/corporate/corporate-kpi.types';
 
 export default function KpiCorporatePage() {
@@ -47,7 +46,6 @@ export default function KpiCorporatePage() {
     isMutating,
     createNode,
     updateNode,
-    refreshTree,
   } = useCorporateKpiData();
 
   // Fetch tree on mount and when year changes

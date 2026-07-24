@@ -283,3 +283,74 @@ describe('pending state', () => {
     expect(screen.getByText('Saving...')).toBeInTheDocument();
   });
 });
+
+/* ── Form reset ── */
+
+describe('form reset', () => {
+  it('Edit Indicator A → close → Edit Indicator B shows B values', () => {
+    const { rerender } = renderModal({
+      mode: 'EDIT_INDICATOR',
+      node: { ...indicator, id: 'ind-a', code: 'F01', name: 'Indicator A' },
+    });
+    expect(screen.getByDisplayValue('F01')).toBeInTheDocument();
+
+    rerender(
+      <KpiNodeFormModal
+        mode="EDIT_INDICATOR"
+        isOpen={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        node={{ ...indicator, id: 'ind-b', code: 'F02', name: 'Indicator B' }}
+        aspects={aspects}
+        selectedYear={2026}
+        isSubmitting={false}
+      />,
+    );
+    expect(screen.getByDisplayValue('F02')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('F01')).not.toBeInTheDocument();
+  });
+
+  it('Edit Indicator → Create Aspect clears Indicator-only values', () => {
+    const { rerender } = renderModal({
+      mode: 'EDIT_INDICATOR',
+      node: indicator,
+    });
+    expect(screen.getByDisplayValue('%')).toBeInTheDocument();
+
+    rerender(
+      <KpiNodeFormModal
+        mode="CREATE_ASPECT"
+        isOpen={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        aspects={aspects}
+        selectedYear={2026}
+        isSubmitting={false}
+      />,
+    );
+    expect(screen.queryByDisplayValue('%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Target Value')).not.toBeInTheDocument();
+  });
+
+  it('pending state resets after success', () => {
+    const { rerender } = renderModal({
+      mode: 'CREATE_ASPECT',
+      isSubmitting: true,
+    });
+    expect(screen.getByText('Saving...')).toBeDisabled();
+
+    rerender(
+      <KpiNodeFormModal
+        mode="CREATE_ASPECT"
+        isOpen={true}
+        onClose={mockOnClose}
+        onSubmit={mockOnSubmit}
+        aspects={aspects}
+        selectedYear={2026}
+        isSubmitting={false}
+      />,
+    );
+    expect(screen.getByText('Save')).not.toBeDisabled();
+  });
+});

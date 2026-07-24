@@ -62,8 +62,57 @@ describe('mapKpiError', () => {
     expect(mapKpiError(null, fallback)).toBe(fallback);
   });
 
-  it('passes through unknown error', () => {
+  it('returns fallback for unknown error', () => {
     const err = new Error('Some unexpected server problem');
-    expect(mapKpiError(err, fallback)).toBe('Some unexpected server problem');
+    expect(mapKpiError(err, fallback)).toBe(fallback);
+  });
+
+  /* ── Safety: raw technical content must never be exposed ── */
+
+  it('does not expose Spring exception class names', () => {
+    const err = new Error('org.springframework.dao.DataIntegrityViolationException');
+    expect(mapKpiError(err, fallback)).not.toMatch(/org\.springframework/);
+    expect(mapKpiError(err, fallback)).toBe(fallback);
+  });
+
+  it('does not expose PSQLException', () => {
+    const err = new Error('PSQLException: ERROR: duplicate key value violates unique constraint');
+    expect(mapKpiError(err, fallback)).not.toMatch(/PSQLException|duplicate key|unique constraint/);
+    expect(mapKpiError(err, fallback)).toBe(fallback);
+  });
+
+  it('does not expose SQL constraint text', () => {
+    const err = new Error('ERROR: null value in column "unit" violates not-null constraint');
+    expect(mapKpiError(err, fallback)).not.toMatch(/null value|violates not-null|column/);
+    expect(mapKpiError(err, fallback)).toBe(fallback);
+  });
+
+  it('does not expose stack-trace-like content', () => {
+    const err = new Error('Error\n\tat com.erp.kpi.service.create(CorporateKpiServiceImpl.java:142)');
+    const result = mapKpiError(err, fallback);
+    expect(result).not.toMatch(/\n/);
+    expect(result).not.toMatch(/\.java/);
+    expect(result).toBe(fallback);
+  });
+
+  it('does not expose internal Java class names', () => {
+    const err = new Error('com.erp.kpi.entity.CorporateKpi cannot be cast to');
+    expect(mapKpiError(err, fallback)).not.toMatch(/com\.erp/);
+    expect(mapKpiError(err, fallback)).toBe(fallback);
+  });
+
+  it('uses generic message for network errors', () => {
+    const err = new Error('Network Error');
+    expect(mapKpiError(err, fallback)).toBe(fallback);
+  });
+
+  it('uses specific message for 403 errors', () => {
+    const err = new Error('ACCESS_DENIED');
+    expect(mapKpiError(err, fallback)).toMatch(/permission/);
+  });
+
+  it('uses specific message for 404 errors', () => {
+    const err = new Error('Corporate KPI not found');
+    expect(mapKpiError(err, fallback)).toMatch(/could not be found/);
   });
 });
