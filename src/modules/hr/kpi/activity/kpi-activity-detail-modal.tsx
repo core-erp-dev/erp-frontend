@@ -6,6 +6,7 @@ import {
 } from '@heroui/react';
 import { X, ClipboardText, Checks } from '@phosphor-icons/react';
 import { useActivityData } from './use-activity-data';
+import { activityApi } from './activity-api';
 import {
   ACTIVITY_STATUS_LABEL,
   ACTIVITY_STATUS_VARIANT,
@@ -26,19 +27,21 @@ interface KpiActivityDetailModalProps {
   entityId: string | null;
 }
 
-/** Shared detail modal for both Activity and Request. */
+/** Shared detail modal for Activity, Request, and UPDATE comparison. */
 export function KpiActivityDetailModal({
   isOpen, onClose, mode, entityId,
 }: KpiActivityDetailModalProps) {
   const { fetchActivityDetail, fetchRequestDetail } = useActivityData();
   const [activity, setActivity] = useState<KpiActivityResponse | null>(null);
   const [request, setRequest] = useState<KpiActivityChangeRequestResponse | null>(null);
+  const [currentActivity, setCurrentActivity] = useState<KpiActivityResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!entityId) return;
     setIsLoading(true);
+    setCurrentActivity(null);
 
     const load = async () => {
       if (mode === 'ACTIVITY') {
@@ -47,20 +50,28 @@ export function KpiActivityDetailModal({
         else setLoadError('Failed to load activity detail.');
       } else {
         const result = await fetchRequestDetail(entityId);
-        if (result) setRequest(result);
-        else setLoadError('Failed to load request detail.');
+        if (result) {
+          setRequest(result);
+          // Lazy-fetch current activity for UPDATE comparison
+          if (result.requestType === 'UPDATE' && result.activityId) {
+            const current = await activityApi.getActivityById(result.activityId).catch(() => null);
+            setCurrentActivity(current);
+          }
+        } else {
+          setLoadError('Failed to load request detail.');
+        }
       }
       setIsLoading(false);
     };
 
     load();
-    // Key on entityId forces remount — no synchronous setState for clearing needed
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityId, mode]);
 
   const handleClose = useCallback(() => {
     setActivity(null);
     setRequest(null);
+    setCurrentActivity(null);
     setLoadError(null);
     onClose();
   }, [onClose]);
@@ -70,9 +81,7 @@ export function KpiActivityDetailModal({
     return (
       <div className="flex flex-col gap-6">
         <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">
-            Activity Information
-          </h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Activity Information</h2>
           <DetailRow label="Activity Name" value={activity.activityName} />
           <DetailRow label="Description" value={activity.description || '-'} />
           <DetailRow label="Parent Activity" value={activity.parentActivityName || '-'} />
@@ -82,14 +91,7 @@ export function KpiActivityDetailModal({
           <DetailRow label="Target Value" value={String(activity.targetValue)} />
           <DetailRow label="Realized Value" value={String(activity.realizedValue)} />
           <DetailRow label="Progress" value={`${Math.round(activity.progressPercent)}%`} />
-          <DetailRow
-            label="Status"
-            value={
-              <Badge variant={ACTIVITY_STATUS_VARIANT[activity.status]} size="sm">
-                {ACTIVITY_STATUS_LABEL[activity.status]}
-              </Badge>
-            }
-          />
+          <DetailRow label="Status" value={<Badge variant={ACTIVITY_STATUS_VARIANT[activity.status]} size="sm">{ACTIVITY_STATUS_LABEL[activity.status]}</Badge>} />
           <DetailRow label="Assignee" value={activity.assignedToUserName} />
           <DetailRow label="Position" value={activity.assignedToPositionName} />
         </Surface>
@@ -97,53 +99,48 @@ export function KpiActivityDetailModal({
     );
   };
 
+  const renderComparison = (label: string, currentVal: React.ReactNode, proposedVal: React.ReactNode) => (
+    <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface-secondary px-3 py-2 text-sm">
+      <span className="font-medium text-muted-foreground">{label}</span>
+      <span className="text-muted-foreground line-through">{currentVal}</span>
+      <span className="font-medium text-foreground">{proposedVal}</span>
+    </div>
+  );
+
   const renderRequestDetail = () => {
     if (!request) return null;
     const isCancel = request.requestType === 'CANCEL';
+    const isUpdate = request.requestType === 'UPDATE';
 
     return (
       <div className="flex flex-col gap-6">
+        {isUpdate && currentActivity && (
+          <Surface className="flex flex-col gap-3 rounded-3xl p-6">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Current vs Proposed</h2>
+            <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground">
+              <span>Field</span><span>Current</span><span>Proposed</span>
+            </div>
+            {renderComparison('Activity Name', currentActivity.activityName, request.activityName || '-')}
+            {renderComparison('Description', currentActivity.description || '-', request.description || '-')}
+            {renderComparison('Unit', currentActivity.unit, request.unit || '-')}
+            {renderComparison('Target', String(currentActivity.targetValue), request.targetValue != null ? String(request.targetValue) : '-')}
+          </Surface>
+        )}
+
         <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">
-            Request Information
-          </h2>
-          <DetailRow
-            label="Request Type"
-            value={
-              <Badge variant={REQUEST_TYPE_VARIANT[request.requestType]} size="sm">
-                {REQUEST_TYPE_LABEL[request.requestType]}
-              </Badge>
-            }
-          />
-          <DetailRow
-            label="Status"
-            value={
-              <Badge variant={REQUEST_STATUS_VARIANT[request.status]} size="sm">
-                {REQUEST_STATUS_LABEL[request.status]}
-              </Badge>
-            }
-          />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Request Information</h2>
+          <DetailRow label="Request Type" value={<Badge variant={REQUEST_TYPE_VARIANT[request.requestType]} size="sm">{REQUEST_TYPE_LABEL[request.requestType]}</Badge>} />
+          <DetailRow label="Status" value={<Badge variant={REQUEST_STATUS_VARIANT[request.status]} size="sm">{REQUEST_STATUS_LABEL[request.status]}</Badge>} />
           <DetailRow label="Activity Name" value={request.activityName || '-'} />
-          {isCancel && request.cancellationReason ? (
-            <DetailRow label="Cancellation Reason" value={request.cancellationReason} />
-          ) : null}
+          {isCancel && request.cancellationReason ? <DetailRow label="Cancellation Reason" value={request.cancellationReason} /> : null}
           <DetailRow label="Parent Activity" value={request.parentActivityName || '-'} />
           <DetailRow label="Corporate KPI" value={request.corporateKpiName || '-'} />
           <DetailRow label="Assignee" value={request.assignedToUserName || '-'} />
-          <DetailRow
-            label="Period"
-            value={
-              request.periodYear
-                ? `${request.periodYear}-${String(request.periodMonth).padStart(2, '0')}`
-                : '-'
-            }
-          />
+          <DetailRow label="Period" value={request.periodYear ? `${request.periodYear}-${String(request.periodMonth).padStart(2, '0')}` : '-'} />
           <DetailRow label="Unit" value={request.unit || '-'} />
           <DetailRow label="Target Value" value={request.targetValue != null ? String(request.targetValue) : '-'} />
           <DetailRow label="Requested By" value={request.requestedByUserName} />
-          {request.rejectionReason ? (
-            <DetailRow label="Rejection Reason" value={request.rejectionReason} />
-          ) : null}
+          {request.rejectionReason ? <DetailRow label="Rejection Reason" value={request.rejectionReason} /> : null}
         </Surface>
       </div>
     );
@@ -166,18 +163,10 @@ export function KpiActivityDetailModal({
             </Modal.Header>
             <Modal.Body>
               {isLoading ? (
-                <div className="flex h-48 items-center justify-center">
-                  <Spinner size="md" />
-                </div>
+                <div className="flex h-48 items-center justify-center"><Spinner size="md" /></div>
               ) : loadError ? (
-                <div className="flex items-center justify-center rounded-3xl bg-surface-secondary p-8 text-sm text-danger">
-                  {loadError}
-                </div>
-              ) : mode === 'ACTIVITY' ? (
-                renderActivityDetail()
-              ) : (
-                renderRequestDetail()
-              )}
+                <div className="flex items-center justify-center rounded-3xl bg-surface-secondary p-8 text-sm text-danger">{loadError}</div>
+              ) : mode === 'ACTIVITY' ? renderActivityDetail() : renderRequestDetail()}
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onPress={handleClose}>

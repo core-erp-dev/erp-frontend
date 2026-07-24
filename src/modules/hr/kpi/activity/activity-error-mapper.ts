@@ -38,6 +38,10 @@ export function mapActivityError(error: unknown, fallback: string): string {
       'Cannot cancel this activity because it has active child activities. Cancel the children first.',
     'ACCESS_DENIED':
       'You do not have permission to perform this action.',
+    'Request has already been processed':
+      'This request has already been processed by another approver.',
+    'Cannot approve your own request':
+      'You cannot approve or reject your own request.',
   };
 
   for (const [key, message] of Object.entries(known)) {

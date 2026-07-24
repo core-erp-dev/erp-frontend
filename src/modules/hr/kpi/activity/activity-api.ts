@@ -78,6 +78,23 @@ export const activityApi = {
     const response = await api.post<ApiResponse<KpiActivityChangeRequestResponse>>('/api/v1/kpi-activity-requests/cancel', payload);
     return response.data.data;
   },
+
+  /* ── Approval endpoints (P2.3) ── */
+
+  getPendingRequests: async (): Promise<KpiActivityChangeRequestResponse[]> => {
+    const response = await api.get<ApiResponse<KpiActivityChangeRequestResponse[]>>('/api/v1/kpi-activity-requests/pending');
+    return response.data.data;
+  },
+
+  approveRequest: async (id: string): Promise<KpiActivityChangeRequestResponse> => {
+    const response = await api.patch<ApiResponse<KpiActivityChangeRequestResponse>>(`/api/v1/kpi-activity-requests/${id}/approve`);
+    return response.data.data;
+  },
+
+  rejectRequest: async (id: string, payload: { rejectionReason: string }): Promise<KpiActivityChangeRequestResponse> => {
+    const response = await api.patch<ApiResponse<KpiActivityChangeRequestResponse>>(`/api/v1/kpi-activity-requests/${id}/reject`, payload);
+    return response.data.data;
+  },
 };
 
 /** Error extractor (read). */

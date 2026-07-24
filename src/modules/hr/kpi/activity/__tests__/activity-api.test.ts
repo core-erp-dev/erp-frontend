@@ -319,3 +319,51 @@ describe('P2.2 error propagation', () => {
     })).rejects.toThrow('Corporate KPI must be an ACTIVE INDICATOR');
   });
 });
+
+/* ── P2.3 ── Pending queue ── */
+
+describe('getPendingRequests', () => {
+  it('calls GET /api/v1/kpi-activity-requests/pending', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: [{ id: 'req-1', requestType: 'CREATE', status: 'PENDING' }] },
+    });
+    const result = await activityApi.getPendingRequests();
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/pending');
+    expect(result).toHaveLength(1);
+  });
+});
+
+/* ── P2.3 ── Approve ── */
+
+describe('approveRequest', () => {
+  it('calls PATCH /api/v1/kpi-activity-requests/{id}/approve with no body', async () => {
+    mockedApi.patch.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: { id: 'req-1', requestType: 'CREATE', status: 'APPROVED' } },
+    });
+    const result = await activityApi.approveRequest('req-1');
+    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/req-1/approve');
+    expect(result.status).toBe('APPROVED');
+  });
+});
+
+/* ── P2.3 ── Reject ── */
+
+describe('rejectRequest', () => {
+  it('calls PATCH /api/v1/kpi-activity-requests/{id}/reject with rejectionReason', async () => {
+    mockedApi.patch.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: { id: 'req-1', requestType: 'CREATE', status: 'REJECTED' } },
+    });
+    const result = await activityApi.rejectRequest('req-1', { rejectionReason: 'Not valid' });
+    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/req-1/reject', { rejectionReason: 'Not valid' });
+    expect(result.status).toBe('REJECTED');
+  });
+});
+
+/* ── P2.3 ── Error propagation ── */
+
+describe('P2.3 error propagation', () => {
+  it('approveRequest propagates self-approval error', async () => {
+    mockedApi.patch.mockRejectedValueOnce(new Error('Cannot approve your own request'));
+    await expect(activityApi.approveRequest('own-req')).rejects.toThrow('Cannot approve your own request');
+  });
+});
