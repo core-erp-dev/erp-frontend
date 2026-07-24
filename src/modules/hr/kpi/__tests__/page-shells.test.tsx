@@ -16,6 +16,17 @@ import KpiReportsPage from '@/app/(main)/hr/kpi/reports/page';
 import KpiApprovalsPage from '@/app/(main)/hr/kpi/approvals/page';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/hr/kpi/constants';
 
+// ── Mock usePermission — allow reading by default ──
+jest.mock('@/hooks/use-permission', () => {
+  const actual = jest.requireActual('@/hooks/use-permission');
+  return {
+    ...actual,
+    usePermission: () => ({
+      hasPerm: () => true,
+    }),
+  };
+});
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Collect all text content from the rendered output. */
@@ -77,8 +88,8 @@ describe('Corporate KPI page shell', () => {
     expect(screen.getByText(KPI_DESCRIPTIONS.corporate)).toBeInTheDocument();
   });
 
-  it('renders a placeholder indicating P1 implementation', () => {
-    expect(allText()).toMatch(/P1/i);
+  it('renders loading state on mount', () => {
+    expect(allText()).toMatch(/Corporate KPI/);
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);

@@ -12,3 +12,6 @@ export const Buildings = createIcon('Buildings');
 export const ClipboardText = createIcon('ClipboardText');
 export const Article = createIcon('Article');
 export const Checks = createIcon('Checks');
+export const CaretDown = createIcon('CaretDown');
+export const CaretRight = createIcon('CaretRight');
+export const Tray = createIcon('Tray');
