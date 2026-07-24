@@ -19,3 +19,5 @@ export const Plus = createIcon('Plus');
 export const PencilSimple = createIcon('PencilSimple');
 export const X = createIcon('X');
 export const ArrowCounterClockwise = createIcon('ArrowCounterClockwise');
+export const Check = createIcon('Check');
+export const Trash = createIcon('Trash');

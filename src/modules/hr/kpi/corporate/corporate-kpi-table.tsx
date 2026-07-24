@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Table, Spinner, Badge, Button } from '@heroui/react';
-import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, Check, Trash } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { CorporateKpiNode, KpiStatus } from './corporate-kpi.types';
@@ -284,7 +284,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                             </Button>
                           )}
                           {/* P1.3 lifecycle: Activate/Deactivate/Delete */}
-                          {onActivate && row.status === 'DRAFT' && (
+                          {onActivate && (row.status === 'DRAFT' || row.status === 'INACTIVE') && (
                             <Button
                               isIconOnly
                               variant="ghost"
@@ -295,21 +295,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                                 if (full) onActivate(full);
                               }}
                             >
-                              <span className="text-xs font-bold text-green-600">A</span>
-                            </Button>
-                          )}
-                          {onActivate && row.status === 'INACTIVE' && (
-                            <Button
-                              isIconOnly
-                              variant="ghost"
-                              size="sm"
-                              aria-label="Activate"
-                              onPress={() => {
-                                const full = findNodeById(tree, row.id);
-                                if (full) onActivate(full);
-                              }}
-                            >
-                              <span className="text-xs font-bold text-green-600">A</span>
+                              <Check className="h-4 w-4 text-green-600" />
                             </Button>
                           )}
                           {onDeactivate && row.status === 'ACTIVE' && (
@@ -323,7 +309,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                                 if (full) onDeactivate(full);
                               }}
                             >
-                              <span className="text-xs font-bold text-orange-600">D</span>
+                              <span className="text-xs font-bold text-orange-500">||</span>
                             </Button>
                           )}
                           {canDelete && onDelete && (
@@ -337,7 +323,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                                 if (full) onDelete(full);
                               }}
                             >
-                              <span className="text-xs font-bold text-red-600">X</span>
+                              <Trash className="h-4 w-4 text-red-600" />
                             </Button>
                           )}
                         </div>
