@@ -15,3 +15,6 @@ export const Checks = createIcon('Checks');
 export const CaretDown = createIcon('CaretDown');
 export const CaretRight = createIcon('CaretRight');
 export const Tray = createIcon('Tray');
+export const Plus = createIcon('Plus');
+export const PencilSimple = createIcon('PencilSimple');
+export const X = createIcon('X');

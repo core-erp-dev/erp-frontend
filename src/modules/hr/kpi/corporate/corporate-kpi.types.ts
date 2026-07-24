@@ -1,7 +1,4 @@
-/**
- * Corporate KPI — read-only DTOs matching backend response contract.
- * Only types required by P1.1 (read-only slice).
- */
+/** Corporate KPI — DTOs matching backend contract. */
 
 export interface CorporateKpiNode {
   id: string;
@@ -22,5 +19,27 @@ export interface CorporateKpiNode {
 }
 
 export type KpiNodeType = 'ASPECT' | 'INDICATOR';
-
 export type KpiStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE';
+
+/* ── Request DTOs ── */
+
+export interface CreateKpiRequest {
+  code: string;
+  name: string;
+  nodeType: KpiNodeType;
+  year: number;
+  parentId: string | null;
+  unit: string | null;
+  targetValue: number | null;
+  description: string | null;
+}
+
+export interface UpdateKpiRequest {
+  code: string;
+  name: string;
+  parentId: string | null;
+  unit: string | null;
+  targetValue: number | null;
+  description: string | null;
+  // Note: nodeType and year are immutable — NOT sent in update.
+}

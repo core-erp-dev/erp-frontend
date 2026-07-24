@@ -7,6 +7,14 @@ import { render, screen } from '@testing-library/react';
 import { CorporateKpiTable } from '../corporate-kpi-table';
 import type { CorporateKpiNode } from '../corporate-kpi.types';
 
+/* ── Mock usePermission — allow all by default ── */
+
+jest.mock('@/hooks/use-permission', () => ({
+  usePermission: () => ({
+    hasPerm: () => true,
+  }),
+}));
+
 /* ── Sample data ── */
 
 const aspect: CorporateKpiNode = {

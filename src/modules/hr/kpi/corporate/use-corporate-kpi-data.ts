@@ -3,27 +3,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@heroui/react';
 import { corporateKpiApi, extractKpiError } from './corporate-kpi-api';
-import type { CorporateKpiNode } from './corporate-kpi.types';
+import { mapKpiError } from './corporate-kpi-error-mapper';
+import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest } from './corporate-kpi.types';
 
 export interface UseCorporateKpiDataReturn {
-  /** Non-deleted hierarchy tree for the selected year. */
+  /* ── Read state (P1.1) ── */
   tree: CorporateKpiNode[];
-  /** Deleted KPIs (flat, all years). */
   deletedList: CorporateKpiNode[];
-  /** Whether the current-year tree is loading. */
   isLoadingTree: boolean;
-  /** Whether deleted data is being fetched. */
   isLoadingDeleted: boolean;
-  /** Tree fetch error, if any. */
   treeError: string | null;
-  /** Deleted fetch error, if any. */
   deletedError: string | null;
-  /** Whether deleted data has been fetched at least once. */
   hasLoadedDeleted: boolean;
-  /** Fetch tree for a given year. */
   fetchTree: (year: number) => Promise<void>;
-  /** Fetch deleted list (lazy — called on demand). */
   fetchDeleted: () => Promise<void>;
+
+  /* ── Mutation state (P1.2) ── */
+  isMutating: boolean;
+  createNode: (payload: CreateKpiRequest) => Promise<CorporateKpiNode | null>;
+  updateNode: (id: string, payload: UpdateKpiRequest) => Promise<CorporateKpiNode | null>;
+  refreshTree: (year: number) => Promise<void>;
 }
 
 export function useCorporateKpiData(): UseCorporateKpiDataReturn {
@@ -34,11 +33,14 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
   const [treeError, setTreeError] = useState<string | null>(null);
   const [deletedError, setDeletedError] = useState<string | null>(null);
   const [hasLoadedDeleted, setHasLoadedDeleted] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const mountedRef = useRef(true);
+  const currentYearRef = useRef<number | null>(null);
 
   const fetchTree = useCallback(async (year: number) => {
     setIsLoadingTree(true);
     setTreeError(null);
+    currentYearRef.current = year;
     try {
       const data = await corporateKpiApi.getTreeByYear(year);
       if (mountedRef.current) {
@@ -80,6 +82,68 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
     }
   }, []);
 
+  /** Server-confirmed tree refresh after mutation. */
+  const refreshTree = useCallback(async (year: number) => {
+    try {
+      const data = await corporateKpiApi.getTreeByYear(year);
+      if (mountedRef.current) {
+        setTree(data);
+      }
+    } catch (err: unknown) {
+      const msg = extractKpiError(err);
+      if (mountedRef.current) {
+        setTreeError(msg);
+      }
+      toast.danger(msg + ' — please retry.');
+    }
+  }, []);
+
+  const createNode = useCallback(async (payload: CreateKpiRequest): Promise<CorporateKpiNode | null> => {
+    setIsMutating(true);
+    try {
+      const result = await corporateKpiApi.create(payload);
+      // Refresh tree silently
+      if (currentYearRef.current != null) {
+        try {
+          const data = await corporateKpiApi.getTreeByYear(currentYearRef.current);
+          if (mountedRef.current) setTree(data);
+        } catch {
+          // Refresh failure is non-fatal; mutation already succeeded
+        }
+      }
+      return result;
+    } catch (err: unknown) {
+      const msg = mapKpiError(err, 'Something went wrong while saving the Corporate KPI.');
+      toast.danger(msg);
+      return null;
+    } finally {
+      if (mountedRef.current) setIsMutating(false);
+    }
+  }, []);
+
+  const updateNode = useCallback(async (id: string, payload: UpdateKpiRequest): Promise<CorporateKpiNode | null> => {
+    setIsMutating(true);
+    try {
+      const result = await corporateKpiApi.update(id, payload);
+      // Refresh tree silently
+      if (currentYearRef.current != null) {
+        try {
+          const data = await corporateKpiApi.getTreeByYear(currentYearRef.current);
+          if (mountedRef.current) setTree(data);
+        } catch {
+          // Refresh failure is non-fatal
+        }
+      }
+      return result;
+    } catch (err: unknown) {
+      const msg = mapKpiError(err, 'Something went wrong while saving the Corporate KPI.');
+      toast.danger(msg);
+      return null;
+    } finally {
+      if (mountedRef.current) setIsMutating(false);
+    }
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -97,5 +161,9 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
     hasLoadedDeleted,
     fetchTree,
     fetchDeleted,
+    isMutating,
+    createNode,
+    updateNode,
+    refreshTree,
   };
 }

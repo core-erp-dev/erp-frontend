@@ -2,7 +2,9 @@
 
 import React, { useMemo } from 'react';
 import { Table, Spinner, Badge, Button } from '@heroui/react';
-import { CaretDown, CaretRight, Tray } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Tray, PencilSimple, Plus } from '@phosphor-icons/react';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import type { CorporateKpiNode, KpiStatus } from './corporate-kpi.types';
 
 /* ── Tree-row shape ── */
@@ -81,6 +83,9 @@ export interface CorporateKpiTableProps {
   deletedError: string | null;
   onRetryTree: () => void;
   onRetryDeleted: () => void;
+  /* ── P1.2 action callbacks ── */
+  onCreateIndicator?: (aspectId: string) => void;
+  onEdit?: (node: CorporateKpiNode) => void;
 }
 
 /* ── Component ── */
@@ -99,7 +104,14 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
   deletedError,
   onRetryTree,
   onRetryDeleted,
+  onCreateIndicator,
+  onEdit,
 }) => {
+  const { hasPerm } = usePermission();
+  const canCreate = hasPerm(PERM.CORPORATE_KPI_CREATE);
+  const canUpdate = hasPerm(PERM.CORPORATE_KPI_UPDATE);
+  const hasMutationPerms = canCreate || canUpdate;
+
   /* ── Current view ── */
 
   // Apply search filter — matching child keeps parent visible
@@ -117,7 +129,6 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
     return tree.filter(matches);
   }, [tree, searchQuery]);
 
-  // Determine which parent rows should be expanded for search
   const searchExpanded = useMemo(() => {
     if (!searchQuery.trim()) return expandedIds;
     const forced = new Set(expandedIds);
@@ -175,77 +186,97 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
     return (
       <Table>
         <Table.ScrollContainer>
-          <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[800px]">
+          <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[900px]">
             <Table.Header>
-              <Table.Column id="code" isRowHeader>
-                Code
-              </Table.Column>
+              <Table.Column id="code" isRowHeader>Code</Table.Column>
               <Table.Column id="name">Name</Table.Column>
               <Table.Column id="type">Type</Table.Column>
               <Table.Column id="year">Year</Table.Column>
               <Table.Column id="unit">Unit</Table.Column>
               <Table.Column id="target">Target Value</Table.Column>
               <Table.Column id="status">Status</Table.Column>
+              {hasMutationPerms && <Table.Column id="actions">Actions</Table.Column>}
             </Table.Header>
             <Table.Body>
               {treeRows.map((row) => (
-                <Table.Row key={row.id}>
-                  <Table.Cell>
-                    <div className="flex items-center gap-1">
-                      {row.depth === 0 ? (
-                        row.hasChildren ? (
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            size="sm"
-                            aria-label={effectiveExpanded.has(row.id) ? 'Collapse' : 'Expand'}
-                            onPress={() => onToggleExpand(row.id)}
-                            className="mr-1 h-5 w-5 min-w-0"
-                          >
-                            {effectiveExpanded.has(row.id) ? (
-                              <CaretDown className="h-3.5 w-3.5 text-gray-500" />
-                            ) : (
-                              <CaretRight className="h-3.5 w-3.5 text-gray-500" />
-                            )}
-                          </Button>
+                  <Table.Row key={row.id}>
+                    <Table.Cell>
+                      <div className="flex items-center gap-1">
+                        {row.depth === 0 ? (
+                          row.hasChildren ? (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label={effectiveExpanded.has(row.id) ? 'Collapse' : 'Expand'}
+                              onPress={() => onToggleExpand(row.id)}
+                              className="mr-1 h-5 w-5 min-w-0"
+                            >
+                              {effectiveExpanded.has(row.id) ? (
+                                <CaretDown className="h-3.5 w-3.5 text-gray-500" />
+                              ) : (
+                                <CaretRight className="h-3.5 w-3.5 text-gray-500" />
+                              )}
+                            </Button>
+                          ) : (
+                            <span className="mr-1 w-5" />
+                          )
                         ) : (
-                          <span className="mr-1 w-5" />
-                        )
-                      ) : (
-                        <span
-                          className="mr-1 w-5"
-                          style={{ marginLeft: row.depth * 24 }}
-                        />
-                      )}
-                      <span className="font-medium text-foreground">
-                        {row.code}
+                          <span className="mr-1 w-5" style={{ marginLeft: row.depth * 24 }} />
+                        )}
+                        <span className="font-medium text-foreground">{row.code}</span>
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell className="font-medium text-foreground">
+                      <span style={{ paddingLeft: row.depth > 0 ? row.depth * 24 : 0 }}>
+                        {row.name}
                       </span>
-                    </div>
-                  </Table.Cell>
-                  <Table.Cell className="font-medium text-foreground">
-                    <span style={{ paddingLeft: row.depth > 0 ? row.depth * 24 : 0 }}>
-                      {row.name}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <span className="text-muted-foreground">{row.nodeType}</span>
-                  </Table.Cell>
-                  <Table.Cell className="text-muted-foreground">
-                    {row.year}
-                  </Table.Cell>
-                  <Table.Cell className="text-muted-foreground">
-                    {row.depth === 0 ? '–' : row.unit || '–'}
-                  </Table.Cell>
-                  <Table.Cell className="text-muted-foreground">
-                    {row.depth === 0 ? '–' : row.targetValue != null ? row.targetValue : '–'}
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Badge variant={statusVariant[row.status]}>
-                      {row.status}
-                    </Badge>
-                  </Table.Cell>
-                </Table.Row>
-              ))}
+                    </Table.Cell>
+                    <Table.Cell><span className="text-muted-foreground">{row.nodeType}</span></Table.Cell>
+                    <Table.Cell className="text-muted-foreground">{row.year}</Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {row.depth === 0 ? '–' : row.unit || '–'}
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {row.depth === 0 ? '–' : row.targetValue != null ? row.targetValue : '–'}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Badge variant={statusVariant[row.status]}>{row.status}</Badge>
+                    </Table.Cell>
+                    {hasMutationPerms && (
+                      <Table.Cell>
+                        <div className="flex items-center gap-1">
+                          {row.depth === 0 && canCreate && onCreateIndicator && (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Create Indicator"
+                              onPress={() => onCreateIndicator(row.id)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canUpdate && onEdit && (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Edit"
+                              onPress={() => {
+                                // Find the full node from tree
+                                const full = findNodeById(tree, row.id);
+                                if (full) onEdit(full);
+                              }}
+                            >
+                              <PencilSimple className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </Table.Cell>
+                    )}
+                  </Table.Row>
+                ))}
             </Table.Body>
           </Table.Content>
         </Table.ScrollContainer>
@@ -267,24 +298,17 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
         <span className="text-sm text-danger">{deletedError}</span>
-        <Button variant="secondary" size="sm" onPress={onRetryDeleted}>
-          Retry
-        </Button>
+        <Button variant="secondary" size="sm" onPress={onRetryDeleted}>Retry</Button>
       </div>
     );
   }
 
-  // Filter deleted list by selected year
   const yearFiltered = deletedList.filter((n) => n.year === selectedYear);
 
-  // Apply search (flat)
   const searchFiltered = searchQuery.trim()
     ? yearFiltered.filter((n) => {
         const q = searchQuery.trim().toLowerCase();
-        return (
-          n.code.toLowerCase().includes(q) ||
-          n.name.toLowerCase().includes(q)
-        );
+        return n.code.toLowerCase().includes(q) || n.name.toLowerCase().includes(q);
       })
     : yearFiltered;
 
@@ -305,9 +329,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
       <Table.ScrollContainer>
         <Table.Content aria-label="Deleted Corporate KPIs" className="min-w-[800px]">
           <Table.Header>
-            <Table.Column id="code" isRowHeader>
-              Code
-            </Table.Column>
+            <Table.Column id="code" isRowHeader>Code</Table.Column>
             <Table.Column id="name">Name</Table.Column>
             <Table.Column id="type">Type</Table.Column>
             <Table.Column id="year">Year</Table.Column>
@@ -317,30 +339,12 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
           <Table.Body>
             {searchFiltered.map((node) => (
               <Table.Row key={node.id}>
-                <Table.Cell>
-                  <span className="font-medium text-gray-400 line-through">
-                    {node.code}
-                  </span>
-                </Table.Cell>
-                <Table.Cell>
-                  <span className="font-medium text-gray-400 line-through">
-                    {node.name}
-                  </span>
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {node.nodeType}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {node.year}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {node.parentName || '–'}
-                </Table.Cell>
-                <Table.Cell>
-                  <Badge variant={statusVariant[node.status]}>
-                    {node.status}
-                  </Badge>
-                </Table.Cell>
+                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.code}</span></Table.Cell>
+                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.name}</span></Table.Cell>
+                <Table.Cell className="text-muted-foreground">{node.nodeType}</Table.Cell>
+                <Table.Cell className="text-muted-foreground">{node.year}</Table.Cell>
+                <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>
+                <Table.Cell><Badge variant={statusVariant[node.status]}>{node.status}</Badge></Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>
@@ -349,3 +353,16 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
     </Table>
   );
 };
+
+/* ── Utility: find node by ID in tree (recursive) ── */
+
+function findNodeById(nodes: CorporateKpiNode[], id: string): CorporateKpiNode | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    if (node.children.length > 0) {
+      const found = findNodeById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}

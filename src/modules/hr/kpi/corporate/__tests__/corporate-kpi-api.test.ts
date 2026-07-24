@@ -107,11 +107,145 @@ it('does not implement getById', () => {
   expect((corporateKpiApi as Record<string, unknown>).getById).toBeUndefined();
 });
 
-it('does not implement create, update, delete, restore, changeStatus', () => {
+it('does not implement delete, restore, changeStatus', () => {
   const apiObj = corporateKpiApi as Record<string, unknown>;
-  expect(apiObj.create).toBeUndefined();
-  expect(apiObj.update).toBeUndefined();
   expect(apiObj.delete).toBeUndefined();
   expect(apiObj.restore).toBeUndefined();
   expect(apiObj.changeStatus).toBeUndefined();
+});
+
+/* ── create ── */
+
+describe('create', () => {
+  it('calls POST /api/v1/corporate-kpis with Aspect payload', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
+    });
+
+    const result = await corporateKpiApi.create({
+      code: 'FIN',
+      name: 'Financial',
+      nodeType: 'ASPECT',
+      year: 2026,
+      parentId: null,
+      unit: null,
+      targetValue: null,
+      description: null,
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/corporate-kpis', {
+      code: 'FIN',
+      name: 'Financial',
+      nodeType: 'ASPECT',
+      year: 2026,
+      parentId: null,
+      unit: null,
+      targetValue: null,
+      description: null,
+    });
+    expect(result).toEqual(mockNode);
+  });
+
+  it('calls POST with Indicator payload including parent/unit/target', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'OK', data: { ...mockNode, id: 'ind-1', nodeType: 'INDICATOR' as const } } satisfies ApiResponse<CorporateKpiNode>,
+    });
+
+    const result = await corporateKpiApi.create({
+      code: 'F01',
+      name: 'Revenue',
+      nodeType: 'INDICATOR',
+      year: 2026,
+      parentId: 'asp-1',
+      unit: '%',
+      targetValue: 10.5,
+      description: null,
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/corporate-kpis', {
+      code: 'F01',
+      name: 'Revenue',
+      nodeType: 'INDICATOR',
+      year: 2026,
+      parentId: 'asp-1',
+      unit: '%',
+      targetValue: 10.5,
+      description: null,
+    });
+    expect(result).toEqual(expect.objectContaining({ id: 'ind-1' }));
+  });
+
+  it('unwraps ApiResponse.data', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
+    });
+    const result = await corporateKpiApi.create({
+      code: 'FIN', name: 'Financial', nodeType: 'ASPECT', year: 2026,
+      parentId: null, unit: null, targetValue: null, description: null,
+    });
+    expect(result).toEqual(mockNode);
+  });
+
+  it('propagates backend errors', async () => {
+    mockedApi.post.mockRejectedValueOnce(new Error('Code already exists'));
+    await expect(corporateKpiApi.create({
+      code: 'FIN', name: 'Financial', nodeType: 'ASPECT', year: 2026,
+      parentId: null, unit: null, targetValue: null, description: null,
+    })).rejects.toThrow('Code already exists');
+  });
+});
+
+/* ── update ── */
+
+describe('update', () => {
+  it('calls PUT /api/v1/corporate-kpis/{id} with Aspect payload', async () => {
+    mockedApi.put.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
+    });
+
+    const result = await corporateKpiApi.update('asp-1', {
+      code: 'FIN',
+      name: 'Financial',
+      parentId: null,
+      unit: null,
+      targetValue: null,
+      description: null,
+    });
+
+    expect(mockedApi.put).toHaveBeenCalledWith('/api/v1/corporate-kpis/asp-1', {
+      code: 'FIN',
+      name: 'Financial',
+      parentId: null,
+      unit: null,
+      targetValue: null,
+      description: null,
+    });
+    expect(result).toEqual(mockNode);
+  });
+
+  it('excludes nodeType and year from update payload', async () => {
+    mockedApi.put.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
+    });
+
+    const payload = {
+      code: 'FIN',
+      name: 'Financial',
+      parentId: null,
+      unit: null,
+      targetValue: null,
+      description: null,
+    };
+    await corporateKpiApi.update('asp-1', payload);
+
+    // Verify nodeType and year are NOT sent
+    const callArg = mockedApi.put.mock.calls[0][1] as Record<string, unknown>;
+    expect(callArg).not.toHaveProperty('nodeType');
+    expect(callArg).not.toHaveProperty('year');
+  });
+
+  it('propagates backend errors', async () => {
+    mockedApi.put.mockRejectedValueOnce(new Error('Not found'));
+    await expect(corporateKpiApi.update('bad-id', { code: 'X', name: 'X', parentId: null, unit: null, targetValue: null, description: null })).rejects.toThrow('Not found');
+  });
 });

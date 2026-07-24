@@ -1,18 +1,12 @@
 import { api } from '@/lib/axios';
 import { extractErrorMessage } from '@/types/api';
 import type { ApiResponse } from '@/types/api';
-import type { CorporateKpiNode } from './corporate-kpi.types';
+import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest } from './corporate-kpi.types';
 
-/**
- * Corporate KPI read API — P1.1 only.
- * All methods unwrap ApiResponse<T>.data before returning.
- */
+/** Corporate KPI API — P1.1 read + P1.2 create/update. */
 export const corporateKpiApi = {
-  /**
-   * Fetch the non-deleted hierarchy tree for a given year.
-   * GET /api/v1/corporate-kpis/tree?year={year}
-   * Permission: corporate_kpi:read
-   */
+  /* ── Read (P1.1) ── */
+
   getTreeByYear: async (year: number): Promise<CorporateKpiNode[]> => {
     const response = await api.get<ApiResponse<CorporateKpiNode[]>>(
       '/api/v1/corporate-kpis/tree',
@@ -21,20 +15,33 @@ export const corporateKpiApi = {
     return response.data.data;
   },
 
-  /**
-   * Fetch all soft-deleted KPIs (flat list, all years).
-   * GET /api/v1/corporate-kpis/deleted
-   * Permission: corporate_kpi:read_deleted
-   */
   getDeleted: async (): Promise<CorporateKpiNode[]> => {
     const response = await api.get<ApiResponse<CorporateKpiNode[]>>(
       '/api/v1/corporate-kpis/deleted',
     );
     return response.data.data;
   },
+
+  /* ── Mutations (P1.2) ── */
+
+  create: async (payload: CreateKpiRequest): Promise<CorporateKpiNode> => {
+    const response = await api.post<ApiResponse<CorporateKpiNode>>(
+      '/api/v1/corporate-kpis',
+      payload,
+    );
+    return response.data.data;
+  },
+
+  update: async (id: string, payload: UpdateKpiRequest): Promise<CorporateKpiNode> => {
+    const response = await api.put<ApiResponse<CorporateKpiNode>>(
+      `/api/v1/corporate-kpis/${id}`,
+      payload,
+    );
+    return response.data.data;
+  },
 };
 
-/** Convenience wrapper around extractErrorMessage with a KPI-appropriate fallback. */
+/** Read-error wrapper (P1.1). */
 export function extractKpiError(error: unknown): string {
   return extractErrorMessage(error, 'Failed to load Corporate KPIs.');
 }

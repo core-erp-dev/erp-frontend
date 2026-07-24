@@ -1,6 +1,6 @@
 import React from 'react';
 
-/* ── Simple mock factory — returns a div with className, data-attrs, children ── */
+/* ── Simple mock factory ── */
 
 function mk(name: string, displayName?: string): React.FC<Record<string, unknown>> {
   const Cmp: React.FC<Record<string, unknown>> = ({ children, ...props }) =>
@@ -16,6 +16,23 @@ export const Spinner = mk('Spinner');
 export const Badge = mk('Badge');
 export const Button = mk('Button');
 export const Alert = mk('Alert');
+export const Label = mk('Label');
+export const Input = mk('Input');
+export const TextField = mk('TextField');
+
+/* ── Modal compound ── */
+
+export const Modal = Object.assign(mk('Modal'), {
+  Backdrop: mk('Modal.Backdrop'),
+  Container: mk('Modal.Container'),
+  Header: mk('Modal.Header'),
+  Body: mk('Modal.Body'),
+  Footer: mk('Modal.Footer'),
+  Dialog: mk('Modal.Dialog'),
+  Heading: mk('Modal.Heading'),
+  Icon: mk('Modal.Icon'),
+  CloseTrigger: mk('Modal.CloseTrigger'),
+});
 
 /* ── Table compound ── */
 
@@ -54,7 +71,7 @@ export const ListBox = Object.assign(mk('ListBox'), {
   Item: mk('ListBox.Item'),
 });
 
-/* ── Toast shorthand mock ── */
+/* ── Toast ── */
 
 export const toast = {
   success: () => {},
