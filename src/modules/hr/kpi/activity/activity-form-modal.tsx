@@ -327,6 +327,14 @@ export function ActivityFormModal({ isOpen, onClose, mode, activity }: ActivityF
                   <div>
                     {isLoadingAssignable ? (
                       <div className="flex items-center justify-center py-4"><Spinner size="sm" /></div>
+                    ) : assignablePositions.length === 0 ? (
+                      <div className="rounded-3xl bg-surface-secondary p-4 text-center text-sm text-muted-foreground">
+                        {isChildCreate
+                          ? 'No direct subordinates are available.'
+                          : isRootCreate
+                          ? 'No top-level assignees are available.'
+                          : 'No assignable positions found.'}
+                      </div>
                     ) : (
                       <Select
                         variant="secondary"
@@ -347,8 +355,7 @@ export function ActivityFormModal({ isOpen, onClose, mode, activity }: ActivityF
                               >
                                 <div className="flex flex-col">
                                   <span className="text-sm text-foreground">
-                                    {pos.positionName}{' '}
-                                    {pos.isSelf ? <span className="text-xs text-primary">(You)</span> : null}
+                                    {pos.positionName}
                                   </span>
                                   <span className="text-xs text-muted-foreground">{pos.userFullName}</span>
                                 </div>
@@ -357,6 +364,11 @@ export function ActivityFormModal({ isOpen, onClose, mode, activity }: ActivityF
                           </ListBox>
                         </Select.Popover>
                       </Select>
+                    )}
+                    {isRootCreate && assignablePositions.length > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Assignees are leaders of top-level organizational positions.
+                      </p>
                     )}
                     {errors.assignee && <p className="mt-1 text-xs text-danger">{errors.assignee}</p>}
                   </div>

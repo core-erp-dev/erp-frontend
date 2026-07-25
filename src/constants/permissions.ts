@@ -43,6 +43,7 @@ export const PERM = {
 
   // KPI Activity
   KPI_ACTIVITY_READ: 'kpi_activity:read',
+  KPI_ACTIVITY_ROOT_REQUEST: 'kpi_activity:root_request',
   KPI_ACTIVITY_REQUEST: 'kpi_activity:request',
   KPI_ACTIVITY_APPROVE: 'kpi_activity:approve',
 

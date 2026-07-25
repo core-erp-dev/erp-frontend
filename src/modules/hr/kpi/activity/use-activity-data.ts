@@ -27,6 +27,12 @@ export interface UseActivityDataReturn {
   managedError: string | null;
   fetchManagedActivities: () => Promise<void>;
 
+  /* Owned Activities */
+  ownedActivities: KpiActivityResponse[];
+  isLoadingOwned: boolean;
+  ownedError: string | null;
+  fetchOwnedActivities: () => Promise<void>;
+
   /* My Requests */
   myRequests: KpiActivityChangeRequestResponse[];
   isLoadingRequests: boolean;
@@ -60,6 +66,10 @@ export function useActivityData(): UseActivityDataReturn {
   const [managedActivities, setManagedActivities] = useState<KpiActivityResponse[]>([]);
   const [isLoadingManaged, setIsLoadingManaged] = useState(false);
   const [managedError, setManagedError] = useState<string | null>(null);
+
+  const [ownedActivities, setOwnedActivities] = useState<KpiActivityResponse[]>([]);
+  const [isLoadingOwned, setIsLoadingOwned] = useState(false);
+  const [ownedError, setOwnedError] = useState<string | null>(null);
 
   const [myRequests, setMyRequests] = useState<KpiActivityChangeRequestResponse[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
@@ -104,6 +114,21 @@ export function useActivityData(): UseActivityDataReturn {
       toast.danger(msg);
     } finally {
       if (mountedRef.current) setIsLoadingManaged(false);
+    }
+  }, []);
+
+  const fetchOwnedActivities = useCallback(async () => {
+    setIsLoadingOwned(true);
+    setOwnedError(null);
+    try {
+      const data = await activityApi.getOwnedActivities();
+      if (mountedRef.current) setOwnedActivities(data);
+    } catch (err: unknown) {
+      const msg = extractActivityError(err);
+      if (mountedRef.current) { setOwnedError(msg); setOwnedActivities([]); }
+      toast.danger(msg);
+    } finally {
+      if (mountedRef.current) setIsLoadingOwned(false);
     }
   }, []);
 
@@ -245,6 +270,7 @@ export function useActivityData(): UseActivityDataReturn {
   return {
     myActivities, isLoadingMy, myError, fetchMyActivities,
     managedActivities, isLoadingManaged, managedError, fetchManagedActivities,
+    ownedActivities, isLoadingOwned, ownedError, fetchOwnedActivities,
     myRequests, isLoadingRequests, requestsError, fetchMyRequests,
     fetchActivityDetail, fetchRequestDetail, isLoadingDetail,
     assignablePositions, isLoadingAssignable,

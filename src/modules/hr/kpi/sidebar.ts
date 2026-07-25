@@ -31,7 +31,7 @@ export const kpiSidebar: SidebarItem[] = [
     icon: ClipboardText,
     module: 'hr',
     group: 'KPI',
-    permissions: [PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST],
+    permissions: [PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST],
   },
   {
     title: 'Reports',

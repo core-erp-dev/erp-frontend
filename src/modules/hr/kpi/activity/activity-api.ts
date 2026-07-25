@@ -28,6 +28,11 @@ export const activityApi = {
     return response.data.data;
   },
 
+  getOwnedActivities: async (): Promise<KpiActivityResponse[]> => {
+    const response = await api.get<ApiResponse<KpiActivityResponse[]>>('/api/v1/kpi-activities/owned');
+    return response.data.data;
+  },
+
   getActivityById: async (id: string): Promise<KpiActivityResponse> => {
     const response = await api.get<ApiResponse<KpiActivityResponse>>(`/api/v1/kpi-activities/${id}`);
     return response.data.data;

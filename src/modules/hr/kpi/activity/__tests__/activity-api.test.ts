@@ -173,6 +173,37 @@ describe('getRequestById', () => {
   });
 });
 
+/* ── P2R.1 ── getOwnedActivities ── */
+
+describe('getOwnedActivities', () => {
+  it('calls GET /api/v1/kpi-activities/owned', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: [mockActivity] } satisfies ApiResponse<KpiActivityResponse[]>,
+    });
+
+    const result = await activityApi.getOwnedActivities();
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/owned');
+    expect(result).toEqual([mockActivity]);
+  });
+
+  it('unwraps ApiResponse.data', async () => {
+    const payload: ApiResponse<KpiActivityResponse[]> = {
+      status: 200, message: 'OK', data: [mockActivity],
+    };
+    mockedApi.get.mockResolvedValueOnce({ data: payload });
+
+    const result = await activityApi.getOwnedActivities();
+
+    expect(result).toEqual([mockActivity]);
+  });
+
+  it('propagates errors', async () => {
+    mockedApi.get.mockRejectedValueOnce(new Error('Forbidden'));
+    await expect(activityApi.getOwnedActivities()).rejects.toThrow('Forbidden');
+  });
+});
+
 /* ── P2.2 ── Assignable UserPositions ── */
 
 describe('getAssignableUserPositionsForRoot', () => {

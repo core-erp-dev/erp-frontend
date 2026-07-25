@@ -14,14 +14,22 @@ import { ActivityFormModal } from '@/modules/hr/kpi/activity/activity-form-modal
 import { ActivityCancelDialog } from '@/modules/hr/kpi/activity/activity-cancel-dialog';
 import type { ActivityFormMode, KpiActivityResponse } from '@/modules/hr/kpi/activity/activity.types';
 
-type TabId = 'my-activities' | 'managed-activities' | 'my-requests';
+type TabId = 'my-activities' | 'managed-activities' | 'owned-activities' | 'my-requests';
 
 export default function KpiActivitiesPage() {
   const { hasPerm, hasAnyPerm } = usePermission();
+
+  // Page access: any of the three activity permissions
+  const canAccess = hasAnyPerm(PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST);
+
+  // Tab-level permissions (match backend endpoint annotations)
   const canRead = hasPerm(PERM.KPI_ACTIVITY_READ);
+  const canOwned = hasAnyPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST, PERM.KPI_ACTIVITY_REQUEST);
   const canRequest = hasPerm(PERM.KPI_ACTIVITY_REQUEST);
-  const canReadCorporateKpi = hasPerm(PERM.CORPORATE_KPI_READ);
-  const canAccess = hasAnyPerm(PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST);
+  const canMyRequests = hasAnyPerm(PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST);
+
+  // Root Create: requires both root_request and corporate_kpi:read
+  const canCreateRoot = hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST) && hasPerm(PERM.CORPORATE_KPI_READ);
 
   // ── Tabs (permission-aware) ──
   const tabs = useMemo(() => {
@@ -30,18 +38,21 @@ export default function KpiActivitiesPage() {
       result.push({ id: 'my-activities', label: 'My Activities' });
       result.push({ id: 'managed-activities', label: 'Managed Activities' });
     }
-    if (canRequest) result.push({ id: 'my-requests', label: 'My Requests' });
+    if (canOwned) result.push({ id: 'owned-activities', label: 'Owned Activities' });
+    if (canMyRequests) result.push({ id: 'my-requests', label: 'My Requests' });
     return result;
-  }, [canRead, canRequest]);
+  }, [canRead, canOwned, canMyRequests]);
 
-  const firstTab = tabs[0]?.id || 'my-activities';
-  const [activeTab, setActiveTab] = useState<TabId>(firstTab);
-  const initialTab = tabs.find((t) => t.id === activeTab) ? activeTab : firstTab;
+  const [activeTab, setActiveTab] = useState<TabId>('my-activities');
+
+  // Compute the effective tab — always valid for current tabs
+  const effectiveTab = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id || 'my-activities';
 
   // ── Server data ──
   const {
     myActivities, isLoadingMy, myError, fetchMyActivities,
     managedActivities, isLoadingManaged, managedError, fetchManagedActivities,
+    ownedActivities, isLoadingOwned, ownedError, fetchOwnedActivities,
     myRequests, isLoadingRequests, requestsError, fetchMyRequests,
   } = useActivityData();
 
@@ -53,6 +64,10 @@ export default function KpiActivitiesPage() {
   useEffect(() => {
     if (activeTab === 'managed-activities') fetchManagedActivities();
   }, [activeTab, fetchManagedActivities]);
+
+  useEffect(() => {
+    if (activeTab === 'owned-activities') fetchOwnedActivities();
+  }, [activeTab, fetchOwnedActivities]);
 
   useEffect(() => {
     if (activeTab === 'my-requests') fetchMyRequests();
@@ -132,8 +147,6 @@ export default function KpiActivitiesPage() {
     );
   }
 
-  const canCreateRoot = canRequest && canReadCorporateKpi;
-
   return (
     <div className="flex w-full flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -151,7 +164,7 @@ export default function KpiActivitiesPage() {
 
       <Tabs
         className="w-full"
-        selectedKey={initialTab}
+        selectedKey={effectiveTab}
         onSelectionChange={(key) => setActiveTab(key as TabId)}
       >
         <Tabs.ListContainer>
@@ -175,8 +188,7 @@ export default function KpiActivitiesPage() {
                 onViewDetail={openActivityDetail}
                 canRequest={canRequest}
                 onCreateChild={canRequest ? openCreateChild : undefined}
-                onUpdate={canRequest ? openUpdate : undefined}
-                onCancel={canRequest ? openCancel : undefined}
+                // No onUpdate, onCancel — My Activities shows assignee-only actions
               />
             )}
             {tab.id === 'managed-activities' && (
@@ -185,6 +197,19 @@ export default function KpiActivitiesPage() {
                 isLoading={isLoadingManaged}
                 error={managedError}
                 onViewDetail={openActivityDetail}
+                // No mutation actions — read-only
+              />
+            )}
+            {tab.id === 'owned-activities' && (
+              <ActivityTable
+                items={ownedActivities}
+                isLoading={isLoadingOwned}
+                error={ownedError}
+                onViewDetail={openActivityDetail}
+                canRequest={canRequest}
+                onUpdate={canRequest ? openUpdate : undefined}
+                onCancel={canRequest ? openCancel : undefined}
+                // No onCreateChild — Owned Activities shows owner-only actions
               />
             )}
             {tab.id === 'my-requests' && (

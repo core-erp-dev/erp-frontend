@@ -32,6 +32,14 @@ export function mapActivityError(error: unknown, fallback: string): string {
       'Multiple active positions found. Please set a primary position.',
     'User is not your subordinate':
       'The selected user is not in your reporting line.',
+    'Root activity target must occupy an absolute top-level position':
+      'Root activities can only be assigned to top-level positions.',
+    'Activity target is not a direct subordinate':
+      'The selected assignee must be a direct subordinate.',
+    'Cannot assign activity to yourself':
+      'You cannot assign an activity to yourself.',
+    'Activity has no approved CREATE owner record':
+      'The activity owner could not be determined.',
     'A pending update or cancel request already exists for this activity':
       'A pending update or cancel request already exists for this activity.',
     'Cannot cancel activity with active child activities':
