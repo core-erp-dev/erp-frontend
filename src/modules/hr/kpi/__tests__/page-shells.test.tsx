@@ -50,9 +50,25 @@ jest.mock('@phosphor-icons/react', () => ({
   SlidersHorizontal: () => null,
   CaretDown: () => null,
   CaretRight: () => null,
+  DownloadSimple: () => null,
 }));
 
 jest.mock('@/lib/axios');
+
+// ── Mock P3 report components (page-shells renders KpiReportsPage directly) ──
+jest.mock('@/modules/hr/kpi/report/use-report-data', () => ({
+  useReportData: () => ({
+    myReports: [], isLoadingMy: false, myError: null, fetchMyReports: jest.fn(),
+    toReview: [], isLoadingReview: false, reviewError: null, fetchToReview: jest.fn(),
+    submitReport: jest.fn(), isSubmitting: false,
+    approveReport: jest.fn(), isApproving: false,
+    rejectReport: jest.fn(), isRejecting: false,
+  }),
+}));
+jest.mock('@/modules/hr/kpi/report/report-table', () => ({ ReportTable: () => null }));
+jest.mock('@/modules/hr/kpi/report/report-detail-modal', () => ({ ReportDetailModal: () => null }));
+jest.mock('@/modules/hr/kpi/report/report-submit-modal', () => ({ ReportSubmitModal: () => null }));
+jest.mock('@/modules/hr/kpi/report/report-review-dialog', () => ({ ReportReviewDialog: () => null }));
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
