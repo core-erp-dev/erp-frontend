@@ -45,6 +45,12 @@ export function Sidebar() {
   const filteredItems = sidebarConfig.filter((item) => {
     if (item.module !== activeModule) return false;
 
+    // Compound capability predicate (supports AND/OR logic)
+    if (item.capability) {
+      const userPerms = user?.permissions ?? [];
+      return item.capability(userPerms);
+    }
+
     // Permission-based filtering (more granular)
     if (item.permissions && item.permissions.length > 0) {
       const userPerms = user?.permissions ?? [];

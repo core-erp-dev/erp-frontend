@@ -52,10 +52,11 @@ describe('KPI sidebar configuration', () => {
     }
   });
 
-  it('every item has at least one permission', () => {
+  it('every item has at least one permission or a capability callback', () => {
     for (const item of kpiSidebar) {
-      expect(item.permissions).toBeDefined();
-      expect(item.permissions!.length).toBeGreaterThan(0);
+      const hasPerms = item.permissions && item.permissions.length > 0;
+      const hasCapability = typeof item.capability === 'function';
+      expect(hasPerms || hasCapability).toBe(true);
     }
   });
 });
@@ -84,11 +85,21 @@ describe('KPI permission visibility rules', () => {
     expect(activities.permissions).not.toContain(PERM.KPI_ACTIVITY_APPROVE);
   });
 
-  it('Reports is visible with any report permission', () => {
+  it('Reports uses capability callback for compound AND/OR logic', () => {
     const reports = kpiSidebar.find((i) => i.href === KPI_ROUTES.reports)!;
-    expect(reports.permissions).toEqual(
-      expect.arrayContaining([PERM.KPI_REPORT_READ, PERM.KPI_REPORT_SUBMIT, PERM.KPI_REPORT_REVIEW]),
-    );
+    expect(typeof reports.capability).toBe('function');
+    expect(reports.permissions).toBeUndefined();
+
+    // Test capability logic: read alone is sufficient
+    expect(reports.capability!(['kpi_report:read'])).toBe(true);
+    // review alone is sufficient
+    expect(reports.capability!(['kpi_report:review'])).toBe(true);
+    // submit alone is NOT sufficient (needs kpi_activity:read)
+    expect(reports.capability!(['kpi_report:submit'])).toBe(false);
+    // submit + read is sufficient
+    expect(reports.capability!(['kpi_report:submit', 'kpi_activity:read'])).toBe(true);
+    // no report permissions → hidden
+    expect(reports.capability!([])).toBe(false);
   });
 
   it('Approvals requires kpi_activity:approve only', () => {

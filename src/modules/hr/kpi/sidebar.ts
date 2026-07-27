@@ -7,6 +7,7 @@ import { PERM } from '@/constants/permissions';
  * KPI sidebar items — grouped under "KPI".
  * All items use `permissions: [...]` for PBAC filtering.
  * Sidebar uses `some()` — ANY listed permission grants visibility.
+ * The Reports item uses `capability` for compound AND/OR logic.
  */
 export const kpiSidebar: SidebarItem[] = [
   {
@@ -39,7 +40,10 @@ export const kpiSidebar: SidebarItem[] = [
     icon: Article,
     module: 'hr',
     group: 'KPI',
-    permissions: [PERM.KPI_REPORT_READ, PERM.KPI_REPORT_SUBMIT, PERM.KPI_REPORT_REVIEW],
+    capability: (perms: string[]) =>
+      perms.includes('kpi_report:read') ||
+      perms.includes('kpi_report:review') ||
+      (perms.includes('kpi_report:submit') && perms.includes('kpi_activity:read')),
   },
   {
     title: 'Approvals',

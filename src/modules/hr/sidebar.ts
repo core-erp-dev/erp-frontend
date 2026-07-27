@@ -10,6 +10,9 @@ export interface SidebarItem {
   group?: string;
   roles?: string[];
   permissions?: string[];
+  /** Compound capability predicate — overrides `permissions` when present.
+   *  Receives the user's full permission list and returns true if the item should be visible. */
+  capability?: (permissions: string[]) => boolean;
 }
 
 export const hrSidebar: SidebarItem[] = [
