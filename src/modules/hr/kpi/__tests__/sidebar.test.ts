@@ -65,7 +65,7 @@ describe('KPI permission visibility rules', () => {
   it('Overview is visible with any KPI permission', () => {
     const overview = kpiSidebar.find((i) => i.href === KPI_ROUTES.overview)!;
     // Overview should contain all 12 KPI permissions
-    expect(overview.permissions).toHaveLength(12);
+    expect(overview.permissions).toHaveLength(13);
     expect(overview.permissions).toEqual(expect.arrayContaining(KPI_ANY_PERMISSION));
   });
 
@@ -116,7 +116,7 @@ describe('KPI permission visibility rules', () => {
 });
 
 describe('KPI permission constants', () => {
-  it('all 12 KPI permissions are defined in PERM', () => {
+  it('all 13 KPI permissions are defined in PERM', () => {
     const kpiPerms = [
       PERM.CORPORATE_KPI_READ,
       PERM.CORPORATE_KPI_CREATE,
@@ -126,12 +126,13 @@ describe('KPI permission constants', () => {
       PERM.CORPORATE_KPI_READ_DELETED,
       PERM.KPI_ACTIVITY_READ,
       PERM.KPI_ACTIVITY_REQUEST,
+      PERM.KPI_ACTIVITY_ROOT_REQUEST,
       PERM.KPI_ACTIVITY_APPROVE,
       PERM.KPI_REPORT_READ,
       PERM.KPI_REPORT_SUBMIT,
       PERM.KPI_REPORT_REVIEW,
     ];
-    expect(kpiPerms).toHaveLength(12);
+    expect(kpiPerms).toHaveLength(13);
     for (const p of kpiPerms) {
       expect(typeof p).toBe('string');
       expect(p).toBeTruthy();
@@ -148,6 +149,7 @@ describe('KPI permission constants', () => {
 
     expect(PERM.KPI_ACTIVITY_READ).toBe('kpi_activity:read');
     expect(PERM.KPI_ACTIVITY_REQUEST).toBe('kpi_activity:request');
+    expect(PERM.KPI_ACTIVITY_ROOT_REQUEST).toBe('kpi_activity:root_request');
     expect(PERM.KPI_ACTIVITY_APPROVE).toBe('kpi_activity:approve');
 
     expect(PERM.KPI_REPORT_READ).toBe('kpi_report:read');
