@@ -135,7 +135,7 @@ describe('KPI Activities page shell', () => {
 
 // ── Reports ─────────────────────────────────────────────────────────────────
 
-describe('KPI Reports page shell', () => {
+describe('KPI Reports page', () => {
   beforeEach(() => {
     render(<KpiReportsPage />);
   });
@@ -148,8 +148,8 @@ describe('KPI Reports page shell', () => {
     expect(screen.getByText(KPI_DESCRIPTIONS.reports)).toBeInTheDocument();
   });
 
-  it('renders a placeholder indicating P3 implementation', () => {
-    expect(allText()).toMatch(/P3/i);
+  it('does not contain P3 placeholder text (feature implemented)', () => {
+    expect(allText()).not.toMatch(/P3/i);
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);

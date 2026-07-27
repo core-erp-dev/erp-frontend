@@ -24,10 +24,17 @@ export const Surface = mk('Surface');
 export const Spinner = mk('Spinner');
 export const Badge = mk('Badge');
 export const Button = mk('Button');
-export const Alert = mk('Alert');
 export const Label = mk('Label');
 export const Input = mk('Input');
 export const TextField = mk('TextField');
+
+/* ── Alert compound ── */
+
+export const Alert = Object.assign(mk('Alert'), {
+  Indicator: mk('Alert.Indicator'),
+  Content: mk('Alert.Content'),
+  Title: mk('Alert.Title'),
+});
 
 /* ── Modal compound ── */
 
@@ -41,6 +48,16 @@ export const Modal = Object.assign(mk('Modal'), {
   Heading: mk('Modal.Heading'),
   Icon: mk('Modal.Icon'),
   CloseTrigger: mk('Modal.CloseTrigger'),
+});
+
+/* ── Tabs compound ── */
+
+export const Tabs = Object.assign(mk('Tabs'), {
+  ListContainer: mk('Tabs.ListContainer'),
+  List: mk('Tabs.List'),
+  Tab: mk('Tabs.Tab'),
+  Indicator: mk('Tabs.Indicator'),
+  Panel: mk('Tabs.Panel'),
 });
 
 /* ── Table compound ── */
