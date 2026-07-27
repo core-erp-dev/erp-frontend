@@ -65,6 +65,23 @@ jest.mock('@/modules/hr/kpi/report/use-report-data', () => ({
     rejectReport: jest.fn(), isRejecting: false,
   }),
 }));
+
+// ── Mock P4 overview hook (page-shells renders KpiOverviewPage directly) ──
+jest.mock('@/modules/hr/kpi/overview/use-overview-data', () => ({
+  useOverviewData: () => ({
+    myActivities: [], myActivitiesError: null,
+    managedActivities: [], managedActivitiesError: null,
+    ownedActivities: [], ownedActivitiesError: null,
+    pendingRequests: [], pendingRequestsError: null,
+    pendingReviews: [], pendingReviewsError: null,
+    myReports: [], myReportsError: null,
+    corporateKpiTree: [], corporateKpiError: null,
+    isLoading: false,
+  }),
+  averageProgress: () => null,
+  targetReachedCount: () => 0,
+  countActiveIndicators: () => 0,
+}));
 jest.mock('@/modules/hr/kpi/report/report-table', () => ({ ReportTable: () => null }));
 jest.mock('@/modules/hr/kpi/report/report-detail-modal', () => ({ ReportDetailModal: () => null }));
 jest.mock('@/modules/hr/kpi/report/report-submit-modal', () => ({ ReportSubmitModal: () => null }));
@@ -107,8 +124,8 @@ describe('KPI Overview page shell', () => {
     expect(screen.getByText(KPI_DESCRIPTIONS.overview)).toBeInTheDocument();
   });
 
-  it('renders a placeholder indicating Overview is pending integration', () => {
-    expect(allText()).toMatch(/available after/i);
+  it('renders overview sections rather than placeholder', () => {
+    expect(allText()).toMatch(/Activities|Pending Actions|Recent Reports|Corporate KPI/);
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);
