@@ -306,40 +306,16 @@ export default function KpiActivitiesPage() {
     pendingRequests,
   ]);
 
-  const totalItems = useMemo(
-    () =>
-      tabs.reduce((total, tab) => {
-        if (tab.id === 'my-activities') {
-          return total + (myActivities?.length ?? 0);
-        }
-
-        if (tab.id === 'managed-activities') {
-          return total + (managedActivities?.length ?? 0);
-        }
-
-        if (tab.id === 'owned-activities') {
-          return total + (ownedActivities?.length ?? 0);
-        }
-
-        if (tab.id === 'my-requests') {
-          return total + (myRequests?.length ?? 0);
-        }
-
-        if (tab.id === 'approvals') {
-          return total + (pendingRequests?.length ?? 0);
-        }
-
-        return total;
-      }, 0),
-    [
-      managedActivities,
-      myActivities,
-      myRequests,
-      ownedActivities,
-      pendingRequests,
-      tabs,
-    ],
-  );
+  const totalItems = useMemo(() => {
+    switch (effectiveTab) {
+      case 'my-activities': return myActivities?.length ?? 0;
+      case 'managed-activities': return managedActivities?.length ?? 0;
+      case 'owned-activities': return ownedActivities?.length ?? 0;
+      case 'my-requests': return myRequests?.length ?? 0;
+      case 'approvals': return pendingRequests?.length ?? 0;
+      default: return 0;
+    }
+  }, [effectiveTab, myActivities, managedActivities, ownedActivities, myRequests, pendingRequests]);
 
   const isAnyLoading =
     isLoadingMy ||
