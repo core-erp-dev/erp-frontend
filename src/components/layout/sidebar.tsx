@@ -1,15 +1,18 @@
 "use client";
 
-import * as React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { Separator } from "@heroui/react";
-import { SquaresFour, Gear as Settings } from "@phosphor-icons/react";
+import { Avatar, Description, Label } from "@heroui/react";
+import {
+  SquaresFour,
+  Gear as Settings,
+  SignOut,
+} from "@phosphor-icons/react";
 import { navigationConfig } from "@/config/navigation";
 import type { SidebarItem } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
+import { logout } from "@/lib/auth";
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
   dashboard: SquaresFour,
@@ -24,6 +27,7 @@ const getIcon = (
     const IconComponent = iconMap[icon] || SquaresFour;
     return <IconComponent className={cn("h-5 w-5", className)} />;
   }
+
   const IconComponent = icon;
   return <IconComponent className={cn("h-5 w-5", className)} />;
 };
@@ -33,23 +37,25 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen }: SidebarProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
 
+  const displayName = user?.username || "User";
+  const userInitial = displayName.charAt(0).toUpperCase();
+  const userEmail = user?.email || "";
+
   const filteredItems = navigationConfig.filter((item) => {
-    // Compound capability predicate (supports AND/OR logic)
     if (item.capability) {
       const userPerms = user?.permissions ?? [];
       return item.capability(userPerms);
     }
 
-    // Permission-based filtering (more granular)
     if (item.permissions && item.permissions.length > 0) {
       const userPerms = user?.permissions ?? [];
       return item.permissions.some((perm) => userPerms.includes(perm));
     }
 
-    // Role-based filtering (legacy)
     if (item.roles && item.roles.length > 0) {
       const userRoles = user?.roles ?? [];
       return item.roles.some((role) => userRoles.includes(role));
@@ -58,26 +64,33 @@ export function Sidebar({ isOpen }: SidebarProps) {
     return true;
   });
 
-  // Group items by group label
   const groups = filteredItems.reduce(
     (acc, item) => {
       const group = item.group || "default";
-      if (!acc[group]) acc[group] = [];
+
+      if (!acc[group]) {
+        acc[group] = [];
+      }
+
       acc[group].push(item);
       return acc;
     },
     {} as Record<string, SidebarItem[]>,
   );
 
-  // Separate main groups from SETTINGS
   const mainGroups = Object.entries(groups).filter(
     ([key]) => key !== "SETTINGS" && key !== "default",
   );
-  const defaultGroup = groups["default"] || [];
-  const settingsGroup = groups["SETTINGS"] || [];
+
+  const defaultGroup = groups.default || [];
+
+  const settingsGroup = (groups.SETTINGS || []).filter(
+    (item) => item.title !== "Access Control & Roles",
+  );
 
   const renderItem = (item: SidebarItem) => {
     const isActive = pathname === item.href;
+
     return (
       <li key={item.href}>
         <Link
@@ -85,8 +98,8 @@ export function Sidebar({ isOpen }: SidebarProps) {
           className={cn(
             "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
             isActive
-              ? "bg-[#EBEBEC] text-foreground font-semibold"
-              : "text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground font-normal",
+              ? "bg-[#EBEBEC] font-semibold text-foreground"
+              : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
           )}
         >
           {getIcon(
@@ -104,6 +117,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
       <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
         {label}
       </p>
+
       <ul className="space-y-0.5">{items.map(renderItem)}</ul>
     </div>
   );
@@ -111,40 +125,58 @@ export function Sidebar({ isOpen }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "flex flex-col border-r border-border bg-background overflow-hidden transition-all duration-300",
+        "flex flex-col overflow-hidden border-r border-border bg-background transition-all duration-300",
         isOpen ? "w-64" : "w-0",
       )}
     >
-      {/* Logo */}
-      <div className="flex h-14 items-center gap-2.5 px-5 pt-1 shrink-0">
-        <Image
-          src="/logo/text-logo.svg"
-          alt="STI one"
-          width={64}
-          height={20}
-          priority
-          style={{ height: "auto", width: "auto" }}
-        />
+      {/* Account section */}
+      <div className="flex shrink-0 items-center gap-3 px-6 py-5">
+        <Avatar size="sm">
+          <Avatar.Fallback>{userInitial}</Avatar.Fallback>
+        </Avatar>
+
+        <div className="flex min-w-0 flex-col">
+          <Label className="truncate text-sm font-medium text-foreground">
+            {displayName}
+          </Label>
+
+          <Description className="truncate text-xs">
+            {userEmail}
+          </Description>
+        </div>
       </div>
 
-      <Separator className="shrink-0" />
-
-      <nav className="flex flex-1 flex-col justify-between overflow-y-auto p-4 pt-2 min-w-56">
+      <nav className="flex min-w-56 flex-1 flex-col overflow-y-auto p-4 pt-3">
         {/* Main groups */}
-        <div>
+        <div className="flex-1">
           {mainGroups.map(([label, items]) => renderGroup(label, items))}
+
           {defaultGroup.length > 0 && (
             <ul className="space-y-1">{defaultGroup.map(renderItem)}</ul>
           )}
         </div>
 
-        {/* Bottom group (SETTINGS) */}
-        {settingsGroup.length > 0 && (
-          <div className="mt-4">
-            <Separator className="mb-3" />
-            {renderGroup("SETTINGS", settingsGroup)}
-          </div>
-        )}
+        {/* Bottom section: Settings + Sign Out */}
+        <ul className="space-y-0.5">
+          {settingsGroup.map(renderItem)}
+
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+              )}
+            >
+              <SignOut className="h-5 w-5 text-gray-500" />
+              Sign Out
+            </button>
+          </li>
+        </ul>
       </nav>
     </aside>
   );
