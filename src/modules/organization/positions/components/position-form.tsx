@@ -8,8 +8,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { Key } from '@heroui/react';
 import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
-  Button, TextField, Input, Label, FieldError,
-  Breadcrumbs, BreadcrumbsItem, Surface,
+  Button, Form, TextField, Input, Label, FieldError,
+  Breadcrumbs, BreadcrumbsItem, Separator,
   Select, ListBox, TextArea,
   Autocomplete, EmptyState, SearchField, Tag, TagGroup, useFilter,
   Alert, Spinner,
@@ -166,22 +166,31 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         </h1>
       </div>
 
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-6">
+      <Form
+        validationBehavior="aria"
+        onSubmit={(e) => {
+          form.handleSubmit(
+            handleSubmit,
+            (errors) => console.log("FORM ERRORS", errors),
+          )(e);
+        }}
+        className="flex flex-col gap-6"
+      >
 
           {/* ── BASIC INFORMATION ── */}
-          <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Basic Information</h2>
+          <div className="flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-foreground">Basic Information</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Controller
                 control={form.control}
                 name="positionCode"
                 render={({ field, fieldState }) => (
-                  <TextField isRequired validationBehavior="aria" className="w-full"
-                    name={field.name} value={field.value} onChange={field.onChange}
-                    isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                  <TextField isRequired validationBehavior="native" className="w-full"
+                    name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
+                    isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                     <Label>Position Code</Label>
-                    <Input variant="secondary" placeholder="Example: MGR-HRD-001" />
-                    {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                    <Input placeholder="Example: MGR-HRD-001" />
+                    <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>
                 )}
               />
@@ -189,12 +198,12 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                 control={form.control}
                 name="positionName"
                 render={({ field, fieldState }) => (
-                  <TextField isRequired validationBehavior="aria" className="w-full"
-                    name={field.name} value={field.value} onChange={field.onChange}
-                    isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                  <TextField isRequired validationBehavior="native" className="w-full"
+                    name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
+                    isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                     <Label>Position Name</Label>
-                    <Input variant="secondary" placeholder="Example: HRD Manager" />
-                    {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                    <Input placeholder="Example: HRD Manager" />
+                    <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>
                 )}
               />
@@ -203,20 +212,22 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
               control={form.control}
               name="description"
               render={({ field, fieldState }) => (
-                <TextField validationBehavior="aria" className="w-full"
-                  name={field.name} value={field.value ?? ''} onChange={field.onChange}
-                  isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                <TextField validationBehavior="native" className="w-full"
+                  name={field.name} value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
+                  isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                   <Label>Description</Label>
-                  <TextArea variant="secondary" placeholder="Brief position description" rows={2} />
-                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                  <TextArea placeholder="Brief position description" rows={2} />
+                  <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
             />
-          </Surface>
+          </div>
+
+          <Separator />
 
           {/* ── STRUCTURE & ACCESS ── */}
-          <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Structure & Access</h2>
+          <div className="flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-foreground">Structure & Access</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Supervisor — HeroUI Select */}
               <Controller
@@ -224,7 +235,6 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                 name="parentId"
                 render={({ field }) => (
                   <Select
-                    variant="secondary"
                     className="w-full"
                     selectedKey={field.value || null}
                     onSelectionChange={(k) => field.onChange(k ? String(k) : null)}
@@ -249,12 +259,12 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                 control={form.control}
                 name="unitName"
                 render={({ field, fieldState }) => (
-                  <TextField validationBehavior="aria" className="w-full"
-                    name={field.name} value={field.value ?? ''} onChange={field.onChange}
-                    isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                  <TextField validationBehavior="native" className="w-full"
+                    name={field.name} value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
+                    isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                     <Label>Unit Name</Label>
-                    <Input variant="secondary" placeholder="Example: HR Department" />
-                    {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                    <Input placeholder="Example: HR Department" />
+                    <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>
                 )}
               />
@@ -271,7 +281,6 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
 
                   return (
                     <Autocomplete
-                      variant="secondary"
                       className="w-full"
                       placeholder="Select role"
                       selectionMode="multiple"
@@ -314,10 +323,10 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                         <Autocomplete.ClearButton />
                         <Autocomplete.Indicator />
                       </Autocomplete.Trigger>
-                      {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                      <FieldError>{fieldState.error?.message}</FieldError>
                       <Autocomplete.Popover>
                         <Autocomplete.Filter filter={contains}>
-                          <SearchField autoFocus name="search" variant="secondary">
+                          <SearchField autoFocus name="search">
                             <SearchField.Group>
                               <SearchField.SearchIcon />
                               <SearchField.Input placeholder="Search role..." />
@@ -344,7 +353,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                 }}
               />
             </div>
-          </Surface>
+          </div>
 
           {/* Error */}
           {submitError && (
@@ -366,7 +375,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
               Save
             </Button>
           </div>
-        </form>
+        </Form>
     </div>
   );
 }

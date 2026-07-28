@@ -55,12 +55,14 @@ export default function EditPositionPage() {
   }
 
   return (
-    <PositionForm
-      mode="edit"
-      initialData={position}
-      onSuccess={() => {
-        router.push('/organization/positions');
-      }}
-    />
+    <div className="mx-auto w-full max-w-4xl">
+      <PositionForm
+        mode="edit"
+        initialData={position}
+        onSuccess={() => {
+          router.push('/organization/positions');
+        }}
+      />
+    </div>
   );
 }

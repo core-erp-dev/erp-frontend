@@ -29,11 +29,13 @@ export default function CreatePositionPage() {
   }
 
   return (
-    <PositionForm
-      mode="create"
-      onSuccess={() => {
-        router.push('/organization/positions');
-      }}
-    />
+    <div className="mx-auto w-full max-w-4xl">
+      <PositionForm
+        mode="create"
+        onSuccess={() => {
+          router.push('/organization/positions');
+        }}
+      />
+    </div>
   );
 }
