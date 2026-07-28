@@ -1,7 +1,20 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Modal, Button } from '@heroui/react';
+import React, { useMemo, useCallback } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import {
+  Modal,
+  Button,
+  Form,
+  TextField,
+  Input,
+  Label,
+  FieldError,
+  Select,
+  ListBox,
+} from '@heroui/react';
 import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, KpiNodeType } from './corporate-kpi.types';
 
 export type FormMode =
@@ -23,50 +36,45 @@ export interface KpiNodeFormModalProps {
 }
 
 const MODE_TITLE: Record<FormMode, string> = {
-  CREATE_ASPECT: 'Create Aspect',
-  CREATE_INDICATOR: 'Create Indicator',
+  CREATE_ASPECT: 'Add Corporate KPI',
+  CREATE_INDICATOR: 'Add Corporate KPI',
   EDIT_ASPECT: 'Edit Aspect',
   EDIT_INDICATOR: 'Edit Indicator',
 };
 
-/* ── Interfaces for inner form state ── */
+/* ── Schema ── */
 
-interface FormValues {
-  code: string;
-  name: string;
-  parentId: string;
-  unit: string;
-  targetValue: string;
-  description: string;
-}
-
-interface FormErrors {
-  code?: string;
-  name?: string;
-  parentId?: string;
-  unit?: string;
-  targetValue?: string;
-}
-
-function emptyForm(): FormValues {
-  return { code: '', name: '', parentId: '', unit: '', targetValue: '', description: '' };
-}
-
-function formFromNode(n: CorporateKpiNode): FormValues {
-  return {
-    code: n.code,
-    name: n.name,
-    parentId: n.parentId ?? '',
-    unit: n.unit ?? '',
-    targetValue: n.targetValue != null ? String(n.targetValue) : '',
-    description: n.description ?? '',
+function buildSchema(isIndicator: boolean) {
+  const base = {
+    code: z.string().min(1, 'Code is required').max(50, 'Code must be at most 50 characters'),
+    name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
+    description: z.string().optional(),
+    nodeType: z.enum(['ASPECT', 'INDICATOR']),
   };
+
+  if (isIndicator) {
+    return z.object({
+      ...base,
+      parentId: z.string().min(1, 'Parent Aspect is required'),
+      unit: z.string().min(1, 'Unit is required').max(50, 'Unit must be at most 50 characters'),
+      targetValue: z.coerce.number().positive('Target value must be greater than zero'),
+    });
+  }
+
+  return z.object({
+    ...base,
+    parentId: z.string().optional(),
+    unit: z.string().optional(),
+    targetValue: z.coerce.number().optional(),
+  });
 }
 
-/* ── Inner form component — receives key from parent so React remounts fresh ── */
+type AspectFormValues = z.input<ReturnType<typeof buildSchema>>;
+
+/* ── Inner form component ── */
 
 interface FormBodyProps {
-  initial: FormValues;
+  initial: AspectFormValues;
   isEdit: boolean;
   isIndicator: boolean;
   mode: FormMode;
@@ -92,201 +100,318 @@ function FormBody({
   onClose,
   onSubmit,
 }: FormBodyProps) {
-  const [code, setCode] = useState(initial.code);
-  const [name, setName] = useState(initial.name);
-  const [parentId, setParentId] = useState(initial.parentId);
-  const [unit, setUnit] = useState(initial.unit);
-  const [targetValue, setTargetValue] = useState(initial.targetValue);
-  const [description, setDescription] = useState(initial.description);
-  const [errors, setErrors] = useState<FormErrors>({});
+  const schema = buildSchema(isIndicator);
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+  } = useForm<AspectFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: initial,
+    mode: 'onBlur',
+    reValidateMode: 'onBlur',
+  });
 
+  const nodeType = watch('nodeType');
   const aspectOptions = useMemo(() => aspects.filter((a) => a.nodeType === 'ASPECT'), [aspects]);
 
-  function validate(): FormErrors {
-    const e: FormErrors = {};
-    if (!code.trim()) e.code = 'Code is required.';
-    else if (code.trim().length > 50) e.code = 'Code must be at most 50 characters.';
-    if (!name.trim()) e.name = 'Name is required.';
-    else if (name.trim().length > 255) e.name = 'Name must be at most 255 characters.';
-    if (isIndicator) {
-      if (!parentId) e.parentId = 'Parent Aspect is required.';
-      if (!unit.trim()) e.unit = 'Unit is required.';
-      else if (unit.trim().length > 50) e.unit = 'Unit must be at most 50 characters.';
-      const tv = targetValue.trim();
-      if (!tv) e.targetValue = 'Target value is required.';
-      else {
-        const num = Number(tv);
-        if (isNaN(num)) e.targetValue = 'Target value is required.';
-        else if (num <= 0) e.targetValue = 'Target value must be greater than zero.';
+  const onFormSubmit = useCallback(
+    async (data: Record<string, unknown>) => {
+      const isInd = data.nodeType === 'INDICATOR';
+      if (isInd) {
+        const payload: CreateKpiRequest | UpdateKpiRequest = isEdit
+          ? {
+              code: data.code as string,
+              name: data.name as string,
+              parentId: (data.parentId as string) || null,
+              unit: (data.unit as string) || null,
+              targetValue: (data.targetValue as number) ?? null,
+              description: (data.description as string) || null,
+            }
+          : {
+              code: data.code as string,
+              name: data.name as string,
+              nodeType: 'INDICATOR' as KpiNodeType,
+              year: selectedYear,
+              parentId: (data.parentId as string) || null,
+              unit: (data.unit as string) || null,
+              targetValue: (data.targetValue as number) ?? null,
+              description: (data.description as string) || null,
+            };
+        const ok = await onSubmit(payload, isEdit ? node?.id : undefined);
+        if (!ok) throw new Error('Submit failed');
+      } else {
+        const payload: CreateKpiRequest | UpdateKpiRequest = isEdit
+          ? {
+              code: data.code as string,
+              name: data.name as string,
+              parentId: null,
+              unit: null,
+              targetValue: null,
+              description: (data.description as string) || null,
+            }
+          : {
+              code: data.code as string,
+              name: data.name as string,
+              nodeType: 'ASPECT' as KpiNodeType,
+              year: selectedYear,
+              parentId: null,
+              unit: null,
+              targetValue: null,
+              description: (data.description as string) || null,
+            };
+        const ok = await onSubmit(payload, isEdit ? node?.id : undefined);
+        if (!ok) throw new Error('Submit failed');
       }
-    }
-    return e;
-  }
+    },
+    [isEdit, node?.id, onSubmit, selectedYear],
+  );
 
-  const handleSubmit = async () => {
-    const v = validate();
-    setErrors(v);
-    if (Object.keys(v).length > 0) return;
-
-    if (isIndicator) {
-      const payload = isEdit
-        ? ({
-            code: code.trim(),
-            name: name.trim(),
-            parentId: parentId || null,
-            unit: unit.trim(),
-            targetValue: targetValue ? Number(targetValue) : null,
-            description: description.trim() || null,
-          } satisfies UpdateKpiRequest)
-        : ({
-            code: code.trim(),
-            name: name.trim(),
-            nodeType: 'INDICATOR' as KpiNodeType,
-            year: selectedYear,
-            parentId: parentId || null,
-            unit: unit.trim(),
-            targetValue: targetValue ? Number(targetValue) : null,
-            description: description.trim() || null,
-          } satisfies CreateKpiRequest);
-      const ok = await onSubmit(payload, isEdit ? node?.id : undefined);
-      if (ok) setErrors({});
-    } else {
-      const payload = isEdit
-        ? ({
-            code: code.trim(),
-            name: name.trim(),
-            parentId: null,
-            unit: null,
-            targetValue: null,
-            description: description.trim() || null,
-          } satisfies UpdateKpiRequest)
-        : ({
-            code: code.trim(),
-            name: name.trim(),
-            nodeType: 'ASPECT' as KpiNodeType,
-            year: selectedYear,
-            parentId: null,
-            unit: null,
-            targetValue: null,
-            description: description.trim() || null,
-          } satisfies CreateKpiRequest);
-      const ok = await onSubmit(payload, isEdit ? node?.id : undefined);
-      if (ok) setErrors({});
-    }
-  };
+  const handleTypeChange = useCallback(
+    (key: React.Key | null) => {
+      if (!key) return;
+      const newType = key as KpiNodeType;
+      setValue('nodeType', newType, { shouldValidate: true });
+      if (newType === 'ASPECT') {
+        setValue('parentId', '', { shouldDirty: true });
+        setValue('unit', '', { shouldDirty: true });
+        setValue('targetValue', undefined, { shouldDirty: true });
+      }
+    },
+    [setValue],
+  );
 
   return (
-    <>
+    <Form
+      validationBehavior="aria"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit(
+          onFormSubmit as (data: AspectFormValues) => Promise<void>,
+          (formErrors) => console.log('FORM ERRORS', formErrors),
+        )();
+      }}
+      className="flex flex-col gap-4"
+    >
+      {/* Type selector — only shown on create; disabled in edit */}
+      {!isEdit && (
+        <Controller
+          name="nodeType"
+          control={control}
+          render={({ field, fieldState }) => (
+            <Select
+              className="w-full"
+              selectedKey={field.value}
+              onSelectionChange={(key) => handleTypeChange(key)}
+              isRequired
+              isInvalid={fieldState.invalid}
+              variant="secondary"
+            >
+              <Label>Type</Label>
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  <ListBox.Item id="ASPECT" textValue="Aspect">
+                    Aspect
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                  <ListBox.Item id="INDICATOR" textValue="Indicator">
+                    Indicator
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                </ListBox>
+              </Select.Popover>
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </Select>
+          )}
+        />
+      )}
+
       {/* Code */}
-      <label className="text-sm font-medium">Code</label>
-      <input
-        className="w-full rounded-lg border px-3 py-2 text-sm"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        disabled={isSubmitting}
-        placeholder="e.g. FIN"
+      <Controller
+        name="code"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            className="w-full"
+            name={field.name}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            ref={field.ref}
+            isRequired
+            isInvalid={fieldState.invalid}
+            isDisabled={isSubmitting}
+            validationBehavior="aria"
+            variant="secondary"
+          >
+            <Label>Code</Label>
+            <Input placeholder="e.g. FIN" />
+            <FieldError>{fieldState.error?.message}</FieldError>
+          </TextField>
+        )}
       />
-      {errors.code && <span className="text-xs text-danger">{errors.code}</span>}
 
       {/* Name */}
-      <label className="text-sm font-medium">Name</label>
-      <input
-        className="w-full rounded-lg border px-3 py-2 text-sm"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        disabled={isSubmitting}
-        placeholder="e.g. Financial"
-      />
-      {errors.name && <span className="text-xs text-danger">{errors.name}</span>}
-
-      {/* Parent Aspect (Indicator only) */}
-      {isIndicator && (
-        <>
-          <label className="text-sm font-medium">Parent Aspect</label>
-          <select
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
-            disabled={isSubmitting || (mode === 'CREATE_INDICATOR' && !!preselectedParentId)}
+      <Controller
+        name="name"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            className="w-full"
+            name={field.name}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            ref={field.ref}
+            isRequired
+            isInvalid={fieldState.invalid}
+            isDisabled={isSubmitting}
+            validationBehavior="aria"
+            variant="secondary"
           >
-            <option value="">Select parent Aspect</option>
-            {aspectOptions.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.code} — {a.name}
-              </option>
-            ))}
-          </select>
-          {errors.parentId && <span className="text-xs text-danger">{errors.parentId}</span>}
-        </>
+            <Label>Name</Label>
+            <Input placeholder="e.g. Financial" />
+            <FieldError>{fieldState.error?.message}</FieldError>
+          </TextField>
+        )}
+      />
+
+      {/* Parent Aspect — indicator only */}
+      {nodeType === 'INDICATOR' && (
+        <Controller
+          name="parentId"
+          control={control}
+          render={({ field, fieldState }) => (
+            <Select
+              className="w-full"
+              selectedKey={field.value || ''}
+              onSelectionChange={(key) => {
+                setValue('parentId', (key ?? '') as string, { shouldValidate: true });
+              }}
+              isRequired
+              isInvalid={fieldState.invalid}
+              isDisabled={isSubmitting || (mode === 'CREATE_INDICATOR' && !!preselectedParentId)}
+              variant="secondary"
+              >
+              <Label>Parent Aspect</Label>
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  {aspectOptions.length === 0 && (
+                    <ListBox.Item id="__empty" textValue="No aspects available">
+                      No aspects available
+                    </ListBox.Item>
+                  )}
+                  {aspectOptions.map((a) => (
+                    <ListBox.Item key={a.id} id={a.id} textValue={`${a.code} — ${a.name}`}>
+                      {a.code} — {a.name}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </Select>
+          )}
+        />
       )}
 
-      {/* Type + Year info */}
-      <div className="flex gap-4 text-sm text-muted-foreground">
-        <span>Type: {isIndicator ? 'Indicator' : 'Aspect'}</span>
-        <span>Year: {isEdit && node ? node.year : selectedYear}</span>
+      {/* Unit — indicator only */}
+      {nodeType === 'INDICATOR' && (
+        <Controller
+          name="unit"
+          control={control}
+          render={({ field, fieldState }) => (
+            <TextField
+              className="w-full"
+              name={field.name}
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              ref={field.ref}
+              isRequired
+              isInvalid={fieldState.invalid}
+              isDisabled={isSubmitting}
+              validationBehavior="aria"
+              variant="secondary"
+              >
+              <Label>Unit</Label>
+              <Input placeholder="e.g. %" />
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </TextField>
+          )}
+        />
+      )}
+
+      {/* Target Value — indicator only */}
+      {nodeType === 'INDICATOR' && (
+        <Controller
+          name="targetValue"
+          control={control}
+          render={({ field, fieldState }) => (
+            <TextField
+              className="w-full"
+              name={field.name}
+              value={field.value != null ? String(field.value) : ''}
+              onChange={(val) => field.onChange(val ? Number(val) : undefined)}
+              onBlur={field.onBlur}
+              ref={field.ref}
+              isRequired
+              isInvalid={fieldState.invalid}
+              isDisabled={isSubmitting}
+              validationBehavior="aria"
+              variant="secondary"
+              >
+              <Label>Target Value</Label>
+              <Input type="number" min={0} step="any" />
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </TextField>
+          )}
+        />
+      )}
+
+      {/* Description — shared */}
+      <Controller
+        name="description"
+        control={control}
+        render={({ field }) => (
+          <TextField
+            className="w-full"
+            name={field.name}
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            isDisabled={isSubmitting}
+            variant="secondary"
+          >
+            <Label>Description</Label>
+            <Input placeholder="Optional description" />
+          </TextField>
+        )}
+      />
+
+      {/* Year — read-only display */}
+      <div className="text-sm text-muted-foreground">
+        Year: {isEdit && node ? node.year : selectedYear}
       </div>
 
-      {/* Unit (Indicator only) */}
-      {isIndicator && (
-        <>
-          <label className="text-sm font-medium">Unit</label>
-          <input
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            disabled={isSubmitting}
-            placeholder="e.g. %"
-          />
-          {errors.unit && <span className="text-xs text-danger">{errors.unit}</span>}
-        </>
-      )}
-
-      {/* Target Value (Indicator only) */}
-      {isIndicator && (
-        <>
-          <label className="text-sm font-medium">Target Value</label>
-          <input
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            value={targetValue}
-            onChange={(e) => setTargetValue(e.target.value)}
-            disabled={isSubmitting}
-            placeholder="e.g. 10.5"
-            type="number"
-            min="0"
-            step="any"
-          />
-          {errors.targetValue && <span className="text-xs text-danger">{errors.targetValue}</span>}
-        </>
-      )}
-
-      {/* Description */}
-      <label className="text-sm font-medium">Description</label>
-      <input
-        className="w-full rounded-lg border px-3 py-2 text-sm"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        disabled={isSubmitting}
-        placeholder="Optional description"
-      />
-
-      {/* Footer with Save/Cancel inside the form body so handleSubmit is accessible */}
-      <div className="flex justify-end gap-2 border-t pt-4">
-        <Button
-          variant="secondary"
-          onPress={onClose}
-          isDisabled={isSubmitting}
-        >
+      {/* Action buttons */}
+      <div className="flex justify-end gap-2 pt-4">
+        <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
           Cancel
         </Button>
-        <Button
-          variant="primary"
-          onPress={handleSubmit}
-          isDisabled={isSubmitting}
-        >
+        <Button variant="primary" type="submit" isDisabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save'}
         </Button>
       </div>
-    </>
+    </Form>
   );
 }
 
@@ -306,10 +431,16 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
   const isEdit = mode === 'EDIT_ASPECT' || mode === 'EDIT_INDICATOR';
   const isIndicator = mode === 'CREATE_INDICATOR' || mode === 'EDIT_INDICATOR';
 
-  const initial = isEdit && node ? formFromNode(node) : emptyForm();
-  const initialParent = mode === 'CREATE_INDICATOR' && preselectedParentId ? preselectedParentId : '';
+  const initial: AspectFormValues = {
+    code: node?.code ?? '',
+    name: node?.name ?? '',
+    nodeType: isIndicator ? 'INDICATOR' : 'ASPECT',
+    parentId: (mode === 'CREATE_INDICATOR' && preselectedParentId ? preselectedParentId : node?.parentId) ?? '',
+    unit: node?.unit ?? '',
+    targetValue: node?.targetValue ?? undefined,
+    description: node?.description ?? '',
+  };
 
-  // Key changes when mode/node/open changes → FormBody remounts with fresh state
   const formKey = `${mode}--${node?.id ?? 'new'}--${preselectedParentId ?? ''}--${isOpen}`;
 
   return (
@@ -321,13 +452,13 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
       >
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[480px]">
-            <Modal.Header className="flex items-center justify-between border-b">
+            <Modal.Header className="flex items-center justify-between">
               <Modal.Heading className="text-lg font-semibold">{MODE_TITLE[mode]}</Modal.Heading>
             </Modal.Header>
             <Modal.Body className="flex flex-col gap-4 py-5">
               <div key={formKey}>
                 <FormBody
-                  initial={{ ...initial, parentId: initialParent || initial.parentId }}
+                  initial={initial}
                   isEdit={isEdit}
                   isIndicator={isIndicator}
                   mode={mode}

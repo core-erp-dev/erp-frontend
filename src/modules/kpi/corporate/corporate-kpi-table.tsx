@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Table, Spinner, Badge, Button } from '@heroui/react';
-import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, Check, Trash, Copy } from '@phosphor-icons/react';
+import { Table, Spinner, Chip, Button, Dropdown } from '@heroui/react';
+import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, Check, Trash, Copy, DotsThreeVertical, Play, Pause } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { CorporateKpiNode, KpiStatus } from './corporate-kpi.types';
@@ -48,12 +48,17 @@ function buildTreeRows(
   return rows;
 }
 
-/* ── Status badge variant ── */
+/* ── Chip color maps ── */
 
-const statusVariant: Record<KpiStatus, 'primary' | 'secondary' | 'soft'> = {
-  DRAFT: 'secondary',
-  ACTIVE: 'primary',
-  INACTIVE: 'soft',
+const statusChipColor: Record<KpiStatus, 'default' | 'success' | 'warning'> = {
+  DRAFT: 'default',
+  ACTIVE: 'success',
+  INACTIVE: 'warning',
+};
+
+const typeChipColor: Record<string, 'default' | 'accent'> = {
+  ASPECT: 'default',
+  INDICATOR: 'accent',
 };
 
 /* ── Empty state ── */
@@ -213,7 +218,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
               <Table.Column id="unit">Unit</Table.Column>
               <Table.Column id="target">Target Value</Table.Column>
               <Table.Column id="status">Status</Table.Column>
-              {hasMutationPerms && <Table.Column id="actions">Actions</Table.Column>}
+              {hasMutationPerms && <Table.Column id="actions" className="text-center">{''}</Table.Column>}
             </Table.Header>
             <Table.Body>
               {treeRows.map((row) => (
@@ -259,7 +264,11 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                         </Button>
                       </div>
                     </Table.Cell>
-                    <Table.Cell><span className="text-muted-foreground">{row.nodeType}</span></Table.Cell>
+                    <Table.Cell>
+                      <Chip size="sm" color={typeChipColor[row.nodeType] || 'default'} variant="soft">
+                        {row.nodeType}
+                      </Chip>
+                    </Table.Cell>
                     <Table.Cell className="text-muted-foreground">{row.year}</Table.Cell>
                     <Table.Cell className="text-muted-foreground">
                       {row.depth === 0 ? '–' : row.unit || '–'}
@@ -268,26 +277,17 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                       {row.depth === 0 ? '–' : row.targetValue != null ? row.targetValue : '–'}
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge variant={statusVariant[row.status]}>{row.status}</Badge>
+                      <Chip size="sm" color={statusChipColor[row.status]} variant="soft">
+                        {row.status}
+                      </Chip>
                     </Table.Cell>
                     {hasMutationPerms && (
                       <Table.Cell>
-                        <div className="flex items-center gap-1">
-                          {row.depth === 0 && canCreate && onCreateIndicator && (
-                            <Button
-                              isIconOnly
-                              variant="ghost"
-                              size="sm"
-                              aria-label="Create Indicator"
-                              onPress={() => onCreateIndicator(row.id)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          )}
+                        <div className="flex items-center justify-end gap-1">
                           {canUpdate && onEdit && (
                             <Button
                               isIconOnly
-                              variant="ghost"
+                              variant="tertiary"
                               size="sm"
                               aria-label="Edit"
                               onPress={() => {
@@ -298,49 +298,49 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                               <PencilSimple className="h-4 w-4" />
                             </Button>
                           )}
-                          {/* P1.3 lifecycle: Activate/Deactivate/Delete */}
-                          {onActivate && (row.status === 'DRAFT' || row.status === 'INACTIVE') && (
+                          {row.nodeType === 'ASPECT' && canCreate && onCreateIndicator && (
                             <Button
                               isIconOnly
-                              variant="ghost"
+                              variant="tertiary"
                               size="sm"
-                              aria-label="Activate"
-                              onPress={() => {
-                                const full = findNodeById(tree, row.id);
-                                if (full) onActivate(full);
-                              }}
+                              aria-label="Add Indicator"
+                              onPress={() => onCreateIndicator(row.id)}
                             >
-                              <Check className="h-4 w-4 text-green-600" />
+                              <Plus className="h-4 w-4" />
                             </Button>
                           )}
-                          {onDeactivate && row.status === 'ACTIVE' && (
-                            <Button
-                              isIconOnly
-                              variant="ghost"
-                              size="sm"
-                              aria-label="Deactivate"
-                              onPress={() => {
-                                const full = findNodeById(tree, row.id);
-                                if (full) onDeactivate(full);
-                              }}
-                            >
-                              <span className="text-xs font-bold text-orange-500">||</span>
+
+                          {/* More menu: Activate/Deactivate + Delete */}
+                          <Dropdown>
+                            <Button isIconOnly variant="tertiary" size="sm" aria-label="More actions">
+                              <DotsThreeVertical className="h-4 w-4" />
                             </Button>
-                          )}
-                          {canDelete && onDelete && (
-                            <Button
-                              isIconOnly
-                              variant="ghost"
-                              size="sm"
-                              aria-label="Delete"
-                              onPress={() => {
+                            <Dropdown.Popover placement="top">
+                              <Dropdown.Menu onAction={(key) => {
                                 const full = findNodeById(tree, row.id);
-                                if (full) onDelete(full);
-                              }}
-                            >
-                              <Trash className="h-4 w-4 text-red-600" />
-                            </Button>
-                          )}
+                                if (!full) return;
+                                if (key === 'activate') onActivate?.(full);
+                                if (key === 'deactivate') onDeactivate?.(full);
+                                if (key === 'delete') onDelete?.(full);
+                              }}>
+                                {onActivate && (row.status === 'DRAFT' || row.status === 'INACTIVE') && (
+                                  <Dropdown.Item id="activate" textValue="Activate">
+                                    <div className="flex items-center gap-2"><Play className="h-4 w-4 text-muted-foreground" /><span>Activate</span></div>
+                                  </Dropdown.Item>
+                                )}
+                                {onDeactivate && row.status === 'ACTIVE' && (
+                                  <Dropdown.Item id="deactivate" textValue="Deactivate">
+                                    <div className="flex items-center gap-2"><Pause className="h-4 w-4 text-muted-foreground" /><span>Deactivate</span></div>
+                                  </Dropdown.Item>
+                                )}
+                                {canDelete && onDelete && (
+                                  <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+                                    <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
+                                  </Dropdown.Item>
+                                )}
+                              </Dropdown.Menu>
+                            </Dropdown.Popover>
+                          </Dropdown>
                         </div>
                       </Table.Cell>
                     )}
@@ -404,19 +404,27 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
             <Table.Column id="year">Year</Table.Column>
             <Table.Column id="parent">Parent Aspect</Table.Column>
             <Table.Column id="status">Status</Table.Column>
-            {canRestore && onRestore && <Table.Column id="actions">Actions</Table.Column>}
+            {canRestore && onRestore && <Table.Column id="actions">{''}</Table.Column>}
           </Table.Header>
           <Table.Body>
             {searchFiltered.map((node) => (
-              <Table.Row key={node.id}>
-                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.name}</span></Table.Cell>
-                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.code}</span></Table.Cell>
-                <Table.Cell className="text-muted-foreground">{node.nodeType}</Table.Cell>
-                <Table.Cell className="text-muted-foreground">{node.year}</Table.Cell>
-                <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>
-                <Table.Cell><Badge variant={statusVariant[node.status]}>{node.status}</Badge></Table.Cell>
-                {canRestore && onRestore && (
-                  <Table.Cell>
+            <Table.Row key={node.id}>
+              <Table.Cell><span className="font-medium text-gray-400 line-through">{node.name}</span></Table.Cell>
+              <Table.Cell><span className="font-medium text-gray-400 line-through">{node.code}</span></Table.Cell>
+              <Table.Cell className="text-muted-foreground">
+                <Chip size="sm" color={typeChipColor[node.nodeType] || 'default'} variant="soft">
+                  {node.nodeType}
+                </Chip>
+              </Table.Cell>
+              <Table.Cell className="text-muted-foreground">{node.year}</Table.Cell>
+              <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>
+              <Table.Cell>
+                <Chip size="sm" color={statusChipColor[node.status]} variant="soft">
+                  {node.status}
+                </Chip>
+              </Table.Cell>
+              {canRestore && onRestore && (
+                <Table.Cell>
                     <Button
                       isIconOnly
                       variant="ghost"

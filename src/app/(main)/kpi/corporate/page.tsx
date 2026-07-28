@@ -258,7 +258,7 @@ export default function KpiCorporatePage() {
           {canCreate && viewMode === 'current' && (
             <Button variant="primary" onPress={openCreateAspect}>
               <Plus className="h-4 w-4" />
-              Create Aspect
+              Add Corporate KPI
             </Button>
           )}
         </div>
