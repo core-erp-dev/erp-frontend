@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { Eye, PencilSimple, Trash, ArrowCounterClockwise, Tray } from '@phosphor-icons/react';
-import { Table, Button } from '@heroui/react';
+import { Table, Button, Spinner } from '@heroui/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { Role } from '../types';
 
 interface RoleTableProps {
   roles: Role[];
+  isLoading?: boolean;
   includeDeleted?: boolean;
   onView: (id: number) => void;
   onEdit: (id: number) => void;
@@ -16,17 +17,8 @@ interface RoleTableProps {
   onRestore: (id: number) => void;
 }
 
-export function RoleTable({ roles, includeDeleted, onView, onEdit, onDelete, onRestore }: RoleTableProps) {
+export function RoleTable({ roles, isLoading = false, includeDeleted, onView, onEdit, onDelete, onRestore }: RoleTableProps) {
   const { hasPerm } = usePermission();
-
-  if (roles.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-        <Tray className="h-8 w-8" />
-        <span className="text-sm">No data available</span>
-      </div>
-    );
-  }
 
   return (
     <Table>
@@ -39,7 +31,20 @@ export function RoleTable({ roles, includeDeleted, onView, onEdit, onDelete, onR
             <Table.Column id="permissions">Permissions</Table.Column>
             <Table.Column id="actions" className="text-right">Actions</Table.Column>
           </Table.Header>
-          <Table.Body>
+          <Table.Body
+            renderEmptyState={() =>
+              isLoading ? (
+                <div className="flex h-24 items-center justify-center">
+                  <Spinner size="md" />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                  <Tray className="h-8 w-8" />
+                  <span className="text-sm">No data available</span>
+                </div>
+              )
+            }
+          >
             {roles.map((role) => (
               <Table.Row key={role.id} id={String(role.id)}>
                 <Table.Cell className={`font-medium ${role.deletedAt ? 'text-gray-400 line-through' : 'text-foreground'}`}>

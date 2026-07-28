@@ -7,9 +7,9 @@ import {
   Breadcrumbs,
   BreadcrumbsItem,
   Button,
+  Chip,
   SearchField,
   Alert,
-  Spinner,
 } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
@@ -106,7 +106,7 @@ export default function RolesPage() {
         <BreadcrumbsItem href="/">
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
-        <BreadcrumbsItem>Settings</BreadcrumbsItem>
+        <BreadcrumbsItem href="/settings">Settings</BreadcrumbsItem>
         <BreadcrumbsItem>Access Control & Roles</BreadcrumbsItem>
       </Breadcrumbs>
 
@@ -114,15 +114,13 @@ export default function RolesPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">Roles</h1>
-          <Button
-            isIconOnly
-            variant="tertiary"
-            size="sm"
-            className="pointer-events-none text-sm font-medium"
+          <Chip
+            size="md"
+            className="pointer-events-none"
             aria-label={`Total ${displayRoles.length} roles`}
           >
             {displayRoles.length}
-          </Button>
+          </Chip>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -183,20 +181,17 @@ export default function RolesPage() {
       </div>
 
       {/* Table */}
-      {isLoading ? (
-        <div className="flex h-64 items-center justify-center">
-          <Spinner size="md" />
-        </div>
-      ) : (
+      <div className="w-full">
         <RoleTable
           roles={displayRoles}
+          isLoading={isLoading}
           includeDeleted={includeDeleted}
           onView={(id) => router.push(`/settings/roles/${id}`)}
           onEdit={(id) => router.push(`/settings/roles/${id}/edit`)}
           onDelete={handleDeleteRole}
           onRestore={handleRestore}
         />
-      )}
+      </div>
 
       {/* Delete Dialog */}
       <DeleteConfirmDialog
