@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, MedalMilitary, Briefcase } from '@phosphor-icons/react';
-import { Button, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Surface, Badge } from '@heroui/react';
+import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash } from '@phosphor-icons/react';
+import { Button, TextField, Input, Label, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Separator } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { getGenderLabel } from '@/constants/gender';
-import { DetailField, formatDate } from '@/components/shared/detail-field';
+import { formatDate } from '@/components/shared/detail-field';
 import { useEmployeeDetail } from '@/modules/organization/employees/hooks/use-employee-detail';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 
@@ -55,7 +55,7 @@ export default function EmployeeDetailPage() {
   const showDropdown = hasPerm(PERM.USER_UPDATE) || hasPerm(PERM.USER_DELETE);
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <Breadcrumbs>
         <BreadcrumbsItem href="/">
           <House className="h-4 w-4" />
@@ -105,32 +105,66 @@ export default function EmployeeDetailPage() {
       </div>
 
       {/* Personal Information */}
-      <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Personal Information</h2>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <DetailField label="Full Name" value={employee.fullName} />
-          <DetailField label="Gender" value={getGenderLabel(employee.gender)} />
-          <DetailField label="Date of Birth" value={formatDate(employee.birthDate)} />
-          <DetailField label="Phone Number" value={employee.phoneNumber || '-'} />
-          <DetailField label="Email" value={employee.email} />
-          <DetailField label="Address" value={employee.address || '-'} />
+      <div className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-foreground">Personal Information</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TextField isReadOnly className="w-full">
+            <Label>Full Name</Label>
+            <Input value={employee.fullName} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Gender</Label>
+            <Input value={getGenderLabel(employee.gender)} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Date of Birth</Label>
+            <Input value={formatDate(employee.birthDate)} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Phone Number</Label>
+            <Input value={employee.phoneNumber || '-'} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Email</Label>
+            <Input value={employee.email} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Address</Label>
+            <Input value={employee.address || '-'} readOnly />
+          </TextField>
         </div>
-      </Surface>
+      </div>
+
+      <Separator />
 
       {/* Employment Data */}
-      <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Employment Data</h2>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <DetailField label="NIP" value={employee.nip || '-'} />
-          <DetailField label="Position" value={pos?.positionName || '-'} />
-          <DetailField label="Join Date" value={formatDate(employee.joinDate || employee.createdAt)} />
-          <DetailField label="Role" value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} />
+      <div className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-foreground">Employment Data</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TextField isReadOnly className="w-full">
+            <Label>NIP</Label>
+            <Input value={employee.nip || '-'} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Position</Label>
+            <Input value={pos?.positionName || '-'} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Join Date</Label>
+            <Input value={formatDate(employee.joinDate || employee.createdAt)} readOnly />
+          </TextField>
+          <TextField isReadOnly className="w-full">
+            <Label>Role</Label>
+            <Input value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} readOnly />
+          </TextField>
         </div>
-      </Surface>
+      </div>
+
+      <Separator />
 
       {/* Position List */}
-      <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">Position List</h2>
+      <div className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-foreground">Position List</h2>
         {(() => {
           const activePositions = (employee.positions ?? []).filter(p => p.isActive);
           if (activePositions.length === 0) {
@@ -139,32 +173,17 @@ export default function EmployeeDetailPage() {
           return (
             <div className="space-y-2">
               {activePositions.map(up => (
-                <div key={up.id} className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    {up.isPrimary
-                      ? <MedalMilitary className="h-5 w-5 text-amber-500" />
-                      : <Briefcase className="h-5 w-5 text-muted-foreground" />
-                    }
-                    <div>
-                      <span className="font-medium text-foreground">{up.positionName}</span>
-                      <span className="ml-2 text-xs text-gray-400">{up.positionCode}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={up.isPrimary ? 'primary' : 'secondary'} size="sm">
-                      {up.isPrimary ? 'Primary' : 'Secondary'}
-                    </Badge>
-                    <span className="text-xs text-gray-400">
-                      {formatDate(up.startDate)}
-                      {up.endDate ? ` · to ${formatDate(up.endDate)}` : ''}
-                    </span>
-                  </div>
-                </div>
+                <TextField key={up.id} isReadOnly className="w-full">
+                  <Input
+                    value={`${up.positionName} (${up.positionCode}) — ${up.isPrimary ? 'Primary' : 'Secondary'} — ${formatDate(up.startDate)}${up.endDate ? ` to ${formatDate(up.endDate)}` : ''}`}
+                    readOnly
+                  />
+                </TextField>
               ))}
             </div>
           );
         })()}
-      </Surface>
+      </div>
 
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}
