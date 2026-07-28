@@ -49,20 +49,22 @@ type TabId =
 export default function KpiActivitiesPage() {
   const { hasPerm, hasAnyPerm } = usePermission();
 
-  // Tab-level permissions
   const canRead = hasPerm(PERM.KPI_ACTIVITY_READ);
+
   const canOwned = hasAnyPerm(
     PERM.KPI_ACTIVITY_ROOT_REQUEST,
     PERM.KPI_ACTIVITY_REQUEST,
   );
+
   const canRequest = hasPerm(PERM.KPI_ACTIVITY_REQUEST);
+
   const canMyRequests = hasAnyPerm(
     PERM.KPI_ACTIVITY_REQUEST,
     PERM.KPI_ACTIVITY_ROOT_REQUEST,
   );
+
   const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
 
-  // Include approval-only users in page access.
   const canAccess = hasAnyPerm(
     PERM.KPI_ACTIVITY_READ,
     PERM.KPI_ACTIVITY_REQUEST,
@@ -70,7 +72,6 @@ export default function KpiActivitiesPage() {
     PERM.KPI_ACTIVITY_APPROVE,
   );
 
-  // Root create requires both permissions.
   const canCreateRoot =
     hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST) &&
     hasPerm(PERM.CORPORATE_KPI_READ);
@@ -83,6 +84,7 @@ export default function KpiActivitiesPage() {
         id: 'my-activities',
         label: 'My Activities',
       });
+
       result.push({
         id: 'managed-activities',
         label: 'Managed',
@@ -120,6 +122,7 @@ export default function KpiActivitiesPage() {
 
   const [activeTab, setActiveTab] =
     useState<TabId>('my-activities');
+
   const [searchQuery, setSearchQuery] = useState('');
 
   const effectiveTab = tabs.some(
@@ -157,7 +160,6 @@ export default function KpiActivitiesPage() {
     fetchPending,
   } = useApprovalData();
 
-  // Fetch only the currently selected tab.
   useEffect(() => {
     if (effectiveTab === 'my-activities') {
       fetchMyActivities();
@@ -362,7 +364,6 @@ export default function KpiActivitiesPage() {
     fetchPending,
   ]);
 
-  // Detail modal
   const [detailModal, setDetailModal] = useState<{
     isOpen: boolean;
     mode: 'ACTIVITY' | 'REQUEST';
@@ -403,7 +404,6 @@ export default function KpiActivitiesPage() {
     });
   }, []);
 
-  // Form modal
   const [formModal, setFormModal] = useState<{
     isOpen: boolean;
     mode: ActivityFormMode;
@@ -452,7 +452,6 @@ export default function KpiActivitiesPage() {
     });
   }, []);
 
-  // Cancel dialog
   const [cancelDialog, setCancelDialog] = useState<{
     isOpen: boolean;
     activity: KpiActivityResponse | null;
@@ -478,7 +477,6 @@ export default function KpiActivitiesPage() {
     });
   }, []);
 
-  // Approval dialog
   const [approvalDialog, setApprovalDialog] = useState<{
     mode: 'APPROVE' | 'REJECT' | null;
     request: KpiActivityChangeRequestResponse | null;
@@ -521,6 +519,7 @@ export default function KpiActivitiesPage() {
           <BreadcrumbsItem href="/">
             <House className="h-4 w-4" />
           </BreadcrumbsItem>
+
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
           <BreadcrumbsItem>Activities</BreadcrumbsItem>
         </Breadcrumbs>
@@ -533,8 +532,11 @@ export default function KpiActivitiesPage() {
 
         <Alert status="danger">
           <Alert.Indicator />
+
           <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
+            <Alert.Title>
+              Access Denied
+            </Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
@@ -547,6 +549,7 @@ export default function KpiActivitiesPage() {
         <BreadcrumbsItem href="/">
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
+
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
         <BreadcrumbsItem>Activities</BreadcrumbsItem>
       </Breadcrumbs>
@@ -595,9 +598,10 @@ export default function KpiActivitiesPage() {
       </div>
 
       {/* Row 2: Tabs (left) | Search (right) */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <Tabs
+            className="w-full min-w-0"
             selectedKey={effectiveTab}
             onSelectionChange={(key) =>
               setActiveTab(key as TabId)
@@ -606,11 +610,13 @@ export default function KpiActivitiesPage() {
             <Tabs.ListContainer>
               <Tabs.List
                 aria-label="KPI Activities"
+                className="w-max flex-nowrap"
               >
                 {tabs.map((tab) => (
                   <Tabs.Tab
                     key={tab.id}
                     id={tab.id}
+                    className="w-fit shrink-0 whitespace-nowrap"
                   >
                     {tab.label}
                     <Tabs.Indicator />
@@ -625,14 +631,16 @@ export default function KpiActivitiesPage() {
           name="search"
           value={searchQuery}
           onChange={setSearchQuery}
-          className="w-72"
+          className="w-72 shrink-0"
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
+
             <SearchField.Input
               aria-label="Search activities"
               placeholder="Search activities"
             />
+
             <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
