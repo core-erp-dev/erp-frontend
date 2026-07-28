@@ -45,28 +45,50 @@ const MODE_TITLE: Record<FormMode, string> = {
 
 /* ── Schema ── */
 
-function buildSchema(isIndicator: boolean) {
+function buildSchema(isEdit: boolean, isIndicator: boolean) {
   const base = {
     code: z.string().min(1, 'Code is required').max(50, 'Code must be at most 50 characters'),
     name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
     description: z.string().optional(),
-    nodeType: z.enum(['ASPECT', 'INDICATOR']),
+    nodeType: isEdit ? z.enum(['ASPECT', 'INDICATOR']) : z.string().min(1, 'Type is required'),
     year: z.coerce.number().int().min(2000).max(2100),
   };
-  if (isIndicator) {
+
+  if (isEdit) {
+    if (isIndicator) {
+      return z.object({
+        ...base,
+        parentId: z.string().min(1, 'Parent Aspect is required'),
+        unit: z.string().min(1, 'Unit is required').max(50, 'Unit must be at most 50 characters'),
+        targetValue: z.coerce.number().positive('Target value must be greater than zero'),
+      });
+    }
     return z.object({
       ...base,
-      parentId: z.string().min(1, 'Parent Aspect is required'),
-      unit: z.string().min(1, 'Unit is required').max(50, 'Unit must be at most 50 characters'),
-      targetValue: z.coerce.number().positive('Target value must be greater than zero'),
+      parentId: z.string().optional(),
+      unit: z.string().optional(),
+      targetValue: z.coerce.number().optional(),
     });
   }
 
+  // Create mode — all indicator fields optional, refined conditionally
   return z.object({
     ...base,
     parentId: z.string().optional(),
     unit: z.string().optional(),
     targetValue: z.coerce.number().optional(),
+  }).superRefine((data, ctx) => {
+    if (data.nodeType === 'INDICATOR') {
+      if (!data.parentId) {
+        ctx.addIssue({ code: 'custom', path: ['parentId'], message: 'Parent Aspect is required' });
+      }
+      if (!data.unit) {
+        ctx.addIssue({ code: 'custom', path: ['unit'], message: 'Unit is required' });
+      }
+      if (data.targetValue == null || data.targetValue <= 0) {
+        ctx.addIssue({ code: 'custom', path: ['targetValue'], message: 'Target value must be greater than zero' });
+      }
+    }
   });
 }
 
@@ -101,7 +123,7 @@ function FormBody({
   onClose,
   onSubmit,
 }: FormBodyProps) {
-  const schema = buildSchema(isIndicator);
+  const schema = buildSchema(isEdit, isIndicator);
   const {
     control,
     handleSubmit,
@@ -203,11 +225,12 @@ function FormBody({
           render={({ field, fieldState }) => (
             <Select
               className="w-full"
-              selectedKey={field.value}
+              selectedKey={field.value || null}
               onSelectionChange={(key) => handleTypeChange(key)}
               isRequired
               isInvalid={fieldState.invalid}
               variant="secondary"
+              placeholder="Select type"
             >
               <Label>Type</Label>
               <Select.Trigger>
@@ -458,7 +481,7 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
   const initial: AspectFormValues = {
     code: node?.code ?? '',
     name: node?.name ?? '',
-    nodeType: isIndicator ? 'INDICATOR' : 'ASPECT',
+    nodeType: isEdit ? (isIndicator ? 'INDICATOR' as const : 'ASPECT' as const) : '',
     year: node?.year ?? selectedYear,
     parentId: (mode === 'CREATE_INDICATOR' && preselectedParentId ? preselectedParentId : node?.parentId) ?? '',
     unit: node?.unit ?? '',
