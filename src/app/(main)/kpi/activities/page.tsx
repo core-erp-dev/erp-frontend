@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Tabs } from '@heroui/react';
-import { House, Plus } from '@phosphor-icons/react';
+import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Chip, Tabs } from '@heroui/react';
+import { House, Plus, ArrowsClockwise } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
@@ -191,15 +191,42 @@ export default function KpiActivitiesPage() {
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.activities}</h1>
+          <Chip size="md" className="pointer-events-none" aria-label="Total activities">
+            {tabs.reduce((sum, tab) => {
+              if (tab.id === 'my-activities') return sum + (myActivities?.length ?? 0);
+              if (tab.id === 'managed-activities') return sum + (managedActivities?.length ?? 0);
+              if (tab.id === 'owned-activities') return sum + (ownedActivities?.length ?? 0);
+              if (tab.id === 'my-requests') return sum + (myRequests?.length ?? 0);
+              if (tab.id === 'approvals') return sum + (pendingRequests?.length ?? 0);
+              return sum;
+            }, 0)}
+          </Chip>
         </div>
-        {canCreateRoot && (
-          <Button variant="primary" size="sm" onPress={openCreateRoot}>
-            <Plus className="h-4 w-4" />
-            Create Activity
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {(() => {
+            const isAnyLoading = isLoadingMy || isLoadingManaged || isLoadingOwned || isLoadingRequests || isLoadingPending;
+            const anyRefresh = [fetchMyActivities, fetchManagedActivities, fetchOwnedActivities, fetchMyRequests, fetchPending];
+            return (
+              <Button
+                isIconOnly
+                variant="tertiary"
+                onPress={() => anyRefresh.forEach(fn => fn?.())}
+                isDisabled={isAnyLoading}
+                aria-label="Refresh"
+              >
+                <ArrowsClockwise className={`h-4 w-4 ${isAnyLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            );
+          })()}
+          {canCreateRoot && (
+            <Button variant="primary" onPress={openCreateRoot}>
+              <Plus className="h-4 w-4" />
+              Create Activity
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs
@@ -279,7 +306,7 @@ export default function KpiActivitiesPage() {
 
       {/* Detail Modal */}
       <KpiActivityDetailModal
-        key={detailModal.entityId || 'closed'}
+        key={detailModal.entityId || 'detail-closed'}
         isOpen={detailModal.isOpen}
         onClose={closeDetail}
         mode={detailModal.mode}
@@ -288,7 +315,7 @@ export default function KpiActivitiesPage() {
 
       {/* Form Modal (P2.2) */}
       <ActivityFormModal
-        key={formModal.isOpen ? `${formModal.mode}-${formModal.activity?.id || 'new'}` : 'closed'}
+        key={formModal.isOpen ? `${formModal.mode}-${formModal.activity?.id || 'new'}` : 'form-closed'}
         isOpen={formModal.isOpen}
         onClose={closeFormModal}
         mode={formModal.mode}
@@ -298,7 +325,7 @@ export default function KpiActivitiesPage() {
       {/* Cancel Dialog (P2.2) */}
       {cancelDialog.activity && (
         <ActivityCancelDialog
-          key={cancelDialog.isOpen ? cancelDialog.activity.id : 'closed'}
+          key={cancelDialog.isOpen ? cancelDialog.activity.id : 'cancel-closed'}
           isOpen={cancelDialog.isOpen}
           onClose={closeCancel}
           activity={cancelDialog.activity}
