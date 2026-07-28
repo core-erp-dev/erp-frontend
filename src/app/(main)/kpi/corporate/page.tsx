@@ -207,23 +207,6 @@ export default function KpiCorporatePage() {
     );
   }
 
-  // ── Initial loading ──
-
-  if (isLoadingTree && tree.length === 0) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Breadcrumbs>
-          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
-          <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
-        </Breadcrumbs>
-
-        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-        <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>
-      </div>
-    );
-  }
-
   // ── Rendered page ──
 
   return (

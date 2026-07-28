@@ -174,10 +174,10 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
     const effectiveExpanded = searchQuery.trim() ? searchExpanded : expandedIds;
     const treeRows = filtered.length > 0 ? buildTreeRows(filtered, effectiveExpanded, 0) : [];
 
-    return (
-      <Table>
-        <Table.ScrollContainer>
-          <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[900px]">
+        return (
+          <Table key="current-kpi">
+            <Table.ScrollContainer>
+              <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[900px]">
             <Table.Header>
               <Table.Column id="name" isRowHeader>Name</Table.Column>
               <Table.Column id="code">Code</Table.Column>
@@ -355,15 +355,15 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
 
   const yearFiltered = deletedList.filter((n) => n.year === selectedYear);
 
-  const searchFiltered = searchQuery.trim()
-    ? yearFiltered.filter((n) => {
-        const q = searchQuery.trim().toLowerCase();
-        return n.code.toLowerCase().includes(q) || n.name.toLowerCase().includes(q);
-      })
-    : yearFiltered;
+    const searchFiltered = searchQuery.trim()
+      ? yearFiltered.filter((n) => {
+          const q = searchQuery.trim().toLowerCase();
+          return n.code.toLowerCase().includes(q) || n.name.toLowerCase().includes(q);
+        })
+      : yearFiltered;
 
-  return (
-    <Table>
+    return (
+      <Table key="deleted-kpi">
       <Table.ScrollContainer>
         <Table.Content aria-label="Deleted Corporate KPIs" className="min-w-[800px]">
           <Table.Header>
