@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash } from '@phosphor-icons/react';
-import { Button, TextField, Input, Label, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Separator } from '@heroui/react';
+import { Button, TextField, Input, Label, Chip, Surface, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Separator } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -108,27 +108,27 @@ export default function EmployeeDetailPage() {
       <div className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold text-foreground">Personal Information</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Full Name</Label>
             <Input value={employee.fullName} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Gender</Label>
             <Input value={getGenderLabel(employee.gender)} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Date of Birth</Label>
             <Input value={formatDate(employee.birthDate)} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Phone Number</Label>
             <Input value={employee.phoneNumber || '-'} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Email</Label>
             <Input value={employee.email} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Address</Label>
             <Input value={employee.address || '-'} readOnly />
           </TextField>
@@ -141,19 +141,19 @@ export default function EmployeeDetailPage() {
       <div className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold text-foreground">Employment Data</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>NIP</Label>
             <Input value={employee.nip || '-'} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Position</Label>
             <Input value={pos?.positionName || '-'} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Join Date</Label>
             <Input value={formatDate(employee.joinDate || employee.createdAt)} readOnly />
           </TextField>
-          <TextField isReadOnly className="w-full">
+          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Role</Label>
             <Input value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} readOnly />
           </TextField>
@@ -163,8 +163,8 @@ export default function EmployeeDetailPage() {
       <Separator />
 
       {/* Position List */}
-      <div className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-foreground">Position List</h2>
+      <h2 className="text-sm font-semibold text-foreground">Position List</h2>
+      <Surface className="flex flex-col gap-4 rounded-3xl p-6" variant="secondary">
         {(() => {
           const activePositions = (employee.positions ?? []).filter(p => p.isActive);
           if (activePositions.length === 0) {
@@ -173,17 +173,24 @@ export default function EmployeeDetailPage() {
           return (
             <div className="space-y-2">
               {activePositions.map(up => (
-                <TextField key={up.id} isReadOnly className="w-full">
-                  <Input
-                    value={`${up.positionName} (${up.positionCode}) — ${up.isPrimary ? 'Primary' : 'Secondary'} — ${formatDate(up.startDate)}${up.endDate ? ` to ${formatDate(up.endDate)}` : ''}`}
-                    readOnly
-                  />
-                </TextField>
+                <Surface key={up.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <span className="font-medium text-foreground">{up.positionName}</span>
+                    <span className="truncate text-xs text-gray-400">
+                      {up.positionCode}
+                      {up.startDate ? ` · ${formatDate(up.startDate)}` : ''}
+                      {up.endDate ? ` · ${formatDate(up.endDate)}` : ''}
+                    </span>
+                  </div>
+                  <Chip size="sm" color={up.isPrimary ? 'accent' : 'default'} variant="soft">
+                    {up.isPrimary ? 'Primary' : 'Secondary'}
+                  </Chip>
+                </Surface>
               ))}
             </div>
           );
         })()}
-      </div>
+      </Surface>
 
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}
