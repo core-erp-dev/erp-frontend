@@ -254,26 +254,28 @@ export default function KpiActivitiesPage() {
       </div>
 
       <div className="flex items-center justify-between">
-        <Tabs
-          selectedKey={effectiveTab}
-          onSelectionChange={(key) => setActiveTab(key as TabId)}
-        >
-          <Tabs.ListContainer>
-            <Tabs.List aria-label="KPI Activities">
-              {tabs.map((tab) => (
-                <Tabs.Tab key={tab.id} id={tab.id}>
-                  {tab.label}
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs.ListContainer>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Tabs
+            selectedKey={effectiveTab}
+            onSelectionChange={(key) => setActiveTab(key as TabId)}
+          >
+            <Tabs.ListContainer>
+              <Tabs.List aria-label="KPI Activities">
+                {tabs.map((tab) => (
+                  <Tabs.Tab key={tab.id} id={tab.id}>
+                    {tab.label}
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                ))}
+              </Tabs.List>
+            </Tabs.ListContainer>
+          </Tabs>
+        </div>
         <SearchField
           name="search"
           value={searchQuery}
           onChange={setSearchQuery}
-          className="w-72"
+          className="w-56"
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
