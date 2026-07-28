@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "PMS",
+  title: "performa | PMS",
   description: "Performance Management System",
 };
 
