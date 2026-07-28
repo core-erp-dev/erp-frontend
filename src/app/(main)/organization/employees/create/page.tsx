@@ -29,11 +29,13 @@ export default function CreateEmployeePage() {
   }
 
   return (
-    <EmployeeForm
-      mode="create"
-      onSuccess={() => {
-        router.push('/organization/employees');
-      }}
-    />
+    <div className="mx-auto w-full max-w-4xl">
+      <EmployeeForm
+        mode="create"
+        onSuccess={() => {
+          router.push('/organization/employees');
+        }}
+      />
+    </div>
   );
 }

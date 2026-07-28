@@ -33,7 +33,7 @@ export function DateFieldPicker({
         isInvalid={isInvalid}
       >
         <Label>{label}</Label>
-        <DateField.Group fullWidth variant="secondary">
+        <DateField.Group fullWidth>
           <DateField.Input>
             {(s) => <DateField.Segment segment={s} />}
           </DateField.Input>
@@ -43,7 +43,7 @@ export function DateFieldPicker({
             </DatePicker.Trigger>
           </DateField.Suffix>
         </DateField.Group>
-        {errorMessage && <FieldError>{errorMessage}</FieldError>}
+        <FieldError>{errorMessage}</FieldError>
         <DatePicker.Popover>
           <Calendar aria-label={`Select ${label.toLowerCase()}`}>
             <Calendar.Header>

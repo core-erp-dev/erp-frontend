@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { House, ArrowLeft, FloppyDisk, Briefcase, X, Plus } from '@phosphor-icons/react';
 import {
   Button,
+  Form,
   TextField,
   Input,
   Label,
@@ -17,7 +18,7 @@ import {
   Select,
   ListBox,
   TextArea,
-  Surface,
+  Separator,
   Spinner,
   SearchField,
   toast,
@@ -37,7 +38,10 @@ const getFormSchema = (isEditMode: boolean) =>
     phoneNumber: z.string().optional().refine((val) => !val || /^[0-9+\-\s()]*$/.test(val), {
       message: 'Phone number must only contain digits',
     }),
-    email: z.string().email('Invalid email format'),
+    email: z
+      .string()
+      .min(1, 'Email is required')
+      .email('Invalid email format'),
     address: z.string().optional(),
     nip: z.string().optional(),
     defaultPositionId: z.string().optional(),
@@ -192,21 +196,30 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         </h1>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+      <Form
+        validationBehavior="aria"
+        onSubmit={(e) => {
+          form.handleSubmit(
+            onSubmit,
+            (errors) => console.log("FORM ERRORS", errors),
+          )(e);
+        }}
+        className="flex flex-col gap-6"
+      >
 
         {/* ── PERSONAL INFORMATION ── */}
-        <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Personal Information</h2>
+        <div className="flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Personal Information</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="fullName" render={({ field, fieldState }) => (
-              <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+              <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                 <Label>Full Name</Label>
-                <Input variant="secondary" placeholder="Enter full name" />
-                {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                <Input placeholder="Enter full name" />
+                <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )} />
             <Controller control={form.control} name="gender" render={({ field }) => (
-              <Select variant="secondary" className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Select gender">
+              <Select className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Select gender">
                 <Label>Gender</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
@@ -221,38 +234,40 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               <DateFieldPicker label="Date of Birth" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} />
             )} />
             <Controller control={form.control} name="phoneNumber" render={({ field, fieldState }) => (
-              <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+              <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                 <Label>Phone Number</Label>
-                <Input variant="secondary" placeholder="08xxxxxxxxxx" type="tel" />
-                {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                <Input placeholder="08xxxxxxxxxx" type="tel" />
+                <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )} />
           </div>
           <Controller control={form.control} name="email" render={({ field, fieldState }) => (
-            <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+            <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
               <Label>Email</Label>
-              <Input variant="secondary" placeholder="example@company.com" type="email" />
-              {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+              <Input placeholder="example@company.com" type="email" />
+              <FieldError>{fieldState.error?.message}</FieldError>
             </TextField>
           )} />
           <Controller control={form.control} name="address" render={({ field, fieldState }) => (
-            <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+            <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
               <Label>Address</Label>
-              <TextArea variant="secondary" placeholder="Enter address" rows={3} />
-              {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+              <TextArea placeholder="Enter address" rows={3} />
+              <FieldError>{fieldState.error?.message}</FieldError>
             </TextField>
           )} />
-        </Surface>
+        </div>
+
+        <Separator />
 
         {/* ── EMPLOYMENT DATA ── */}
-        <Surface className="flex flex-col gap-4 rounded-3xl p-6">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Employment Data</h2>
+        <div className="flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Employment Data</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="nip" render={({ field, fieldState }) => (
-              <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+              <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                 <Label>NIP</Label>
-                <Input variant="secondary" placeholder="Enter NIP" />
-                {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                <Input placeholder="Enter NIP" />
+                <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )} />
             <Controller control={form.control} name="defaultPositionId" render={({ field }) => {
@@ -261,7 +276,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 field.onChange(k === NIL_UUID ? undefined : String(k));
               };
               return (
-              <Select key={selectedKey} variant="secondary" className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Select position">
+              <Select key={selectedKey} className="w-full" selectedKey={selectedKey} onSelectionChange={handleChange} isDisabled={isSubmitting || isLoadingPositions} placeholder="Select position">
                 <Label>Position</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
@@ -274,25 +289,24 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               );
             }} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
-              <DateFieldPicker label="Join Date" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={!!fieldState.error} errorMessage={fieldState.error?.message} />
+              <DateFieldPicker label="Join Date" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={fieldState.invalid} errorMessage={fieldState.error?.message} />
             )} />
             {!isEditMode && (
               <Controller control={form.control} name="password" render={({ field, fieldState }) => (
-                <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} isInvalid={!!fieldState.error} isDisabled={isSubmitting}>
+                <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                   <Label>Password</Label>
-                  <Input variant="secondary" placeholder="At least 6 characters" type="password" />
-                  {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
+                  <Input placeholder="At least 6 characters" type="password" />
+                  <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )} />
             )}
           </div>
-        </Surface>
-
+        </div>
         {/* ── SECONDARY POSITIONS (edit mode only) ── */}
         {isEditMode && (
-          <Surface className="flex flex-col gap-4 rounded-3xl p-6">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Secondary Positions</h2>
+              <h2 className="text-sm font-semibold text-foreground">Secondary Positions</h2>
               <Button
                 variant={isAssignExpanded ? 'secondary' : 'primary'}
                 size="sm"
@@ -306,7 +320,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
             {/* Inline assign */}
             {isAssignExpanded && (
               <div className="space-y-2">
-                <SearchField value={assignSearch} onChange={setAssignSearch} variant="secondary" autoFocus isDisabled={isAssigning}>
+                <SearchField value={assignSearch} onChange={setAssignSearch} autoFocus isDisabled={isAssigning}>
                   <SearchField.Group>
                     <SearchField.SearchIcon />
                     <SearchField.Input placeholder="Search positions..." />
@@ -373,7 +387,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                 </div>
               );
             })()}
-          </Surface>
+          </div>
         )}
 
         <div className="flex items-center justify-end gap-3">
@@ -383,7 +397,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
             {isEditMode ? 'Save Changes' : 'Save'}
           </Button>
         </div>
-      </form>
+      </Form>
     </div>
   );
 }
