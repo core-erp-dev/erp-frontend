@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Spinner, Alert, Button, Breadcrumbs, BreadcrumbsItem } from '@heroui/react';
-import { Plus, House } from '@phosphor-icons/react';
+import { Spinner, Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem, Tabs } from '@heroui/react';
+import { Plus, House, ArrowsClockwise } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
@@ -173,6 +173,23 @@ export default function KpiCorporatePage() {
     return result;
   }, [tree]);
 
+  // Compute total count and all-expanded state
+  const totalCount = viewMode === 'current'
+    ? (() => { let c = 0; const walk = (ns: typeof tree) => { for (const n of ns) { c++; if (n.children.length > 0) walk(n.children); } }; walk(tree); return c; })()
+    : deletedList.length;
+
+  const allExpanded = (() => {
+    if (tree.length === 0 || viewMode !== 'current') return false;
+    const expandableIds = new Set<string>();
+    const collect = (nodes: typeof tree) => {
+      for (const node of nodes) {
+        if (node.children.length > 0) { expandableIds.add(node.id); collect(node.children); }
+      }
+    };
+    collect(tree);
+    return expandableIds.size > 0 && Array.from(expandableIds).every((id) => expandedIds.has(id));
+  })();
+
   // ── Permission guard ──
 
   if (!canRead) {
@@ -217,27 +234,48 @@ export default function KpiCorporatePage() {
         <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
       </Breadcrumbs>
 
-      <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-
-      <div className="flex items-center justify-between gap-3">
-        <CorporateKpiFilters
-          selectedYear={selectedYear}
-          onYearChange={handleYearChange}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          canViewDeleted={canViewDeleted}
-          onExpandAll={handleExpandAll}
-          onCollapseAll={handleCollapseAll}
-        />
-        {canCreate && viewMode === 'current' && (
-          <Button variant="primary" size="sm" onPress={openCreateAspect}>
-            <Plus className="h-4 w-4" />
-            Create Aspect
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
+          <Chip
+            size="md"
+            className="pointer-events-none"
+            aria-label={`Total ${totalCount} corporate kpi`}
+          >
+            {totalCount}
+          </Chip>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => fetchTree(selectedYear)}
+            isDisabled={isLoadingTree}
+            aria-label="Refresh"
+          >
+            <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
           </Button>
-        )}
+          {canCreate && viewMode === 'current' && (
+            <Button variant="primary" onPress={openCreateAspect}>
+              <Plus className="h-4 w-4" />
+              Create Aspect
+            </Button>
+          )}
+        </div>
       </div>
+
+      <CorporateKpiFilters
+        selectedYear={selectedYear}
+        onYearChange={handleYearChange}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        canViewDeleted={canViewDeleted}
+        onExpandAll={handleExpandAll}
+        onCollapseAll={handleCollapseAll}
+        allExpanded={allExpanded}
+      />
 
       <CorporateKpiTable
         tree={tree}

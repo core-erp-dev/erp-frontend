@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Table, Spinner, Badge, Button } from '@heroui/react';
-import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, Check, Trash } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, Check, Trash, Copy } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { CorporateKpiNode, KpiStatus } from './corporate-kpi.types';
@@ -117,6 +117,12 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
   onRestore,
 }) => {
   const { hasPerm } = usePermission();
+  const [copiedId, setCopiedId] = React.useState<string | null>(null);
+  const handleCopyCode = React.useCallback((id: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 3000);
+  }, []);
   const canCreate = hasPerm(PERM.CORPORATE_KPI_CREATE);
   const canUpdate = hasPerm(PERM.CORPORATE_KPI_UPDATE);
   const canDelete = hasPerm(PERM.CORPORATE_KPI_DELETE);
@@ -200,8 +206,8 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
         <Table.ScrollContainer>
           <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[900px]">
             <Table.Header>
-              <Table.Column id="code" isRowHeader>Code</Table.Column>
-              <Table.Column id="name">Name</Table.Column>
+              <Table.Column id="name" isRowHeader>Name</Table.Column>
+              <Table.Column id="code">Code</Table.Column>
               <Table.Column id="type">Type</Table.Column>
               <Table.Column id="year">Year</Table.Column>
               <Table.Column id="unit">Unit</Table.Column>
@@ -213,36 +219,45 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
               {treeRows.map((row) => (
                   <Table.Row key={row.id}>
                     <Table.Cell>
-                      <div className="flex items-center gap-1">
-                        {row.depth === 0 ? (
-                          row.hasChildren ? (
-                            <Button
-                              isIconOnly
-                              variant="ghost"
-                              size="sm"
-                              aria-label={effectiveExpanded.has(row.id) ? 'Collapse' : 'Expand'}
-                              onPress={() => onToggleExpand(row.id)}
-                              className="mr-1 h-5 w-5 min-w-0"
-                            >
-                              {effectiveExpanded.has(row.id) ? (
-                                <CaretDown className="h-3.5 w-3.5 text-gray-500" />
-                              ) : (
-                                <CaretRight className="h-3.5 w-3.5 text-gray-500" />
-                              )}
-                            </Button>
-                          ) : (
-                            <span className="mr-1 w-5" />
-                          )
+                      <div className="flex items-center gap-1" style={{ paddingLeft: row.depth * 24 }}>
+                        {row.hasChildren ? (
+                          <Button
+                            isIconOnly
+                            variant="ghost"
+                            size="sm"
+                            aria-label={effectiveExpanded.has(row.id) ? 'Collapse' : 'Expand'}
+                            onPress={() => onToggleExpand(row.id)}
+                            className="mr-1 h-5 w-5 min-w-0"
+                          >
+                            {effectiveExpanded.has(row.id) ? (
+                              <CaretDown className="h-3.5 w-3.5 text-gray-500" />
+                            ) : (
+                              <CaretRight className="h-3.5 w-3.5 text-gray-500" />
+                            )}
+                          </Button>
                         ) : (
-                          <span className="mr-1 w-5" style={{ marginLeft: row.depth * 24 }} />
+                          <span className="mr-1 w-5" />
                         )}
-                        <span className="font-medium text-foreground">{row.code}</span>
+                        <span className="font-medium text-foreground">{row.name}</span>
                       </div>
                     </Table.Cell>
-                    <Table.Cell className="font-medium text-foreground">
-                      <span style={{ paddingLeft: row.depth > 0 ? row.depth * 24 : 0 }}>
-                        {row.name}
-                      </span>
+                    <Table.Cell>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-foreground">{row.code}</span>
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Copy code ${row.code}`}
+                          onPress={() => handleCopyCode(row.id, row.code)}
+                        >
+                          {copiedId === row.id ? (
+                            <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
                     </Table.Cell>
                     <Table.Cell><span className="text-muted-foreground">{row.nodeType}</span></Table.Cell>
                     <Table.Cell className="text-muted-foreground">{row.year}</Table.Cell>
@@ -383,8 +398,8 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
       <Table.ScrollContainer>
         <Table.Content aria-label="Deleted Corporate KPIs" className="min-w-[800px]">
           <Table.Header>
-            <Table.Column id="code" isRowHeader>Code</Table.Column>
-            <Table.Column id="name">Name</Table.Column>
+            <Table.Column id="name" isRowHeader>Name</Table.Column>
+            <Table.Column id="code">Code</Table.Column>
             <Table.Column id="type">Type</Table.Column>
             <Table.Column id="year">Year</Table.Column>
             <Table.Column id="parent">Parent Aspect</Table.Column>
@@ -394,8 +409,8 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
           <Table.Body>
             {searchFiltered.map((node) => (
               <Table.Row key={node.id}>
-                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.code}</span></Table.Cell>
                 <Table.Cell><span className="font-medium text-gray-400 line-through">{node.name}</span></Table.Cell>
+                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.code}</span></Table.Cell>
                 <Table.Cell className="text-muted-foreground">{node.nodeType}</Table.Cell>
                 <Table.Cell className="text-muted-foreground">{node.year}</Table.Cell>
                 <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>

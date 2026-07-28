@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Button, Select, ListBox, SearchField } from '@heroui/react';
-import { CaretDown, CaretRight } from '@phosphor-icons/react';
+import { Button, Dropdown, SearchField, Tabs } from '@heroui/react';
+import { CaretDown, ArrowsOutSimple, ArrowsInSimple } from '@phosphor-icons/react';
 
 export interface CorporateKpiFiltersProps {
   selectedYear: number;
@@ -14,6 +14,7 @@ export interface CorporateKpiFiltersProps {
   canViewDeleted: boolean;
   onExpandAll: () => void;
   onCollapseAll: () => void;
+  allExpanded: boolean;
 }
 
 export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
@@ -26,89 +27,71 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
   canViewDeleted,
   onExpandAll,
   onCollapseAll,
+  allExpanded,
 }) => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 7 }, (_, i) => currentYear + i - 3);
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {/* View mode toggle */}
-      <div className="flex gap-1">
-        <Button
-          variant={viewMode === 'current' ? 'primary' : 'secondary'}
-          size="sm"
-          onPress={() => onViewModeChange('current')}
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        {/* View mode — HeroUI Tabs */}
+        <Tabs
+          selectedKey={viewMode}
+          onSelectionChange={(key) => onViewModeChange(key as 'current' | 'deleted')}
         >
-          Current KPIs
-        </Button>
-        {canViewDeleted && (
+          <Tabs.ListContainer>
+            <Tabs.List aria-label="View">
+              <Tabs.Tab id="current">Current<Tabs.Indicator /></Tabs.Tab>
+              {canViewDeleted && (
+                <Tabs.Tab id="deleted">Deleted<Tabs.Indicator /></Tabs.Tab>
+              )}
+            </Tabs.List>
+          </Tabs.ListContainer>
+        </Tabs>
+
+        {/* Year — HeroUI Dropdown */}
+        <Dropdown>
+          <Button variant="tertiary" aria-label="Select year">
+            {selectedYear}
+            <CaretDown className="h-4 w-4" />
+          </Button>
+          <Dropdown.Popover>
+            <Dropdown.Menu onAction={(key) => onYearChange(Number(key))}>
+              {years.map((y) => (
+                <Dropdown.Item key={y} id={String(y)} textValue={String(y)}>
+                  {String(y)}
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
+
+        {/* Expand / Collapse */}
+        {viewMode === 'current' && (
           <Button
-            variant={viewMode === 'deleted' ? 'primary' : 'secondary'}
-            size="sm"
-            onPress={() => onViewModeChange('deleted')}
+            variant="tertiary"
+            onPress={allExpanded ? onCollapseAll : onExpandAll}
+            aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
           >
-            Deleted KPIs
+            {allExpanded ? (
+              <ArrowsInSimple className="h-4 w-4" />
+            ) : (
+              <ArrowsOutSimple className="h-4 w-4" />
+            )}
+            {allExpanded ? 'Collapse All' : 'Expand All'}
           </Button>
         )}
       </div>
 
-      {/* Search */}
-      <SearchField aria-label="Search Corporate KPIs" value={searchQuery} onChange={onSearchChange}>
+      {/* Search — right side */}
+      <SearchField aria-label="Search Corporate KPIs" value={searchQuery} onChange={onSearchChange} className="w-72">
         <SearchField.Group>
           <SearchField.SearchIcon />
-          <SearchField.Input placeholder="Search Corporate KPIs" className="min-w-[200px]" />
+          <SearchField.Input placeholder="Search" />
           <SearchField.ClearButton aria-label="Clear search" />
         </SearchField.Group>
       </SearchField>
-
-      {/* Year select */}
-      <Select
-        variant="secondary"
-        className="min-w-[120px]"
-        selectedKey={String(selectedYear)}
-        onSelectionChange={(key) => {
-          if (key) onYearChange(Number(key));
-        }}
-        placeholder="Year"
-      >
-        <Select.Trigger>
-          <Select.Value />
-          <Select.Indicator />
-        </Select.Trigger>
-        <Select.Popover>
-          <ListBox>
-            {years.map((y) => (
-              <ListBox.Item key={String(y)} textValue={String(y)}>
-                {String(y)}
-              </ListBox.Item>
-            ))}
-          </ListBox>
-        </Select.Popover>
-      </Select>
-
-      {/* Expand / Collapse (only in current view) */}
-      {viewMode === 'current' && (
-        <div className="flex gap-1">
-          <Button
-            variant="secondary"
-            size="sm"
-            onPress={onExpandAll}
-            aria-label="Expand All"
-          >
-            <CaretDown className="h-4 w-4" />
-            Expand All
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onPress={onCollapseAll}
-            aria-label="Collapse All"
-          >
-            <CaretRight className="h-4 w-4" />
-            Collapse All
-          </Button>
-        </div>
-      )}
     </div>
   );
 };
