@@ -17,11 +17,13 @@ export function MainLayout({ children }: MainLayoutProps) {
           <Header />
 
           <div className="flex-1 overflow-y-auto p-6">
-            {children}
+            <div className="mx-auto w-full max-w-7xl">
+              {children}
+            </div>
           </div>
-
         </div>
       </div>
+
       <Toast.Provider />
     </AuthGuard>
   );
