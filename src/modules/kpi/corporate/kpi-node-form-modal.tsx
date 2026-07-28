@@ -132,8 +132,6 @@ function FormBody({
   } = useForm<AspectFormValues>({
     resolver: zodResolver(schema),
     defaultValues: initial,
-    mode: 'onBlur',
-    reValidateMode: 'onBlur',
   });
 
   const nodeType = watch('nodeType');

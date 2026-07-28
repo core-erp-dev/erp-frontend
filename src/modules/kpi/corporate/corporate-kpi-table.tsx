@@ -171,40 +171,8 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
   }, [tree, searchQuery, expandedIds]);
 
   if (viewMode === 'current') {
-    if (isLoadingTree) {
-      return (
-        <div className="flex h-40 items-center justify-center">
-          <Spinner size="md" />
-        </div>
-      );
-    }
-
-    if (treeError) {
-      return (
-        <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
-          <span className="text-sm text-danger">{treeError}</span>
-          <Button variant="secondary" size="sm" onPress={onRetryTree}>
-            Retry
-          </Button>
-        </div>
-      );
-    }
-
     const effectiveExpanded = searchQuery.trim() ? searchExpanded : expandedIds;
-
-    if (filtered.length === 0) {
-      return (
-        <EmptyState
-          message={
-            searchQuery.trim()
-              ? `No Corporate KPIs match "${searchQuery}".`
-              : 'No Corporate KPIs found for the selected year.'
-          }
-        />
-      );
-    }
-
-    const treeRows = buildTreeRows(filtered, effectiveExpanded, 0);
+    const treeRows = filtered.length > 0 ? buildTreeRows(filtered, effectiveExpanded, 0) : [];
 
     return (
       <Table>
@@ -220,7 +188,37 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
               <Table.Column id="status">Status</Table.Column>
               {hasMutationPerms && <Table.Column id="actions" className="text-center">{''}</Table.Column>}
             </Table.Header>
-            <Table.Body>
+            <Table.Body
+              renderEmptyState={() => {
+                if (isLoadingTree) {
+                  return (
+                    <div className="flex h-24 items-center justify-center">
+                      <Spinner size="md" />
+                    </div>
+                  );
+                }
+                if (treeError) {
+                  return (
+                    <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
+                      <span className="text-sm text-danger">{treeError}</span>
+                      <Button variant="secondary" size="sm" onPress={onRetryTree}>
+                        Retry
+                      </Button>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                    <Tray className="h-8 w-8" />
+                    <span className="text-sm">
+                      {searchQuery.trim()
+                        ? `No Corporate KPIs match "${searchQuery}".`
+                        : 'No Corporate KPIs found for the selected year.'}
+                    </span>
+                  </div>
+                );
+              }}
+            >
               {treeRows.map((row) => (
                   <Table.Row key={row.id}>
                     <Table.Cell>
@@ -355,23 +353,6 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
 
   /* ── Deleted view ── */
 
-  if (isLoadingDeleted) {
-    return (
-      <div className="flex h-40 items-center justify-center">
-        <Spinner size="md" />
-      </div>
-    );
-  }
-
-  if (deletedError) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
-        <span className="text-sm text-danger">{deletedError}</span>
-        <Button variant="secondary" size="sm" onPress={onRetryDeleted}>Retry</Button>
-      </div>
-    );
-  }
-
   const yearFiltered = deletedList.filter((n) => n.year === selectedYear);
 
   const searchFiltered = searchQuery.trim()
@@ -380,18 +361,6 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
         return n.code.toLowerCase().includes(q) || n.name.toLowerCase().includes(q);
       })
     : yearFiltered;
-
-  if (searchFiltered.length === 0) {
-    return (
-      <EmptyState
-        message={
-          searchQuery.trim()
-            ? `No deleted Corporate KPIs match "${searchQuery}".`
-            : 'No deleted Corporate KPIs found for the selected year.'
-        }
-      />
-    );
-  }
 
   return (
     <Table>
@@ -406,7 +375,35 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
             <Table.Column id="status">Status</Table.Column>
             {canRestore && onRestore && <Table.Column id="actions">{''}</Table.Column>}
           </Table.Header>
-          <Table.Body>
+          <Table.Body
+            renderEmptyState={() => {
+              if (isLoadingDeleted) {
+                return (
+                  <div className="flex h-24 items-center justify-center">
+                    <Spinner size="md" />
+                  </div>
+                );
+              }
+              if (deletedError) {
+                return (
+                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
+                    <span className="text-sm text-danger">{deletedError}</span>
+                    <Button variant="secondary" size="sm" onPress={onRetryDeleted}>Retry</Button>
+                  </div>
+                );
+              }
+              return (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                  <Tray className="h-8 w-8" />
+                  <span className="text-sm">
+                    {searchQuery.trim()
+                      ? `No deleted Corporate KPIs match "${searchQuery}".`
+                      : 'No deleted Corporate KPIs found for the selected year.'}
+                  </span>
+                </div>
+              );
+            }}
+          >
             {searchFiltered.map((node) => (
             <Table.Row key={node.id}>
               <Table.Cell><span className="font-medium text-gray-400 line-through">{node.name}</span></Table.Cell>
