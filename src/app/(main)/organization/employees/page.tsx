@@ -7,6 +7,7 @@ import {
   Breadcrumbs,
   BreadcrumbsItem,
   Button,
+  Chip,
   SearchField,
   Dropdown,
   Header,
@@ -132,15 +133,13 @@ export default function EmployeePage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">Employees</h1>
-          <Button
-            isIconOnly
-            variant="tertiary"
-            size="sm"
-            className="pointer-events-none text-sm font-medium"
+          <Chip
+            size="md"
+            className="pointer-events-none"
             aria-label={`Total ${pagination?.totalElements ?? 0} employees`}
           >
             {pagination?.totalElements ?? 0}
-          </Button>
+          </Chip>
         </div>
         <div className="flex items-center gap-2">
           <Button

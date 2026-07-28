@@ -91,24 +91,6 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     </Dropdown>
   );
 
-  if (isLoading) {
-    return (
-      <div className="flex h-40 items-center justify-center">
-        <Spinner size="md" />
-      </div>
-    );
-  }
-
-  const isEmpty = viewMode === 'table' ? positions.length === 0 : treePositions.length === 0;
-  if (isEmpty) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-        <Tray className="h-8 w-8" />
-        <span className="text-sm">No data available</span>
-      </div>
-    );
-  }
-
   // ── TREE VIEW ──
   if (viewMode === 'tree') {
     const treeRows = buildTreeRows(treePositions, expandedIds, 0);
@@ -122,7 +104,20 @@ export const PositionTable: React.FC<PositionTableProps> = ({
               <Table.Column id="tree-users">Employees</Table.Column>
               <Table.Column id="tree-actions" className="text-center">{''}</Table.Column>
             </Table.Header>
-            <Table.Body>
+            <Table.Body
+              renderEmptyState={() =>
+                isLoading ? (
+                  <div className="flex h-24 items-center justify-center">
+                    <Spinner size="md" />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                    <Tray className="h-8 w-8" />
+                    <span className="text-sm">No data available</span>
+                  </div>
+                )
+              }
+            >
               {treeRows.map((row) => (
                 <Table.Row key={row.id} id={row.id}>
                   <Table.Cell>
@@ -210,7 +205,20 @@ export const PositionTable: React.FC<PositionTableProps> = ({
             <Table.Column id="users">Employees</Table.Column>
             <Table.Column id="actions" className="text-center">{''}</Table.Column>
           </Table.Header>
-          <Table.Body>
+          <Table.Body
+            renderEmptyState={() =>
+              isLoading ? (
+                <div className="flex h-24 items-center justify-center">
+                  <Spinner size="md" />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                  <Tray className="h-8 w-8" />
+                  <span className="text-sm">No data available</span>
+                </div>
+              )
+            }
+          >
             {positions.map((pos) => {
               const isDeleted = !!pos.deletedAt;
               return (
