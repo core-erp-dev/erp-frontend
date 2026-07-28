@@ -165,7 +165,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
               type="button"
               onClick={() => {
                 logout();
-                router.push("/login");
+                router.replace("/login");
               }}
               className={cn(
                 "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
