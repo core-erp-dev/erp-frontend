@@ -3,23 +3,17 @@
 import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { Button, Separator } from "@heroui/react";
+import { usePathname } from "next/navigation";
+import { Separator } from "@heroui/react";
 import { SquaresFour, Gear as Settings } from "@phosphor-icons/react";
-import { sidebarConfig } from "@/config/sidebar";
-import type { SidebarItem } from "@/modules/hr/sidebar";
+import { navigationConfig } from "@/config/navigation";
+import type { SidebarItem } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
   dashboard: SquaresFour,
   settings: Settings,
-};
-
-const moduleLabels: Record<string, string> = {
-  hr: "HR",
-  finance: "FIN",
-  inventory: "INV",
 };
 
 const getIcon = (
@@ -36,15 +30,9 @@ const getIcon = (
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const user = useAuthStore((state) => state.user);
 
-  const activeModule = pathname.split("/").filter(Boolean)[0] || "";
-  const moduleLabel = moduleLabels[activeModule] || activeModule.toUpperCase();
-
-  const filteredItems = sidebarConfig.filter((item) => {
-    if (item.module !== activeModule) return false;
-
+  const filteredItems = navigationConfig.filter((item) => {
     // Compound capability predicate (supports AND/OR logic)
     if (item.capability) {
       const userPerms = user?.permissions ?? [];
@@ -118,7 +106,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex w-64 flex-col border-r border-border bg-background">
-      {/* Logo + Module Name */}
+      {/* Logo */}
       <div className="flex h-14 items-center gap-2.5 px-5 pt-1">
         <Image
           src="/logo/text-logo.svg"
@@ -128,28 +116,12 @@ export function Sidebar() {
           priority
           style={{ height: "auto", width: "auto" }}
         />
-        <span className="text-sm font-bold text-foreground uppercase tracking-wider">
-          {moduleLabel}
-        </span>
-      </div>
-
-      {/* Switch Module button */}
-      <div className="px-4 pb-2">
-        <Button
-          variant="primary"
-          size="md"
-          className="w-full"
-          onPress={() => router.push("/")}
-        >
-          <SquaresFour className="h-5 w-5" weight="regular" />
-          Switch Module
-        </Button>
       </div>
 
       <Separator />
 
       <nav className="flex flex-1 flex-col justify-between overflow-y-auto p-4 pt-2">
-        {/* Main groups (ORGANISASI, etc.) */}
+        {/* Main groups */}
         <div>
           {mainGroups.map(([label, items]) => renderGroup(label, items))}
           {defaultGroup.length > 0 && (
