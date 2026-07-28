@@ -1,201 +1,536 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Chip, SearchField, Tabs } from '@heroui/react';
-import { House, Plus, ArrowsClockwise } from '@phosphor-icons/react';
-import { usePermission } from '@/hooks/use-permission';
-import { PERM } from '@/constants/permissions';
-import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
-import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
-import { ActivityTable } from '@/modules/kpi/activity/activity-table';
-import { RequestTable } from '@/modules/kpi/activity/request-table';
-import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
-import { ActivityFormModal } from '@/modules/kpi/activity/activity-form-modal';
-import { ActivityCancelDialog } from '@/modules/kpi/activity/activity-cancel-dialog';
-import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
-import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
-import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
-import type { ActivityFormMode, KpiActivityResponse, KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity.types';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  Alert,
+  Breadcrumbs,
+  BreadcrumbsItem,
+  Button,
+  Chip,
+  SearchField,
+  Tabs,
+} from '@heroui/react';
+import {
+  ArrowsClockwise,
+  House,
+  Plus,
+} from '@phosphor-icons/react';
 
-type TabId = 'my-activities' | 'managed-activities' | 'owned-activities' | 'my-requests' | 'approvals';
+import { PERM } from '@/constants/permissions';
+import { usePermission } from '@/hooks/use-permission';
+import { KPI_LABELS } from '@/modules/kpi/constants';
+import { ActivityCancelDialog } from '@/modules/kpi/activity/activity-cancel-dialog';
+import { ActivityFormModal } from '@/modules/kpi/activity/activity-form-modal';
+import { ActivityTable } from '@/modules/kpi/activity/activity-table';
+import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
+import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
+import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
+import { RequestTable } from '@/modules/kpi/activity/request-table';
+import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
+import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
+import type {
+  ActivityFormMode,
+  KpiActivityChangeRequestResponse,
+  KpiActivityResponse,
+} from '@/modules/kpi/activity/activity.types';
+
+type TabId =
+  | 'my-activities'
+  | 'managed-activities'
+  | 'owned-activities'
+  | 'my-requests'
+  | 'approvals';
 
 export default function KpiActivitiesPage() {
   const { hasPerm, hasAnyPerm } = usePermission();
 
-  // Page access: any of the three activity permissions
-  const canAccess = hasAnyPerm(PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST);
-
-  // Tab-level permissions (match backend endpoint annotations)
+  // Tab-level permissions
   const canRead = hasPerm(PERM.KPI_ACTIVITY_READ);
-  const canOwned = hasAnyPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST, PERM.KPI_ACTIVITY_REQUEST);
+  const canOwned = hasAnyPerm(
+    PERM.KPI_ACTIVITY_ROOT_REQUEST,
+    PERM.KPI_ACTIVITY_REQUEST,
+  );
   const canRequest = hasPerm(PERM.KPI_ACTIVITY_REQUEST);
-  const canMyRequests = hasAnyPerm(PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST);
+  const canMyRequests = hasAnyPerm(
+    PERM.KPI_ACTIVITY_REQUEST,
+    PERM.KPI_ACTIVITY_ROOT_REQUEST,
+  );
   const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
 
-  // Root Create: requires both root_request and corporate_kpi:read
-  const canCreateRoot = hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST) && hasPerm(PERM.CORPORATE_KPI_READ);
+  // Include approval-only users in page access.
+  const canAccess = hasAnyPerm(
+    PERM.KPI_ACTIVITY_READ,
+    PERM.KPI_ACTIVITY_REQUEST,
+    PERM.KPI_ACTIVITY_ROOT_REQUEST,
+    PERM.KPI_ACTIVITY_APPROVE,
+  );
 
-  // ── Tabs (permission-aware) ──
+  // Root create requires both permissions.
+  const canCreateRoot =
+    hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST) &&
+    hasPerm(PERM.CORPORATE_KPI_READ);
+
   const tabs = useMemo(() => {
     const result: { id: TabId; label: string }[] = [];
-    if (canRead) {
-      result.push({ id: 'my-activities', label: 'My Activities' });
-      result.push({ id: 'managed-activities', label: 'Managed' });
-    }
-    if (canOwned) result.push({ id: 'owned-activities', label: 'Owned' });
-    if (canMyRequests) result.push({ id: 'my-requests', label: 'My Requests' });
-    if (canApprove) result.push({ id: 'approvals', label: 'Approvals' });
-    return result;
-  }, [canRead, canOwned, canMyRequests, canApprove]);
 
-  const [activeTab, setActiveTab] = useState<TabId>('my-activities');
+    if (canRead) {
+      result.push({
+        id: 'my-activities',
+        label: 'My Activities',
+      });
+      result.push({
+        id: 'managed-activities',
+        label: 'Managed',
+      });
+    }
+
+    if (canOwned) {
+      result.push({
+        id: 'owned-activities',
+        label: 'Owned',
+      });
+    }
+
+    if (canMyRequests) {
+      result.push({
+        id: 'my-requests',
+        label: 'My Requests',
+      });
+    }
+
+    if (canApprove) {
+      result.push({
+        id: 'approvals',
+        label: 'Approvals',
+      });
+    }
+
+    return result;
+  }, [
+    canApprove,
+    canMyRequests,
+    canOwned,
+    canRead,
+  ]);
+
+  const [activeTab, setActiveTab] =
+    useState<TabId>('my-activities');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Compute the effective tab — always valid for current tabs
-  const effectiveTab = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id || 'my-activities';
+  const effectiveTab = tabs.some(
+    (tab) => tab.id === activeTab,
+  )
+    ? activeTab
+    : tabs[0]?.id ?? 'my-activities';
 
-  // ── Server data ──
   const {
-    myActivities, isLoadingMy, myError, fetchMyActivities,
-    managedActivities, isLoadingManaged, managedError, fetchManagedActivities,
-    ownedActivities, isLoadingOwned, ownedError, fetchOwnedActivities,
-    myRequests, isLoadingRequests, requestsError, fetchMyRequests,
+    myActivities,
+    isLoadingMy,
+    myError,
+    fetchMyActivities,
+
+    managedActivities,
+    isLoadingManaged,
+    managedError,
+    fetchManagedActivities,
+
+    ownedActivities,
+    isLoadingOwned,
+    ownedError,
+    fetchOwnedActivities,
+
+    myRequests,
+    isLoadingRequests,
+    requestsError,
+    fetchMyRequests,
   } = useActivityData();
 
   const {
-    pendingRequests, isLoadingPending, pendingError, fetchPending,
+    pendingRequests,
+    isLoadingPending,
+    pendingError,
+    fetchPending,
   } = useApprovalData();
 
-  // ── Fetch on tab activation ──
+  // Fetch only the currently selected tab.
   useEffect(() => {
-    if (activeTab === 'my-activities') fetchMyActivities();
-  }, [activeTab, fetchMyActivities]);
-
-  useEffect(() => {
-    if (activeTab === 'managed-activities') fetchManagedActivities();
-  }, [activeTab, fetchManagedActivities]);
-
-  useEffect(() => {
-    if (activeTab === 'owned-activities') fetchOwnedActivities();
-  }, [activeTab, fetchOwnedActivities]);
+    if (effectiveTab === 'my-activities') {
+      fetchMyActivities();
+    }
+  }, [
+    effectiveTab,
+    fetchMyActivities,
+  ]);
 
   useEffect(() => {
-    if (activeTab === 'my-requests') fetchMyRequests();
-  }, [activeTab, fetchMyRequests]);
+    if (effectiveTab === 'managed-activities') {
+      fetchManagedActivities();
+    }
+  }, [
+    effectiveTab,
+    fetchManagedActivities,
+  ]);
 
   useEffect(() => {
-    if (activeTab === 'approvals') fetchPending();
-  }, [activeTab, fetchPending]);
+    if (effectiveTab === 'owned-activities') {
+      fetchOwnedActivities();
+    }
+  }, [
+    effectiveTab,
+    fetchOwnedActivities,
+  ]);
 
-  // ── Search filtering ──
-  const q = searchQuery.trim().toLowerCase();
-  const filteredMyActivities = useMemo(
-    () => q ? (myActivities ?? []).filter((a) => a.activityName.toLowerCase().includes(q)) : (myActivities ?? []),
-    [myActivities, q],
-  );
-  const filteredManagedActivities = useMemo(
-    () => q ? (managedActivities ?? []).filter((a) => a.activityName.toLowerCase().includes(q)) : (managedActivities ?? []),
-    [managedActivities, q],
-  );
-  const filteredOwnedActivities = useMemo(
-    () => q ? (ownedActivities ?? []).filter((a) => a.activityName.toLowerCase().includes(q)) : (ownedActivities ?? []),
-    [ownedActivities, q],
-  );
-  const filteredMyRequests = useMemo(
-    () => q ? (myRequests ?? []).filter((a) => (a.activityName ?? '').toLowerCase().includes(q) || a.id.toLowerCase().includes(q)) : (myRequests ?? []),
-    [myRequests, q],
-  );
-  const filteredPendingRequests = useMemo(
-    () => q ? (pendingRequests ?? []).filter((a) => (a.activityName ?? '').toLowerCase().includes(q) || a.id.toLowerCase().includes(q)) : (pendingRequests ?? []),
-    [pendingRequests, q],
+  useEffect(() => {
+    if (effectiveTab === 'my-requests') {
+      fetchMyRequests();
+    }
+  }, [
+    effectiveTab,
+    fetchMyRequests,
+  ]);
+
+  useEffect(() => {
+    if (effectiveTab === 'approvals') {
+      fetchPending();
+    }
+  }, [
+    effectiveTab,
+    fetchPending,
+  ]);
+
+  const normalizedSearch = searchQuery
+    .trim()
+    .toLowerCase();
+
+  const filteredMyActivities = useMemo(() => {
+    const items = myActivities ?? [];
+
+    if (!normalizedSearch) {
+      return items;
+    }
+
+    return items.filter((activity) =>
+      activity.activityName
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [
+    myActivities,
+    normalizedSearch,
+  ]);
+
+  const filteredManagedActivities = useMemo(() => {
+    const items = managedActivities ?? [];
+
+    if (!normalizedSearch) {
+      return items;
+    }
+
+    return items.filter((activity) =>
+      activity.activityName
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [
+    managedActivities,
+    normalizedSearch,
+  ]);
+
+  const filteredOwnedActivities = useMemo(() => {
+    const items = ownedActivities ?? [];
+
+    if (!normalizedSearch) {
+      return items;
+    }
+
+    return items.filter((activity) =>
+      activity.activityName
+        .toLowerCase()
+        .includes(normalizedSearch),
+    );
+  }, [
+    normalizedSearch,
+    ownedActivities,
+  ]);
+
+  const filteredMyRequests = useMemo(() => {
+    const items = myRequests ?? [];
+
+    if (!normalizedSearch) {
+      return items;
+    }
+
+    return items.filter((request) => {
+      const activityName =
+        request.activityName?.toLowerCase() ?? '';
+
+      return (
+        activityName.includes(normalizedSearch) ||
+        request.id
+          .toLowerCase()
+          .includes(normalizedSearch)
+      );
+    });
+  }, [
+    myRequests,
+    normalizedSearch,
+  ]);
+
+  const filteredPendingRequests = useMemo(() => {
+    const items = pendingRequests ?? [];
+
+    if (!normalizedSearch) {
+      return items;
+    }
+
+    return items.filter((request) => {
+      const activityName =
+        request.activityName?.toLowerCase() ?? '';
+
+      return (
+        activityName.includes(normalizedSearch) ||
+        request.id
+          .toLowerCase()
+          .includes(normalizedSearch)
+      );
+    });
+  }, [
+    normalizedSearch,
+    pendingRequests,
+  ]);
+
+  const totalItems = useMemo(
+    () =>
+      tabs.reduce((total, tab) => {
+        if (tab.id === 'my-activities') {
+          return total + (myActivities?.length ?? 0);
+        }
+
+        if (tab.id === 'managed-activities') {
+          return total + (managedActivities?.length ?? 0);
+        }
+
+        if (tab.id === 'owned-activities') {
+          return total + (ownedActivities?.length ?? 0);
+        }
+
+        if (tab.id === 'my-requests') {
+          return total + (myRequests?.length ?? 0);
+        }
+
+        if (tab.id === 'approvals') {
+          return total + (pendingRequests?.length ?? 0);
+        }
+
+        return total;
+      }, 0),
+    [
+      managedActivities,
+      myActivities,
+      myRequests,
+      ownedActivities,
+      pendingRequests,
+      tabs,
+    ],
   );
 
-  // ── Detail modal state ──
+  const isAnyLoading =
+    isLoadingMy ||
+    isLoadingManaged ||
+    isLoadingOwned ||
+    isLoadingRequests ||
+    isLoadingPending;
+
+  const handleRefresh = useCallback(() => {
+    void Promise.allSettled([
+      fetchMyActivities(),
+      fetchManagedActivities(),
+      fetchOwnedActivities(),
+      fetchMyRequests(),
+      fetchPending(),
+    ]);
+  }, [
+    fetchManagedActivities,
+    fetchMyActivities,
+    fetchMyRequests,
+    fetchOwnedActivities,
+    fetchPending,
+  ]);
+
+  // Detail modal
   const [detailModal, setDetailModal] = useState<{
     isOpen: boolean;
     mode: 'ACTIVITY' | 'REQUEST';
     entityId: string | null;
-  }>({ isOpen: false, mode: 'ACTIVITY', entityId: null });
+  }>({
+    isOpen: false,
+    mode: 'ACTIVITY',
+    entityId: null,
+  });
 
-  const openActivityDetail = useCallback((id: string) => {
-    setDetailModal({ isOpen: true, mode: 'ACTIVITY', entityId: id });
-  }, []);
+  const openActivityDetail = useCallback(
+    (id: string) => {
+      setDetailModal({
+        isOpen: true,
+        mode: 'ACTIVITY',
+        entityId: id,
+      });
+    },
+    [],
+  );
 
-  const openRequestDetail = useCallback((id: string) => {
-    setDetailModal({ isOpen: true, mode: 'REQUEST', entityId: id });
-  }, []);
+  const openRequestDetail = useCallback(
+    (id: string) => {
+      setDetailModal({
+        isOpen: true,
+        mode: 'REQUEST',
+        entityId: id,
+      });
+    },
+    [],
+  );
 
   const closeDetail = useCallback(() => {
-    setDetailModal({ isOpen: false, mode: 'ACTIVITY', entityId: null });
+    setDetailModal({
+      isOpen: false,
+      mode: 'ACTIVITY',
+      entityId: null,
+    });
   }, []);
 
-  // ── Form modal state (P2.2) ──
+  // Form modal
   const [formModal, setFormModal] = useState<{
     isOpen: boolean;
     mode: ActivityFormMode;
     activity: KpiActivityResponse | null;
-  }>({ isOpen: false, mode: 'CREATE_ROOT', activity: null });
+  }>({
+    isOpen: false,
+    mode: 'CREATE_ROOT',
+    activity: null,
+  });
 
   const openCreateRoot = useCallback(() => {
-    setFormModal({ isOpen: true, mode: 'CREATE_ROOT', activity: null });
+    setFormModal({
+      isOpen: true,
+      mode: 'CREATE_ROOT',
+      activity: null,
+    });
   }, []);
 
-  const openCreateChild = useCallback((activity: KpiActivityResponse) => {
-    setFormModal({ isOpen: true, mode: 'CREATE_CHILD', activity });
-  }, []);
+  const openCreateChild = useCallback(
+    (activity: KpiActivityResponse) => {
+      setFormModal({
+        isOpen: true,
+        mode: 'CREATE_CHILD',
+        activity,
+      });
+    },
+    [],
+  );
 
-  const openUpdate = useCallback((activity: KpiActivityResponse) => {
-    setFormModal({ isOpen: true, mode: 'UPDATE', activity });
-  }, []);
+  const openUpdate = useCallback(
+    (activity: KpiActivityResponse) => {
+      setFormModal({
+        isOpen: true,
+        mode: 'UPDATE',
+        activity,
+      });
+    },
+    [],
+  );
 
   const closeFormModal = useCallback(() => {
-    setFormModal({ isOpen: false, mode: 'CREATE_ROOT', activity: null });
+    setFormModal({
+      isOpen: false,
+      mode: 'CREATE_ROOT',
+      activity: null,
+    });
   }, []);
 
-  // ── Cancel dialog state (P2.2) ──
+  // Cancel dialog
   const [cancelDialog, setCancelDialog] = useState<{
     isOpen: boolean;
     activity: KpiActivityResponse | null;
-  }>({ isOpen: false, activity: null });
+  }>({
+    isOpen: false,
+    activity: null,
+  });
 
-  const openCancel = useCallback((activity: KpiActivityResponse) => {
-    setCancelDialog({ isOpen: true, activity });
-  }, []);
+  const openCancel = useCallback(
+    (activity: KpiActivityResponse) => {
+      setCancelDialog({
+        isOpen: true,
+        activity,
+      });
+    },
+    [],
+  );
 
   const closeCancel = useCallback(() => {
-    setCancelDialog({ isOpen: false, activity: null });
+    setCancelDialog({
+      isOpen: false,
+      activity: null,
+    });
   }, []);
 
-  // ── Approval dialog state (P2.2) ──
+  // Approval dialog
   const [approvalDialog, setApprovalDialog] = useState<{
     mode: 'APPROVE' | 'REJECT' | null;
     request: KpiActivityChangeRequestResponse | null;
-  }>({ mode: null, request: null });
+  }>({
+    mode: null,
+    request: null,
+  });
 
-  const openApprove = useCallback((req: KpiActivityChangeRequestResponse) => {
-    setApprovalDialog({ mode: 'APPROVE', request: req });
-  }, []);
+  const openApprove = useCallback(
+    (request: KpiActivityChangeRequestResponse) => {
+      setApprovalDialog({
+        mode: 'APPROVE',
+        request,
+      });
+    },
+    [],
+  );
 
-  const openReject = useCallback((req: KpiActivityChangeRequestResponse) => {
-    setApprovalDialog({ mode: 'REJECT', request: req });
-  }, []);
+  const openReject = useCallback(
+    (request: KpiActivityChangeRequestResponse) => {
+      setApprovalDialog({
+        mode: 'REJECT',
+        request,
+      });
+    },
+    [],
+  );
 
   const closeApprovalDialog = useCallback(() => {
-    setApprovalDialog({ mode: null, request: null });
+    setApprovalDialog({
+      mode: null,
+      request: null,
+    });
   }, []);
 
-  // ── Permission guard ──
   if (!canAccess) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Breadcrumbs>
-          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem href="/">
+            <House className="h-4 w-4" />
+          </BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
           <BreadcrumbsItem>Activities</BreadcrumbsItem>
         </Breadcrumbs>
+
         <div>
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.activities}</h1>
+          <h1 className="text-xl font-semibold text-foreground">
+            {KPI_LABELS.activities}
+          </h1>
         </div>
+
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
@@ -209,43 +544,49 @@ export default function KpiActivitiesPage() {
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
-        <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+        <BreadcrumbsItem href="/">
+          <House className="h-4 w-4" />
+        </BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
         <BreadcrumbsItem>Activities</BreadcrumbsItem>
       </Breadcrumbs>
 
+      {/* Row 1: Title + Refresh + Create */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.activities}</h1>
-          <Chip size="md" className="pointer-events-none" aria-label="Total activities">
-            {tabs.reduce((sum, tab) => {
-              if (tab.id === 'my-activities') return sum + (myActivities?.length ?? 0);
-              if (tab.id === 'managed-activities') return sum + (managedActivities?.length ?? 0);
-              if (tab.id === 'owned-activities') return sum + (ownedActivities?.length ?? 0);
-              if (tab.id === 'my-requests') return sum + (myRequests?.length ?? 0);
-              if (tab.id === 'approvals') return sum + (pendingRequests?.length ?? 0);
-              return sum;
-            }, 0)}
+          <h1 className="text-xl font-semibold text-foreground">
+            {KPI_LABELS.activities}
+          </h1>
+
+          <Chip
+            size="md"
+            className="pointer-events-none"
+            aria-label={`Total ${totalItems} activities`}
+          >
+            {totalItems}
           </Chip>
         </div>
+
         <div className="flex items-center gap-2">
-          {(() => {
-            const isAnyLoading = isLoadingMy || isLoadingManaged || isLoadingOwned || isLoadingRequests || isLoadingPending;
-            const anyRefresh = [fetchMyActivities, fetchManagedActivities, fetchOwnedActivities, fetchMyRequests, fetchPending];
-            return (
-              <Button
-                isIconOnly
-                variant="tertiary"
-                onPress={() => anyRefresh.forEach(fn => fn?.())}
-                isDisabled={isAnyLoading}
-                aria-label="Refresh"
-              >
-                <ArrowsClockwise className={`h-4 w-4 ${isAnyLoading ? 'animate-spin' : ''}`} />
-              </Button>
-            );
-          })()}
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={handleRefresh}
+            isDisabled={isAnyLoading}
+            aria-label="Refresh"
+          >
+            <ArrowsClockwise
+              className={`h-4 w-4 ${
+                isAnyLoading ? 'animate-spin' : ''
+              }`}
+            />
+          </Button>
+
           {canCreateRoot && (
-            <Button variant="primary" onPress={openCreateRoot}>
+            <Button
+              variant="primary"
+              onPress={openCreateRoot}
+            >
               <Plus className="h-4 w-4" />
               Create Activity
             </Button>
@@ -253,16 +594,24 @@ export default function KpiActivitiesPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      {/* Row 2: Tabs (left) | Search (right) */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Tabs
             selectedKey={effectiveTab}
-            onSelectionChange={(key) => setActiveTab(key as TabId)}
+            onSelectionChange={(key) =>
+              setActiveTab(key as TabId)
+            }
           >
             <Tabs.ListContainer>
-              <Tabs.List aria-label="KPI Activities">
+              <Tabs.List
+                aria-label="KPI Activities"
+              >
                 {tabs.map((tab) => (
-                  <Tabs.Tab key={tab.id} id={tab.id}>
+                  <Tabs.Tab
+                    key={tab.id}
+                    id={tab.id}
+                  >
                     {tab.label}
                     <Tabs.Indicator />
                   </Tabs.Tab>
@@ -271,105 +620,127 @@ export default function KpiActivitiesPage() {
             </Tabs.ListContainer>
           </Tabs>
         </div>
+
         <SearchField
           name="search"
           value={searchQuery}
           onChange={setSearchQuery}
-          className="w-56"
+          className="w-72"
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
-            <SearchField.Input aria-label="Search activities" placeholder="Search" />
+            <SearchField.Input
+              aria-label="Search activities"
+              placeholder="Search activities"
+            />
             <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
       </div>
 
-      {/* Tab content — rendered below tabs+search row */}
-      {tabs.find((t) => t.id === effectiveTab) && (
-        <div key={effectiveTab} className="pt-4">
-          {effectiveTab === 'my-activities' && (
-            <ActivityTable
-              items={filteredMyActivities}
-              isLoading={isLoadingMy}
-              error={myError}
-              onViewDetail={openActivityDetail}
-              canRequest={canRequest}
-              onCreateChild={canRequest ? openCreateChild : undefined}
-              onRetry={fetchMyActivities}
-            />
-          )}
-          {effectiveTab === 'managed-activities' && (
-            <ActivityTable
-              items={filteredManagedActivities}
-              isLoading={isLoadingManaged}
-              error={managedError}
-              onViewDetail={openActivityDetail}
-              onRetry={fetchManagedActivities}
-            />
-          )}
-          {effectiveTab === 'owned-activities' && (
-            <ActivityTable
-              items={filteredOwnedActivities}
-              isLoading={isLoadingOwned}
-              error={ownedError}
-              onViewDetail={openActivityDetail}
-              canRequest={canRequest}
-              onUpdate={canRequest ? openUpdate : undefined}
-              onCancel={canRequest ? openCancel : undefined}
-              onRetry={fetchOwnedActivities}
-            />
-          )}
-          {effectiveTab === 'my-requests' && (
-            <RequestTable
-              items={filteredMyRequests}
-              isLoading={isLoadingRequests}
-              error={requestsError}
-              onViewDetail={openRequestDetail}
-            />
-          )}
-          {effectiveTab === 'approvals' && (
-            <ApprovalTable
-              items={filteredPendingRequests}
-              isLoading={isLoadingPending}
-              error={pendingError}
-              onViewDetail={openRequestDetail}
-              onApprove={openApprove}
-              onReject={openReject}
-            />
-          )}
-        </div>
-      )}
+      {/* Active tab table */}
+      <div className="w-full">
+        {effectiveTab === 'my-activities' && (
+          <ActivityTable
+            items={filteredMyActivities}
+            isLoading={isLoadingMy}
+            error={myError}
+            onViewDetail={openActivityDetail}
+            canRequest={canRequest}
+            onCreateChild={
+              canRequest
+                ? openCreateChild
+                : undefined
+            }
+            onRetry={fetchMyActivities}
+          />
+        )}
 
-      {/* Detail Modal */}
+        {effectiveTab === 'managed-activities' && (
+          <ActivityTable
+            items={filteredManagedActivities}
+            isLoading={isLoadingManaged}
+            error={managedError}
+            onViewDetail={openActivityDetail}
+            onRetry={fetchManagedActivities}
+          />
+        )}
+
+        {effectiveTab === 'owned-activities' && (
+          <ActivityTable
+            items={filteredOwnedActivities}
+            isLoading={isLoadingOwned}
+            error={ownedError}
+            onViewDetail={openActivityDetail}
+            canRequest={canRequest}
+            onUpdate={
+              canRequest
+                ? openUpdate
+                : undefined
+            }
+            onCancel={
+              canRequest
+                ? openCancel
+                : undefined
+            }
+            onRetry={fetchOwnedActivities}
+          />
+        )}
+
+        {effectiveTab === 'my-requests' && (
+          <RequestTable
+            items={filteredMyRequests}
+            isLoading={isLoadingRequests}
+            error={requestsError}
+            onViewDetail={openRequestDetail}
+          />
+        )}
+
+        {effectiveTab === 'approvals' && (
+          <ApprovalTable
+            items={filteredPendingRequests}
+            isLoading={isLoadingPending}
+            error={pendingError}
+            onViewDetail={openRequestDetail}
+            onApprove={openApprove}
+            onReject={openReject}
+          />
+        )}
+      </div>
+
       <KpiActivityDetailModal
-        key={detailModal.entityId || 'detail-closed'}
+        key={detailModal.entityId ?? 'detail-closed'}
         isOpen={detailModal.isOpen}
         onClose={closeDetail}
         mode={detailModal.mode}
         entityId={detailModal.entityId}
       />
 
-      {/* Form Modal (P2.2) */}
       <ActivityFormModal
-        key={formModal.isOpen ? `${formModal.mode}-${formModal.activity?.id || 'new'}` : 'form-closed'}
+        key={
+          formModal.isOpen
+            ? `${formModal.mode}-${formModal.activity?.id ?? 'new'}`
+            : 'form-closed'
+        }
         isOpen={formModal.isOpen}
         onClose={closeFormModal}
         mode={formModal.mode}
         activity={formModal.activity}
       />
 
-      {/* Cancel Dialog (P2.2) */}
       {cancelDialog.activity && (
         <ActivityCancelDialog
-          key={cancelDialog.isOpen ? cancelDialog.activity.id : 'cancel-closed'}
+          key={
+            cancelDialog.isOpen
+              ? cancelDialog.activity.id
+              : 'cancel-closed'
+          }
           isOpen={cancelDialog.isOpen}
           onClose={closeCancel}
           activity={cancelDialog.activity}
         />
       )}
 
-      {/* Approve / Reject Dialog */}
       {approvalDialog.request && (
         <ApprovalDialog
           key={`${approvalDialog.mode}-${approvalDialog.request.id}`}
