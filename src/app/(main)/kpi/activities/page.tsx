@@ -40,9 +40,9 @@ export default function KpiActivitiesPage() {
     const result: { id: TabId; label: string }[] = [];
     if (canRead) {
       result.push({ id: 'my-activities', label: 'My Activities' });
-      result.push({ id: 'managed-activities', label: 'Managed Activities' });
+      result.push({ id: 'managed-activities', label: 'Managed' });
     }
-    if (canOwned) result.push({ id: 'owned-activities', label: 'Owned Activities' });
+    if (canOwned) result.push({ id: 'owned-activities', label: 'Owned' });
     if (canMyRequests) result.push({ id: 'my-requests', label: 'My Requests' });
     if (canApprove) result.push({ id: 'approvals', label: 'Approvals' });
     return result;
@@ -258,75 +258,17 @@ export default function KpiActivitiesPage() {
           selectedKey={effectiveTab}
           onSelectionChange={(key) => setActiveTab(key as TabId)}
         >
-        <Tabs.ListContainer>
-          <Tabs.List aria-label="KPI Activities">
-            {tabs.map((tab) => (
-              <Tabs.Tab key={tab.id} id={tab.id}>
-                {tab.label}
-                <Tabs.Indicator />
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs.ListContainer>
-
-        {tabs.map((tab) => (
-          <Tabs.Panel key={tab.id} id={tab.id} className="pt-4">
-            {tab.id === 'my-activities' && (
-              <ActivityTable
-                items={filteredMyActivities}
-                isLoading={isLoadingMy}
-                error={myError}
-                onViewDetail={openActivityDetail}
-                canRequest={canRequest}
-                onCreateChild={canRequest ? openCreateChild : undefined}
-                onRetry={fetchMyActivities}
-                // No onUpdate, onCancel — My Activities shows assignee-only actions
-              />
-            )}
-            {tab.id === 'managed-activities' && (
-              <ActivityTable
-                items={filteredManagedActivities}
-                isLoading={isLoadingManaged}
-                error={managedError}
-                onViewDetail={openActivityDetail}
-                onRetry={fetchManagedActivities}
-                // No mutation actions — read-only
-              />
-            )}
-            {tab.id === 'owned-activities' && (
-              <ActivityTable
-                items={filteredOwnedActivities}
-                isLoading={isLoadingOwned}
-                error={ownedError}
-                onViewDetail={openActivityDetail}
-                canRequest={canRequest}
-                onUpdate={canRequest ? openUpdate : undefined}
-                onCancel={canRequest ? openCancel : undefined}
-                onRetry={fetchOwnedActivities}
-                // No onCreateChild — Owned Activities shows owner-only actions
-              />
-            )}
-            {tab.id === 'my-requests' && (
-              <RequestTable
-                items={filteredMyRequests}
-                isLoading={isLoadingRequests}
-                error={requestsError}
-                onViewDetail={openRequestDetail}
-              />
-            )}
-            {tab.id === 'approvals' && (
-              <ApprovalTable
-                items={filteredPendingRequests}
-                isLoading={isLoadingPending}
-                error={pendingError}
-                onViewDetail={openRequestDetail}
-                onApprove={openApprove}
-                onReject={openReject}
-              />
-            )}
-          </Tabs.Panel>
-        ))}
-      </Tabs>
+          <Tabs.ListContainer>
+            <Tabs.List aria-label="KPI Activities">
+              {tabs.map((tab) => (
+                <Tabs.Tab key={tab.id} id={tab.id}>
+                  {tab.label}
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs.ListContainer>
+        </Tabs>
         <SearchField
           name="search"
           value={searchQuery}
@@ -340,6 +282,62 @@ export default function KpiActivitiesPage() {
           </SearchField.Group>
         </SearchField>
       </div>
+
+      {/* Tab content — rendered below tabs+search row */}
+      {tabs.find((t) => t.id === effectiveTab) && (
+        <div key={effectiveTab} className="pt-4">
+          {effectiveTab === 'my-activities' && (
+            <ActivityTable
+              items={filteredMyActivities}
+              isLoading={isLoadingMy}
+              error={myError}
+              onViewDetail={openActivityDetail}
+              canRequest={canRequest}
+              onCreateChild={canRequest ? openCreateChild : undefined}
+              onRetry={fetchMyActivities}
+            />
+          )}
+          {effectiveTab === 'managed-activities' && (
+            <ActivityTable
+              items={filteredManagedActivities}
+              isLoading={isLoadingManaged}
+              error={managedError}
+              onViewDetail={openActivityDetail}
+              onRetry={fetchManagedActivities}
+            />
+          )}
+          {effectiveTab === 'owned-activities' && (
+            <ActivityTable
+              items={filteredOwnedActivities}
+              isLoading={isLoadingOwned}
+              error={ownedError}
+              onViewDetail={openActivityDetail}
+              canRequest={canRequest}
+              onUpdate={canRequest ? openUpdate : undefined}
+              onCancel={canRequest ? openCancel : undefined}
+              onRetry={fetchOwnedActivities}
+            />
+          )}
+          {effectiveTab === 'my-requests' && (
+            <RequestTable
+              items={filteredMyRequests}
+              isLoading={isLoadingRequests}
+              error={requestsError}
+              onViewDetail={openRequestDetail}
+            />
+          )}
+          {effectiveTab === 'approvals' && (
+            <ApprovalTable
+              items={filteredPendingRequests}
+              isLoading={isLoadingPending}
+              error={pendingError}
+              onViewDetail={openRequestDetail}
+              onApprove={openApprove}
+              onReject={openReject}
+            />
+          )}
+        </div>
+      )}
 
       {/* Detail Modal */}
       <KpiActivityDetailModal
