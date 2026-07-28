@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Chip, Tabs } from '@heroui/react';
+import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Chip, SearchField, Tabs } from '@heroui/react';
 import { House, Plus, ArrowsClockwise } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -49,6 +49,7 @@ export default function KpiActivitiesPage() {
   }, [canRead, canOwned, canMyRequests, canApprove]);
 
   const [activeTab, setActiveTab] = useState<TabId>('my-activities');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Compute the effective tab — always valid for current tabs
   const effectiveTab = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id || 'my-activities';
@@ -85,6 +86,29 @@ export default function KpiActivitiesPage() {
   useEffect(() => {
     if (activeTab === 'approvals') fetchPending();
   }, [activeTab, fetchPending]);
+
+  // ── Search filtering ──
+  const q = searchQuery.trim().toLowerCase();
+  const filteredMyActivities = useMemo(
+    () => q ? (myActivities ?? []).filter((a) => a.activityName.toLowerCase().includes(q)) : (myActivities ?? []),
+    [myActivities, q],
+  );
+  const filteredManagedActivities = useMemo(
+    () => q ? (managedActivities ?? []).filter((a) => a.activityName.toLowerCase().includes(q)) : (managedActivities ?? []),
+    [managedActivities, q],
+  );
+  const filteredOwnedActivities = useMemo(
+    () => q ? (ownedActivities ?? []).filter((a) => a.activityName.toLowerCase().includes(q)) : (ownedActivities ?? []),
+    [ownedActivities, q],
+  );
+  const filteredMyRequests = useMemo(
+    () => q ? (myRequests ?? []).filter((a) => (a.activityName ?? '').toLowerCase().includes(q) || a.id.toLowerCase().includes(q)) : (myRequests ?? []),
+    [myRequests, q],
+  );
+  const filteredPendingRequests = useMemo(
+    () => q ? (pendingRequests ?? []).filter((a) => (a.activityName ?? '').toLowerCase().includes(q) || a.id.toLowerCase().includes(q)) : (pendingRequests ?? []),
+    [pendingRequests, q],
+  );
 
   // ── Detail modal state ──
   const [detailModal, setDetailModal] = useState<{
@@ -229,11 +253,11 @@ export default function KpiActivitiesPage() {
         </div>
       </div>
 
-      <Tabs
-        className="w-full"
-        selectedKey={effectiveTab}
-        onSelectionChange={(key) => setActiveTab(key as TabId)}
-      >
+      <div className="flex items-center justify-between">
+        <Tabs
+          selectedKey={effectiveTab}
+          onSelectionChange={(key) => setActiveTab(key as TabId)}
+        >
         <Tabs.ListContainer>
           <Tabs.List aria-label="KPI Activities">
             {tabs.map((tab) => (
@@ -249,7 +273,7 @@ export default function KpiActivitiesPage() {
           <Tabs.Panel key={tab.id} id={tab.id} className="pt-4">
             {tab.id === 'my-activities' && (
               <ActivityTable
-                items={myActivities}
+                items={filteredMyActivities}
                 isLoading={isLoadingMy}
                 error={myError}
                 onViewDetail={openActivityDetail}
@@ -261,7 +285,7 @@ export default function KpiActivitiesPage() {
             )}
             {tab.id === 'managed-activities' && (
               <ActivityTable
-                items={managedActivities}
+                items={filteredManagedActivities}
                 isLoading={isLoadingManaged}
                 error={managedError}
                 onViewDetail={openActivityDetail}
@@ -271,7 +295,7 @@ export default function KpiActivitiesPage() {
             )}
             {tab.id === 'owned-activities' && (
               <ActivityTable
-                items={ownedActivities}
+                items={filteredOwnedActivities}
                 isLoading={isLoadingOwned}
                 error={ownedError}
                 onViewDetail={openActivityDetail}
@@ -284,7 +308,7 @@ export default function KpiActivitiesPage() {
             )}
             {tab.id === 'my-requests' && (
               <RequestTable
-                items={myRequests}
+                items={filteredMyRequests}
                 isLoading={isLoadingRequests}
                 error={requestsError}
                 onViewDetail={openRequestDetail}
@@ -292,7 +316,7 @@ export default function KpiActivitiesPage() {
             )}
             {tab.id === 'approvals' && (
               <ApprovalTable
-                items={pendingRequests}
+                items={filteredPendingRequests}
                 isLoading={isLoadingPending}
                 error={pendingError}
                 onViewDetail={openRequestDetail}
@@ -303,6 +327,19 @@ export default function KpiActivitiesPage() {
           </Tabs.Panel>
         ))}
       </Tabs>
+        <SearchField
+          name="search"
+          value={searchQuery}
+          onChange={setSearchQuery}
+          className="w-72"
+        >
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input aria-label="Search activities" placeholder="Search" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
+      </div>
 
       {/* Detail Modal */}
       <KpiActivityDetailModal
