@@ -14,6 +14,7 @@ import {
   FieldError,
   Select,
   ListBox,
+  TextArea,
 } from '@heroui/react';
 import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, KpiNodeType } from './corporate-kpi.types';
 
@@ -50,8 +51,8 @@ function buildSchema(isIndicator: boolean) {
     name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
     description: z.string().optional(),
     nodeType: z.enum(['ASPECT', 'INDICATOR']),
+    year: z.coerce.number().int().min(2000).max(2100),
   };
-
   if (isIndicator) {
     return z.object({
       ...base,
@@ -133,7 +134,7 @@ function FormBody({
               code: data.code as string,
               name: data.name as string,
               nodeType: 'INDICATOR' as KpiNodeType,
-              year: selectedYear,
+              year: data.year as number,
               parentId: (data.parentId as string) || null,
               unit: (data.unit as string) || null,
               targetValue: (data.targetValue as number) ?? null,
@@ -155,7 +156,7 @@ function FormBody({
               code: data.code as string,
               name: data.name as string,
               nodeType: 'ASPECT' as KpiNodeType,
-              year: selectedYear,
+              year: data.year as number,
               parentId: null,
               unit: null,
               targetValue: null,
@@ -324,58 +325,56 @@ function FormBody({
         />
       )}
 
-      {/* Unit — indicator only */}
+      {/* Unit + Target Value — side by side (indicator only) */}
       {nodeType === 'INDICATOR' && (
-        <Controller
-          name="unit"
-          control={control}
-          render={({ field, fieldState }) => (
-            <TextField
-              className="w-full"
-              name={field.name}
-              value={field.value ?? ''}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              ref={field.ref}
-              isRequired
-              isInvalid={fieldState.invalid}
-              isDisabled={isSubmitting}
-              validationBehavior="aria"
-              variant="secondary"
+        <div className="grid grid-cols-2 gap-4">
+          <Controller
+            name="unit"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                className="w-full"
+                name={field.name}
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                ref={field.ref}
+                isRequired
+                isInvalid={fieldState.invalid}
+                isDisabled={isSubmitting}
+                validationBehavior="aria"
+                variant="secondary"
               >
-              <Label>Unit</Label>
-              <Input placeholder="e.g. %" />
-              <FieldError>{fieldState.error?.message}</FieldError>
-            </TextField>
-          )}
-        />
-      )}
-
-      {/* Target Value — indicator only */}
-      {nodeType === 'INDICATOR' && (
-        <Controller
-          name="targetValue"
-          control={control}
-          render={({ field, fieldState }) => (
-            <TextField
-              className="w-full"
-              name={field.name}
-              value={field.value != null ? String(field.value) : ''}
-              onChange={(val) => field.onChange(val ? Number(val) : undefined)}
-              onBlur={field.onBlur}
-              ref={field.ref}
-              isRequired
-              isInvalid={fieldState.invalid}
-              isDisabled={isSubmitting}
-              validationBehavior="aria"
-              variant="secondary"
+                <Label>Unit</Label>
+                <Input placeholder="e.g. %" />
+                <FieldError>{fieldState.error?.message}</FieldError>
+              </TextField>
+            )}
+          />
+          <Controller
+            name="targetValue"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                className="w-full"
+                name={field.name}
+                value={field.value != null ? String(field.value) : ''}
+                onChange={(val) => field.onChange(val ? Number(val) : undefined)}
+                onBlur={field.onBlur}
+                ref={field.ref}
+                isRequired
+                isInvalid={fieldState.invalid}
+                isDisabled={isSubmitting}
+                validationBehavior="aria"
+                variant="secondary"
               >
-              <Label>Target Value</Label>
-              <Input type="number" min={0} step="any" />
-              <FieldError>{fieldState.error?.message}</FieldError>
-            </TextField>
-          )}
-        />
+                <Label>Target Value</Label>
+                <Input type="number" min={0} step="any" />
+                <FieldError>{fieldState.error?.message}</FieldError>
+              </TextField>
+            )}
+          />
+        </div>
       )}
 
       {/* Description — shared */}
@@ -383,34 +382,59 @@ function FormBody({
         name="description"
         control={control}
         render={({ field }) => (
-          <TextField
+          <TextArea
             className="w-full"
             name={field.name}
             value={field.value ?? ''}
-            onChange={field.onChange}
-            isDisabled={isSubmitting}
+            onChange={(e) => field.onChange(e.target.value)}
+            disabled={isSubmitting}
             variant="secondary"
-          >
-            <Label>Description</Label>
-            <Input placeholder="Optional description" />
-          </TextField>
+            placeholder="Optional description"
+            rows={3}
+          />
         )}
       />
 
-      {/* Year — read-only display */}
-      <div className="text-sm text-muted-foreground">
-        Year: {isEdit && node ? node.year : selectedYear}
-      </div>
+      {/* Year — selectable on create, read-only on edit */}
+      <Controller
+        name="year"
+        control={control}
+        render={({ field, fieldState }) => {
+          const currentYear = new Date().getFullYear();
+          const years = Array.from({ length: 7 }, (_, i) => currentYear + i - 3);
+          if (isEdit) {
+            return <div className="text-sm text-muted-foreground">Year: {node?.year ?? selectedYear}</div>;
+          }
+          return (
+            <Select
+              className="w-full"
+              selectedKey={field.value != null ? String(field.value) : String(selectedYear)}
+              onSelectionChange={(key) => field.onChange(Number(key))}
+              isRequired
+              isInvalid={fieldState.invalid}
+              variant="secondary"
+            >
+              <Label>Year</Label>
+              <Select.Trigger>
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  {years.map((y) => (
+                    <ListBox.Item key={String(y)} id={String(y)} textValue={String(y)}>
+                      {String(y)}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+              <FieldError>{fieldState.error?.message}</FieldError>
+            </Select>
+          );
+        }}
+      />
 
-      {/* Action buttons */}
-      <div className="flex justify-end gap-2 pt-4">
-        <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
-          Cancel
-        </Button>
-        <Button variant="primary" type="submit" isDisabled={isSubmitting}>
-          {isSubmitting ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
     </Form>
   );
 }
@@ -435,6 +459,7 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
     code: node?.code ?? '',
     name: node?.name ?? '',
     nodeType: isIndicator ? 'INDICATOR' : 'ASPECT',
+    year: node?.year ?? selectedYear,
     parentId: (mode === 'CREATE_INDICATOR' && preselectedParentId ? preselectedParentId : node?.parentId) ?? '',
     unit: node?.unit ?? '',
     targetValue: node?.targetValue ?? undefined,
@@ -455,7 +480,7 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
             <Modal.Header className="flex items-center justify-between">
               <Modal.Heading className="text-lg font-semibold">{MODE_TITLE[mode]}</Modal.Heading>
             </Modal.Header>
-            <Modal.Body className="flex flex-col gap-4 py-5">
+            <Modal.Body className="flex flex-col gap-4 p-6">
               <div key={formKey}>
                 <FormBody
                   initial={initial}
@@ -472,6 +497,14 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
                 />
               </div>
             </Modal.Body>
+            <Modal.Footer className="flex justify-end gap-2">
+              <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" isDisabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save'}
+              </Button>
+            </Modal.Footer>
             <Modal.CloseTrigger />
           </Modal.Dialog>
         </Modal.Container>
