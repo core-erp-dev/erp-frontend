@@ -14,7 +14,7 @@ export const KPI_ROUTES = {
 
 // ── Labels ────────────────────────────────────────────────────────────────
 export const KPI_LABELS = {
-  overview: 'Overview',
+  overview: 'Dashboard',
   corporate: 'Corporate KPI',
   activities: 'KPI Activities',
   reports: 'Execution Reports',

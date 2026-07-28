@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Alert, Button, Tabs } from '@heroui/react';
-import { Plus, ArrowsClockwise } from '@phosphor-icons/react';
+import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Tabs } from '@heroui/react';
+import { Plus, ArrowsClockwise, House } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
@@ -112,9 +112,13 @@ export default function KpiReportsPage() {
   if (!canAccess) {
     return (
       <div className="flex w-full flex-col gap-6">
+        <Breadcrumbs>
+          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>Reports</BreadcrumbsItem>
+        </Breadcrumbs>
         <div>
           <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.reports}</h1>
-          <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.reports}</p>
         </div>
         <Alert status="danger">
           <Alert.Indicator />
@@ -128,12 +132,15 @@ export default function KpiReportsPage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
+      <Breadcrumbs>
+        <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+        <BreadcrumbsItem>KPI</BreadcrumbsItem>
+        <BreadcrumbsItem>Reports</BreadcrumbsItem>
+      </Breadcrumbs>
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.reports}</h1>
-          <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.reports}</p>
-        </div>
+        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.reports}</h1>
         <div className="flex items-center gap-2">
           <Button isIconOnly variant="tertiary" onPress={() => {
             if (effectiveTab === 'my-reports') fetchMyReports();

@@ -1,4 +1,4 @@
-import { ChartBar, Buildings, ClipboardText, Article, Checks, Users, TreeStructure, Gear, Lock } from '@phosphor-icons/react';
+import { ChartBar, Buildings, ClipboardText, Article, Users, TreeStructure, Gear, Lock } from '@phosphor-icons/react';
 import type React from 'react';
 import { KPI_ROUTES, KPI_ANY_PERMISSION } from '@/modules/kpi/constants';
 import { PERM } from '@/constants/permissions';
@@ -17,7 +17,7 @@ export interface SidebarItem {
 export const navigationConfig: SidebarItem[] = [
   // ── KPI ──
   {
-    title: 'Overview',
+    title: 'Dashboard',
     href: KPI_ROUTES.overview,
     icon: ChartBar,
     group: 'KPI',
@@ -35,7 +35,7 @@ export const navigationConfig: SidebarItem[] = [
     href: KPI_ROUTES.activities,
     icon: ClipboardText,
     group: 'KPI',
-    permissions: [PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST],
+    permissions: [PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST, PERM.KPI_ACTIVITY_APPROVE],
   },
   {
     title: 'Reports',
@@ -46,13 +46,6 @@ export const navigationConfig: SidebarItem[] = [
       perms.includes('kpi_report:read') ||
       perms.includes('kpi_report:review') ||
       (perms.includes('kpi_report:submit') && perms.includes('kpi_activity:read')),
-  },
-  {
-    title: 'Approvals',
-    href: KPI_ROUTES.approvals,
-    icon: Checks,
-    group: 'KPI',
-    permissions: [PERM.KPI_ACTIVITY_APPROVE],
   },
 
   // ── ORGANIZATION ──

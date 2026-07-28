@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Alert, Button } from '@heroui/react';
-import { ArrowsClockwise } from '@phosphor-icons/react';
+import { Alert, Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
+import { ArrowsClockwise, House } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
-import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
+import { KPI_LABELS } from '@/modules/kpi/constants';
 import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
 import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
 import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
@@ -62,10 +62,13 @@ export default function KpiApprovalsPage() {
   if (!canApprove) {
     return (
       <div className="flex w-full flex-col gap-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.approvals}</h1>
-          <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.approvals}</p>
-        </div>
+        <Breadcrumbs>
+          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>Activities</BreadcrumbsItem>
+          <BreadcrumbsItem>Approvals</BreadcrumbsItem>
+        </Breadcrumbs>
+        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.approvals}</h1>
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
@@ -78,11 +81,15 @@ export default function KpiApprovalsPage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
+      <Breadcrumbs>
+        <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+        <BreadcrumbsItem>KPI</BreadcrumbsItem>
+        <BreadcrumbsItem>Activities</BreadcrumbsItem>
+        <BreadcrumbsItem>Approvals</BreadcrumbsItem>
+      </Breadcrumbs>
+
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.approvals}</h1>
-          <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.approvals}</p>
-        </div>
+        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.approvals}</h1>
         <Button isIconOnly variant="tertiary" onPress={fetchPending} aria-label="Refresh">
           <ArrowsClockwise className="h-4 w-4" />
         </Button>

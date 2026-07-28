@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Spinner, Alert, Button } from '@heroui/react';
-import { Plus } from '@phosphor-icons/react';
+import { Spinner, Alert, Button, Breadcrumbs, BreadcrumbsItem } from '@heroui/react';
+import { Plus, House } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
@@ -178,10 +178,13 @@ export default function KpiCorporatePage() {
   if (!canRead) {
     return (
       <div className="flex w-full flex-col gap-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-          <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.corporate}</p>
-        </div>
+        <Breadcrumbs>
+          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
+        </Breadcrumbs>
+
+        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
         <Alert status="danger">Access Denied</Alert>
       </div>
     );
@@ -192,10 +195,13 @@ export default function KpiCorporatePage() {
   if (isLoadingTree && tree.length === 0) {
     return (
       <div className="flex w-full flex-col gap-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-          <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.corporate}</p>
-        </div>
+        <Breadcrumbs>
+          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
+        </Breadcrumbs>
+
+        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
         <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>
       </div>
     );
@@ -205,10 +211,13 @@ export default function KpiCorporatePage() {
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-        <p className="text-sm text-muted-foreground">{KPI_DESCRIPTIONS.corporate}</p>
-      </div>
+      <Breadcrumbs>
+        <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+        <BreadcrumbsItem>KPI</BreadcrumbsItem>
+        <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
+      </Breadcrumbs>
+
+      <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
 
       <div className="flex items-center justify-between gap-3">
         <CorporateKpiFilters
