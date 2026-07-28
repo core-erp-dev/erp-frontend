@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { House, ArrowLeft, FloppyDisk, Briefcase, X, Plus } from '@phosphor-icons/react';
+import { House, ArrowLeft, FloppyDisk, Briefcase, X, Plus, Trash } from '@phosphor-icons/react';
 import {
   Button,
   Form,
@@ -19,15 +19,15 @@ import {
   ListBox,
   TextArea,
   Separator,
+  Surface,
+  ComboBox,
   Spinner,
-  SearchField,
   toast,
 } from '@heroui/react';
 
 import { DateFieldPicker } from '@/components/shared/date-field-picker';
 import { GENDER, GENDER_LABEL } from '@/constants/gender';
 import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption, UserPositionResponse } from '../types';
-import { useDebounce } from '@/hooks/use-debounce';
 import { useEmployeeFormData } from '../hooks/use-employee-form-data';
 
 const getFormSchema = (isEditMode: boolean) =>
@@ -45,9 +45,7 @@ const getFormSchema = (isEditMode: boolean) =>
     address: z.string().optional(),
     nip: z.string().optional(),
     defaultPositionId: z.string().optional(),
-    joinDate: isEditMode
-      ? z.string().optional()
-      : z.string().min(1, 'Join date is required'),
+    joinDate: z.string().min(1, 'Join date is required'),
     password: isEditMode
       ? z.string().optional().or(z.literal(''))
       : z.string().min(6, 'Password must be at least 6 characters'),
@@ -119,23 +117,21 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
   const flatPositions = useMemo(() => flattenPositions(positions), [positions]);
 
   // ── Multi-position: secondary positions (edit mode only) ──
-  const [isAssignExpanded, setIsAssignExpanded] = useState(false);
   const [assignSearch, setAssignSearch] = useState('');
-  const [assignResults, setAssignResults] = useState<PositionOption[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
-  const debouncedAssignSearch = useDebounce(assignSearch, 400);
 
-  // Debounced position search for inline assign
-  useEffect(() => {
-    if (!debouncedAssignSearch.trim()) { setAssignResults([]); return; }
-    let cancelled = false;
-    setIsSearching(true);
-    const q = debouncedAssignSearch.toLowerCase();
-    const filtered = positions.filter(p => p.positionName.toLowerCase().includes(q) || p.positionCode.toLowerCase().includes(q)).slice(0, 10);
-    if (!cancelled) { setAssignResults(filtered); setIsSearching(false); }
-    return () => { cancelled = true; };
-  }, [debouncedAssignSearch, positions]);
+  const flatPositionOptions = useMemo(() => {
+    const excludeIds = new Set(secondaryPositions.map(up => up.positionId));
+    const result: PositionOption[] = [];
+    const walk = (nodes: PositionOption[]) => {
+      for (const node of nodes) {
+        if (!excludeIds.has(node.id)) result.push(node);
+        if (node.children?.length) walk(node.children);
+      }
+    };
+    walk(positions);
+    return result;
+  }, [positions, secondaryPositions]);
 
   const handleAssignSecondary = async (positionId: string) => {
     if (!initialData) return;
@@ -143,9 +139,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
     const ok = await assignSecondary(positionId, initialData.id);
     setIsAssigning(false);
     if (ok) {
-      setIsAssignExpanded(false);
       setAssignSearch('');
-      setAssignResults([]);
     }
   };
 
@@ -289,7 +283,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               );
             }} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
-              <DateFieldPicker label="Join Date" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired={!isEditMode} isInvalid={fieldState.invalid} errorMessage={fieldState.error?.message} />
+              <DateFieldPicker label="Join Date" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired isInvalid={fieldState.invalid} errorMessage={fieldState.error?.message} />
             )} />
             {!isEditMode && (
               <Controller control={form.control} name="password" render={({ field, fieldState }) => (
@@ -304,74 +298,58 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         </div>
         {/* ── SECONDARY POSITIONS (edit mode only) ── */}
         {isEditMode && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Secondary Positions</h2>
-              <Button
-                variant={isAssignExpanded ? 'secondary' : 'primary'}
-                size="sm"
-                onPress={() => { setIsAssignExpanded(!isAssignExpanded); setAssignSearch(''); setAssignResults([]); }}
-                isDisabled={isSubmitting || isAssigning}
-              >
-                {isAssignExpanded ? <><X className="h-4 w-4" />Cancel</> : <><Plus className="h-4 w-4" />Add Secondary</>}
-              </Button>
-            </div>
+          <>
+            <h2 className="text-sm font-semibold text-foreground">Secondary Positions</h2>
+            <Surface className="flex flex-col gap-4 rounded-3xl p-6" variant="secondary">
 
-            {/* Inline assign */}
-            {isAssignExpanded && (
-              <div className="space-y-2">
-                <SearchField value={assignSearch} onChange={setAssignSearch} autoFocus isDisabled={isAssigning}>
-                  <SearchField.Group>
-                    <SearchField.SearchIcon />
-                    <SearchField.Input placeholder="Search positions..." />
-                    <SearchField.ClearButton />
-                  </SearchField.Group>
-                </SearchField>
-                {isSearching ? (
-                  <div className="flex justify-center py-2"><Spinner size="sm" /></div>
-                ) : assignResults.length > 0 ? (
-                  <div className="max-h-48 space-y-1 overflow-y-auto">
-                    {assignResults
-                      .filter(pos => !secondaryPositions.some(up => up.positionId === pos.id))
-                      .map(pos => (
-                        <Button
-                          key={pos.id}
-                          variant="ghost"
-                          className="w-full justify-between rounded-xl bg-surface-secondary px-4 py-2.5 text-left text-sm h-auto"
-                          isDisabled={isAssigning}
-                          onPress={() => handleAssignSecondary(pos.id)}
-                        >
-                          <span>
-                            <span className="font-medium text-foreground">{pos.positionName}</span>
-                            <span className="ml-2 text-xs text-gray-400">{pos.positionCode}</span>
-                          </span>
-                          <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        </Button>
-                      ))}
-                  </div>
-                ) : assignSearch.trim() ? (
-                  <p className="py-2 text-center text-sm text-gray-400">No results</p>
-                ) : null}
-              </div>
-            )}
+            {/* ComboBox for assigning one position */}
+            <ComboBox
+              className="w-full"
+              inputValue={assignSearch}
+              onInputChange={setAssignSearch}
+              onSelectionChange={(key) => {
+                if (key) {
+                  handleAssignSecondary(String(key));
+                  setAssignSearch('');
+                }
+              }}
+              selectedKey={null}
+              isDisabled={isSubmitting || isAssigning}
+              menuTrigger="input"
+            >
+              <Label>Assign Position</Label>
+              <ComboBox.InputGroup>
+                <Input placeholder="Search positions..." />
+                <ComboBox.Trigger />
+              </ComboBox.InputGroup>
+              <ComboBox.Popover>
+                <ListBox>
+                  {flatPositionOptions.map((pos) => (
+                    <ListBox.Item key={pos.id} id={pos.id} textValue={`${pos.positionName} (${pos.positionCode})`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-foreground">{pos.positionName}</span>
+                        <span className="ml-2 text-xs text-gray-400">{pos.positionCode}</span>
+                      </div>
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </ComboBox.Popover>
+            </ComboBox>
 
-            {/* Existing secondary positions */}
+            <h3 className="text-sm font-semibold text-foreground">Assigned Positions</h3>
             {(() => {
               const nonPrimary = secondaryPositions.filter(p => !p.isPrimary && p.isActive);
-              if (nonPrimary.length === 0 && !isAssignExpanded) {
+              if (nonPrimary.length === 0) {
                 return <p className="text-sm text-gray-400">No secondary positions</p>;
               }
               return (
                 <div className="space-y-2">
                   {nonPrimary.map(up => (
-                    <div key={up.id} className="flex items-center justify-between rounded-xl bg-surface-secondary px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Briefcase className="h-5 w-5 text-muted-foreground" />
-                        <div>
-                          <span className="font-medium text-foreground">{up.positionName}</span>
-                          <span className="ml-2 text-xs text-gray-400">{up.positionCode}</span>
-                        </div>
-                      </div>
+                    <div key={up.id} className="flex items-center gap-2">
+                      <TextField className="flex-1" isReadOnly>
+                        <Input value={`${up.positionName} (${up.positionCode})`} readOnly />
+                      </TextField>
                       <Button
                         isIconOnly
                         variant="danger-soft"
@@ -380,14 +358,15 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                         isDisabled={isSubmitting || isAssigning}
                         onPress={() => handleRemoveSecondary(up)}
                       >
-                        <X className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
                 </div>
               );
             })()}
-          </div>
+          </Surface>
+          </>
         )}
 
         <div className="flex items-center justify-end gap-3">
