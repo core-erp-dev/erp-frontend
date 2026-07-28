@@ -55,12 +55,14 @@ export default function EditEmployeePage() {
   }
 
   return (
-    <EmployeeForm
-      mode="edit"
-      initialData={employee}
-      onSuccess={() => {
-        router.push(`/organization/employees/${id}`);
-      }}
-    />
+    <div className="mx-auto w-full max-w-4xl">
+      <EmployeeForm
+        mode="edit"
+        initialData={employee}
+        onSuccess={() => {
+          router.push(`/organization/employees/${id}`);
+        }}
+      />
+    </div>
   );
 }
