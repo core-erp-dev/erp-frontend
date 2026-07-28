@@ -28,7 +28,11 @@ const getIcon = (
   return <IconComponent className={cn("h-5 w-5", className)} />;
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+}
+
+export function Sidebar({ isOpen }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
 
@@ -105,9 +109,14 @@ export function Sidebar() {
   );
 
   return (
-    <aside className="flex w-64 flex-col border-r border-border bg-background">
+    <aside
+      className={cn(
+        "flex flex-col border-r border-border bg-background overflow-hidden transition-all duration-300",
+        isOpen ? "w-64" : "w-0",
+      )}
+    >
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2.5 px-5 pt-1">
+      <div className="flex h-14 items-center gap-2.5 px-5 pt-1 shrink-0">
         <Image
           src="/logo/text-logo.svg"
           alt="STI one"
@@ -118,9 +127,9 @@ export function Sidebar() {
         />
       </div>
 
-      <Separator />
+      <Separator className="shrink-0" />
 
-      <nav className="flex flex-1 flex-col justify-between overflow-y-auto p-4 pt-2">
+      <nav className="flex flex-1 flex-col justify-between overflow-y-auto p-4 pt-2 min-w-56">
         {/* Main groups */}
         <div>
           {mainGroups.map(([label, items]) => renderGroup(label, items))}

@@ -1,73 +1,39 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import Image from "next/image";
-import {
-  Button,
-  Avatar,
-  Dropdown,
-  Label,
-  Separator,
-  SearchField,
-} from "@heroui/react";
-import {
-  Bell,
-  CaretDown,
-  User as UserIcon,
-  Gear,
-  SignOut,
-} from "@phosphor-icons/react";
-import { logout } from "@/lib/auth";
-import { useAuthStore } from "@/store/auth-store";
+import { Button } from "@heroui/react";
+import { Bell, MagnifyingGlass, SidebarSimple } from "@phosphor-icons/react";
 
 interface HeaderProps {
-  showSearch?: boolean;
-  showLogo?: boolean;
+  onToggleSidebar?: () => void;
 }
 
-export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
-  const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-
-  const userInitial = user?.username
-    ? user.username.charAt(0).toUpperCase()
-    : "U";
-  const displayName = user?.username || "User";
-
+export function Header({ onToggleSidebar }: HeaderProps) {
   return (
     <header className="flex h-16 items-center bg-[#f5f5f5] px-6">
-      {/* Left: Logo */}
-      {showLogo && (
-        <div className="flex items-center gap-2.5 pt-1">
-          <Image
-            src="/logo/text-logo.svg"
-            alt="STI one"
-            width={64}
-            height={20}
-            priority
-            style={{ height: "auto", width: "auto" }}
-          />
-        </div>
-      )}
+      {/* Left: Sidebar toggle */}
+      <Button
+        variant="ghost"
+        size="md"
+        isIconOnly
+        onPress={onToggleSidebar}
+        aria-label="Toggle sidebar"
+      >
+        <SidebarSimple className="h-5 w-5" />
+      </Button>
 
-      {/* Center: Searchbar (optional) */}
-      {showSearch && (
-        <div className="flex flex-1 justify-center">
-          <SearchField aria-label="Search">
-            <SearchField.Group>
-              <SearchField.SearchIcon />
-              <SearchField.Input placeholder="Search" className="w-[320px]" />
-              <SearchField.ClearButton aria-label="Clear search" />
-            </SearchField.Group>
-          </SearchField>
-        </div>
-      )}
+      {/* Spacer */}
+      <div className="flex-1" />
 
-      {/* Spacer to push right items (when no search field) */}
-      {!showSearch && <div className="flex-1" />}
-
-      {/* Right: Notification + Profile */}
+      {/* Right: Search + Notification */}
       <div className="flex items-center gap-2">
+        <Button
+          variant="tertiary"
+          size="md"
+          isIconOnly
+          aria-label="Search"
+        >
+          <MagnifyingGlass className="h-5 w-5" />
+        </Button>
         <Button
           variant="tertiary"
           size="md"
@@ -76,58 +42,6 @@ export function Header({ showSearch = true, showLogo = false }: HeaderProps) {
         >
           <Bell className="h-5 w-5" />
         </Button>
-
-        <Dropdown>
-          <Dropdown.Trigger
-            className="flex items-center gap-2 rounded-full !pl-2.5 !pr-3 py-1.5 transition-colors hover:bg-[#EBEBEC] cursor-pointer outline-none"
-            aria-label="Profile menu"
-          >
-            <Avatar size="sm">
-              <Avatar.Fallback>{userInitial}</Avatar.Fallback>
-            </Avatar>
-            <span className="text-sm font-medium text-foreground hidden sm:inline">
-              {displayName}
-            </span>
-            <CaretDown className="h-4 w-4 text-muted-foreground data-[open=true]:rotate-180 transition-transform" />
-          </Dropdown.Trigger>
-          <Dropdown.Popover placement="bottom end" className="min-w-48">
-            <Dropdown.Menu
-              onAction={(key) => {
-                if (key === "profile") {
-                  router.push("/profile");
-                } else if (key === "account-settings") {
-                  router.push("/settings");
-                } else if (key === "logout") {
-                  logout();
-                }
-              }}
-            >
-              <Dropdown.Item id="profile" textValue="Profile">
-                <div className="flex items-center gap-2">
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-normal">Profile</Label>
-                </div>
-              </Dropdown.Item>
-              <Dropdown.Item id="account-settings" textValue="Account Settings">
-                <div className="flex items-center gap-2">
-                  <Gear className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-normal">Account Settings</Label>
-                </div>
-              </Dropdown.Item>
-              <Separator />
-              <Dropdown.Item
-                id="logout"
-                textValue="Sign Out"
-                variant="danger"
-              >
-                <div className="flex items-center gap-2 text-danger">
-                  <SignOut className="h-4 w-4" />
-                  <Label className="font-normal">Sign Out</Label>
-                </div>
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
       </div>
     </header>
   );
