@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { Table, Badge, ProgressBar, Button } from '@heroui/react';
+import { Table, Chip, ProgressBar, Button, Spinner } from '@heroui/react';
 import { Eye, Tray, TreeStructure, PencilSimple, X as XIcon } from '@phosphor-icons/react';
 import {
   ACTIVITY_STATUS_LABEL,
-  ACTIVITY_STATUS_VARIANT,
   type KpiActivityResponse,
+  type KpiActivityStatus,
 } from './activity.types';
 
 interface ActivityTableProps {
@@ -19,41 +19,24 @@ interface ActivityTableProps {
   onCreateChild?: (activity: KpiActivityResponse) => void;
   onUpdate?: (activity: KpiActivityResponse) => void;
   onCancel?: (activity: KpiActivityResponse) => void;
+  onRetry?: () => void;
 }
+
+/* ── Chip color map ── */
+
+const ACTIVITY_STATUS_CHIP_COLOR: Record<KpiActivityStatus, 'default' | 'success'> = {
+  ACTIVE: 'success',
+  CANCELLED: 'default',
+};
 
 export function ActivityTable({
   items, isLoading, error, onViewDetail,
-  canRequest, onCreateChild, onUpdate, onCancel,
+  canRequest, onCreateChild, onUpdate, onCancel, onRetry,
 }: ActivityTableProps) {
-  if (error) {
-    return (
-      <div className="flex items-center justify-center rounded-3xl bg-surface-secondary p-12 text-sm text-danger">
-        {error}
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <span className="text-sm text-muted-foreground">Loading activities...</span>
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-        <Tray className="h-8 w-8" />
-        <span className="text-sm">No activities found.</span>
-      </div>
-    );
-  }
-
   const showActions = canRequest && (onCreateChild || onUpdate || onCancel);
 
   return (
-    <Table aria-label="KPI Activities">
+    <Table key="kpi-activity-table" aria-label="KPI Activities">
       <Table.ScrollContainer>
         <Table.Content aria-label="Activities" className="min-w-[800px]">
           <Table.Header>
@@ -67,7 +50,35 @@ export function ActivityTable({
             <Table.Column id="status">Status</Table.Column>
             {showActions && <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>}
           </Table.Header>
-          <Table.Body>
+          <Table.Body
+            renderEmptyState={() => {
+              if (isLoading) {
+                return (
+                  <div className="flex h-24 items-center justify-center">
+                    <Spinner size="md" />
+                  </div>
+                );
+              }
+              if (error) {
+                return (
+                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
+                    <span className="text-sm text-danger">{error}</span>
+                    {onRetry && (
+                      <Button variant="secondary" size="sm" onPress={onRetry}>
+                        Retry
+                      </Button>
+                    )}
+                  </div>
+                );
+              }
+              return (
+                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                  <Tray className="h-8 w-8" />
+                  <span className="text-sm">No activities found.</span>
+                </div>
+              );
+            }}
+          >
             {items.map((item) => (
               <Table.Row key={item.id} id={String(item.id)}>
                 <Table.Cell className="font-medium text-foreground">
@@ -102,9 +113,9 @@ export function ActivityTable({
                   </div>
                 </Table.Cell>
                 <Table.Cell>
-                  <Badge variant={ACTIVITY_STATUS_VARIANT[item.status]} size="sm">
+                  <Chip size="sm" color={ACTIVITY_STATUS_CHIP_COLOR[item.status]} variant="soft">
                     {ACTIVITY_STATUS_LABEL[item.status]}
-                  </Badge>
+                  </Chip>
                 </Table.Cell>
                 {showActions && (
                   <Table.Cell>

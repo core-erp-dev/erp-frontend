@@ -12,9 +12,12 @@ import { RequestTable } from '@/modules/kpi/activity/request-table';
 import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
 import { ActivityFormModal } from '@/modules/kpi/activity/activity-form-modal';
 import { ActivityCancelDialog } from '@/modules/kpi/activity/activity-cancel-dialog';
-import type { ActivityFormMode, KpiActivityResponse } from '@/modules/kpi/activity/activity.types';
+import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
+import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
+import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
+import type { ActivityFormMode, KpiActivityResponse, KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity.types';
 
-type TabId = 'my-activities' | 'managed-activities' | 'owned-activities' | 'my-requests';
+type TabId = 'my-activities' | 'managed-activities' | 'owned-activities' | 'my-requests' | 'approvals';
 
 export default function KpiActivitiesPage() {
   const { hasPerm, hasAnyPerm } = usePermission();
@@ -27,6 +30,7 @@ export default function KpiActivitiesPage() {
   const canOwned = hasAnyPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST, PERM.KPI_ACTIVITY_REQUEST);
   const canRequest = hasPerm(PERM.KPI_ACTIVITY_REQUEST);
   const canMyRequests = hasAnyPerm(PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST);
+  const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
 
   // Root Create: requires both root_request and corporate_kpi:read
   const canCreateRoot = hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST) && hasPerm(PERM.CORPORATE_KPI_READ);
@@ -40,8 +44,9 @@ export default function KpiActivitiesPage() {
     }
     if (canOwned) result.push({ id: 'owned-activities', label: 'Owned Activities' });
     if (canMyRequests) result.push({ id: 'my-requests', label: 'My Requests' });
+    if (canApprove) result.push({ id: 'approvals', label: 'Approvals' });
     return result;
-  }, [canRead, canOwned, canMyRequests]);
+  }, [canRead, canOwned, canMyRequests, canApprove]);
 
   const [activeTab, setActiveTab] = useState<TabId>('my-activities');
 
@@ -55,6 +60,10 @@ export default function KpiActivitiesPage() {
     ownedActivities, isLoadingOwned, ownedError, fetchOwnedActivities,
     myRequests, isLoadingRequests, requestsError, fetchMyRequests,
   } = useActivityData();
+
+  const {
+    pendingRequests, isLoadingPending, pendingError, fetchPending,
+  } = useApprovalData();
 
   // ── Fetch on tab activation ──
   useEffect(() => {
@@ -72,6 +81,10 @@ export default function KpiActivitiesPage() {
   useEffect(() => {
     if (activeTab === 'my-requests') fetchMyRequests();
   }, [activeTab, fetchMyRequests]);
+
+  useEffect(() => {
+    if (activeTab === 'approvals') fetchPending();
+  }, [activeTab, fetchPending]);
 
   // ── Detail modal state ──
   const [detailModal, setDetailModal] = useState<{
@@ -127,6 +140,24 @@ export default function KpiActivitiesPage() {
 
   const closeCancel = useCallback(() => {
     setCancelDialog({ isOpen: false, activity: null });
+  }, []);
+
+  // ── Approval dialog state (P2.2) ──
+  const [approvalDialog, setApprovalDialog] = useState<{
+    mode: 'APPROVE' | 'REJECT' | null;
+    request: KpiActivityChangeRequestResponse | null;
+  }>({ mode: null, request: null });
+
+  const openApprove = useCallback((req: KpiActivityChangeRequestResponse) => {
+    setApprovalDialog({ mode: 'APPROVE', request: req });
+  }, []);
+
+  const openReject = useCallback((req: KpiActivityChangeRequestResponse) => {
+    setApprovalDialog({ mode: 'REJECT', request: req });
+  }, []);
+
+  const closeApprovalDialog = useCallback(() => {
+    setApprovalDialog({ mode: null, request: null });
   }, []);
 
   // ── Permission guard ──
@@ -197,6 +228,7 @@ export default function KpiActivitiesPage() {
                 onViewDetail={openActivityDetail}
                 canRequest={canRequest}
                 onCreateChild={canRequest ? openCreateChild : undefined}
+                onRetry={fetchMyActivities}
                 // No onUpdate, onCancel — My Activities shows assignee-only actions
               />
             )}
@@ -206,6 +238,7 @@ export default function KpiActivitiesPage() {
                 isLoading={isLoadingManaged}
                 error={managedError}
                 onViewDetail={openActivityDetail}
+                onRetry={fetchManagedActivities}
                 // No mutation actions — read-only
               />
             )}
@@ -218,6 +251,7 @@ export default function KpiActivitiesPage() {
                 canRequest={canRequest}
                 onUpdate={canRequest ? openUpdate : undefined}
                 onCancel={canRequest ? openCancel : undefined}
+                onRetry={fetchOwnedActivities}
                 // No onCreateChild — Owned Activities shows owner-only actions
               />
             )}
@@ -227,6 +261,16 @@ export default function KpiActivitiesPage() {
                 isLoading={isLoadingRequests}
                 error={requestsError}
                 onViewDetail={openRequestDetail}
+              />
+            )}
+            {tab.id === 'approvals' && (
+              <ApprovalTable
+                items={pendingRequests}
+                isLoading={isLoadingPending}
+                error={pendingError}
+                onViewDetail={openRequestDetail}
+                onApprove={openApprove}
+                onReject={openReject}
               />
             )}
           </Tabs.Panel>
@@ -258,6 +302,17 @@ export default function KpiActivitiesPage() {
           isOpen={cancelDialog.isOpen}
           onClose={closeCancel}
           activity={cancelDialog.activity}
+        />
+      )}
+
+      {/* Approve / Reject Dialog */}
+      {approvalDialog.request && (
+        <ApprovalDialog
+          key={`${approvalDialog.mode}-${approvalDialog.request.id}`}
+          isOpen={approvalDialog.mode !== null}
+          onClose={closeApprovalDialog}
+          mode={approvalDialog.mode!}
+          request={approvalDialog.request}
         />
       )}
     </div>
