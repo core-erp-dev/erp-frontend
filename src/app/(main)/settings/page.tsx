@@ -1,37 +1,46 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Lock } from '@phosphor-icons/react';
-import { Button } from '@heroui/react';
+import { House } from '@phosphor-icons/react';
+import {
+  Breadcrumbs,
+  BreadcrumbsItem,
+  Description,
+  Label,
+  ListBox,
+} from '@heroui/react';
 
 export default function SettingsPage() {
   const router = useRouter();
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          System configuration and access management.
-        </p>
-      </div>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <Breadcrumbs>
+        <BreadcrumbsItem href="/">
+          <House className="h-4 w-4" />
+        </BreadcrumbsItem>
+        <BreadcrumbsItem>Settings</BreadcrumbsItem>
+      </Breadcrumbs>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Button
-          variant="ghost"
-          aria-label="Access Control & Roles"
-          onPress={() => router.push('/settings/roles')}
-          className="flex flex-row items-center gap-4 rounded-xl border border-border p-5 text-left transition-colors hover:border-[#006FEE] h-auto"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
-            <Lock className="h-6 w-6 text-[#006FEE]" />
+      <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+
+      <ListBox
+        aria-label="Settings options"
+        selectionMode="none"
+        onAction={(key) => {
+          if (key === 'roles') {
+            router.push('/settings/roles');
+          }
+        }}
+        className="p-0"
+      >
+        <ListBox.Item id="roles" textValue="Access Control & Roles">
+          <div className="flex flex-col gap-0.5">
+            <Label>Access Control & Roles</Label>
+            <Description>Manage roles and permissions</Description>
           </div>
-          <div>
-            <div className="text-sm font-semibold text-foreground">Access Control & Roles</div>
-            <div className="text-xs text-gray-500">Manage roles and permissions</div>
-          </div>
-        </Button>
-      </div>
+        </ListBox.Item>
+      </ListBox>
     </div>
   );
 }
