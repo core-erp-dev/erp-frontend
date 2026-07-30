@@ -1,4 +1,4 @@
-import { ChartBar, Buildings, ClipboardText, Article, Users, TreeStructure, Gear, Lock } from '@phosphor-icons/react';
+import { ChartBar, Buildings, ClipboardText, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
 import type React from 'react';
 import { KPI_ROUTES, KPI_ANY_PERMISSION } from '@/modules/kpi/constants';
 import { PERM } from '@/constants/permissions';
@@ -60,6 +60,13 @@ export const navigationConfig: SidebarItem[] = [
     title: 'Position Structure',
     href: '/organization/positions',
     icon: TreeStructure,
+    group: 'ORGANIZATION',
+    permissions: ['position:read'],
+  },
+  {
+    title: 'Organization Unit',
+    href: '/organization/organization-units',
+    icon: Stack,
     group: 'ORGANIZATION',
     permissions: ['position:read'],
   },
