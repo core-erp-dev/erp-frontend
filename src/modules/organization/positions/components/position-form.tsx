@@ -10,26 +10,16 @@ import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
   Button, Form, TextField, Input, Label, FieldError,
   Breadcrumbs, BreadcrumbsItem, Separator,
-  Select, ListBox, TextArea,
+  Select, ListBox, TextArea, Chip, ComboBox,
   Autocomplete, EmptyState, SearchField, Tag, TagGroup, useFilter,
   Alert, Spinner,
 } from '@heroui/react';
 
 import { organizationApi } from '@/modules/organization/positions/services/organization-api';
+import { UNIT_TYPE_LABEL, UNIT_TYPE_CHIP_COLOR } from '@/modules/organization/organization-units/types';
 import type { PositionTree, PositionRequest, PositionUpdateRequest } from '@/modules/organization/positions/types';
 import type { RoleResponse } from '@/modules/organization/employees/types';
 import { usePositionFormData } from '../hooks/use-position-form-data';
-
-const formSchema = z.object({
-  positionCode: z.string().min(1, 'Position code is required'),
-  positionName: z.string().min(1, 'Position name is required'),
-  description: z.string().optional(),
-  parentId: z.string().nullable().optional(),
-  unitName: z.string().max(100, 'Unit name max 100 characters').optional(),
-  roleIds: z.array(z.number()).min(1, 'Select at least 1 role'),
-});
-
-type FormValues = z.infer<typeof formSchema>;
 
 interface PositionFormProps {
   mode: 'create' | 'edit';
@@ -42,11 +32,25 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   const searchParams = useSearchParams();
   const isEditMode = mode === 'edit';
 
-  const { allPositions, roles, isLoadingData, submitCreate, submitUpdate } = usePositionFormData(isEditMode, initialData);
+  const { allPositions, roles, orgUnits, isLoadingData, submitCreate, submitUpdate } = usePositionFormData(isEditMode, initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const { contains } = useFilter({ sensitivity: 'base' });
+
+  // Conditional schema: organizationUnitId required in create mode
+  const formSchema = useMemo(() => z.object({
+    positionCode: z.string().min(1, 'Position code is required'),
+    positionName: z.string().min(1, 'Position name is required'),
+    description: z.string().optional(),
+    parentId: z.string().nullable().optional(),
+    organizationUnitId: isEditMode
+      ? z.string().optional()
+      : z.string().min(1, 'Department is required'),
+    roleIds: z.array(z.number()).min(1, 'Select at least 1 role'),
+  }), [isEditMode]);
+
+  type FormValues = z.infer<typeof formSchema>;
 
   // Get parentId from query params (for "Add Subordinate")
   const queryParentId = searchParams.get('parentId');
@@ -58,7 +62,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
       positionName: '',
       description: '',
       parentId: queryParentId || null,
-      unitName: '',
+      organizationUnitId: '',
       roleIds: [],
     },
   });
@@ -71,7 +75,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
           positionName: initialData.positionName,
           description: initialData.description ?? '',
           parentId: initialData.parentId,
-          unitName: initialData.unitName ?? '',
+          organizationUnitId: initialData.organizationUnit?.id ?? '',
           roleIds: posRoles.map((r) => r.id),
         });
       });
@@ -119,7 +123,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         positionName: values.positionName,
         description: values.description || undefined,
         parentId: values.parentId,
-        unitName: values.unitName?.trim() || null,
+        organizationUnitId: values.organizationUnitId || null,
       };
       const ok = await submitUpdate(initialData.id, payload, values.roleIds);
       setIsSubmitting(false);
@@ -131,7 +135,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         positionName: values.positionName,
         description: values.description || undefined,
         parentId: values.parentId || undefined,
-        unitName: values.unitName?.trim() || null,
+        organizationUnitId: values.organizationUnitId!,
       };
       const newId = await submitCreate(payload, values.roleIds);
       setIsSubmitting(false);
@@ -254,18 +258,43 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   </Select>
                 )}
               />
-              {/* Unit/Department Name */}
+              {/* Department — HeroUI ComboBox (single-select) */}
               <Controller
                 control={form.control}
-                name="unitName"
+                name="organizationUnitId"
                 render={({ field, fieldState }) => (
-                  <TextField validationBehavior="native" className="w-full"
-                    name={field.name} value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
-                    isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                    <Label>Unit Name</Label>
-                    <Input placeholder="Example: HR Department" />
+                  <ComboBox
+                    className="w-full"
+                    isRequired={!isEditMode}
+                    selectedKey={field.value || null}
+                    onSelectionChange={(key) => field.onChange(key ? String(key) : '')}
+                    isInvalid={!!fieldState.error}
+                    isDisabled={isSubmitting}
+                    allowsEmptyCollection
+                    defaultFilter={contains}
+                  >
+                    <Label>Department</Label>
+                    <ComboBox.InputGroup>
+                      <Input placeholder="Select department" />
+                      <ComboBox.Trigger />
+                    </ComboBox.InputGroup>
+                    <ComboBox.Popover>
+                      <ListBox renderEmptyState={() => <EmptyState>No departments found</EmptyState>}>
+                        {orgUnits.map((unit) => (
+                          <ListBox.Item key={unit.id} id={unit.id} textValue={`${unit.unitCode} - ${unit.unitName}`}>
+                            <div className="flex items-center gap-2">
+                              <span>{unit.unitName}</span>
+                              <Chip size="sm" variant="soft" color={UNIT_TYPE_CHIP_COLOR[unit.unitType] ?? 'default'}>
+                                {UNIT_TYPE_LABEL[unit.unitType] ?? unit.unitType}
+                              </Chip>
+                            </div>
+                            <ListBox.ItemIndicator />
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </ComboBox.Popover>
                     <FieldError>{fieldState.error?.message}</FieldError>
-                  </TextField>
+                  </ComboBox>
                 )}
               />
               {/* Role — Autocomplete Multiselect + Search */}

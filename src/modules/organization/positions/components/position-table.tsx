@@ -53,37 +53,55 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     setTimeout(() => setCopiedId(null), 3000);
   }, []);
 
-  // ── Kebab menu ──
-  const renderActions = (id: string, name: string) => (
+  // ── Inline action buttons (Detail + Edit) — shared by Table and Tree views ──
+  const renderInlineActions = (id: string, name: string) => (
+    <>
+      {hasPerm(PERM.POSITION_READ) && (
+        <Button
+          isIconOnly
+          variant="tertiary"
+          size="sm"
+          aria-label={`View ${name}`}
+          onPress={() => router.push(`/organization/positions/${id}`)}
+        >
+          <Eye className="h-4 w-4" />
+        </Button>
+      )}
+      {hasPerm(PERM.POSITION_UPDATE) && (
+        <Button
+          isIconOnly
+          variant="tertiary"
+          size="sm"
+          aria-label={`Edit ${name}`}
+          onPress={() => router.push(`/organization/positions/${id}/edit`)}
+        >
+          <PencilSimple className="h-4 w-4" />
+        </Button>
+      )}
+    </>
+  );
+
+  // ── More menu (Add Subordinate + Delete) — shared by Table and Tree views ──
+  const renderMoreMenu = (id: string, name: string) => (
     <Dropdown>
-      <Button isIconOnly variant="tertiary" size="sm" aria-label={`Actions ${name}`}>
+      <Button isIconOnly variant="tertiary" size="sm" aria-label={`More actions for ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
       </Button>
       <Dropdown.Popover placement="top">
         <Dropdown.Menu onAction={(key) => {
-          if (key === 'detail') router.push(`/organization/positions/${id}`);
-          if (key === 'edit') router.push(`/organization/positions/${id}/edit`);
           if (key === 'add-child') router.push(`/organization/positions/create?parentId=${id}`);
           if (key === 'delete') onDelete(id, name);
         }}>
-          {hasPerm(PERM.POSITION_READ) && (
-            <Dropdown.Item id="detail" textValue="Detail">
-              <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground" /><span>Detail</span></div>
-            </Dropdown.Item>
-          )}
-          {hasPerm(PERM.POSITION_UPDATE) && (
-            <Dropdown.Item id="edit" textValue="Edit">
-              <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
-            </Dropdown.Item>
-          )}
           {hasPerm(PERM.POSITION_CREATE) && (
             <Dropdown.Item id="add-child" textValue="Add Subordinate">
-              <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Add Subordinate</span></div>
+              <Plus className="h-4 w-4 text-muted-foreground" />
+              <span>Add Subordinate</span>
             </Dropdown.Item>
           )}
           {hasPerm(PERM.POSITION_DELETE) && (
             <Dropdown.Item id="delete" textValue="Delete" variant="danger">
-              <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
+              <Trash className="h-4 w-4 text-danger" />
+              <span className="text-danger">Delete</span>
             </Dropdown.Item>
           )}
         </Dropdown.Menu>
@@ -172,7 +190,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">{row.userCount}</span>
                   </Table.Cell>
                   <Table.Cell>
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-1">
                       {row.isDeleted ? (
                         hasPerm(PERM.POSITION_RESTORE) && (
                           <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
@@ -180,7 +198,10 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                           </Button>
                         )
                       ) : (
-                        renderActions(row.id, row.positionName)
+                        <>
+                          {renderInlineActions(row.id, row.positionName)}
+                          {renderMoreMenu(row.id, row.positionName)}
+                        </>
                       )}
                     </div>
                   </Table.Cell>
@@ -203,7 +224,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
             <Table.Column id="name">Position Name</Table.Column>
             <Table.Column id="parent">Reports To</Table.Column>
             <Table.Column id="users">Employees</Table.Column>
-            <Table.Column id="actions" className="text-center">{''}</Table.Column>
+            <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
           </Table.Header>
           <Table.Body
             renderEmptyState={() =>
@@ -266,17 +287,20 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     </span>
                   </Table.Cell>
                   <Table.Cell>
-                    {isDeleted ? (
-                      hasPerm(PERM.POSITION_RESTORE) && (
-                        <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-1">
+                      {isDeleted ? (
+                        hasPerm(PERM.POSITION_RESTORE) && (
                           <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>
-                        </div>
-                      )
-                    ) : (
-                      <div className="flex justify-end">{renderActions(pos.id, pos.positionName)}</div>
-                    )}
+                        )
+                      ) : (
+                        <>
+                          {renderInlineActions(pos.id, pos.positionName)}
+                          {renderMoreMenu(pos.id, pos.positionName)}
+                        </>
+                      )}
+                    </div>
                   </Table.Cell>
                 </Table.Row>
               );
@@ -287,7 +311,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
 
       {!isLoading && totalItems > 0 && (
         <Table.Footer>
-          <Pagination>
+          <Pagination size="sm">
             <Pagination.Summary>{startItem} to {endItem} of {totalItems} results</Pagination.Summary>
             <Pagination.Content>
               <Pagination.Item>

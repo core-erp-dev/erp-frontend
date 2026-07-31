@@ -3,14 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@heroui/react';
 import { organizationApi } from '../services/organization-api';
+import { organizationUnitApi } from '@/modules/organization/organization-units/services/organization-unit-api';
 import { roleApi } from '@/modules/settings/services/role-api';
-import type { PositionTree, PositionRequest, PositionUpdateRequest } from '../types';
+import type { PositionTree, PositionRequest, PositionUpdateRequest, OrganizationUnitSummary } from '../types';
 import type { RoleResponse } from '@/modules/organization/employees/types';
 import { extractErrorMessage } from '@/types/api';
 
 interface UsePositionFormDataReturn {
   allPositions: PositionTree[];
   roles: RoleResponse[];
+  orgUnits: OrganizationUnitSummary[];
   isLoadingData: boolean;
   submitCreate: (payload: PositionRequest, roleIds: number[]) => Promise<string | null>;
   submitUpdate: (id: string, payload: PositionUpdateRequest, roleIds: number[]) => Promise<boolean>;
@@ -19,17 +21,20 @@ interface UsePositionFormDataReturn {
 export function usePositionFormData(isEditMode: boolean, initialData?: PositionTree | null): UsePositionFormDataReturn {
   const [allPositions, setAllPositions] = useState<PositionTree[]>([]);
   const [roles, setRoles] = useState<RoleResponse[]>([]);
+  const [orgUnits, setOrgUnits] = useState<OrganizationUnitSummary[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        const [tree, rolesList] = await Promise.all([
+        const [tree, rolesList, ouPage] = await Promise.all([
           organizationApi.fetchPositionTree(),
           roleApi.getRoles(),
+          organizationUnitApi.getFilteredUnits({ scope: 'current', size: 500, sortBy: 'unitName', sortDirection: 'asc' }),
         ]);
         setAllPositions(tree);
         setRoles(rolesList);
+        setOrgUnits(ouPage.content);
       } catch {
         // fail silently
       } finally {
@@ -66,5 +71,5 @@ export function usePositionFormData(isEditMode: boolean, initialData?: PositionT
     }
   }, []);
 
-  return { allPositions, roles, isLoadingData, submitCreate, submitUpdate };
+  return { allPositions, roles, orgUnits, isLoadingData, submitCreate, submitUpdate };
 }

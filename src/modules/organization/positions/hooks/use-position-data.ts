@@ -9,10 +9,11 @@ import { extractErrorMessage } from '@/types/api';
 
 export type SortField = 'positionName' | 'positionCode' | 'positionLevel';
 export type SortDir = 'asc' | 'desc';
+export type ScopeFilter = 'current' | 'deleted';
 
 export interface PositionFilters {
   search: string;
-  includeDeleted: boolean;
+  scope: ScopeFilter;
   sortBy: SortField;
   sortDirection: SortDir;
   page: number; // 1-based
@@ -21,7 +22,7 @@ export interface PositionFilters {
 
 const DEFAULT_FILTERS: PositionFilters = {
   search: '',
-  includeDeleted: false,
+  scope: 'current',
   sortBy: 'positionName',
   sortDirection: 'asc',
   page: 1,
@@ -35,12 +36,13 @@ export interface UsePositionDataReturn {
   isLoading: boolean;
   filters: PositionFilters;
   setSearch: (search: string) => void;
-  setIncludeDeleted: (include: boolean) => void;
+  setScope: (scope: ScopeFilter) => void;
   setSort: (field: SortField, dir: SortDir) => void;
   setPage: (page: number) => void;
   resetFilters: () => void;
   refreshTable: () => void;
   deletePosition: (id: string) => Promise<boolean>;
+  restorePosition: (id: string) => Promise<boolean>;
 
   // Tree view (full hierarchy, client-side)
   treePositions: PositionTree[];
@@ -65,7 +67,7 @@ export function usePositionData(): UsePositionDataReturn {
     try {
       const params: PositionFilterParams = {
         search: currentFilters.search || undefined,
-        includeDeleted: currentFilters.includeDeleted || undefined,
+        scope: currentFilters.scope,
         page: currentFilters.page - 1, // 1-based UI → 0-based BE
         size: currentFilters.size,
         sortBy: currentFilters.sortBy,
@@ -107,8 +109,8 @@ export function usePositionData(): UsePositionDataReturn {
     setFilters((prev) => ({ ...prev, search, page: 1 }));
   }, []);
 
-  const setIncludeDeleted = useCallback((includeDeleted: boolean) => {
-    setFilters((prev) => ({ ...prev, includeDeleted, page: 1 }));
+  const setScope = useCallback((scope: ScopeFilter) => {
+    setFilters((prev) => ({ ...prev, scope, page: 1 }));
   }, []);
 
   const setSort = useCallback((sortBy: SortField, sortDirection: SortDir) => {
@@ -145,18 +147,33 @@ export function usePositionData(): UsePositionDataReturn {
     }
   }, [fetchPositions, fetchTree, filters]);
 
+  // ── Restore ──
+  const restorePosition = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      await organizationApi.restorePosition(id);
+      toast.success('Position restored successfully');
+      await fetchPositions(filters);
+      await fetchTree();
+      return true;
+    } catch (err) {
+      toast.danger(extractErrorMessage(err, 'Failed to restore position'));
+      return false;
+    }
+  }, [fetchPositions, fetchTree, filters]);
+
   return {
     positions,
     pagination,
     isLoading,
     filters,
     setSearch,
-    setIncludeDeleted,
+    setScope,
     setSort,
     setPage,
     resetFilters,
     refreshTable,
     deletePosition,
+    restorePosition,
     treePositions,
     isLoadingTree,
     refreshTree,

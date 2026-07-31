@@ -7,6 +7,13 @@ export interface AssignedUser {
   nip: string;
 }
 
+export interface OrganizationUnitSummary {
+  id: string;
+  unitCode: string;
+  unitName: string;
+  unitType: string;
+}
+
 export interface Position {
   id: string;
   positionCode: string;
@@ -15,6 +22,7 @@ export interface Position {
   parentId: string | null;
   parentName: string | null;
   positionLevel: number;
+  organizationUnit: OrganizationUnitSummary | null;
   unitName: string | null;
   isActive: boolean;
   deletedAt: string | null;
@@ -33,8 +41,7 @@ export interface PositionRequest {
   positionName: string;
   description?: string;
   parentId?: string | null;
-  unitName?: string | null;
-  positionLevel?: number;
+  organizationUnitId: string;
 }
 
 export interface PositionUpdateRequest {
@@ -42,8 +49,7 @@ export interface PositionUpdateRequest {
   positionName?: string;
   description?: string;
   parentId?: string | null;
-  unitName?: string | null;
-  positionLevel?: number;
+  organizationUnitId?: string | null;
 }
 
 // Re-export shared API types for backward compatibility within this module

@@ -13,6 +13,7 @@ interface UsePositionDetailReturn {
   error: string | null;
   deletePosition: () => Promise<boolean>;
   isDeleting: boolean;
+  refresh: () => Promise<void>;
 }
 
 export function usePositionDetail(id: string): UsePositionDetailReturn {
@@ -42,6 +43,18 @@ export function usePositionDetail(id: string): UsePositionDetailReturn {
     return () => { cancelled = true; };
   }, [id]);
 
+  // Silent refetch (no full-page spinner) — used after assign/remove mutations
+  const refresh = useCallback(async (): Promise<void> => {
+    try {
+      const tree = await organizationApi.fetchPositionTree();
+      const found = findInTree(tree, id);
+      if (!found) setError('Position not found');
+      else setPosition(found);
+    } catch {
+      setError('Failed to load position data');
+    }
+  }, [id]);
+
   const deleteFn = useCallback(async (): Promise<boolean> => {
     setIsDeleting(true);
     try {
@@ -56,5 +69,5 @@ export function usePositionDetail(id: string): UsePositionDetailReturn {
     }
   }, [id]);
 
-  return { position, isLoading, error, deletePosition: deleteFn, isDeleting };
+  return { position, isLoading, error, deletePosition: deleteFn, isDeleting, refresh };
 }

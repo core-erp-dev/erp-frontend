@@ -12,7 +12,7 @@ import type { PaginatedResponse } from '@/types/api';
 
 export interface PositionFilterParams {
   search?: string;
-  includeDeleted?: boolean;
+  scope?: string;
   page?: number;
   size?: number;
   sortBy?: string;
