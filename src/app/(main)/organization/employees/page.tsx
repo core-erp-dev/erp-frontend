@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X, Eye } from '@phosphor-icons/react';
+import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X, Trash, CheckCircle } from '@phosphor-icons/react';
 import {
   Breadcrumbs,
   BreadcrumbsItem,
@@ -19,7 +19,7 @@ import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { DataTable } from '@/modules/organization/employees/components/data-table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { useEmployeeData, type SortField, type SortDir } from '@/modules/organization/employees/hooks/use-employee-data';
+import { useEmployeeData, type SortField, type SortDir, type ScopeFilter } from '@/modules/organization/employees/hooks/use-employee-data';
 import { useDebounce } from '@/hooks/use-debounce';
 import { flattenPositionTree } from '@/modules/organization/shared/utils/flatten-positions';
 import type { CoreUser } from '@/modules/organization/employees/types';
@@ -42,8 +42,8 @@ export default function EmployeePage() {
     pagination,
     filters,
     setSearch,
-    setIncludeDeleted,
-    setJabatanId,
+    setScope,
+    setPositionId,
     setSort,
     setPage,
     resetFilters,
@@ -51,6 +51,8 @@ export default function EmployeePage() {
     deleteUser,
     restoreUser,
   } = useEmployeeData();
+
+  const isDeletedScope = filters.scope === 'deleted';
 
   // Local search input state
   const [searchInput, setSearchInput] = useState('');
@@ -95,21 +97,21 @@ export default function EmployeePage() {
   // Filter selection keys
   const filterSelectionKeys = useMemo(() => {
     const keys = new Set<string>();
-    if (filters.jabatanId !== null) keys.add(`pos:${filters.jabatanId}`);
+    if (filters.positionId !== null) keys.add(`pos:${filters.positionId}`);
     return keys;
-  }, [filters.jabatanId]);
+  }, [filters.positionId]);
 
   const activeFilterCount = filterSelectionKeys.size;
 
   const handleFilterChange = useCallback((selection: Selection) => {
     const selected = selection instanceof Set ? selection : new Set<string>();
-    let newJabatanId: number | null = null;
+    let newPositionId: string | null = null;
     selected.forEach((k) => {
       const key = String(k);
-      if (key.startsWith('pos:')) newJabatanId = Number(key.replace('pos:', ''));
+      if (key.startsWith('pos:')) newPositionId = key.replace('pos:', '');
     });
-    setJabatanId(newJabatanId);
-  }, [setJabatanId]);
+    setPositionId(newPositionId);
+  }, [setPositionId]);
 
   const handleSortAction = useCallback((key: React.Key) => {
     const opt = SORT_OPTIONS[Number(key)];
@@ -117,7 +119,15 @@ export default function EmployeePage() {
   }, [setSort]);
 
   const isDefaultSort = filters.sortBy === 'fullName' && filters.sortDirection === 'asc';
-  const hasActiveFilters = activeFilterCount > 0 || !isDefaultSort || filters.includeDeleted;
+  const hasActiveFilters = activeFilterCount > 0 || !isDefaultSort;
+
+  // ── Scope toggle ──
+  const handleScopeToggle = useCallback(() => {
+    const newScope: ScopeFilter = isDeletedScope ? 'current' : 'deleted';
+    setScope(newScope);
+  }, [isDeletedScope, setScope]);
+
+  const totalItems = pagination?.totalElements ?? 0;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -136,9 +146,9 @@ export default function EmployeePage() {
           <Chip
             size="md"
             className="pointer-events-none"
-            aria-label={`Total ${pagination?.totalElements ?? 0} employees`}
+            aria-label={`Total ${totalItems} employees`}
           >
-            {pagination?.totalElements ?? 0}
+            {totalItems}
           </Chip>
         </div>
         <div className="flex items-center gap-2">
@@ -151,7 +161,7 @@ export default function EmployeePage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {hasPerm(PERM.USER_CREATE) && (
+          {!isDeletedScope && hasPerm(PERM.USER_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/organization/employees/create')}>
               <Plus className="h-4 w-4" />
               Add Employee
@@ -160,9 +170,10 @@ export default function EmployeePage() {
         </div>
       </div>
 
-      {/* Row 2: Filter + Sort + Toggle (left) | Search (right) */}
+      {/* Row 2: Filter + Sort + Scope (left) | Search (right) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {/* Filter Dropdown */}
           <Dropdown>
             <Button variant="tertiary" aria-label="Filter">
               <SlidersHorizontal className="h-4 w-4" />
@@ -193,6 +204,7 @@ export default function EmployeePage() {
             </Dropdown.Popover>
           </Dropdown>
 
+          {/* Sort Dropdown */}
           <Dropdown>
             <Button variant="tertiary" aria-label="Sort">
               <FunnelSimple className="h-4 w-4" />
@@ -215,23 +227,21 @@ export default function EmployeePage() {
             </Dropdown.Popover>
           </Dropdown>
 
-          {/* Toggle: Show Deleted Employees */}
-          {hasPerm(PERM.USER_READ_DELETED) && (
-            <Button variant="tertiary" aria-label="Show deleted" onPress={() => setIncludeDeleted(!filters.includeDeleted)}>
-              <Eye className="h-4 w-4" />
-              Deleted
-              {filters.includeDeleted && (
-                <>
-                  <span className="mx-0.5 h-4 w-px bg-border" />
-                  <Check className="h-4 w-4" />
-                </>
-              )}
-            </Button>
-          )}
-
           {hasActiveFilters && (
             <Button isIconOnly variant="tertiary" aria-label="Reset filters" onPress={resetFilters}>
               <X className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Scope Toggle: Deleted / Current — last in row order */}
+          {hasPerm(PERM.USER_READ_DELETED) && (
+            <Button variant="tertiary" aria-label={isDeletedScope ? 'Show current' : 'Show deleted'} onPress={handleScopeToggle}>
+              {isDeletedScope ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <Trash className="h-4 w-4" />
+              )}
+              {isDeletedScope ? 'Current' : 'Deleted'}
             </Button>
           )}
         </div>

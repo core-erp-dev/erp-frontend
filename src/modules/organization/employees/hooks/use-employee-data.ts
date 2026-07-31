@@ -10,12 +10,12 @@ import { extractErrorMessage } from '@/types/api';
 
 export type SortField = 'fullName' | 'nip' | 'createdAt';
 export type SortDir = 'asc' | 'desc';
-export type StatusFilter = 'all' | 'deleted';
+export type ScopeFilter = 'current' | 'deleted';
 
 export interface EmployeeFilters {
   search: string;
-  includeDeleted: boolean;
-  jabatanId: number | null;
+  scope: ScopeFilter;
+  positionId: string | null;
   sortBy: SortField;
   sortDirection: SortDir;
   page: number; // 1-based (UI)
@@ -24,8 +24,8 @@ export interface EmployeeFilters {
 
 const DEFAULT_FILTERS: EmployeeFilters = {
   search: '',
-  includeDeleted: false,
-  jabatanId: null,
+  scope: 'current',
+  positionId: null,
   sortBy: 'fullName',
   sortDirection: 'asc',
   page: 1,
@@ -39,8 +39,8 @@ interface UseEmployeeDataReturn {
   pagination: PaginatedResponse<CoreUser> | null;
   filters: EmployeeFilters;
   setSearch: (search: string) => void;
-  setIncludeDeleted: (include: boolean) => void;
-  setJabatanId: (id: number | null) => void;
+  setScope: (scope: ScopeFilter) => void;
+  setPositionId: (id: string | null) => void;
   setSort: (field: SortField, dir: SortDir) => void;
   setPage: (page: number) => void;
   resetFilters: () => void;
@@ -65,20 +65,16 @@ export function useEmployeeData(): UseEmployeeDataReturn {
 
       const params: UserFilterParams = {
         search: currentFilters.search || undefined,
+        scope: currentFilters.scope,
         page: currentFilters.page - 1, // Convert 1-based UI to 0-based BE
         size: currentFilters.size,
         sortBy: currentFilters.sortBy,
         sortDirection: currentFilters.sortDirection,
       };
 
-      // Include deleted filter
-      if (currentFilters.includeDeleted) {
-        params.includeDeleted = true;
-      }
-
-      // Jabatan filter
-      if (currentFilters.jabatanId !== null) {
-        params.jabatanId = currentFilters.jabatanId;
+      // Position filter
+      if (currentFilters.positionId !== null) {
+        params.positionId = currentFilters.positionId;
       }
 
       const data = await employeeApi.getUsers(params);
@@ -116,12 +112,12 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     setFilters((prev) => ({ ...prev, search, page: 1 }));
   }, []);
 
-  const setIncludeDeleted = useCallback((include: boolean) => {
-    setFilters((prev) => ({ ...prev, includeDeleted: include, page: 1 }));
+  const setScope = useCallback((scope: ScopeFilter) => {
+    setFilters((prev) => ({ ...prev, scope, page: 1 }));
   }, []);
 
-  const setJabatanId = useCallback((jabatanId: number | null) => {
-    setFilters((prev) => ({ ...prev, jabatanId, page: 1 }));
+  const setPositionId = useCallback((positionId: string | null) => {
+    setFilters((prev) => ({ ...prev, positionId, page: 1 }));
   }, []);
 
   const setSort = useCallback((sortBy: SortField, sortDirection: SortDir) => {
@@ -219,8 +215,8 @@ export function useEmployeeData(): UseEmployeeDataReturn {
     pagination,
     filters,
     setSearch,
-    setIncludeDeleted,
-    setJabatanId,
+    setScope,
+    setPositionId,
     setSort,
     setPage,
     resetFilters,

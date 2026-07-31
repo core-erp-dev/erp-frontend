@@ -61,6 +61,7 @@ export interface UserCreateRequest {
   gender?: string;
   birthDate?: string;
   address?: string;
+  positions?: UserPositionInput[];
 }
 
 export interface UserUpdateRequest {
@@ -73,6 +74,15 @@ export interface UserUpdateRequest {
   gender?: string;
   birthDate?: string;
   address?: string;
+  positions?: UserPositionInput[];
+}
+
+/** Position assignment item for user create/update (matches backend UserPositionInput). */
+export interface UserPositionInput {
+  positionId: string;
+  startDate?: string;
+  endDate?: string | null;
+  isPrimary: boolean;
 }
 
 export type { ApiResponse, ApiErrorResponse, PaginatedResponse } from '@/types/api';
@@ -107,5 +117,6 @@ export interface PositionOption {
   positionName: string;
   parentId: string | null;
   positionLevel: number;
+  organizationUnit: { id: string; unitCode: string; unitName: string; unitType: string } | null;
   children?: PositionOption[];
 }

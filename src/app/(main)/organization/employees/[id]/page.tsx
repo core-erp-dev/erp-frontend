@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash } from '@phosphor-icons/react';
-import { Button, TextField, Input, Label, Chip, Surface, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Separator } from '@heroui/react';
+import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Eye, Tray } from '@phosphor-icons/react';
+import { Button, TextField, Input, Label, Chip, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Separator, Table } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { getGenderLabel } from '@/constants/gender';
 import { formatDate } from '@/components/shared/detail-field';
 import { useEmployeeDetail } from '@/modules/organization/employees/hooks/use-employee-detail';
+import { employeeApi } from '@/modules/organization/employees/services/employee-api';
+import type { PositionOption } from '@/modules/organization/employees/types';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 
 export default function EmployeeDetailPage() {
@@ -21,6 +23,30 @@ export default function EmployeeDetailPage() {
   const { employee, isLoading, error, deleteEmployee, isDeleting } = useEmployeeDetail(id);
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  // Department lookup by position ID — same source/logic as the Add/Update Employee form
+  const [departmentMap, setDepartmentMap] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    let cancelled = false;
+    employeeApi.getPositions()
+      .then((tree) => {
+        if (cancelled) return;
+        const map = new Map<string, string>();
+        const walk = (nodes: PositionOption[]) => {
+          for (const node of nodes) {
+            if (node.organizationUnit?.unitName) map.set(node.id, node.organizationUnit.unitName);
+            if (node.children?.length) walk(node.children);
+          }
+        };
+        walk(tree);
+        setDepartmentMap(map);
+      })
+      .catch(() => {
+        // Supplementary data — fail silently
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleDeleteConfirm = async () => {
     const success = await deleteEmployee();
@@ -53,6 +79,7 @@ export default function EmployeeDetailPage() {
 
   const pos = employee.primaryPosition;
   const showDropdown = hasPerm(PERM.USER_UPDATE) || hasPerm(PERM.USER_DELETE);
+  const activePositions = (employee.positions ?? []).filter(p => p.isActive);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -162,35 +189,69 @@ export default function EmployeeDetailPage() {
 
       <Separator />
 
-      {/* Position List */}
-      <h2 className="text-sm font-semibold text-foreground">Position List</h2>
-      <Surface className="flex flex-col gap-4 rounded-3xl p-6" variant="secondary">
-        {(() => {
-          const activePositions = (employee.positions ?? []).filter(p => p.isActive);
-          if (activePositions.length === 0) {
-            return <p className="text-sm text-gray-400">No positions assigned</p>;
-          }
-          return (
-            <div className="space-y-2">
-              {activePositions.map(up => (
-                <Surface key={up.id} className="flex items-center justify-between gap-4 rounded-xl px-4 py-3">
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="font-medium text-foreground">{up.positionName}</span>
-                    <span className="truncate text-xs text-gray-400">
+      {/* Positions — mirrors the Add/Update Employee position table */}
+      <div className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-foreground">Positions</h2>
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Employee Positions" className="min-w-[500px]">
+              <Table.Header>
+                <Table.Column id="name" isRowHeader>Position Name</Table.Column>
+                <Table.Column id="code">Code</Table.Column>
+                <Table.Column id="department">Department</Table.Column>
+                <Table.Column id="primary">Primary</Table.Column>
+                <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
+              </Table.Header>
+              <Table.Body
+                renderEmptyState={() =>
+                  activePositions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                      <Tray className="h-8 w-8" />
+                      <span className="text-sm">No positions assigned</span>
+                    </div>
+                  ) : null
+                }
+              >
+                {activePositions.map((up) => (
+                  <Table.Row key={up.id} id={up.id}>
+                    <Table.Cell className="font-medium text-foreground">
+                      {up.positionName}
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
                       {up.positionCode}
-                      {up.startDate ? ` · ${formatDate(up.startDate)}` : ''}
-                      {up.endDate ? ` · ${formatDate(up.endDate)}` : ''}
-                    </span>
-                  </div>
-                  <Chip size="sm" color={up.isPrimary ? 'accent' : 'default'} variant="soft">
-                    {up.isPrimary ? 'Primary' : 'Secondary'}
-                  </Chip>
-                </Surface>
-              ))}
-            </div>
-          );
-        })()}
-      </Surface>
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {departmentMap.get(up.positionId) || '-'}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {up.isPrimary ? (
+                        <Chip size="sm" variant="soft" color="accent">Primary</Chip>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div className="flex items-center justify-end gap-1">
+                        {hasPerm(PERM.POSITION_READ) && (
+                          <Button
+                            isIconOnly
+                            variant="tertiary"
+                            size="sm"
+                            aria-label={`View ${up.positionName}`}
+                            onPress={() => router.push(`/organization/positions/${up.positionId}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
+      </div>
 
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}

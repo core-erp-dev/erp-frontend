@@ -14,8 +14,8 @@ import {
 export interface UserFilterParams {
   search?: string;
   roleCode?: string;
-  includeDeleted?: boolean;
-  jabatanId?: number;
+  scope?: string;
+  positionId?: string;
   page?: number;
   size?: number;
   sortBy?: string;
