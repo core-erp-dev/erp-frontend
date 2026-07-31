@@ -1,23 +1,35 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, House, ArrowsClockwise, Eye, Check, X } from '@phosphor-icons/react';
+import { Plus, House, ArrowsClockwise, FunnelSimple, Check, X, Trash, CheckCircle } from '@phosphor-icons/react';
 import {
   Breadcrumbs,
   BreadcrumbsItem,
   Button,
   Chip,
   SearchField,
+  Dropdown,
+  Label,
   Alert,
 } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
-import { useRoleData } from '@/modules/settings/hooks/use-role-data';
+import { useRoleData, type SortField, type SortDir, type ScopeFilter } from '@/modules/settings/hooks/use-role-data';
 import { RoleTable } from '@/modules/settings/components/role-table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { PERM } from '@/constants/permissions';
+import { useDebounce } from '@/hooks/use-debounce';
 import type { Role } from '@/modules/settings/types';
+
+const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
+  { field: 'roleCode', label: 'Code (A-Z)', dir: 'asc' },
+  { field: 'roleCode', label: 'Code (Z-A)', dir: 'desc' },
+  { field: 'roleName', label: 'Name (A-Z)', dir: 'asc' },
+  { field: 'roleName', label: 'Name (Z-A)', dir: 'desc' },
+  { field: 'createdAt', label: 'Newest', dir: 'desc' },
+  { field: 'createdAt', label: 'Oldest', dir: 'asc' },
+];
 
 export default function RolesPage() {
   const router = useRouter();
@@ -25,35 +37,34 @@ export default function RolesPage() {
 
   const {
     roles,
-    deletedRoles,
     isLoading,
-    includeDeleted,
-    setIncludeDeleted,
+    pagination,
+    filters,
+    setSearch,
+    setScope,
+    setSort,
+    setPage,
+    resetFilters,
     refresh,
     deleteRole,
     restoreRole,
   } = useRoleData();
 
+  const isDeletedScope = filters.scope === 'deleted';
+
+  // Local search input state
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 400);
+  const [lastSearched, setLastSearched] = useState('');
+  if (debouncedSearch !== lastSearched) {
+    setLastSearched(debouncedSearch);
+    setSearch(debouncedSearch);
+  }
+
+  // Delete dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-
-  const debouncedSearch = useCallback(
-    (() => {
-      let timeout: NodeJS.Timeout;
-      return (value: string) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => setSearch(value), 400);
-      };
-    })(),
-    [],
-  );
-
-  useEffect(() => {
-    debouncedSearch(searchInput);
-  }, [searchInput, debouncedSearch]);
 
   const handleDeleteRole = useCallback((role: Role) => {
     setSelectedRole(role);
@@ -67,6 +78,8 @@ export default function RolesPage() {
       await deleteRole(selectedRole.id);
       setIsDeleteDialogOpen(false);
       setSelectedRole(null);
+    } catch {
+      // Error toast handled by hook
     } finally {
       setIsDeleting(false);
     }
@@ -76,16 +89,21 @@ export default function RolesPage() {
     await restoreRole(id);
   }, [restoreRole]);
 
-  const filteredRoles = roles.filter((role) =>
-    search
-      ? role.roleCode.toLowerCase().includes(search.toLowerCase()) ||
-        role.roleName.toLowerCase().includes(search.toLowerCase())
-      : true,
-  );
+  const handleSortAction = useCallback((key: React.Key) => {
+    const opt = SORT_OPTIONS[Number(key)];
+    if (opt) setSort(opt.field, opt.dir);
+  }, [setSort]);
 
-  const displayRoles = includeDeleted
-    ? [...filteredRoles, ...deletedRoles].sort((a, b) => b.id - a.id)
-    : filteredRoles;
+  const isDefaultSort = filters.sortBy === 'roleName' && filters.sortDirection === 'asc';
+  const hasActiveFilters = !isDefaultSort;
+
+  // ── Scope toggle ──
+  const handleScopeToggle = useCallback(() => {
+    const newScope: ScopeFilter = isDeletedScope ? 'current' : 'deleted';
+    setScope(newScope);
+  }, [isDeletedScope, setScope]);
+
+  const totalItems = pagination?.totalElements ?? 0;
 
   if (!hasPerm(PERM.ROLE_READ)) {
     return (
@@ -110,16 +128,16 @@ export default function RolesPage() {
         <BreadcrumbsItem>Access Control & Roles</BreadcrumbsItem>
       </Breadcrumbs>
 
-      {/* Title + Actions */}
+      {/* Row 1: Title + Refresh + Add */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">Roles</h1>
           <Chip
             size="md"
             className="pointer-events-none"
-            aria-label={`Total ${displayRoles.length} roles`}
+            aria-label={`Total ${totalItems} roles`}
           >
-            {displayRoles.length}
+            {totalItems}
           </Chip>
         </div>
         <div className="flex items-center gap-2">
@@ -132,7 +150,7 @@ export default function RolesPage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {hasPerm(PERM.ROLE_CREATE) && (
+          {!isDeletedScope && hasPerm(PERM.ROLE_CREATE) && (
             <Button variant="primary" onPress={() => router.push('/settings/roles/create')}>
               <Plus className="h-4 w-4" />
               Add Role
@@ -141,31 +159,51 @@ export default function RolesPage() {
         </div>
       </div>
 
-      {/* Search + Toggle Deleted */}
+      {/* Row 2: Sort + Scope (left) | Search (right) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {hasPerm(PERM.ROLE_READ_DELETED) && (
-            <Button
-              variant="tertiary"
-              aria-label="Show deleted"
-              onPress={() => setIncludeDeleted(!includeDeleted)}
-            >
-              <Eye className="h-4 w-4" />
-              Deleted
-              {includeDeleted && (
+          {/* Sort Dropdown */}
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Sort">
+              <FunnelSimple className="h-4 w-4" />
+              Sort
+              {!isDefaultSort && (
                 <>
                   <span className="mx-0.5 h-4 w-px bg-border" />
                   <Check className="h-4 w-4" />
                 </>
               )}
             </Button>
-          )}
-          {search && (
-            <Button isIconOnly variant="tertiary" aria-label="Reset search" onPress={() => { setSearchInput(''); setSearch(''); }}>
+            <Dropdown.Popover>
+              <Dropdown.Menu onAction={handleSortAction}>
+                {SORT_OPTIONS.map((opt, i) => (
+                  <Dropdown.Item key={i} id={String(i)} textValue={opt.label}>
+                    <Label>{opt.label}</Label>
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+
+          {hasActiveFilters && (
+            <Button isIconOnly variant="tertiary" aria-label="Reset filters" onPress={resetFilters}>
               <X className="h-4 w-4" />
             </Button>
           )}
+
+          {/* Scope Toggle: Deleted / Current — last in row order */}
+          {hasPerm(PERM.ROLE_READ_DELETED) && (
+            <Button variant="tertiary" aria-label={isDeletedScope ? 'Show current' : 'Show deleted'} onPress={handleScopeToggle}>
+              {isDeletedScope ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <Trash className="h-4 w-4" />
+              )}
+              {isDeletedScope ? 'Current' : 'Deleted'}
+            </Button>
+          )}
         </div>
+
         <SearchField
           name="search"
           value={searchInput}
@@ -183,9 +221,10 @@ export default function RolesPage() {
       {/* Table */}
       <div className="w-full">
         <RoleTable
-          roles={displayRoles}
+          roles={roles}
           isLoading={isLoading}
-          includeDeleted={includeDeleted}
+          pagination={pagination}
+          onPageChange={setPage}
           onView={(id) => router.push(`/settings/roles/${id}`)}
           onEdit={(id) => router.push(`/settings/roles/${id}/edit`)}
           onDelete={handleDeleteRole}

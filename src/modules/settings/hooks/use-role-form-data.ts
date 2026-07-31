@@ -29,7 +29,7 @@ export function useRoleFormData(): UseRoleFormDataReturn {
       setPermissions(permsData);
       setModules(modulesData);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal memuat data permission';
+      const msg = err instanceof Error ? err.message : 'Failed to load permissions data';
       toast.danger(msg);
     } finally {
       setIsLoadingPermissions(false);

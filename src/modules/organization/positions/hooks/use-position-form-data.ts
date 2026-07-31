@@ -29,11 +29,11 @@ export function usePositionFormData(isEditMode: boolean, initialData?: PositionT
       try {
         const [tree, rolesList, ouPage] = await Promise.all([
           organizationApi.fetchPositionTree(),
-          roleApi.getRoles(),
+          roleApi.getRoles({ scope: 'current', size: 500, sortBy: 'roleCode', sortDirection: 'asc' }),
           organizationUnitApi.getFilteredUnits({ scope: 'current', size: 500, sortBy: 'unitName', sortDirection: 'asc' }),
         ]);
         setAllPositions(tree);
-        setRoles(rolesList);
+        setRoles(rolesList.content);
         setOrgUnits(ouPage.content);
       } catch {
         // fail silently

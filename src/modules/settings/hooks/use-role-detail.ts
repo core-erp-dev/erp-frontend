@@ -8,6 +8,7 @@ import type { Role, Permission } from '../types';
 export interface UseRoleDetailReturn {
   role: Role | null;
   permissions: Permission[];
+  modules: string[];
   isLoading: boolean;
   error: string | null;
   isDeleting: boolean;
@@ -18,6 +19,7 @@ export interface UseRoleDetailReturn {
 export function useRoleDetail(id: string): UseRoleDetailReturn {
   const [role, setRole] = useState<Role | null>(null);
   const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [modules, setModules] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -26,12 +28,14 @@ export function useRoleDetail(id: string): UseRoleDetailReturn {
     setIsLoading(true);
     setError(null);
     try {
-      const [roleData, permsData] = await Promise.all([
+      const [roleData, permsData, modulesData] = await Promise.all([
         roleApi.getRoleById(Number(id)),
         roleApi.getPermissions(),
+        roleApi.getModules(),
       ]);
       setRole(roleData);
       setPermissions(permsData);
+      setModules(modulesData);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load role data';
       setError(msg);
@@ -67,6 +71,7 @@ export function useRoleDetail(id: string): UseRoleDetailReturn {
   return {
     role,
     permissions,
+    modules,
     isLoading,
     error,
     isDeleting,

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { Spinner, Button } from '@heroui/react';
-import { useRoleData } from '../hooks/use-role-data';
+import { useRolePermissionPanel } from '../hooks/use-role-permission-panel';
 import type { Role, Permission } from '../types';
 
 const moduleLabels: Record<string, string> = {
@@ -19,7 +19,7 @@ export function RolePermissionPanel() {
     isLoading,
     error,
     togglePermission,
-  } = useRoleData();
+  } = useRolePermissionPanel();
 
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 

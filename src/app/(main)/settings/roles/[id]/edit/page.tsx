@@ -55,13 +55,14 @@ export default function EditRolePage() {
   }
 
   return (
-    <RoleForm
-      mode="edit"
-      initialData={role}
-      roleId={role.id}
-      onSuccess={() => {
-        router.push(`/settings/roles/${id}`);
-      }}
-    />
+    <div className="mx-auto w-full max-w-4xl">
+      <RoleForm
+        mode="edit"
+        initialData={role}
+        onSuccess={() => {
+          router.push(`/settings/roles/${id}`);
+        }}
+      />
+    </div>
   );
 }

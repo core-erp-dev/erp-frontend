@@ -3,114 +3,145 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from '@heroui/react';
 import { roleApi } from '../services/role-api';
-import type { Role, Permission } from '../types';
+import type { Role, RoleFilterParams } from '../types';
+import type { PaginatedResponse } from '@/types/api';
+import { extractErrorMessage } from '@/types/api';
 
-export interface UseRoleDataReturn {
+export type SortField = 'roleCode' | 'roleName' | 'createdAt';
+export type SortDir = 'asc' | 'desc';
+export type ScopeFilter = 'current' | 'deleted';
+
+export interface RoleFilters {
+  search: string;
+  scope: ScopeFilter;
+  sortBy: SortField;
+  sortDirection: SortDir;
+  page: number; // 1-based (UI)
+  size: number;
+}
+
+const DEFAULT_FILTERS: RoleFilters = {
+  search: '',
+  scope: 'current',
+  sortBy: 'roleName',
+  sortDirection: 'asc',
+  page: 1,
+  size: 10,
+};
+
+interface UseRoleDataReturn {
   roles: Role[];
-  deletedRoles: Role[];
-  permissions: Permission[];
   isLoading: boolean;
-  error: string | null;
-  includeDeleted: boolean;
-  setIncludeDeleted: (val: boolean) => void;
-  refresh: () => Promise<void>;
+  pagination: PaginatedResponse<Role> | null;
+  filters: RoleFilters;
+  setSearch: (search: string) => void;
+  setScope: (scope: ScopeFilter) => void;
+  setSort: (field: SortField, dir: SortDir) => void;
+  setPage: (page: number) => void;
+  resetFilters: () => void;
+  refresh: () => void;
   deleteRole: (id: number) => Promise<boolean>;
   restoreRole: (id: number) => Promise<boolean>;
-  togglePermission: (roleId: number, permissionCode: string, hasPermission: boolean) => Promise<void>;
 }
 
 export function useRoleData(): UseRoleDataReturn {
   const [roles, setRoles] = useState<Role[]>([]);
-  const [deletedRoles, setDeletedRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [pagination, setPagination] = useState<PaginatedResponse<Role> | null>(null);
+  const [filters, setFilters] = useState<RoleFilters>(DEFAULT_FILTERS);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchRoles = useCallback(async (currentFilters: RoleFilters) => {
     try {
-      const [rolesData, deletedData, permsData] = await Promise.all([
-        roleApi.getRoles(),
-        roleApi.getDeletedRoles(),
-        roleApi.getPermissions(),
-      ]);
-      setRoles(rolesData);
-      setDeletedRoles(deletedData);
-      setPermissions(permsData);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal memuat data';
-      setError(msg);
-      toast.danger(msg);
+      setIsLoading(true);
+
+      const params: RoleFilterParams = {
+        search: currentFilters.search || undefined,
+        scope: currentFilters.scope,
+        sortBy: currentFilters.sortBy,
+        sortDirection: currentFilters.sortDirection,
+        page: currentFilters.page - 1, // Convert 1-based UI to 0-based BE
+        size: currentFilters.size,
+      };
+
+      const data = await roleApi.getRoles(params);
+      setRoles(data.content);
+      setPagination(data);
+    } catch (_error) {
+      toast.danger('Failed to load role data');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // Fetch roles whenever filters change
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchRoles(filters);
+  }, [filters, fetchRoles]);
 
-  const refresh = useCallback(async () => {
-    await fetchData();
-  }, [fetchData]);
+  // --- Filter setters (all reset page to 1) ---
+
+  const setSearch = useCallback((search: string) => {
+    setFilters((prev) => ({ ...prev, search, page: 1 }));
+  }, []);
+
+  const setScope = useCallback((scope: ScopeFilter) => {
+    setFilters((prev) => ({ ...prev, scope, page: 1 }));
+  }, []);
+
+  const setSort = useCallback((sortBy: SortField, sortDirection: SortDir) => {
+    setFilters((prev) => ({ ...prev, sortBy, sortDirection, page: 1 }));
+  }, []);
+
+  const setPage = useCallback((page: number) => {
+    setFilters((prev) => ({ ...prev, page }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+  }, []);
+
+  const refresh = useCallback(() => {
+    fetchRoles(filters);
+  }, [fetchRoles, filters]);
+
+  // --- CRUD operations ---
 
   const deleteRole = useCallback(async (id: number): Promise<boolean> => {
     try {
       await roleApi.deleteRole(id);
       toast.success('Role deleted successfully');
-      await fetchData();
+      await fetchRoles(filters);
       return true;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete role';
-      toast.danger(msg);
+    } catch (err) {
+      toast.danger(extractErrorMessage(err, 'Failed to delete role'));
       return false;
     }
-  }, [fetchData]);
+  }, [fetchRoles, filters]);
 
   const restoreRole = useCallback(async (id: number): Promise<boolean> => {
     try {
       await roleApi.restoreRole(id);
       toast.success('Role restored successfully');
-      await fetchData();
+      await fetchRoles(filters);
       return true;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to restore role';
-      toast.danger(msg);
+    } catch (err) {
+      toast.danger(extractErrorMessage(err, 'Failed to restore role'));
       return false;
     }
-  }, [fetchData]);
-
-  const togglePermission = useCallback(async (roleId: number, permissionCode: string, hasPermission: boolean) => {
-    const perm = permissions.find((p) => p.permissionCode === permissionCode);
-    if (!perm) return;
-
-    try {
-      if (hasPermission) {
-        await roleApi.removePermissionFromRole(roleId, perm.id);
-      } else {
-        await roleApi.addPermissionToRole(roleId, perm.id);
-      }
-      toast.success('Permission berhasil diperbarui');
-      await fetchData();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Gagal mengubah permission';
-      toast.danger(msg);
-    }
-  }, [permissions, fetchData]);
+  }, [fetchRoles, filters]);
 
   return {
     roles,
-    deletedRoles,
-    permissions,
     isLoading,
-    error,
-    includeDeleted,
-    setIncludeDeleted,
+    pagination,
+    filters,
+    setSearch,
+    setScope,
+    setSort,
+    setPage,
+    resetFilters,
     refresh,
     deleteRole,
     restoreRole,
-    togglePermission,
   };
 }

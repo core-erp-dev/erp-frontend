@@ -1,33 +1,25 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, Fragment } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { House, FloppyDisk, X } from '@phosphor-icons/react';
+import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
-  Button,
-  TextField,
-  Input,
-  Label,
-  FieldError,
-  Breadcrumbs,
-  BreadcrumbsItem,
-  TextArea,
-  Surface,
-  Spinner,
-  Switch,
+  Button, Form, TextField, Input, Label, FieldError,
+  Breadcrumbs, BreadcrumbsItem, TextArea, Switch, Separator,
+  Alert, Spinner,
 } from '@heroui/react';
 
 import { useRoleFormData } from '../hooks/use-role-form-data';
-import type { CreateRoleRequest, UpdateRoleRequest, Role } from '../types';
+import type { CreateRoleRequest, UpdateRoleRequest, Role, Permission } from '../types';
 
 const getFormSchema = (isEditMode: boolean) =>
   z.object({
-    roleCode: z.string().min(1, 'Role code is required'),
-    roleName: z.string().min(1, 'Role name is required'),
-    description: z.string().optional(),
+    roleCode: z.string().min(1, 'Role code is required').max(255, 'Role code max 255 characters'),
+    roleName: z.string().min(1, 'Role name is required').max(255, 'Role name max 255 characters'),
+    description: z.string().max(500, 'Description max 500 characters').optional(),
     permissionIds: z.array(z.number()).optional(),
   });
 
@@ -36,7 +28,6 @@ type FormValues = z.infer<ReturnType<typeof getFormSchema>>;
 interface RoleFormProps {
   mode: 'create' | 'edit';
   initialData?: Role | null;
-  roleId?: number;
   onSuccess: () => void;
 }
 
@@ -47,19 +38,47 @@ const moduleLabels: Record<string, string> = {
   permission: 'Permission',
 };
 
-export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps) {
+function PermissionRow({ perm, isSelected, onToggle, isDisabled }: {
+  perm: Permission;
+  isSelected: boolean;
+  onToggle: (checked: boolean) => void;
+  isDisabled: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm font-medium text-foreground">{perm.description}</span>
+        <span className="text-xs text-gray-400">{perm.permissionCode}</span>
+      </div>
+      <Switch
+        isSelected={isSelected}
+        onChange={onToggle}
+        isDisabled={isDisabled}
+        aria-label={`Toggle ${perm.permissionCode}`}
+      >
+        <Switch.Control><Switch.Thumb /></Switch.Control>
+      </Switch>
+    </div>
+  );
+}
+
+export function RoleForm({ mode, initialData, onSuccess }: RoleFormProps) {
   const router = useRouter();
   const isEditMode = mode === 'edit';
 
   const {
-    permissionsByModule,
+    permissions,
     modules,
+    permissionsByModule,
     isLoadingPermissions,
     submitCreate,
     submitUpdate,
   } = useRoleFormData();
 
-  const { control, handleSubmit, reset, watch } = useForm<FormValues>({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(getFormSchema(isEditMode)),
     defaultValues: {
       roleCode: '',
@@ -69,46 +88,60 @@ export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps
     },
   });
 
-  // Stable string representation of permissionsByModule for dependency comparison
-  const permissionsByModuleKey = useMemo(
-    () => JSON.stringify(Object.keys(permissionsByModule)),
-    [permissionsByModule],
-  );
-
-  // Stable key for initialData
-  const initialDataKey = useMemo(
-    () => JSON.stringify(initialData),
-    [initialData],
-  );
-
+  // Prefill on edit: map the role's permission codes to permission IDs
   useEffect(() => {
-    if (isEditMode && initialData) {
-      const permIds = Object.values(permissionsByModule)
-        .flat()
+    if (isEditMode && initialData && permissions.length > 0) {
+      const permIds = permissions
         .filter((p) => initialData.permissions.includes(p.permissionCode))
         .map((p) => p.id);
-      reset({
+      form.reset({
         roleCode: initialData.roleCode,
         roleName: initialData.roleName,
-        description: initialData.description || '',
+        description: initialData.description ?? '',
         permissionIds: permIds,
       });
     }
-  }, [isEditMode, initialDataKey, permissionsByModuleKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isEditMode, initialData, permissions, form]);
 
-  const selectedPermIds = watch('permissionIds') || [];
+  const selectedPermIds = form.watch('permissionIds') || [];
 
-  const handleSave = async () => {
-    const result = await handleSubmit(async (data) => {
-      if (isEditMode && roleId) {
-        const ok = await submitUpdate(roleId, data as UpdateRoleRequest);
-        if (ok) onSuccess();
-      } else {
-        const ok = await submitCreate(data as CreateRoleRequest);
-        if (ok) onSuccess();
-      }
-    })();
+  const handleTogglePermission = useCallback((permId: number, checked: boolean) => {
+    const current = form.getValues('permissionIds') || [];
+    form.setValue('permissionIds', checked
+      ? (current.includes(permId) ? current : [...current, permId])
+      : current.filter((id) => id !== permId),
+      { shouldDirty: true });
+  }, [form]);
+
+  const handleSubmit = async (values: FormValues) => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const base = {
+      roleCode: values.roleCode,
+      roleName: values.roleName,
+      description: values.description || undefined,
+      permissionIds: values.permissionIds || [],
+    };
+
+    if (isEditMode && initialData) {
+      const ok = await submitUpdate(initialData.id, base as UpdateRoleRequest);
+      setIsSubmitting(false);
+      if (ok) onSuccess();
+      else setSubmitError('Failed to update role');
+    } else {
+      const ok = await submitCreate(base as CreateRoleRequest);
+      setIsSubmitting(false);
+      if (ok) onSuccess();
+      else setSubmitError('Failed to add role');
+    }
   };
+
+  // Modules that actually have permissions (for separator placement between rendered groups)
+  const groupedModules = useMemo(
+    () => modules.filter((m) => (permissionsByModule[m] || []).length > 0),
+    [modules, permissionsByModule],
+  );
 
   if (isLoadingPermissions) {
     return (
@@ -121,118 +154,150 @@ export function RoleForm({ mode, initialData, roleId, onSuccess }: RoleFormProps
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
-        <BreadcrumbsItem href="/">
-          <House className="h-4 w-4" />
-        </BreadcrumbsItem>
+        <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>Settings</BreadcrumbsItem>
         <BreadcrumbsItem href="/settings/roles">Access Control & Roles</BreadcrumbsItem>
-        <BreadcrumbsItem>{isEditMode ? 'Edit Role' : 'Create Role'}</BreadcrumbsItem>
+        <BreadcrumbsItem>{isEditMode ? 'Edit' : 'Add'}</BreadcrumbsItem>
       </Breadcrumbs>
 
-      <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">
-          Role Information
-        </h2>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Controller
-            name="roleCode"
-            control={control}
-            render={({ field, fieldState: { error } }) => (
-              <TextField isRequired isInvalid={!!error}>
-                <Label>Role Code</Label>
-                <Input variant="secondary" placeholder="ROLE_MANAGER" {...field} />
-                <FieldError />
-              </TextField>
-            )}
-          />
-
-          <Controller
-            name="roleName"
-            control={control}
-            render={({ field, fieldState: { error } }) => (
-              <TextField isRequired isInvalid={!!error}>
-                <Label>Role Name</Label>
-                <Input variant="secondary" placeholder="Manager" {...field} />
-                <FieldError />
-              </TextField>
-            )}
-          />
-
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => (
-              <TextField>
-                <Label>Description</Label>
-                <TextArea variant="secondary" placeholder="Role description..." rows={3} {...field} />
-              </TextField>
-            )}
-          />
-        </div>
-      </Surface>
-
-      <Surface className="rounded-3xl p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-foreground">
-          Permissions
-        </h2>
-        <div className="space-y-6">
-          {modules.map((module) => {
-            const modulePerms = permissionsByModule[module] || [];
-            if (modulePerms.length === 0) return null;
-            return (
-              <div key={module}>
-                <h3 className="mb-3 font-medium text-foreground">
-                  {moduleLabels[module] || module}
-                </h3>
-                <div className="grid gap-3 sm:grid-cols-1">
-                  {modulePerms.map((perm) => {
-                    const isSelected = selectedPermIds.includes(perm.id);
-                    return (
-                      <Controller
-                        key={perm.id}
-                        name="permissionIds"
-                        control={control}
-                        render={({ field }) => (
-                          <Switch
-                            isSelected={isSelected}
-                            onChange={(checked) => {
-                              const current = field.value || [];
-                              if (checked) {
-                                field.onChange([...current, perm.id]);
-                              } else {
-                                field.onChange(current.filter((id) => id !== perm.id));
-                              }
-                            }}
-                          >
-                            <Switch.Content>
-                              <div className="flex flex-col gap-0.5">
-                                <span className="font-medium text-sm text-foreground">{perm.description}</span>
-                                <span className="text-xs text-gray-400">{perm.permissionCode}</span>
-                              </div>
-                            </Switch.Content>
-                            <Switch.Control><Switch.Thumb /></Switch.Control>
-                          </Switch>
-                        )}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Surface>
-
-      <div className="flex items-center gap-3 justify-end">
-        <Button variant="secondary" onPress={() => router.back()}>
-          <X className="h-4 w-4" />
-          Cancel
+      <div className="flex items-center gap-3">
+        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
+          <ArrowLeft className="h-5 w-5" />
         </Button>
-        <Button variant="primary" onPress={handleSave}>
-          <FloppyDisk className="h-4 w-4" />
-          Save
-        </Button>
+        <h1 className="text-xl font-semibold text-foreground">
+          {isEditMode ? 'Edit Role' : 'Add New Role'}
+        </h1>
       </div>
+
+      <Form
+        validationBehavior="aria"
+        onSubmit={(e) => {
+          form.handleSubmit(
+            handleSubmit,
+            (errors) => console.log("FORM ERRORS", errors),
+          )(e);
+        }}
+        className="flex flex-col gap-6"
+      >
+
+        {/* ── ROLE INFORMATION ── */}
+        <div className="flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Role Information</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Controller
+              control={form.control}
+              name="roleCode"
+              render={({ field, fieldState }) => (
+                <TextField isRequired validationBehavior="native" className="w-full"
+                  name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
+                  isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
+                  <Label>Role Code</Label>
+                  <Input placeholder="Example: ROLE_MANAGER" />
+                  <FieldError>{fieldState.error?.message}</FieldError>
+                </TextField>
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="roleName"
+              render={({ field, fieldState }) => (
+                <TextField isRequired validationBehavior="native" className="w-full"
+                  name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
+                  isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
+                  <Label>Role Name</Label>
+                  <Input placeholder="Example: Manager" />
+                  <FieldError>{fieldState.error?.message}</FieldError>
+                </TextField>
+              )}
+            />
+          </div>
+          <Controller
+            control={form.control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <TextField validationBehavior="native" className="w-full"
+                name={field.name} value={field.value ?? ''} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref}
+                isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
+                <Label>Description</Label>
+                <TextArea placeholder="Brief role description" rows={2} />
+                <FieldError>{fieldState.error?.message}</FieldError>
+              </TextField>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        {/* ── PERMISSIONS ── */}
+        <div className="relative flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Permissions</h2>
+          {groupedModules.length === 0 ? (
+            <p className="text-sm text-gray-400">No permissions available</p>
+          ) : (
+            groupedModules.map((module, idx) => {
+              const modulePerms = permissionsByModule[module] || [];
+              const leftCount = Math.ceil(modulePerms.length / 2);
+              const leftPerms = modulePerms.slice(0, leftCount);
+              const rightPerms = modulePerms.slice(leftCount);
+              return (
+                <Fragment key={module}>
+                  {idx > 0 && <Separator className="w-full" />}
+                  <div className="flex flex-col gap-3">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {moduleLabels[module] || module}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1">
+                        {leftPerms.map((perm) => (
+                          <PermissionRow
+                            key={perm.id}
+                            perm={perm}
+                            isSelected={selectedPermIds.includes(perm.id)}
+                            onToggle={(checked) => handleTogglePermission(perm.id, checked)}
+                            isDisabled={isSubmitting}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {rightPerms.map((perm) => (
+                          <PermissionRow
+                            key={perm.id}
+                            perm={perm}
+                            isSelected={selectedPermIds.includes(perm.id)}
+                            onToggle={(checked) => handleTogglePermission(perm.id, checked)}
+                            isDisabled={isSubmitting}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Fragment>
+              );
+            })
+          )}
+        </div>
+
+        {/* Error */}
+        {submitError && (
+          <Alert status="danger">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>{submitError}</Alert.Title>
+            </Alert.Content>
+          </Alert>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
+            <FloppyDisk className="h-4 w-4" />
+            Save
+          </Button>
+        </div>
+      </Form>
     </div>
   );
 }

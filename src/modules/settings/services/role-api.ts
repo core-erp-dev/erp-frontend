@@ -1,22 +1,17 @@
 import { api } from '@/lib/axios';
-import type { Role, Permission, CreateRoleRequest, UpdateRoleRequest, ApiResponse } from '../types';
+import type { Role, Permission, CreateRoleRequest, UpdateRoleRequest, RoleFilterParams, ApiResponse } from '../types';
+import type { PaginatedResponse } from '@/types/api';
 
 export const roleApi = {
-  /** Get all active roles with their permissions */
-  getRoles: async (): Promise<Role[]> => {
-    const res = await api.get<ApiResponse<Role[]>>('/api/v1/roles');
+  /** Get paginated roles with scope/search/sort (server-side) */
+  getRoles: async (params?: RoleFilterParams): Promise<PaginatedResponse<Role>> => {
+    const res = await api.get<ApiResponse<PaginatedResponse<Role>>>('/api/v1/roles', { params });
     return res.data.data;
   },
 
   /** Get role by ID */
   getRoleById: async (id: number): Promise<Role> => {
     const res = await api.get<ApiResponse<Role>>(`/api/v1/roles/${id}`);
-    return res.data.data;
-  },
-
-  /** Get all deleted roles */
-  getDeletedRoles: async (): Promise<Role[]> => {
-    const res = await api.get<ApiResponse<Role[]>>('/api/v1/roles/deleted');
     return res.data.data;
   },
 

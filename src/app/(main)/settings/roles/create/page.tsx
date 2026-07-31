@@ -29,11 +29,13 @@ export default function CreateRolePage() {
   }
 
   return (
-    <RoleForm
-      mode="create"
-      onSuccess={() => {
-        router.push('/settings/roles');
-      }}
-    />
+    <div className="mx-auto w-full max-w-4xl">
+      <RoleForm
+        mode="create"
+        onSuccess={() => {
+          router.push('/settings/roles');
+        }}
+      />
+    </div>
   );
 }

@@ -15,6 +15,15 @@ export interface Role {
   permissions: string[];
 }
 
+export interface RoleFilterParams {
+  search?: string;
+  scope?: string;
+  sortBy?: string;
+  sortDirection?: string;
+  page?: number;
+  size?: number;
+}
+
 export interface CreateRoleRequest {
   roleCode: string;
   roleName: string;

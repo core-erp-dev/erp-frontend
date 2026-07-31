@@ -2,23 +2,32 @@
 
 import Link from 'next/link';
 import { Eye, PencilSimple, Trash, ArrowCounterClockwise, Tray } from '@phosphor-icons/react';
-import { Table, Button, Spinner } from '@heroui/react';
+import { Table, Button, Spinner, Pagination } from '@heroui/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { Role } from '../types';
+import type { PaginatedResponse } from '@/types/api';
 
 interface RoleTableProps {
   roles: Role[];
   isLoading?: boolean;
-  includeDeleted?: boolean;
+  pagination: PaginatedResponse<Role> | null;
+  onPageChange: (page: number) => void;
   onView: (id: number) => void;
   onEdit: (id: number) => void;
   onDelete: (role: Role) => void;
   onRestore: (id: number) => void;
 }
 
-export function RoleTable({ roles, isLoading = false, includeDeleted, onView, onEdit, onDelete, onRestore }: RoleTableProps) {
+export function RoleTable({ roles, isLoading = false, pagination, onPageChange, onView, onEdit, onDelete, onRestore }: RoleTableProps) {
   const { hasPerm } = usePermission();
+
+  const currentPage = pagination ? pagination.page : 1;
+  const totalPages = pagination ? pagination.totalPages : 1;
+  const totalItems = pagination ? pagination.totalElements : 0;
+  const pageSize = pagination?.size ?? 10;
+  const startItem = totalItems > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const endItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
     <Table>
@@ -29,7 +38,7 @@ export function RoleTable({ roles, isLoading = false, includeDeleted, onView, on
             <Table.Column id="name">Name</Table.Column>
             <Table.Column id="description">Description</Table.Column>
             <Table.Column id="permissions">Permissions</Table.Column>
-            <Table.Column id="actions" className="text-right">Actions</Table.Column>
+            <Table.Column id="actions" className="text-center">{''}</Table.Column>
           </Table.Header>
           <Table.Body
             renderEmptyState={() =>
@@ -127,6 +136,46 @@ export function RoleTable({ roles, isLoading = false, includeDeleted, onView, on
           </Table.Body>
         </Table.Content>
       </Table.ScrollContainer>
+
+      {!isLoading && totalItems > 0 && (
+        <Table.Footer>
+          <Pagination size="sm">
+            <Pagination.Summary>
+              {startItem} to {endItem} of {totalItems} results
+            </Pagination.Summary>
+            <Pagination.Content>
+              <Pagination.Item>
+                <Pagination.Previous
+                  isDisabled={currentPage === 1}
+                  onPress={() => onPageChange(currentPage - 1)}
+                >
+                  <Pagination.PreviousIcon />
+                  Previous
+                </Pagination.Previous>
+              </Pagination.Item>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <Pagination.Item key={p}>
+                  <Pagination.Link
+                    isActive={p === currentPage}
+                    onPress={() => onPageChange(p)}
+                  >
+                    {p}
+                  </Pagination.Link>
+                </Pagination.Item>
+              ))}
+              <Pagination.Item>
+                <Pagination.Next
+                  isDisabled={currentPage === totalPages}
+                  onPress={() => onPageChange(currentPage + 1)}
+                >
+                  Next
+                  <Pagination.NextIcon />
+                </Pagination.Next>
+              </Pagination.Item>
+            </Pagination.Content>
+          </Pagination>
+        </Table.Footer>
+      )}
     </Table>
   );
 }
