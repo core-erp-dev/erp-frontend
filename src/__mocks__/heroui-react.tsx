@@ -27,6 +27,13 @@ export const Button = mk('Button');
 export const Label = mk('Label');
 export const Input = mk('Input');
 export const TextField = mk('TextField');
+export const Chip = mk('Chip');
+export const Checkbox = mk('Checkbox');
+export const TextArea = mk('TextArea');
+export const Breadcrumbs = mk('Breadcrumbs');
+export const BreadcrumbsItem = mk('BreadcrumbsItem');
+export const ComboBox = mk('ComboBox');
+export const FieldError = mk('FieldError');
 
 /* ── Alert compound ── */
 

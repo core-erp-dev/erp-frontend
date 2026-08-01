@@ -1,215 +1,315 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from '@heroui/react';
-import { corporateKpiApi, extractKpiError } from './corporate-kpi-api';
+import { corporateKpiApi, extractKpiError, isVersionConflict } from './corporate-kpi-api';
 import { mapKpiError } from './corporate-kpi-error-mapper';
-import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, KpiStatus } from './corporate-kpi.types';
+import type {
+  CloseConfigurationRequest,
+  CorporateConfigurationDefinition,
+  CorporateConfigurationSummary,
+  CorporateKpiHistoryEntry,
+  CorporateKpiNode,
+  CorporateKpiResultResponse,
+  DefinitionApplyRequest,
+  DefinitionApplyResult,
+  MutationResult,
+  NodeRestoreResult,
+  Paginated,
+  ReopenConfigurationRequest,
+  VariableValueUpsertRequest,
+} from './corporate-kpi.types';
 
-/* ── Lifecycle action type for tracking pending state ── */
+/**
+ * Configuration-workspace hook (WP6). Owns the configuration list, the
+ * selected configuration's definition (source of truth for the version), and
+ * every aggregate mutation. All mutations pass the client-side expected
+ * version; a 409 conflict reloads the current definition and informs the user.
+ */
+export interface UseConfigurationWorkspaceReturn {
+  /* ── Config list ── */
+  configurations: CorporateConfigurationSummary[];
+  isLoadingConfigs: boolean;
+  configsError: string | null;
+  fetchConfigurations: (year: number) => Promise<void>;
 
-export type PendingLifecycleAction = {
-  type: 'activate' | 'deactivate' | 'delete' | 'restore';
-  nodeId: string;
-} | null;
+  /* ── Selection + definition ── */
+  selectedConfigId: string | null;
+  selectConfiguration: (id: string | null) => void;
+  definition: CorporateConfigurationDefinition | null;
+  isLoadingDefinition: boolean;
+  definitionError: string | null;
+  refreshDefinition: () => Promise<void>;
 
-export interface UseCorporateKpiDataReturn {
-  /* ── Read state (P1.1) ── */
-  tree: CorporateKpiNode[];
-  deletedList: CorporateKpiNode[];
-  isLoadingTree: boolean;
-  isLoadingDeleted: boolean;
-  treeError: string | null;
-  deletedError: string | null;
-  hasLoadedDeleted: boolean;
-  fetchTree: (year: number) => Promise<void>;
-  fetchDeleted: () => Promise<void>;
-
-  /* ── Create/update mutations (P1.2) ── */
+  /* ── Mutations (version-bearing, 409-aware) ── */
   isMutating: boolean;
-  createNode: (payload: CreateKpiRequest) => Promise<CorporateKpiNode | null>;
-  updateNode: (id: string, payload: UpdateKpiRequest) => Promise<CorporateKpiNode | null>;
-  refreshTree: (year: number) => Promise<void>;
+  conflictMessage: string | null;
+  clearConflict: () => void;
+  saveDefinition: (payload: DefinitionApplyRequest) => Promise<DefinitionApplyResult | null>;
+  activate: () => Promise<MutationResult | null>;
+  close: (reason: string) => Promise<MutationResult | null>;
+  reopen: (reason: string) => Promise<MutationResult | null>;
+  deleteNode: (nodeId: string) => Promise<MutationResult | null>;
+  restoreNode: (nodeId: string) => Promise<NodeRestoreResult | null>;
+  saveValues: (month: number, entries: VariableValueUpsertRequest['entries']) => Promise<MutationResult | null>;
 
-  /* ── Lifecycle (P1.3) ── */
-  pendingLifecycle: PendingLifecycleAction;
-  changeStatus: (id: string, status: KpiStatus) => Promise<boolean>;
-  deleteKpi: (id: string) => Promise<boolean>;
-  restoreKpi: (id: string) => Promise<boolean>;
+  /* ── Values / results / history / recycle bin (reads) ── */
+  getValuesForMonth: (month: number) => Promise<{ variableCode: string; value: number | null }[]>;
+  results: CorporateKpiResultResponse | null;
+  isLoadingResults: boolean;
+  fetchResults: (window: { month?: number; fromMonth?: number; toMonth?: number }) => Promise<void>;
+  history: CorporateKpiHistoryEntry[];
+  isLoadingHistory: boolean;
+  fetchHistory: () => Promise<void>;
+  deletedList: Paginated<CorporateKpiNode>;
+  isLoadingDeleted: boolean;
+  fetchDeleted: (params?: { page?: number; size?: number; search?: string }) => Promise<void>;
 }
 
-export function useCorporateKpiData(): UseCorporateKpiDataReturn {
-  const [tree, setTree] = useState<CorporateKpiNode[]>([]);
-  const [deletedList, setDeletedList] = useState<CorporateKpiNode[]>([]);
-  const [isLoadingTree, setIsLoadingTree] = useState(true);
-  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
-  const [treeError, setTreeError] = useState<string | null>(null);
-  const [deletedError, setDeletedError] = useState<string | null>(null);
-  const [hasLoadedDeleted, setHasLoadedDeleted] = useState(false);
+export function useConfigurationWorkspace(): UseConfigurationWorkspaceReturn {
+  const [configurations, setConfigurations] = useState<CorporateConfigurationSummary[]>([]);
+  const [isLoadingConfigs, setIsLoadingConfigs] = useState(true);
+  const [configsError, setConfigsError] = useState<string | null>(null);
+
+  const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
+  const [definition, setDefinition] = useState<CorporateConfigurationDefinition | null>(null);
+  const [isLoadingDefinition, setIsLoadingDefinition] = useState(false);
+  const [definitionError, setDefinitionError] = useState<string | null>(null);
+
   const [isMutating, setIsMutating] = useState(false);
-  const [pendingLifecycle, setPendingLifecycle] = useState<PendingLifecycleAction>(null);
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+
+  const [results, setResults] = useState<CorporateKpiResultResponse | null>(null);
+  const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [history, setHistory] = useState<CorporateKpiHistoryEntry[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [deletedList, setDeletedList] = useState<Paginated<CorporateKpiNode>>({
+    content: [], pageNumber: 1, pageSize: 10, totalElements: 0, totalPages: 0, first: true, last: true,
+  });
+  const [isLoadingDeleted, setIsLoadingDeleted] = useState(false);
+
   const mountedRef = useRef(true);
-  const currentYearRef = useRef<number | null>(null);
-
-  const fetchTree = useCallback(async (year: number) => {
-    setIsLoadingTree(true);
-    setTreeError(null);
-    currentYearRef.current = year;
-    try {
-      const data = await corporateKpiApi.getTreeByYear(year);
-      if (mountedRef.current) setTree(data);
-    } catch (err: unknown) {
-      const msg = extractKpiError(err);
-      if (mountedRef.current) { setTreeError(msg); setTree([]); }
-      toast.danger(msg);
-    } finally {
-      if (mountedRef.current) setIsLoadingTree(false);
-    }
-  }, []);
-
-  const fetchDeleted = useCallback(async () => {
-    setIsLoadingDeleted(true);
-    setDeletedError(null);
-    try {
-      const data = await corporateKpiApi.getDeleted();
-      if (mountedRef.current) { setDeletedList(data); setHasLoadedDeleted(true); }
-    } catch (err: unknown) {
-      const msg = extractKpiError(err);
-      if (mountedRef.current) setDeletedError(msg);
-      toast.danger(msg);
-    } finally {
-      if (mountedRef.current) setIsLoadingDeleted(false);
-    }
-  }, []);
-
-  const refreshTree = useCallback(async (year: number) => {
-    try {
-      const data = await corporateKpiApi.getTreeByYear(year);
-      if (mountedRef.current) setTree(data);
-    } catch (err: unknown) {
-      const msg = extractKpiError(err);
-      if (mountedRef.current) setTreeError(msg);
-      toast.danger(msg + ' — please retry.');
-    }
-  }, []);
-
-  /** Refresh the current-year tree (silent — uses currentYearRef). */
-  const refreshTreeSilent = useCallback(async () => {
-    const year = currentYearRef.current;
-    if (year == null) return;
-    try {
-      const data = await corporateKpiApi.getTreeByYear(year);
-      if (mountedRef.current) setTree(data);
-    } catch {
-      toast.danger('Tree refresh failed. You may retry manually.');
-    }
-  }, []);
-
-  /** Refresh deleted data silently (only if previously loaded). */
-  const refreshDeletedSilent = useCallback(async () => {
-    if (!hasLoadedDeleted) return;
-    try {
-      const data = await corporateKpiApi.getDeleted();
-      if (mountedRef.current) setDeletedList(data);
-    } catch {
-      toast.danger('Deleted-KPI refresh failed. You may retry manually.');
-    }
-  }, [hasLoadedDeleted]);
-
-  // ── P1.2 create/update ──
-
-  const createNode = useCallback(async (payload: CreateKpiRequest): Promise<CorporateKpiNode | null> => {
-    setIsMutating(true);
-    try {
-      const result = await corporateKpiApi.create(payload);
-      await refreshTreeSilent();
-      return result;
-    } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while saving the Corporate KPI.');
-      toast.danger(msg);
-      return null;
-    } finally {
-      if (mountedRef.current) setIsMutating(false);
-    }
-  }, [refreshTreeSilent]);
-
-  const updateNode = useCallback(async (id: string, payload: UpdateKpiRequest): Promise<CorporateKpiNode | null> => {
-    setIsMutating(true);
-    try {
-      const result = await corporateKpiApi.update(id, payload);
-      await refreshTreeSilent();
-      return result;
-    } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while saving the Corporate KPI.');
-      toast.danger(msg);
-      return null;
-    } finally {
-      if (mountedRef.current) setIsMutating(false);
-    }
-  }, [refreshTreeSilent]);
-
-  // ── P1.3 lifecycle ──
-
-  const changeStatus = useCallback(async (id: string, status: KpiStatus): Promise<boolean> => {
-    const actionType = status === 'ACTIVE' ? 'activate' : status === 'INACTIVE' ? 'deactivate' : 'activate';
-    setPendingLifecycle({ type: actionType, nodeId: id });
-    try {
-      await corporateKpiApi.changeStatus(id, { status });
-      toast.success('Corporate KPI status updated successfully.');
-      await refreshTreeSilent();
-      return true;
-    } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while changing the status.');
-      toast.danger(msg);
-      return false;
-    } finally {
-      if (mountedRef.current) setPendingLifecycle(null);
-    }
-  }, [refreshTreeSilent]);
-
-  const deleteKpi = useCallback(async (id: string): Promise<boolean> => {
-    setPendingLifecycle({ type: 'delete', nodeId: id });
-    try {
-      await corporateKpiApi.deleteNode(id);
-      toast.success('Corporate KPI deleted successfully.');
-      await refreshTreeSilent();
-      await refreshDeletedSilent();
-      return true;
-    } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while deleting the Corporate KPI.');
-      toast.danger(msg);
-      return false;
-    } finally {
-      if (mountedRef.current) setPendingLifecycle(null);
-    }
-  }, [refreshTreeSilent, refreshDeletedSilent]);
-
-  const restoreKpi = useCallback(async (id: string): Promise<boolean> => {
-    setPendingLifecycle({ type: 'restore', nodeId: id });
-    try {
-      await corporateKpiApi.restoreNode(id);
-      toast.success('Corporate KPI restored successfully.');
-      await refreshTreeSilent();
-      await refreshDeletedSilent();
-      return true;
-    } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while restoring the Corporate KPI.');
-      toast.danger(msg);
-      return false;
-    } finally {
-      if (mountedRef.current) setPendingLifecycle(null);
-    }
-  }, [refreshTreeSilent, refreshDeletedSilent]);
+  const selectedConfigIdRef = useRef<string | null>(null);
+  selectedConfigIdRef.current = selectedConfigId;
 
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
+  // ── Config list ──
+
+  const fetchConfigurations = useCallback(async (year: number) => {
+    setIsLoadingConfigs(true);
+    setConfigsError(null);
+    try {
+      const data = await corporateKpiApi.listConfigurations(year);
+      if (mountedRef.current) setConfigurations(data);
+    } catch (err: unknown) {
+      const msg = extractKpiError(err);
+      if (mountedRef.current) { setConfigsError(msg); setConfigurations([]); }
+    } finally {
+      if (mountedRef.current) setIsLoadingConfigs(false);
+    }
+  }, []);
+
+  // ── Selection + definition ──
+
+  const selectConfiguration = useCallback((id: string | null) => {
+    setSelectedConfigId(id);
+    setDefinition(null);
+    setDefinitionError(null);
+    setConflictMessage(null);
+    setResults(null);
+    setHistory([]);
+  }, []);
+
+  const refreshDefinition = useCallback(async () => {
+    const id = selectedConfigIdRef.current;
+    if (id == null) return;
+    setIsLoadingDefinition(true);
+    setDefinitionError(null);
+    try {
+      const data = await corporateKpiApi.getConfiguration(id);
+      if (mountedRef.current && selectedConfigIdRef.current === id) setDefinition(data);
+    } catch (err: unknown) {
+      const msg = extractKpiError(err);
+      if (mountedRef.current) setDefinitionError(msg);
+    } finally {
+      if (mountedRef.current) setIsLoadingDefinition(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedConfigId != null) {
+      void refreshDefinition();
+    }
+  }, [selectedConfigId, refreshDefinition]);
+
+  // ── Conflict handling ──
+
+  const clearConflict = useCallback(() => setConflictMessage(null), []);
+
+  const handleConflict = useCallback(async () => {
+    setConflictMessage('The configuration was changed by someone else. Reloaded the latest version — review and re-apply your changes.');
+    await refreshDefinition();
+  }, [refreshDefinition]);
+
+  /** Generic mutation wrapper: version-bearing call, 409 -> reload + inform. */
+  const runMutation = useCallback(
+    async <T,>(fn: () => Promise<T>, successMessage: string): Promise<T | null> => {
+      setIsMutating(true);
+      try {
+        const result = await fn();
+        toast.success(successMessage);
+        await refreshDefinition();
+        return result;
+      } catch (err: unknown) {
+        if (isVersionConflict(err)) {
+          await handleConflict();
+        } else {
+          toast.danger(mapKpiError(err, 'Something went wrong.'));
+        }
+        return null;
+      } finally {
+        if (mountedRef.current) setIsMutating(false);
+      }
+    },
+    [refreshDefinition, handleConflict],
+  );
+
+  // ── Mutations ──
+
+  const currentVersion = () => definition?.configuration.version ?? 0;
+
+  const saveDefinition = useCallback(
+    async (payload: DefinitionApplyRequest): Promise<DefinitionApplyResult | null> => {
+      const id = selectedConfigIdRef.current;
+      if (id == null) return null;
+      return runMutation(
+        () => corporateKpiApi.applyDefinition(id, payload),
+        'Definition saved successfully.',
+      );
+    },
+    [runMutation],
+  );
+
+  const activate = useCallback(async (): Promise<MutationResult | null> => {
+    const id = selectedConfigIdRef.current;
+    if (id == null) return null;
+    return runMutation(() => corporateKpiApi.activate(id, currentVersion()), 'Configuration activated.');
+  }, [runMutation, definition]);
+
+  const close = useCallback(
+    async (reason: string): Promise<MutationResult | null> => {
+      const id = selectedConfigIdRef.current;
+      if (id == null) return null;
+      const payload: CloseConfigurationRequest = { version: currentVersion(), reason };
+      return runMutation(() => corporateKpiApi.close(id, payload), 'Recording year closed.');
+    },
+    [runMutation, definition],
+  );
+
+  const reopen = useCallback(
+    async (reason: string): Promise<MutationResult | null> => {
+      const id = selectedConfigIdRef.current;
+      if (id == null) return null;
+      const payload: ReopenConfigurationRequest = { version: currentVersion(), reason };
+      return runMutation(() => corporateKpiApi.reopen(id, payload), 'Recording year reopened.');
+    },
+    [runMutation, definition],
+  );
+
+  const deleteNode = useCallback(
+    async (nodeId: string): Promise<MutationResult | null> => {
+      const id = selectedConfigIdRef.current;
+      if (id == null) return null;
+      return runMutation(
+        () => corporateKpiApi.deleteNode(id, nodeId, currentVersion()),
+        'Node deleted.',
+      );
+    },
+    [runMutation, definition],
+  );
+
+  const restoreNode = useCallback(
+    async (nodeId: string): Promise<NodeRestoreResult | null> => {
+      return runMutation(
+        () => corporateKpiApi.restoreNode(nodeId, currentVersion()),
+        'Node restored.',
+      );
+    },
+    [runMutation, definition],
+  );
+
+  const saveValues = useCallback(
+    async (month: number, entries: VariableValueUpsertRequest['entries']): Promise<MutationResult | null> => {
+      const id = selectedConfigIdRef.current;
+      if (id == null) return null;
+      const payload: VariableValueUpsertRequest = { version: currentVersion(), entries };
+      return runMutation(() => corporateKpiApi.upsertValues(id, month, payload), `Month ${month} saved.`);
+    },
+    [runMutation, definition],
+  );
+
+  // ── Reads ──
+
+  const getValuesForMonth = useCallback(async (month: number) => {
+    const id = selectedConfigIdRef.current;
+    if (id == null) return [];
+    const data = await corporateKpiApi.getValues(id, month);
+    return data.entries;
+  }, []);
+
+  const fetchResults = useCallback(async (window: { month?: number; fromMonth?: number; toMonth?: number }) => {
+    const id = selectedConfigIdRef.current;
+    if (id == null) return;
+    setIsLoadingResults(true);
+    try {
+      const data = await corporateKpiApi.getResults(id, window);
+      if (mountedRef.current) setResults(data);
+    } catch (err: unknown) {
+      toast.danger(mapKpiError(err, 'Failed to load results.'));
+    } finally {
+      if (mountedRef.current) setIsLoadingResults(false);
+    }
+  }, []);
+
+  const fetchHistory = useCallback(async () => {
+    const id = selectedConfigIdRef.current;
+    if (id == null) return;
+    setIsLoadingHistory(true);
+    try {
+      const data = await corporateKpiApi.getHistory(id);
+      if (mountedRef.current) setHistory(data);
+    } catch (err: unknown) {
+      toast.danger(mapKpiError(err, 'Failed to load history.'));
+    } finally {
+      if (mountedRef.current) setIsLoadingHistory(false);
+    }
+  }, []);
+
+  const fetchDeleted = useCallback(async (params?: { page?: number; size?: number; search?: string }) => {
+    setIsLoadingDeleted(true);
+    try {
+      const data = await corporateKpiApi.getDeleted({ page: params?.page ?? 1, size: params?.size ?? 10, search: params?.search });
+      if (mountedRef.current) setDeletedList(data);
+    } catch (err: unknown) {
+      toast.danger(mapKpiError(err, 'Failed to load deleted nodes.'));
+    } finally {
+      if (mountedRef.current) setIsLoadingDeleted(false);
+    }
+  }, []);
+
   return {
-    tree, deletedList, isLoadingTree, isLoadingDeleted, treeError, deletedError,
-    hasLoadedDeleted, fetchTree, fetchDeleted,
-    isMutating, createNode, updateNode, refreshTree,
-    pendingLifecycle, changeStatus, deleteKpi, restoreKpi,
+    configurations, isLoadingConfigs, configsError, fetchConfigurations,
+    selectedConfigId, selectConfiguration,
+    definition, isLoadingDefinition, definitionError, refreshDefinition,
+    isMutating, conflictMessage, clearConflict,
+    saveDefinition, activate, close, reopen, deleteNode, restoreNode, saveValues,
+    getValuesForMonth,
+    results, isLoadingResults, fetchResults,
+    history, isLoadingHistory, fetchHistory,
+    deletedList, isLoadingDeleted, fetchDeleted,
   };
 }

@@ -42,6 +42,7 @@ export function ActivityFormModal({ isOpen, onClose, mode, activity }: ActivityF
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [corporateKpiTree, setCorporateKpiTree] = useState<CorporateKpiNode[]>([]);
   const [isLoadingCk, setIsLoadingCk] = useState(false);
+  const [yearRecordingClosed, setYearRecordingClosed] = useState(false);
   const [selectedCkId, setSelectedCkId] = useState<string>('');
   const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
   const [assigneeId, setAssigneeId] = useState<string>('');
@@ -60,16 +61,22 @@ export function ActivityFormModal({ isOpen, onClose, mode, activity }: ActivityF
     setIsLoadingCk(true);
     try {
       const tree = await corporateKpiApi.getTreeByYear(year);
-      // Filter to ACTIVE INDICATOR nodes
+      // Filter to INDICATOR nodes of an ACTIVE configuration (R16). Recording
+      // must be OPEN for a new binding; when closed, the selector is disabled.
       const indicators: CorporateKpiNode[] = [];
+      let anyClosed = false;
       const collect = (nodes: CorporateKpiNode[]) => {
         for (const node of nodes) {
-          if (node.nodeType === 'INDICATOR' && node.status === 'ACTIVE') indicators.push(node);
+          if (node.nodeType === 'INDICATOR' && node.configurationStatus === 'ACTIVE') {
+            indicators.push(node);
+            if (node.recordingStatus === 'CLOSED') anyClosed = true;
+          }
           if (node.children.length > 0) collect(node.children);
         }
       };
       collect(tree);
       setCorporateKpiTree(indicators);
+      setYearRecordingClosed(anyClosed);
     } catch {
       setCorporateKpiTree([]);
     } finally {
@@ -275,7 +282,14 @@ export function ActivityFormModal({ isOpen, onClose, mode, activity }: ActivityF
                         selectedKey={selectedCkId || null}
                         onSelectionChange={(k) => setSelectedCkId(String(k || ''))}
                         isInvalid={!!errors.ck}
-                        placeholder={corporateKpiTree.length === 0 ? 'No active indicators for this year' : 'Select Corporate KPI...'}
+                        isDisabled={yearRecordingClosed}
+                        placeholder={
+                          yearRecordingClosed
+                            ? 'Recording is closed for this year'
+                            : corporateKpiTree.length === 0
+                              ? 'No active indicators for this year'
+                              : 'Select Corporate KPI...'
+                        }
                       >
                         <Label>Corporate KPI Indicator</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
@@ -294,6 +308,11 @@ export function ActivityFormModal({ isOpen, onClose, mode, activity }: ActivityF
                       </Select>
                     )}
                     {errors.ck && <p className="mt-1 text-xs text-danger">{errors.ck}</p>}
+                    {yearRecordingClosed && (
+                      <p className="mt-1 text-xs text-warning">
+                        The corporate KPI recording year is closed — new activity bindings are not allowed until it is reopened.
+                      </p>
+                    )}
                   </div>
                 )}
 

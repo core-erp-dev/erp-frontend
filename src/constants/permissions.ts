@@ -35,11 +35,7 @@ export const PERM = {
 
   // Corporate KPI
   CORPORATE_KPI_READ: 'corporate_kpi:read',
-  CORPORATE_KPI_CREATE: 'corporate_kpi:create',
-  CORPORATE_KPI_UPDATE: 'corporate_kpi:update',
-  CORPORATE_KPI_DELETE: 'corporate_kpi:delete',
-  CORPORATE_KPI_RESTORE: 'corporate_kpi:restore',
-  CORPORATE_KPI_READ_DELETED: 'corporate_kpi:read_deleted',
+  CORPORATE_KPI_MANAGE: 'corporate_kpi:manage',
 
   // KPI Activity
   KPI_ACTIVITY_READ: 'kpi_activity:read',

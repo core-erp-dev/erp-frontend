@@ -19,6 +19,7 @@ jest.mock('@phosphor-icons/react', () => ({
   Article: () => null,
   Plus: () => null,
   ArrowsClockwise: () => null,
+  House: () => null,
   Eye: () => null,
   Tray: () => null,
   Warning: () => null,

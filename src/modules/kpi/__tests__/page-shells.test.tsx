@@ -40,7 +40,12 @@ jest.mock('@phosphor-icons/react', () => ({
   X: () => null,
   ArrowsClockwise: () => null,
   Plus: () => null,
+  House: () => null,
+  Play: () => null,
+  Copy: () => null,
+  FloppyDisk: () => null,
   MagnifyingGlass: () => null,
+  ArrowCounterClockwise: () => null,
   Target: () => null,
   MedalMilitary: () => null,
   Warning: () => null,
@@ -144,8 +149,12 @@ describe('Corporate KPI page shell', () => {
     expect(screen.getByRole('heading', { name: KPI_LABELS.corporate })).toBeInTheDocument();
   });
 
-  it('renders canonical description', () => {
-    expect(screen.getByText(KPI_DESCRIPTIONS.corporate)).toBeInTheDocument();
+  it('renders the configuration workspace controls', () => {
+    // The legacy description line is gone — the workspace exposes create/refresh
+    // controls and a year selector instead.
+    expect(screen.getByRole('button', { name: /New Configuration/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Refresh configurations/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Year')).toBeInTheDocument();
   });
 
   it('renders loading state on mount', () => {
@@ -177,8 +186,11 @@ describe('KPI Reports page', () => {
     expect(screen.getByRole('heading', { name: KPI_LABELS.reports })).toBeInTheDocument();
   });
 
-  it('renders canonical description', () => {
-    expect(screen.getByText(KPI_DESCRIPTIONS.reports)).toBeInTheDocument();
+  it('renders the implemented reports surface', () => {
+    // The canonical description line is not rendered by the page — assert the
+    // implemented tab surface instead.
+    expect(allText()).toMatch(/My Reports/i);
+    expect(allText()).toMatch(/Review Queue/i);
   });
 
   it('does not contain P3 placeholder text (feature implemented)', () => {

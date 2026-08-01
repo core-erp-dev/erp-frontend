@@ -63,7 +63,8 @@ describe('KPI sidebar configuration', () => {
 describe('KPI permission visibility rules', () => {
   it('Overview is visible with any KPI permission', () => {
     const overview = kpiSidebar.find((i) => i.href === KPI_ROUTES.overview)!;
-    expect(overview.permissions).toHaveLength(13);
+    // Derived from the production constant — the full KPI permission surface.
+    expect(overview.permissions).toHaveLength(KPI_ANY_PERMISSION.length);
     expect(overview.permissions).toEqual(expect.arrayContaining(KPI_ANY_PERMISSION));
   });
 
@@ -109,14 +110,10 @@ describe('KPI permission visibility rules', () => {
 });
 
 describe('KPI permission constants', () => {
-  it('all 13 KPI permissions are defined in PERM', () => {
+  it('all KPI permissions are defined in PERM', () => {
     const kpiPerms = [
       PERM.CORPORATE_KPI_READ,
-      PERM.CORPORATE_KPI_CREATE,
-      PERM.CORPORATE_KPI_UPDATE,
-      PERM.CORPORATE_KPI_DELETE,
-      PERM.CORPORATE_KPI_RESTORE,
-      PERM.CORPORATE_KPI_READ_DELETED,
+      PERM.CORPORATE_KPI_MANAGE,
       PERM.KPI_ACTIVITY_READ,
       PERM.KPI_ACTIVITY_REQUEST,
       PERM.KPI_ACTIVITY_ROOT_REQUEST,
@@ -125,7 +122,10 @@ describe('KPI permission constants', () => {
       PERM.KPI_REPORT_SUBMIT,
       PERM.KPI_REPORT_REVIEW,
     ];
-    expect(kpiPerms).toHaveLength(13);
+    // Derived from the production constant — the full KPI permission surface.
+    expect(kpiPerms).toHaveLength(KPI_ANY_PERMISSION.length);
+    expect(KPI_ANY_PERMISSION).toEqual(expect.arrayContaining(kpiPerms));
+    expect(kpiPerms).toEqual(expect.arrayContaining(KPI_ANY_PERMISSION));
     for (const p of kpiPerms) {
       expect(typeof p).toBe('string');
       expect(p).toBeTruthy();
@@ -134,11 +134,7 @@ describe('KPI permission constants', () => {
 
   it('KPI permission values match backend contracts', () => {
     expect(PERM.CORPORATE_KPI_READ).toBe('corporate_kpi:read');
-    expect(PERM.CORPORATE_KPI_CREATE).toBe('corporate_kpi:create');
-    expect(PERM.CORPORATE_KPI_UPDATE).toBe('corporate_kpi:update');
-    expect(PERM.CORPORATE_KPI_DELETE).toBe('corporate_kpi:delete');
-    expect(PERM.CORPORATE_KPI_RESTORE).toBe('corporate_kpi:restore');
-    expect(PERM.CORPORATE_KPI_READ_DELETED).toBe('corporate_kpi:read_deleted');
+    expect(PERM.CORPORATE_KPI_MANAGE).toBe('corporate_kpi:manage');
 
     expect(PERM.KPI_ACTIVITY_READ).toBe('kpi_activity:read');
     expect(PERM.KPI_ACTIVITY_REQUEST).toBe('kpi_activity:request');
