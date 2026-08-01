@@ -8,6 +8,8 @@ import type { CorporateConfigurationDefinition, VariableValueEntry } from './cor
 interface Props {
   definition: CorporateConfigurationDefinition;
   isMutating: boolean;
+  /** When true, the editor is read-only (e.g. user lacks corporate_kpi:manage). */
+  isReadOnly?: boolean;
   onSave: (month: number, entries: VariableValueEntry[]) => Promise<unknown>;
   loadValues: (month: number) => Promise<VariableValueEntry[]>;
 }
@@ -22,9 +24,9 @@ const MONTH_NAMES = [
  * Monthly variable values editor: select any month, enter/clear values, return
  * to previous months. Save sends a per-month bulk upsert (null clears).
  */
-export function MonthlyValuesEditor({ definition, isMutating, onSave, loadValues }: Props) {
+export function MonthlyValuesEditor({ definition, isMutating, isReadOnly = false, onSave, loadValues }: Props) {
   const config = definition.configuration;
-  const locked = config.recordingStatus === 'CLOSED';
+  const locked = config.recordingStatus === 'CLOSED' || isReadOnly;
   const variables = definition.variables;
 
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
@@ -63,7 +65,7 @@ export function MonthlyValuesEditor({ definition, isMutating, onSave, loadValues
 
   return (
     <div className="flex w-full flex-col gap-4">
-      {locked && (
+      {config.recordingStatus === 'CLOSED' && (
         <Alert status="warning">
           Recording is closed — monthly values are read-only until the year is reopened.
         </Alert>

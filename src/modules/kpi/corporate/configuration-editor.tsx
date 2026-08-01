@@ -77,6 +77,8 @@ interface EditorProps {
   isLoading: boolean;
   error: string | null;
   isMutating: boolean;
+  /** When true, the whole editor is disabled (e.g. user lacks corporate_kpi:manage). */
+  isReadOnly?: boolean;
   onSave: (payload: DefinitionApplyRequest) => Promise<DefinitionApplyResult | null>;
 }
 
@@ -108,9 +110,9 @@ function Field(props: {
 }
 
 /** Definition editor — atomic diff with clientRefs for new entities. */
-export function ConfigurationEditor({ definition, isLoading, error, isMutating, onSave }: EditorProps) {
+export function ConfigurationEditor({ definition, isLoading, error, isMutating, isReadOnly = false, onSave }: EditorProps) {
   const config = definition.configuration;
-  const locked = config.recordingStatus === 'CLOSED';
+  const locked = config.recordingStatus === 'CLOSED' || isReadOnly;
 
   const [aspects, setAspects] = useState<DraftAspect[]>([]);
   const [variables, setVariables] = useState<DraftVariable[]>([]);
@@ -341,10 +343,11 @@ export function ConfigurationEditor({ definition, isLoading, error, isMutating, 
   }
 
   const disabled = locked || isMutating;
+  const recordingClosed = config.recordingStatus === 'CLOSED';
 
   return (
     <div className="flex w-full flex-col gap-6">
-      {locked && (
+      {recordingClosed && (
         <Alert status="warning">
           Recording is closed for {config.year}. Configuration and monthly values are locked until reopened.
         </Alert>

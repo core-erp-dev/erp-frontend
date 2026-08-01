@@ -226,6 +226,7 @@ export default function KpiCorporatePage() {
                   isLoading={isLoadingDefinition}
                   error={definitionError}
                   isMutating={isMutating}
+                  isReadOnly={!canManage}
                   onSave={saveDefinition}
                 />
               ) : (
