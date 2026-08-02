@@ -68,6 +68,7 @@ jest.mock('@/modules/kpi/report/use-report-data', () => ({
     submitReport: jest.fn(), isSubmitting: false,
     approveReport: jest.fn(), isApproving: false,
     rejectReport: jest.fn(), isRejecting: false,
+    recoverable: null, clearRecoverable: jest.fn(),
   }),
 }));
 
@@ -75,8 +76,6 @@ jest.mock('@/modules/kpi/report/use-report-data', () => ({
 jest.mock('@/modules/kpi/overview/use-overview-data', () => ({
   useOverviewData: () => ({
     myActivities: [], myActivitiesError: null,
-    managedActivities: [], managedActivitiesError: null,
-    ownedActivities: [], ownedActivitiesError: null,
     pendingRequests: [], pendingRequestsError: null,
     pendingReviews: [], pendingReviewsError: null,
     myReports: [], myReportsError: null,

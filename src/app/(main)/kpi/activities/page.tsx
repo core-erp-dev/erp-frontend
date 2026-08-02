@@ -7,7 +7,6 @@ import {
   useState,
 } from 'react';
 import {
-  Alert,
   Breadcrumbs,
   BreadcrumbsItem,
   Button,
@@ -24,112 +23,51 @@ import {
 import { PERM } from '@/constants/permissions';
 import { usePermission } from '@/hooks/use-permission';
 import { KPI_LABELS } from '@/modules/kpi/constants';
-import { ActivityCancelDialog } from '@/modules/kpi/activity/activity-cancel-dialog';
-import { ActivityFormModal } from '@/modules/kpi/activity/activity-form-modal';
 import { ActivityTable } from '@/modules/kpi/activity/activity-table';
-import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
-import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
 import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
 import { RequestTable } from '@/modules/kpi/activity/request-table';
 import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
-import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
-import type {
-  ActivityFormMode,
-  KpiActivityChangeRequestResponse,
-  KpiActivityResponse,
-} from '@/modules/kpi/activity/activity.types';
+import { AdminCreateActivityModal } from '@/modules/kpi/admin/admin-create-activity-modal';
 
-type TabId =
-  | 'my-activities'
-  | 'managed-activities'
-  | 'owned-activities'
-  | 'my-requests'
-  | 'approvals';
+type ViewId = 'my-activities' | 'all-activities' | 'my-requests';
 
+/**
+ * Activity workspace (`/kpi/activities`) — V1 scoped views.
+ *
+ * Owns: Activity lists (`mine` / `all` as view controls), Activity detail, and
+ * submitted-request history (`requests?scope=mine`).
+ *
+ * Deliberately NOT here:
+ *   - No Approval / To Review tab — the queue lives only on `/kpi/approvals`.
+ *   - No `subordinates` view and no create/child/update/cancel actions — they
+ *     require an explicit acting Position (`core_positions.id`) and the
+ *     frontend has no self-accessible position source yet (plan §15.1).
+ *     No position is ever guessed.
+ */
 export default function KpiActivitiesPage() {
-  const { hasPerm, hasAnyPerm } = usePermission();
+  const { hasAnyPerm, hasPerm } = usePermission();
 
-  const canRead = hasPerm(PERM.KPI_ACTIVITY_READ);
+  const canViewAll = hasAnyPerm(PERM.KPI_ACTIVITY_READ_ALL, PERM.KPI_ACTIVITY_MANAGE);
+  // T10 administrative tool — direct Activity creation for `kpi_activity:manage` holders.
+  const canAdminCreate = hasPerm(PERM.KPI_ACTIVITY_MANAGE);
 
-  const canOwned = hasAnyPerm(
-    PERM.KPI_ACTIVITY_ROOT_REQUEST,
-    PERM.KPI_ACTIVITY_REQUEST,
-  );
-
-  const canRequest = hasPerm(PERM.KPI_ACTIVITY_REQUEST);
-
-  const canMyRequests = hasAnyPerm(
-    PERM.KPI_ACTIVITY_REQUEST,
-    PERM.KPI_ACTIVITY_ROOT_REQUEST,
-  );
-
-  const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
-
-  const canAccess = hasAnyPerm(
-    PERM.KPI_ACTIVITY_READ,
-    PERM.KPI_ACTIVITY_REQUEST,
-    PERM.KPI_ACTIVITY_ROOT_REQUEST,
-    PERM.KPI_ACTIVITY_APPROVE,
-  );
-
-  const canCreateRoot =
-    hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST) &&
-    hasPerm(PERM.CORPORATE_KPI_READ);
-
-  const tabs = useMemo(() => {
-    const result: { id: TabId; label: string }[] = [];
-
-    if (canRead) {
-      result.push({
-        id: 'my-activities',
-        label: 'My Activities',
-      });
-
-      result.push({
-        id: 'managed-activities',
-        label: 'Managed',
-      });
+  const views = useMemo(() => {
+    const result: { id: ViewId; label: string }[] = [
+      { id: 'my-activities', label: 'My Activities' },
+    ];
+    if (canViewAll) {
+      result.push({ id: 'all-activities', label: 'All Activities' });
     }
-
-    if (canOwned) {
-      result.push({
-        id: 'owned-activities',
-        label: 'Owned',
-      });
-    }
-
-    if (canMyRequests) {
-      result.push({
-        id: 'my-requests',
-        label: 'My Requests',
-      });
-    }
-
-    if (canApprove) {
-      result.push({
-        id: 'approvals',
-        label: 'Approvals',
-      });
-    }
-
+    result.push({ id: 'my-requests', label: 'My Requests' });
     return result;
-  }, [
-    canApprove,
-    canMyRequests,
-    canOwned,
-    canRead,
-  ]);
+  }, [canViewAll]);
 
-  const [activeTab, setActiveTab] =
-    useState<TabId>('my-activities');
-
+  const [activeView, setActiveView] = useState<ViewId>('my-activities');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const effectiveTab = tabs.some(
-    (tab) => tab.id === activeTab,
-  )
-    ? activeTab
-    : tabs[0]?.id ?? 'my-activities';
+  const effectiveView = views.some((v) => v.id === activeView)
+    ? activeView
+    : views[0]?.id ?? 'my-activities';
 
   const {
     myActivities,
@@ -137,15 +75,10 @@ export default function KpiActivitiesPage() {
     myError,
     fetchMyActivities,
 
-    managedActivities,
-    isLoadingManaged,
-    managedError,
-    fetchManagedActivities,
-
-    ownedActivities,
-    isLoadingOwned,
-    ownedError,
-    fetchOwnedActivities,
+    allActivities,
+    isLoadingAll,
+    allError,
+    fetchAllActivities,
 
     myRequests,
     isLoadingRequests,
@@ -153,192 +86,59 @@ export default function KpiActivitiesPage() {
     fetchMyRequests,
   } = useActivityData();
 
-  const {
-    pendingRequests,
-    isLoadingPending,
-    pendingError,
-    fetchPending,
-  } = useApprovalData();
+  useEffect(() => {
+    if (effectiveView === 'my-activities') fetchMyActivities();
+  }, [effectiveView, fetchMyActivities]);
 
   useEffect(() => {
-    if (effectiveTab === 'my-activities') {
-      fetchMyActivities();
-    }
-  }, [
-    effectiveTab,
-    fetchMyActivities,
-  ]);
+    if (effectiveView === 'all-activities') fetchAllActivities();
+  }, [effectiveView, fetchAllActivities]);
 
   useEffect(() => {
-    if (effectiveTab === 'managed-activities') {
-      fetchManagedActivities();
-    }
-  }, [
-    effectiveTab,
-    fetchManagedActivities,
-  ]);
+    if (effectiveView === 'my-requests') fetchMyRequests();
+  }, [effectiveView, fetchMyRequests]);
 
-  useEffect(() => {
-    if (effectiveTab === 'owned-activities') {
-      fetchOwnedActivities();
-    }
-  }, [
-    effectiveTab,
-    fetchOwnedActivities,
-  ]);
-
-  useEffect(() => {
-    if (effectiveTab === 'my-requests') {
-      fetchMyRequests();
-    }
-  }, [
-    effectiveTab,
-    fetchMyRequests,
-  ]);
-
-  useEffect(() => {
-    if (effectiveTab === 'approvals') {
-      fetchPending();
-    }
-  }, [
-    effectiveTab,
-    fetchPending,
-  ]);
-
-  const normalizedSearch = searchQuery
-    .trim()
-    .toLowerCase();
+  const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const filteredMyActivities = useMemo(() => {
     const items = myActivities ?? [];
+    if (!normalizedSearch) return items;
+    return items.filter((a) => a.activityName.toLowerCase().includes(normalizedSearch));
+  }, [myActivities, normalizedSearch]);
 
-    if (!normalizedSearch) {
-      return items;
-    }
-
-    return items.filter((activity) =>
-      activity.activityName
-        .toLowerCase()
-        .includes(normalizedSearch),
-    );
-  }, [
-    myActivities,
-    normalizedSearch,
-  ]);
-
-  const filteredManagedActivities = useMemo(() => {
-    const items = managedActivities ?? [];
-
-    if (!normalizedSearch) {
-      return items;
-    }
-
-    return items.filter((activity) =>
-      activity.activityName
-        .toLowerCase()
-        .includes(normalizedSearch),
-    );
-  }, [
-    managedActivities,
-    normalizedSearch,
-  ]);
-
-  const filteredOwnedActivities = useMemo(() => {
-    const items = ownedActivities ?? [];
-
-    if (!normalizedSearch) {
-      return items;
-    }
-
-    return items.filter((activity) =>
-      activity.activityName
-        .toLowerCase()
-        .includes(normalizedSearch),
-    );
-  }, [
-    normalizedSearch,
-    ownedActivities,
-  ]);
+  const filteredAllActivities = useMemo(() => {
+    const items = allActivities ?? [];
+    if (!normalizedSearch) return items;
+    return items.filter((a) => a.activityName.toLowerCase().includes(normalizedSearch));
+  }, [allActivities, normalizedSearch]);
 
   const filteredMyRequests = useMemo(() => {
     const items = myRequests ?? [];
-
-    if (!normalizedSearch) {
-      return items;
-    }
-
-    return items.filter((request) => {
-      const activityName =
-        request.activityName?.toLowerCase() ?? '';
-
-      return (
-        activityName.includes(normalizedSearch) ||
-        request.id
-          .toLowerCase()
-          .includes(normalizedSearch)
-      );
-    });
-  }, [
-    myRequests,
-    normalizedSearch,
-  ]);
-
-  const filteredPendingRequests = useMemo(() => {
-    const items = pendingRequests ?? [];
-
-    if (!normalizedSearch) {
-      return items;
-    }
-
-    return items.filter((request) => {
-      const activityName =
-        request.activityName?.toLowerCase() ?? '';
-
-      return (
-        activityName.includes(normalizedSearch) ||
-        request.id
-          .toLowerCase()
-          .includes(normalizedSearch)
-      );
-    });
-  }, [
-    normalizedSearch,
-    pendingRequests,
-  ]);
+    if (!normalizedSearch) return items;
+    return items.filter((r) =>
+      (r.activityName ?? '').toLowerCase().includes(normalizedSearch)
+      || r.id.toLowerCase().includes(normalizedSearch),
+    );
+  }, [myRequests, normalizedSearch]);
 
   const totalItems = useMemo(() => {
-    switch (effectiveTab) {
+    switch (effectiveView) {
       case 'my-activities': return myActivities?.length ?? 0;
-      case 'managed-activities': return managedActivities?.length ?? 0;
-      case 'owned-activities': return ownedActivities?.length ?? 0;
+      case 'all-activities': return allActivities?.length ?? 0;
       case 'my-requests': return myRequests?.length ?? 0;
-      case 'approvals': return pendingRequests?.length ?? 0;
       default: return 0;
     }
-  }, [effectiveTab, myActivities, managedActivities, ownedActivities, myRequests, pendingRequests]);
+  }, [effectiveView, myActivities, allActivities, myRequests]);
 
-  const isAnyLoading =
-    isLoadingMy ||
-    isLoadingManaged ||
-    isLoadingOwned ||
-    isLoadingRequests ||
-    isLoadingPending;
+  const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingRequests;
 
   const handleRefresh = useCallback(() => {
     void Promise.allSettled([
       fetchMyActivities(),
-      fetchManagedActivities(),
-      fetchOwnedActivities(),
+      fetchAllActivities(),
       fetchMyRequests(),
-      fetchPending(),
     ]);
-  }, [
-    fetchManagedActivities,
-    fetchMyActivities,
-    fetchMyRequests,
-    fetchOwnedActivities,
-    fetchPending,
-  ]);
+  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests]);
 
   const [detailModal, setDetailModal] = useState<{
     isOpen: boolean;
@@ -350,174 +150,29 @@ export default function KpiActivitiesPage() {
     entityId: null,
   });
 
-  const openActivityDetail = useCallback(
-    (id: string) => {
-      setDetailModal({
-        isOpen: true,
-        mode: 'ACTIVITY',
-        entityId: id,
-      });
-    },
-    [],
-  );
+  const openActivityDetail = useCallback((id: string) => {
+    setDetailModal({ isOpen: true, mode: 'ACTIVITY', entityId: id });
+  }, []);
 
-  const openRequestDetail = useCallback(
-    (id: string) => {
-      setDetailModal({
-        isOpen: true,
-        mode: 'REQUEST',
-        entityId: id,
-      });
-    },
-    [],
-  );
+  const openRequestDetail = useCallback((id: string) => {
+    setDetailModal({ isOpen: true, mode: 'REQUEST', entityId: id });
+  }, []);
 
   const closeDetail = useCallback(() => {
-    setDetailModal({
-      isOpen: false,
-      mode: 'ACTIVITY',
-      entityId: null,
-    });
+    setDetailModal({ isOpen: false, mode: 'ACTIVITY', entityId: null });
   }, []);
 
-  const [formModal, setFormModal] = useState<{
-    isOpen: boolean;
-    mode: ActivityFormMode;
-    activity: KpiActivityResponse | null;
-  }>({
-    isOpen: false,
-    mode: 'CREATE_ROOT',
-    activity: null,
-  });
+  // ── Admin create modal state (T10, kpi_activity:manage) ──
+  const [adminCreateOpen, setAdminCreateOpen] = useState(false);
 
-  const openCreateRoot = useCallback(() => {
-    setFormModal({
-      isOpen: true,
-      mode: 'CREATE_ROOT',
-      activity: null,
-    });
-  }, []);
-
-  const openCreateChild = useCallback(
-    (activity: KpiActivityResponse) => {
-      setFormModal({
-        isOpen: true,
-        mode: 'CREATE_CHILD',
-        activity,
-      });
-    },
-    [],
-  );
-
-  const openUpdate = useCallback(
-    (activity: KpiActivityResponse) => {
-      setFormModal({
-        isOpen: true,
-        mode: 'UPDATE',
-        activity,
-      });
-    },
-    [],
-  );
-
-  const closeFormModal = useCallback(() => {
-    setFormModal({
-      isOpen: false,
-      mode: 'CREATE_ROOT',
-      activity: null,
-    });
-  }, []);
-
-  const [cancelDialog, setCancelDialog] = useState<{
-    isOpen: boolean;
-    activity: KpiActivityResponse | null;
-  }>({
-    isOpen: false,
-    activity: null,
-  });
-
-  const openCancel = useCallback(
-    (activity: KpiActivityResponse) => {
-      setCancelDialog({
-        isOpen: true,
-        activity,
-      });
-    },
-    [],
-  );
-
-  const closeCancel = useCallback(() => {
-    setCancelDialog({
-      isOpen: false,
-      activity: null,
-    });
-  }, []);
-
-  const [approvalDialog, setApprovalDialog] = useState<{
-    mode: 'APPROVE' | 'REJECT' | null;
-    request: KpiActivityChangeRequestResponse | null;
-  }>({
-    mode: null,
-    request: null,
-  });
-
-  const openApprove = useCallback(
-    (request: KpiActivityChangeRequestResponse) => {
-      setApprovalDialog({
-        mode: 'APPROVE',
-        request,
-      });
-    },
-    [],
-  );
-
-  const openReject = useCallback(
-    (request: KpiActivityChangeRequestResponse) => {
-      setApprovalDialog({
-        mode: 'REJECT',
-        request,
-      });
-    },
-    [],
-  );
-
-  const closeApprovalDialog = useCallback(() => {
-    setApprovalDialog({
-      mode: null,
-      request: null,
-    });
-  }, []);
-
-  if (!canAccess) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Breadcrumbs>
-          <BreadcrumbsItem href="/">
-            <House className="h-4 w-4" />
-          </BreadcrumbsItem>
-
-          <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Activities</BreadcrumbsItem>
-        </Breadcrumbs>
-
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">
-            {KPI_LABELS.activities}
-          </h1>
-        </div>
-
-        <Alert status="danger">
-          <Alert.Indicator />
-
-          <Alert.Content>
-            <Alert.Title>
-              Access Denied
-            </Alert.Title>
-          </Alert.Content>
-        </Alert>
-      </div>
-    );
-  }
+  const handleAdminCreateSuccess = useCallback(() => {
+    if (effectiveView === 'my-requests') {
+      fetchMyRequests();
+    } else {
+      fetchMyActivities();
+      if (canViewAll) fetchAllActivities();
+    }
+  }, [effectiveView, fetchMyActivities, fetchAllActivities, fetchMyRequests, canViewAll]);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -525,22 +180,20 @@ export default function KpiActivitiesPage() {
         <BreadcrumbsItem href="/">
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
-
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
         <BreadcrumbsItem>Activities</BreadcrumbsItem>
       </Breadcrumbs>
 
-      {/* Row 1: Title + Refresh + Create */}
+      {/* Row 1: Title + Refresh */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">
             {KPI_LABELS.activities}
           </h1>
-
           <Chip
             size="md"
             className="pointer-events-none"
-            aria-label={`Total ${totalItems} activities`}
+            aria-label={`Total ${totalItems} items`}
           >
             {totalItems}
           </Chip>
@@ -555,46 +208,42 @@ export default function KpiActivitiesPage() {
             aria-label="Refresh"
           >
             <ArrowsClockwise
-              className={`h-4 w-4 ${
-                isAnyLoading ? 'animate-spin' : ''
-              }`}
+              className={`h-4 w-4 ${isAnyLoading ? 'animate-spin' : ''}`}
             />
           </Button>
 
-          {canCreateRoot && (
+          {canAdminCreate && (
             <Button
               variant="primary"
-              onPress={openCreateRoot}
+              onPress={() => setAdminCreateOpen(true)}
             >
               <Plus className="h-4 w-4" />
-              Create Activity
+              Admin Create Activity
             </Button>
           )}
         </div>
       </div>
 
-      {/* Row 2: Tabs (left) | Search (right) */}
+      {/* Row 2: Views (left) | Search (right) */}
       <div className="flex min-w-0 items-center justify-between gap-4">
         <div className="min-w-0 flex-1">
           <Tabs
             className="w-full min-w-0"
-            selectedKey={effectiveTab}
-            onSelectionChange={(key) =>
-              setActiveTab(key as TabId)
-            }
+            selectedKey={effectiveView}
+            onSelectionChange={(key) => setActiveView(key as ViewId)}
           >
             <Tabs.ListContainer>
               <Tabs.List
                 aria-label="KPI Activities"
                 className="w-max flex-nowrap"
               >
-                {tabs.map((tab) => (
+                {views.map((view) => (
                   <Tabs.Tab
-                    key={tab.id}
-                    id={tab.id}
+                    key={view.id}
+                    id={view.id}
                     className="w-fit shrink-0 whitespace-nowrap"
                   >
-                    {tab.label}
+                    {view.label}
                     <Tabs.Indicator />
                   </Tabs.Tab>
                 ))}
@@ -611,83 +260,43 @@ export default function KpiActivitiesPage() {
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
-
             <SearchField.Input
               aria-label="Search activities"
               placeholder="Search activities"
             />
-
             <SearchField.ClearButton />
           </SearchField.Group>
         </SearchField>
       </div>
 
-      {/* Active tab table */}
+      {/* Active view table */}
       <div className="w-full">
-        {effectiveTab === 'my-activities' && (
+        {effectiveView === 'my-activities' && (
           <ActivityTable
             items={filteredMyActivities}
             isLoading={isLoadingMy}
             error={myError}
             onViewDetail={openActivityDetail}
-            canRequest={canRequest}
-            onCreateChild={
-              canRequest
-                ? openCreateChild
-                : undefined
-            }
             onRetry={fetchMyActivities}
           />
         )}
 
-        {effectiveTab === 'managed-activities' && (
+        {effectiveView === 'all-activities' && (
           <ActivityTable
-            items={filteredManagedActivities}
-            isLoading={isLoadingManaged}
-            error={managedError}
+            items={filteredAllActivities}
+            isLoading={isLoadingAll}
+            error={allError}
             onViewDetail={openActivityDetail}
-            onRetry={fetchManagedActivities}
+            onRetry={fetchAllActivities}
           />
         )}
 
-        {effectiveTab === 'owned-activities' && (
-          <ActivityTable
-            items={filteredOwnedActivities}
-            isLoading={isLoadingOwned}
-            error={ownedError}
-            onViewDetail={openActivityDetail}
-            canRequest={canRequest}
-            onUpdate={
-              canRequest
-                ? openUpdate
-                : undefined
-            }
-            onCancel={
-              canRequest
-                ? openCancel
-                : undefined
-            }
-            onRetry={fetchOwnedActivities}
-          />
-        )}
-
-        {effectiveTab === 'my-requests' && (
+        {effectiveView === 'my-requests' && (
           <RequestTable
             items={filteredMyRequests}
             isLoading={isLoadingRequests}
             error={requestsError}
             onViewDetail={openRequestDetail}
-          />
-        )}
-
-        {effectiveTab === 'approvals' && (
-          <ApprovalTable
-            items={filteredPendingRequests}
-            isLoading={isLoadingPending}
-            error={pendingError}
-            onViewDetail={openRequestDetail}
-            onApprove={openApprove}
-            onReject={openReject}
           />
         )}
       </div>
@@ -700,40 +309,12 @@ export default function KpiActivitiesPage() {
         entityId={detailModal.entityId}
       />
 
-      <ActivityFormModal
-        key={
-          formModal.isOpen
-            ? `${formModal.mode}-${formModal.activity?.id ?? 'new'}`
-            : 'form-closed'
-        }
-        isOpen={formModal.isOpen}
-        onClose={closeFormModal}
-        mode={formModal.mode}
-        activity={formModal.activity}
+      {/* T10 — administrative Activity create */}
+      <AdminCreateActivityModal
+        isOpen={adminCreateOpen}
+        onClose={() => setAdminCreateOpen(false)}
+        onSuccess={handleAdminCreateSuccess}
       />
-
-      {cancelDialog.activity && (
-        <ActivityCancelDialog
-          key={
-            cancelDialog.isOpen
-              ? cancelDialog.activity.id
-              : 'cancel-closed'
-          }
-          isOpen={cancelDialog.isOpen}
-          onClose={closeCancel}
-          activity={cancelDialog.activity}
-        />
-      )}
-
-      {approvalDialog.request && (
-        <ApprovalDialog
-          key={`${approvalDialog.mode}-${approvalDialog.request.id}`}
-          isOpen={approvalDialog.mode !== null}
-          onClose={closeApprovalDialog}
-          mode={approvalDialog.mode!}
-          request={approvalDialog.request}
-        />
-      )}
     </div>
   );
 }

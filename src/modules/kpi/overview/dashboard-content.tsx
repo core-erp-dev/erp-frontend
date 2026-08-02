@@ -7,15 +7,20 @@ import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_DESCRIPTIONS, KPI_ROUTES } from '@/modules/kpi/constants';
 import { useOverviewData, averageProgress, targetReachedCount, countActiveIndicators } from '@/modules/kpi/overview/use-overview-data';
 import { OverviewSection, MetricBlock } from '@/modules/kpi/overview/overview-section';
-import { REPORT_STATUS_LABEL } from '@/modules/kpi/report/report.types';
-import type { KpiActivityResponse } from '@/modules/kpi/activity/activity.types';
-import type { KpiReportResponse } from '@/modules/kpi/report/report.types';
+import { REPORT_STATUS_LABEL } from '@/modules/kpi/report/report-v1.types';
+import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
+import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
 
+/**
+ * Main Dashboard (`/`) and KPI Dashboard (`/kpi`) content — V1 scopes,
+ * responsibility-based. Any authenticated user can open it; sections are
+ * data-driven with empty/error states. `kpi_activity:approve` gates only the
+ * to-review Activity-request fetch (the scope itself requires it), and
+ * `corporate_kpi:read` gates the Corporate KPI section (unchanged).
+ */
 export function DashboardContent() {
   const {
     myActivities, myActivitiesError,
-    managedActivities, managedActivitiesError,
-    ownedActivities, ownedActivitiesError,
     pendingRequests, pendingRequestsError,
     pendingReviews, pendingReviewsError,
     myReports, myReportsError,
@@ -23,17 +28,10 @@ export function DashboardContent() {
     isLoading,
   } = useOverviewData();
 
-  const { hasPerm, hasAnyPerm } = usePermission();
+  const { hasPerm } = usePermission();
 
-  const canReadActivities = hasPerm(PERM.KPI_ACTIVITY_READ);
-  const canRequest = hasAnyPerm(PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST);
   const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
-  const canReadReports = hasPerm(PERM.KPI_REPORT_READ);
-  const canReviewReports = hasPerm(PERM.KPI_REPORT_REVIEW);
   const canReadCorporateKpi = hasPerm(PERM.CORPORATE_KPI_READ);
-
-  const hasActivitiesContent = canReadActivities || canRequest;
-  const hasPendingContent = canApprove || canReviewReports;
 
   if (isLoading) {
     return (
@@ -59,106 +57,77 @@ export function DashboardContent() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Left column */}
         <div className="flex flex-col gap-6">
-          {hasActivitiesContent && (
-            <OverviewSection
-              title="Activities"
-              error={null}
-              isEmpty={false}
-              footerLink={{ href: KPI_ROUTES.activities, label: 'Open Activities' }}
-            >
-              {canReadActivities && (
-                <ActivitiesMetricBlock
-                  label="My Activities"
-                  activities={myActivities}
-                  error={myActivitiesError}
-                />
-              )}
+          <OverviewSection
+            title="Activities"
+            error={null}
+            isEmpty={false}
+            footerLink={{ href: KPI_ROUTES.activities, label: 'Open Activities' }}
+          >
+            <ActivitiesMetricBlock
+              label="My Activities"
+              activities={myActivities}
+              error={myActivitiesError}
+            />
+          </OverviewSection>
 
-              {canReadActivities && (
-                <ActivitiesMetricBlock
-                  label="Managed Activities"
-                  activities={managedActivities}
-                  error={managedActivitiesError}
-                />
-              )}
+          <OverviewSection
+            title="Pending Actions"
+            error={null}
+            isEmpty={false}
+          >
+            {canApprove && (
+              <MetricBlock
+                label="Activity Requests"
+                metrics={
+                  pendingRequestsError
+                    ? []
+                    : pendingRequests.length > 0
+                      ? [{ label: 'pending', value: pendingRequests.length }]
+                      : []
+                }
+              />
+            )}
+            {canApprove && !pendingRequestsError && pendingRequests.length === 0 && (
+              <p className="text-sm text-muted-foreground">No pending items.</p>
+            )}
+            {canApprove && pendingRequestsError && (
+              <p className="text-sm text-danger">{pendingRequestsError}</p>
+            )}
 
-              {canRequest && (
-                <ActivitiesMetricBlock
-                  label="Owned Activities"
-                  activities={ownedActivities}
-                  error={ownedActivitiesError}
-                  showActiveCancelled
-                />
-              )}
-            </OverviewSection>
-          )}
+            <MetricBlock
+              label="Report Reviews"
+              metrics={
+                pendingReviewsError
+                  ? []
+                  : pendingReviews.length > 0
+                    ? [{ label: 'pending', value: pendingReviews.length }]
+                    : []
+              }
+            />
+            {!pendingReviewsError && pendingReviews.length === 0 && (
+              <p className="text-sm text-muted-foreground">No pending items.</p>
+            )}
+            {pendingReviewsError && (
+              <p className="text-sm text-danger">{pendingReviewsError}</p>
+            )}
 
-          {hasPendingContent && (
-            <OverviewSection
-              title="Pending Actions"
-              error={null}
-              isEmpty={false}
-            >
+            <div className="mt-2 flex gap-3">
               {canApprove && (
-                <MetricBlock
-                  label="Activity Requests"
-                  metrics={
-                    pendingRequestsError
-                      ? []
-                      : pendingRequests.length > 0
-                        ? [{ label: 'pending', value: pendingRequests.length }]
-                        : []
-                  }
-                />
+                <a
+                  href={KPI_ROUTES.approvals}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Open Approvals
+                </a>
               )}
-              {canApprove && !pendingRequestsError && pendingRequests.length === 0 && (
-                <p className="text-sm text-muted-foreground">No pending items.</p>
-              )}
-              {canApprove && pendingRequestsError && (
-                <p className="text-sm text-danger">{pendingRequestsError}</p>
-              )}
-
-              {canReviewReports && (
-                <MetricBlock
-                  label="Report Reviews"
-                  metrics={
-                    pendingReviewsError
-                      ? []
-                      : pendingReviews.length > 0
-                        ? [{ label: 'pending', value: pendingReviews.length }]
-                        : []
-                  }
-                />
-              )}
-              {canReviewReports && !pendingReviewsError && pendingReviews.length === 0 && (
-                <p className="text-sm text-muted-foreground">No pending items.</p>
-              )}
-              {canReviewReports && pendingReviewsError && (
-                <p className="text-sm text-danger">{pendingReviewsError}</p>
-              )}
-
-              {(canApprove || canReviewReports) && (
-                <div className="mt-2 flex gap-3">
-                  {canApprove && (
-                    <a
-                      href={KPI_ROUTES.approvals}
-                      className="text-sm font-medium text-primary hover:underline"
-                    >
-                      Open Approvals
-                    </a>
-                  )}
-                  {canReviewReports && (
-                    <a
-                      href={KPI_ROUTES.reports}
-                      className="text-sm font-medium text-primary hover:underline"
-                    >
-                      Open Reports
-                    </a>
-                  )}
-                </div>
-              )}
-            </OverviewSection>
-          )}
+              <a
+                href={KPI_ROUTES.reports}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Open Reports
+              </a>
+            </div>
+          </OverviewSection>
 
           {canReadCorporateKpi && (
             <OverviewSection
@@ -182,23 +151,21 @@ export function DashboardContent() {
 
         {/* Right column */}
         <div className="flex flex-col gap-6">
-          {canReadReports && (
-            <OverviewSection
-              title="Recent Reports"
-              error={myReportsError}
-              isEmpty={!myReportsError && myReports.length === 0}
-              emptyMessage="No reports found."
-              footerLink={{ href: KPI_ROUTES.reports, label: 'Open Reports' }}
-            >
-              {!myReportsError && myReports.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {myReports.slice(0, 5).map((report) => (
-                    <ReportRow key={report.id} report={report} />
-                  ))}
-                </div>
-              )}
-            </OverviewSection>
-          )}
+          <OverviewSection
+            title="Recent Reports"
+            error={myReportsError}
+            isEmpty={!myReportsError && myReports.length === 0}
+            emptyMessage="No reports found."
+            footerLink={{ href: KPI_ROUTES.reports, label: 'Open Reports' }}
+          >
+            {!myReportsError && myReports.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {myReports.slice(0, 5).map((report) => (
+                  <ReportRow key={report.id} report={report} />
+                ))}
+              </div>
+            )}
+          </OverviewSection>
         </div>
       </div>
     </div>
@@ -211,12 +178,10 @@ function ActivitiesMetricBlock({
   label,
   activities,
   error,
-  showActiveCancelled,
 }: {
   label: string;
   activities: KpiActivityResponse[];
   error: string | null;
-  showActiveCancelled?: boolean;
 }) {
   if (error) {
     return <p className="text-sm text-danger">{error}</p>;
@@ -231,13 +196,6 @@ function ActivitiesMetricBlock({
     { label: 'avg', value: `${averageProgress(activities) ?? '—'}%` },
     { label: 'target reached', value: targetReachedCount(activities) },
   ];
-
-  if (showActiveCancelled) {
-    const activeCount = activities.filter((a) => a.status === 'ACTIVE').length;
-    const cancelledCount = activities.filter((a) => a.status === 'CANCELLED').length;
-    metrics.push({ label: 'active', value: activeCount });
-    metrics.push({ label: 'cancelled', value: cancelledCount });
-  }
 
   return <MetricBlock label={label} metrics={metrics} />;
 }

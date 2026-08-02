@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
-import { ArrowsClockwise, House } from '@phosphor-icons/react';
+import { ArrowsClockwise, House, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS } from '@/modules/kpi/constants';
@@ -10,20 +10,35 @@ import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
 import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
 import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
 import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
-import type { KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity.types';
+import { ReassignApproverDialog } from '@/modules/kpi/admin/reassign-approver-dialog';
+import type { KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity-v1.types';
 
+/**
+ * Activity Approvals — standalone page (`/kpi/approvals`).
+ *
+ * Owns: request `scope=to-review`, approval request detail, the unified
+ * APPROVE/REJECT decision (T8), conditional rejection reason, stored-approver
+ * and maker–checker UX, already-processed recovery, and refetch after
+ * decisions. It is NOT a tab of `/kpi/activities` and is NOT deleted or
+ * redirected. Guarded by exactly `kpi_activity:approve` (sidebar + page).
+ */
 export default function KpiApprovalsPage() {
   const { hasPerm } = usePermission();
   const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
+  // T9 administrative tool — manage is NOT an approval bypass; it only enables
+  // stuck-request approver reassignment.
+  const canReassignApprover = hasPerm(PERM.KPI_ACTIVITY_MANAGE);
 
   const {
-    pendingRequests, isLoadingPending, pendingError, fetchPending,
+    toReview, isLoading, error, fetchToReview,
+    isDeciding,
+    recoverable, clearRecoverable,
   } = useApprovalData();
 
   // Fetch on mount
   useEffect(() => {
-    if (canApprove) fetchPending();
-  }, [canApprove, fetchPending]);
+    if (canApprove) fetchToReview();
+  }, [canApprove, fetchToReview]);
 
   // ── Detail modal state ──
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -58,6 +73,17 @@ export default function KpiApprovalsPage() {
     setDialogRequest(null);
   }, []);
 
+  // ── Reassign approver dialog state (T9, kpi_activity:manage) ──
+  const [reassignRequest, setReassignRequest] = useState<KpiActivityChangeRequestResponse | null>(null);
+
+  const openReassign = useCallback((req: KpiActivityChangeRequestResponse) => {
+    setReassignRequest(req);
+  }, []);
+
+  const closeReassign = useCallback(() => {
+    setReassignRequest(null);
+  }, []);
+
   // ── Permission guard ──
   if (!canApprove) {
     return (
@@ -90,21 +116,46 @@ export default function KpiApprovalsPage() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.approvals}</h1>
-        <Button isIconOnly variant="tertiary" onPress={fetchPending} aria-label="Refresh">
-          <ArrowsClockwise className="h-4 w-4" />
+        <Button isIconOnly variant="tertiary" onPress={fetchToReview} isDisabled={isLoading} aria-label="Refresh">
+          <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 
+      {/* Recoverable conflict banner (already-processed / version-conflict) */}
+      {recoverable && (
+        <div className="relative">
+          <Alert status="warning">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Request Already Processed</Alert.Title>
+              <Alert.Description>{recoverable.message}</Alert.Description>
+            </Alert.Content>
+          </Alert>
+          <Button
+            isIconOnly
+            variant="tertiary"
+            size="sm"
+            className="absolute right-2 top-2"
+            onPress={clearRecoverable}
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       <ApprovalTable
-        items={pendingRequests}
-        isLoading={isLoadingPending}
-        error={pendingError}
+        items={toReview}
+        isLoading={isLoading}
+        error={error}
         onViewDetail={openDetail}
         onApprove={openApprove}
         onReject={openReject}
+        onReassignApprover={canReassignApprover ? openReassign : undefined}
+        onRetry={fetchToReview}
       />
 
-      {/* Detail Modal */}
+      {/* Detail Modal — shared with /kpi/activities */}
       <KpiActivityDetailModal
         key={detailId || 'closed'}
         isOpen={detailOpen}
@@ -113,7 +164,7 @@ export default function KpiApprovalsPage() {
         entityId={detailId}
       />
 
-      {/* Approve / Reject Dialog */}
+      {/* Approve / Reject Dialog — unified decision */}
       {dialogMode && dialogRequest && (
         <ApprovalDialog
           key={`${dialogMode}-${dialogRequest.id}`}
@@ -121,6 +172,21 @@ export default function KpiApprovalsPage() {
           onClose={closeDialog}
           mode={dialogMode}
           request={dialogRequest}
+        />
+      )}
+
+      {isDeciding && (
+        <div className="sr-only" aria-live="polite">Processing decision...</div>
+      )}
+
+      {/* T9 — administrative approver reassignment */}
+      {reassignRequest && (
+        <ReassignApproverDialog
+          key={reassignRequest.id}
+          isOpen={true}
+          onClose={closeReassign}
+          request={reassignRequest}
+          onSuccess={fetchToReview}
         />
       )}
     </div>

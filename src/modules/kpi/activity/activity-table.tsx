@@ -2,23 +2,20 @@
 
 import React from 'react';
 import { Table, Chip, ProgressBar, Button, Spinner } from '@heroui/react';
-import { Eye, Tray, TreeStructure, PencilSimple, X as XIcon } from '@phosphor-icons/react';
+import { Eye, Tray } from '@phosphor-icons/react';
 import {
   ACTIVITY_STATUS_LABEL,
   type KpiActivityResponse,
   type KpiActivityStatus,
-} from './activity.types';
+} from './activity-v1.types';
 
 interface ActivityTableProps {
   items: KpiActivityResponse[];
   isLoading: boolean;
   error: string | null;
   onViewDetail: (id: string) => void;
-  /** P2.2 mutation actions — only active when kpi_activity:request is granted. */
-  canRequest?: boolean;
-  onCreateChild?: (activity: KpiActivityResponse) => void;
-  onUpdate?: (activity: KpiActivityResponse) => void;
-  onCancel?: (activity: KpiActivityResponse) => void;
+  /** Show the exact assignee identity column (used by the All Activities view). */
+  showAssignee?: boolean;
   onRetry?: () => void;
 }
 
@@ -29,12 +26,14 @@ const ACTIVITY_STATUS_CHIP_COLOR: Record<KpiActivityStatus, 'default' | 'success
   CANCELLED: 'default',
 };
 
+/**
+ * Activity table — view-only. Mutation actions (create child / update / cancel)
+ * are not rendered: they require an explicit acting Position that has no
+ * frontend data source yet (plan §15.1).
+ */
 export function ActivityTable({
-  items, isLoading, error, onViewDetail,
-  canRequest, onCreateChild, onUpdate, onCancel, onRetry,
+  items, isLoading, error, onViewDetail, showAssignee, onRetry,
 }: ActivityTableProps) {
-  const showActions = canRequest && (onCreateChild || onUpdate || onCancel);
-
   return (
     <Table key="kpi-activity-table" aria-label="KPI Activities">
       <Table.ScrollContainer>
@@ -43,12 +42,13 @@ export function ActivityTable({
             <Table.Column isRowHeader id="activityName">Activity Name</Table.Column>
             <Table.Column id="parentActivity">Parent Activity</Table.Column>
             <Table.Column id="corporateKpi">Corporate KPI</Table.Column>
+            {showAssignee && <Table.Column id="assignee">Assignee</Table.Column>}
             <Table.Column id="period">Period</Table.Column>
             <Table.Column id="target">Target</Table.Column>
             <Table.Column id="realized">Realized</Table.Column>
             <Table.Column id="progress">Progress</Table.Column>
             <Table.Column id="status">Status</Table.Column>
-            {showActions && <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>}
+            <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>
           </Table.Header>
           <Table.Body
             renderEmptyState={() => {
@@ -90,6 +90,11 @@ export function ActivityTable({
                 <Table.Cell className="text-muted-foreground">
                   {item.corporateKpiName}
                 </Table.Cell>
+                {showAssignee && (
+                  <Table.Cell className="text-muted-foreground">
+                    {item.assignedToUserName}
+                  </Table.Cell>
+                )}
                 <Table.Cell className="text-muted-foreground">
                   {`${item.periodYear}-${String(item.periodMonth).padStart(2, '0')}`}
                 </Table.Cell>
@@ -117,58 +122,19 @@ export function ActivityTable({
                     {ACTIVITY_STATUS_LABEL[item.status]}
                   </Chip>
                 </Table.Cell>
-                {showActions && (
-                  <Table.Cell>
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        isIconOnly
-                        variant="tertiary"
-                        size="sm"
-                        aria-label={`View detail for ${item.activityName}`}
-                        onPress={() => onViewDetail(item.id)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {item.status === 'ACTIVE' && (
-                        <>
-                          {onCreateChild && (
-                            <Button
-                              isIconOnly
-                              variant="tertiary"
-                              size="sm"
-                              aria-label={`Create child for ${item.activityName}`}
-                              onPress={() => onCreateChild(item)}
-                            >
-                              <TreeStructure className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {onUpdate && (
-                            <Button
-                              isIconOnly
-                              variant="tertiary"
-                              size="sm"
-                              aria-label={`Update ${item.activityName}`}
-                              onPress={() => onUpdate(item)}
-                            >
-                              <PencilSimple className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {onCancel && (
-                            <Button
-                              isIconOnly
-                              variant="danger-soft"
-                              size="sm"
-                              aria-label={`Cancel ${item.activityName}`}
-                              onPress={() => onCancel(item)}
-                            >
-                              <XIcon className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </Table.Cell>
-                )}
+                <Table.Cell>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      isIconOnly
+                      variant="tertiary"
+                      size="sm"
+                      aria-label={`View detail for ${item.activityName}`}
+                      onPress={() => onViewDetail(item.id)}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>

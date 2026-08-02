@@ -1,10 +1,11 @@
 /**
- * KPI Report — DTOs matching backend contracts.
- * Backend source: KpiReportResponse.java, KpiReportStatus.java,
- * SubmitReportRequest.java, RejectReportRequest.java
+ * KPI Report — V1 contract types (erp-backend @ d06ff13).
+ *
+ * KpiReportResponse: reviewerUserId/reviewerUserName are the CANONICAL
+ * reviewer identity (always present); reviewerUserPositionId/reviewerPositionName
+ * are optional organisational context (null for positionless reviewers).
+ * No evidence path/URL is exposed — only safe metadata.
  */
-
-/* ── Report Status ── */
 
 export type KpiReportStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -14,10 +15,10 @@ export const REPORT_STATUS_LABEL: Record<KpiReportStatus, string> = {
   REJECTED: 'Rejected',
 };
 
-export const REPORT_STATUS_VARIANT: Record<KpiReportStatus, 'primary' | 'secondary' | 'soft'> = {
-  PENDING: 'soft',
-  APPROVED: 'primary',
-  REJECTED: 'secondary',
+export const REPORT_STATUS_CHIP_COLOR: Record<KpiReportStatus, 'warning' | 'success' | 'danger'> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'danger',
 };
 
 /* ── Response DTO ── */
@@ -31,9 +32,12 @@ export interface KpiReportResponse {
   submittedByUserPositionId: string;
   submittedByUserName: string;
   submittedByPositionName: string;
-  reviewerUserPositionId: string;
+  /** Canonical reviewer identity — always present. */
+  reviewerUserId: string;
   reviewerUserName: string;
-  reviewerPositionName: string;
+  /** Optional organisational context — null for positionless reviewers. */
+  reviewerUserPositionId: string | null;
+  reviewerPositionName: string | null;
   reportDate: string;
   executionDescription: string;
   realizedValue: number;

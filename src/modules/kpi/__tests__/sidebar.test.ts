@@ -1,190 +1,70 @@
 /**
- * KPI sidebar structure and permission visibility tests.
+ * KPI navigation tests — verify the CANONICAL sidebar source
+ * (`src/config/navigation.ts`, consumed by `src/components/layout/sidebar.tsx`).
+ *
+ * The stale `src/modules/kpi/sidebar.ts` duplicate was deleted (zero
+ * production callers); these tests assert the single source of truth.
  */
-import { kpiSidebar } from '@/modules/kpi/sidebar';
+import { navigationConfig } from '@/config/navigation';
 import { PERM } from '@/constants/permissions';
-import { KPI_ROUTES, KPI_ANY_PERMISSION } from '@/modules/kpi/constants';
+import { KPI_ROUTES } from '@/modules/kpi/constants';
 
-describe('KPI sidebar configuration', () => {
-  it('contains exactly 5 KPI sidebar items', () => {
-    expect(kpiSidebar).toHaveLength(5);
+const kpiItems = navigationConfig.filter((item) => item.group === 'KPI');
+
+describe('KPI sidebar configuration (canonical navigationConfig)', () => {
+  it('contains exactly 4 KPI items', () => {
+    expect(kpiItems).toHaveLength(4);
   });
 
-  it('all items belong to KPI group', () => {
-    for (const item of kpiSidebar) {
-      expect(item.group).toBe('KPI');
+  it('contains separate Activities and Activity Approvals entries', () => {
+    const activities = kpiItems.find((i) => i.href === KPI_ROUTES.activities);
+    const approvals = kpiItems.find((i) => i.href === KPI_ROUTES.approvals);
+    expect(activities?.title).toBe('Activities');
+    expect(approvals?.title).toBe('Activity Approvals');
+    // Separate pages — never the same href, never a tab of each other.
+    expect(KPI_ROUTES.activities).not.toBe(KPI_ROUTES.approvals);
+  });
+
+  it('Activities is discoverable by any authenticated user (no permission gate)', () => {
+    const activities = kpiItems.find((i) => i.href === KPI_ROUTES.activities);
+    expect(activities?.permissions).toBeUndefined();
+    expect(activities?.capability).toBeUndefined();
+    expect(activities?.roles).toBeUndefined();
+  });
+
+  it('Activity Approvals requires exactly kpi_activity:approve', () => {
+    const approvals = kpiItems.find((i) => i.href === KPI_ROUTES.approvals);
+    expect(approvals?.permissions).toEqual([PERM.KPI_ACTIVITY_APPROVE]);
+  });
+
+  it('Activity Approvals is not gated by kpi_activity:manage', () => {
+    const approvals = kpiItems.find((i) => i.href === KPI_ROUTES.approvals);
+    expect(approvals?.permissions).not.toContain(PERM.KPI_ACTIVITY_MANAGE);
+  });
+
+  it('Reports is discoverable by any authenticated user (no gate; manage is not required)', () => {
+    const reports = kpiItems.find((i) => i.href === KPI_ROUTES.reports);
+    expect(reports?.permissions).toBeUndefined();
+    expect(reports?.capability).toBeUndefined();
+    expect(reports?.roles).toBeUndefined();
+  });
+
+  it('Corporate KPI keeps the existing corporate_kpi:read gate', () => {
+    const corporate = kpiItems.find((i) => i.href === KPI_ROUTES.corporate);
+    expect(corporate?.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
+  });
+
+  it('Dashboard points to / and sits outside the KPI group', () => {
+    const dashboard = navigationConfig.find((i) => i.title === 'Dashboard');
+    expect(dashboard?.href).toBe('/');
+    expect(dashboard?.group).toBeUndefined();
+    expect(kpiItems.some((i) => i.title === 'Dashboard')).toBe(false);
+  });
+
+  it('defines every canonical KPI route exactly once', () => {
+    const hrefs = kpiItems.map((i) => i.href);
+    for (const route of [KPI_ROUTES.corporate, KPI_ROUTES.activities, KPI_ROUTES.approvals, KPI_ROUTES.reports]) {
+      expect(hrefs.filter((h) => h === route)).toHaveLength(1);
     }
-  });
-
-  it('Overview is labeled "Overview"', () => {
-    const overview = kpiSidebar.find((i) => i.href === KPI_ROUTES.overview);
-    expect(overview).toBeDefined();
-    expect(overview!.title).toBe('Overview');
-  });
-
-  it('has correct item titles', () => {
-    const titles = kpiSidebar.map((i) => i.title);
-    expect(titles).toEqual([
-      'Overview',
-      'Corporate KPI',
-      'Activities',
-      'Reports',
-      'Approvals',
-    ]);
-  });
-
-  it('has correct href paths', () => {
-    const hrefs = kpiSidebar.map((i) => i.href);
-    expect(hrefs).toEqual([
-      '/kpi',
-      '/kpi/corporate',
-      '/kpi/activities',
-      '/kpi/reports',
-      '/kpi/approvals',
-    ]);
-  });
-
-  it('every item has a valid Phosphor icon', () => {
-    for (const item of kpiSidebar) {
-      expect(item.icon).toBeDefined();
-      expect(item.icon).not.toBeNull();
-    }
-  });
-
-  it('every item has at least one permission or a capability callback', () => {
-    for (const item of kpiSidebar) {
-      const hasPerms = item.permissions && item.permissions.length > 0;
-      const hasCapability = typeof item.capability === 'function';
-      expect(hasPerms || hasCapability).toBe(true);
-    }
-  });
-});
-
-describe('KPI permission visibility rules', () => {
-  it('Overview is visible with any KPI permission', () => {
-    const overview = kpiSidebar.find((i) => i.href === KPI_ROUTES.overview)!;
-    // Derived from the production constant — the full KPI permission surface.
-    expect(overview.permissions).toHaveLength(KPI_ANY_PERMISSION.length);
-    expect(overview.permissions).toEqual(expect.arrayContaining(KPI_ANY_PERMISSION));
-  });
-
-  it('Corporate KPI requires corporate_kpi:read', () => {
-    const corporate = kpiSidebar.find((i) => i.href === KPI_ROUTES.corporate)!;
-    expect(corporate.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
-  });
-
-  it('Activities is visible with read, request, or root_request permission (not approve)', () => {
-    const activities = kpiSidebar.find((i) => i.href === KPI_ROUTES.activities)!;
-    expect(activities.permissions).toHaveLength(3);
-    expect(activities.permissions).toEqual([
-      PERM.KPI_ACTIVITY_READ,
-      PERM.KPI_ACTIVITY_REQUEST,
-      PERM.KPI_ACTIVITY_ROOT_REQUEST,
-    ]);
-    expect(activities.permissions).not.toContain(PERM.KPI_ACTIVITY_APPROVE);
-  });
-
-  it('Reports uses capability callback for compound AND/OR logic', () => {
-    const reports = kpiSidebar.find((i) => i.href === KPI_ROUTES.reports)!;
-    expect(typeof reports.capability).toBe('function');
-    expect(reports.permissions).toBeUndefined();
-
-    expect(reports.capability!(['kpi_report:read'])).toBe(true);
-    expect(reports.capability!(['kpi_report:review'])).toBe(true);
-    expect(reports.capability!(['kpi_report:submit'])).toBe(false);
-    expect(reports.capability!(['kpi_report:submit', 'kpi_activity:read'])).toBe(true);
-    expect(reports.capability!([])).toBe(false);
-  });
-
-  it('Approvals requires kpi_activity:approve only', () => {
-    const approvals = kpiSidebar.find((i) => i.href === KPI_ROUTES.approvals)!;
-    expect(approvals.permissions).toEqual([PERM.KPI_ACTIVITY_APPROVE]);
-    expect(approvals.permissions).toHaveLength(1);
-  });
-
-  it('no sidebar item uses role-based filtering', () => {
-    for (const item of kpiSidebar) {
-      expect(item.roles).toBeUndefined();
-    }
-  });
-});
-
-describe('KPI permission constants', () => {
-  it('all KPI permissions are defined in PERM', () => {
-    const kpiPerms = [
-      PERM.CORPORATE_KPI_READ,
-      PERM.CORPORATE_KPI_MANAGE,
-      PERM.KPI_ACTIVITY_READ,
-      PERM.KPI_ACTIVITY_REQUEST,
-      PERM.KPI_ACTIVITY_ROOT_REQUEST,
-      PERM.KPI_ACTIVITY_APPROVE,
-      PERM.KPI_REPORT_READ,
-      PERM.KPI_REPORT_SUBMIT,
-      PERM.KPI_REPORT_REVIEW,
-    ];
-    // Derived from the production constant — the full KPI permission surface.
-    expect(kpiPerms).toHaveLength(KPI_ANY_PERMISSION.length);
-    expect(KPI_ANY_PERMISSION).toEqual(expect.arrayContaining(kpiPerms));
-    expect(kpiPerms).toEqual(expect.arrayContaining(KPI_ANY_PERMISSION));
-    for (const p of kpiPerms) {
-      expect(typeof p).toBe('string');
-      expect(p).toBeTruthy();
-    }
-  });
-
-  it('KPI permission values match backend contracts', () => {
-    expect(PERM.CORPORATE_KPI_READ).toBe('corporate_kpi:read');
-    expect(PERM.CORPORATE_KPI_MANAGE).toBe('corporate_kpi:manage');
-
-    expect(PERM.KPI_ACTIVITY_READ).toBe('kpi_activity:read');
-    expect(PERM.KPI_ACTIVITY_REQUEST).toBe('kpi_activity:request');
-    expect(PERM.KPI_ACTIVITY_ROOT_REQUEST).toBe('kpi_activity:root_request');
-    expect(PERM.KPI_ACTIVITY_APPROVE).toBe('kpi_activity:approve');
-
-    expect(PERM.KPI_REPORT_READ).toBe('kpi_report:read');
-    expect(PERM.KPI_REPORT_SUBMIT).toBe('kpi_report:submit');
-    expect(PERM.KPI_REPORT_REVIEW).toBe('kpi_report:review');
-  });
-
-  it('existing non-KPI permissions are unchanged', () => {
-    expect(PERM.USER_READ).toBe('user:read');
-    expect(PERM.POSITION_READ).toBe('position:read');
-    expect(PERM.ROLE_READ).toBe('role:read');
-    expect(PERM.PERMISSION_READ).toBe('permission:read');
-  });
-});
-
-describe('KPI route constants', () => {
-  it('all 5 KPI routes are defined', () => {
-    expect(KPI_ROUTES.overview).toBe('/kpi');
-    expect(KPI_ROUTES.corporate).toBe('/kpi/corporate');
-    expect(KPI_ROUTES.activities).toBe('/kpi/activities');
-    expect(KPI_ROUTES.reports).toBe('/kpi/reports');
-    expect(KPI_ROUTES.approvals).toBe('/kpi/approvals');
-  });
-
-  it('all routes are under /kpi/', () => {
-    for (const route of Object.values(KPI_ROUTES)) {
-      expect(route).toMatch(/^\/kpi/);
-    }
-  });
-});
-
-describe('KPI sidebar scope', () => {
-  it('KPI sidebar does not contain legacy terminology', () => {
-    const titles = kpiSidebar.map((i) => i.title).join(' ');
-    expect(titles).not.toMatch(/KpiTask|Task KPI|Kinerja Tim|Kinerja Individu|Admin KPI|Dashboard KPI/i);
-  });
-
-  it('KPI sidebar does not contain Organization items', () => {
-    const hrefs = kpiSidebar.map((i) => i.href);
-    expect(hrefs).not.toContain('/organization/employees');
-    expect(hrefs).not.toContain('/organization/positions');
-  });
-
-  it('KPI sidebar does not contain Settings items', () => {
-    const hrefs = kpiSidebar.map((i) => i.href);
-    expect(hrefs).not.toContain('/settings');
-    expect(hrefs).not.toContain('/settings/roles');
   });
 });

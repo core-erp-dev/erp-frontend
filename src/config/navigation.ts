@@ -1,6 +1,6 @@
-import { ChartBar, Buildings, ClipboardText, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
+import { ChartBar, Buildings, ClipboardText, Checks, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
 import type React from 'react';
-import { KPI_ROUTES, KPI_ANY_PERMISSION } from '@/modules/kpi/constants';
+import { KPI_ROUTES } from '@/modules/kpi/constants';
 import { PERM } from '@/constants/permissions';
 
 export interface SidebarItem {
@@ -14,15 +14,26 @@ export interface SidebarItem {
   capability?: (permissions: string[]) => boolean;
 }
 
+/**
+ * Canonical sidebar source — the ONLY navigation definition consumed by
+ * `src/components/layout/sidebar.tsx`. `src/modules/kpi/sidebar.ts` is a stale
+ * duplicate and has been deleted (zero production callers).
+ *
+ * KPI access model (V1, responsibility-based):
+ *   - Dashboard, Activities, Reports: any authenticated user (no gate).
+ *   - Activity Approvals: exactly `kpi_activity:approve` — `manage` is never a bypass.
+ *   - Corporate KPI: `corporate_kpi:read` (unchanged).
+ * Permission codes gate only their elevated actions/scopes, never module entry points.
+ */
 export const navigationConfig: SidebarItem[] = [
-  // ── KPI ──
+  // ── DASHBOARD (outside the KPI group, at `/`) ──
   {
     title: 'Dashboard',
-    href: KPI_ROUTES.overview,
+    href: '/',
     icon: ChartBar,
-    group: 'KPI',
-    permissions: [...KPI_ANY_PERMISSION] as unknown as string[],
   },
+
+  // ── KPI ──
   {
     title: 'Corporate KPI',
     href: KPI_ROUTES.corporate,
@@ -35,17 +46,22 @@ export const navigationConfig: SidebarItem[] = [
     href: KPI_ROUTES.activities,
     icon: ClipboardText,
     group: 'KPI',
-    permissions: [PERM.KPI_ACTIVITY_READ, PERM.KPI_ACTIVITY_REQUEST, PERM.KPI_ACTIVITY_ROOT_REQUEST, PERM.KPI_ACTIVITY_APPROVE],
+    // Any authenticated user — `scope=mine` reads are responsibility-based.
+  },
+  {
+    title: 'Activity Approvals',
+    href: KPI_ROUTES.approvals,
+    icon: Checks,
+    group: 'KPI',
+    permissions: [PERM.KPI_ACTIVITY_APPROVE],
   },
   {
     title: 'Reports',
     href: KPI_ROUTES.reports,
     icon: Article,
     group: 'KPI',
-    capability: (perms: string[]) =>
-      perms.includes('kpi_report:read') ||
-      perms.includes('kpi_report:review') ||
-      (perms.includes('kpi_report:submit') && perms.includes('kpi_activity:read')),
+    // Any authenticated user — submission, `scope=mine`, and stored-reviewer
+    // access are responsibility-based. `kpi_report:manage` gates only admin tools.
   },
 
   // ── ORGANIZATION ──

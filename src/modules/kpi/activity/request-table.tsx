@@ -9,7 +9,7 @@ import {
   type KpiActivityChangeRequestResponse,
   type KpiActivityRequestType,
   type KpiActivityRequestStatus,
-} from './activity.types';
+} from './activity-v1.types';
 
 /* ── Chip color maps ── */
 
@@ -54,10 +54,11 @@ export function RequestTable({ items, isLoading, error, onViewDetail, onRetry }:
   return (
     <Table key="request-table">
       <Table.ScrollContainer>
-        <Table.Content aria-label="Activity Requests" className="min-w-[800px]">
+        <Table.Content aria-label="Activity Requests" className="min-w-[900px]">
           <Table.Header>
             <Table.Column isRowHeader id="requestType">Request Type</Table.Column>
             <Table.Column id="activityName">Activity Name</Table.Column>
+            <Table.Column id="approver">Approver</Table.Column>
             <Table.Column id="status">Status</Table.Column>
             <Table.Column id="created">Created</Table.Column>
             <Table.Column id="reviewed">Reviewed</Table.Column>
@@ -102,6 +103,9 @@ export function RequestTable({ items, isLoading, error, onViewDetail, onRetry }:
                 </Table.Cell>
                 <Table.Cell className="text-muted-foreground">
                   {item.activityName || '-'}
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">
+                  {item.approverUserName || '-'}
                 </Table.Cell>
                 <Table.Cell>
                   <Chip size="sm" color={REQUEST_STATUS_CHIP_COLOR[item.status]} variant="soft">

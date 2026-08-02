@@ -2,33 +2,45 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@heroui/react';
-import { activityApi } from './activity-api';
-import { mapActivityError } from './activity-error-mapper';
-import type { KpiActivityChangeRequestResponse, KpiActivityResponse } from './activity.types';
+import { activityV1Api } from './activity-v1-api';
+import { extractErrorMessage } from '@/types/api';
+import {
+  classifyActivityError,
+  recoverableConflict,
+  type RecoverableConflict,
+} from '@/modules/kpi/shared/domain-errors';
+import type { KpiActivityChangeRequestResponse } from './activity-v1.types';
+import type { RequestDecisionRequest } from './activity-v1.types';
 
+/**
+ * Activity approval data hook (V1) — owns the `/kpi/approvals` surface.
+ *   - queue: GET /api/v1/kpi-activity-requests?scope=to-review
+ *   - decision: PATCH /api/v1/kpi-activity-requests/{id}/decision (unified)
+ * Already-processed / version-conflict failures surface as a recoverable
+ * banner + automatic refetch — never a generic unknown-error toast.
+ */
 export interface UseApprovalDataReturn {
-  /* Pending queue */
-  pendingRequests: KpiActivityChangeRequestResponse[];
-  isLoadingPending: boolean;
-  pendingError: string | null;
-  fetchPending: () => Promise<void>;
+  /* To-review queue (scope=to-review) */
+  toReview: KpiActivityChangeRequestResponse[];
+  isLoading: boolean;
+  error: string | null;
+  fetchToReview: () => Promise<void>;
 
-  /* Detail fetch */
-  fetchRequestDetail: (id: string) => Promise<KpiActivityChangeRequestResponse | null>;
-  fetchCurrentActivity: (id: string) => Promise<KpiActivityResponse | null>;
+  /* Unified decision */
+  isDeciding: boolean;
+  decide: (id: string, body: RequestDecisionRequest) => Promise<boolean>;
 
-  /* Mutations */
-  isApproving: boolean;
-  approve: (id: string) => Promise<boolean>;
-  reject: (id: string, reason: string) => Promise<boolean>;
+  /* Recoverable conflict (already-processed / version-conflict) */
+  recoverable: RecoverableConflict | null;
+  clearRecoverable: () => void;
 }
 
 export function useApprovalData(): UseApprovalDataReturn {
-  const [pendingRequests, setPendingRequests] = useState<KpiActivityChangeRequestResponse[]>([]);
-  const [isLoadingPending, setIsLoadingPending] = useState(false);
-  const [pendingError, setPendingError] = useState<string | null>(null);
-
-  const [isApproving, setIsApproving] = useState(false);
+  const [toReview, setToReview] = useState<KpiActivityChangeRequestResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeciding, setIsDeciding] = useState(false);
+  const [recoverable, setRecoverable] = useState<RecoverableConflict | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -36,71 +48,54 @@ export function useApprovalData(): UseApprovalDataReturn {
     return () => { mountedRef.current = false; };
   }, []);
 
-  const fetchPending = useCallback(async () => {
-    setIsLoadingPending(true);
-    setPendingError(null);
+  const fetchToReview = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      const data = await activityApi.getPendingRequests();
-      if (mountedRef.current) setPendingRequests(data);
+      const data = await activityV1Api.getRequests('to-review');
+      if (mountedRef.current) setToReview(data);
     } catch (err: unknown) {
-      const msg = mapActivityError(err, 'Failed to load pending requests.');
-      if (mountedRef.current) { setPendingError(msg); setPendingRequests([]); }
+      const msg = extractErrorMessage(err, 'Failed to load approval requests.');
+      if (mountedRef.current) { setError(msg); setToReview([]); }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoadingPending(false);
+      if (mountedRef.current) setIsLoading(false);
     }
   }, []);
 
-  const fetchRequestDetail = useCallback(async (id: string): Promise<KpiActivityChangeRequestResponse | null> => {
+  const decide = useCallback(async (id: string, body: RequestDecisionRequest): Promise<boolean> => {
+    setIsDeciding(true);
     try {
-      return await activityApi.getRequestById(id);
-    } catch (err: unknown) {
-      toast.danger(mapActivityError(err, 'Failed to load request detail.'));
-      return null;
-    }
-  }, []);
-
-  const fetchCurrentActivity = useCallback(async (id: string): Promise<KpiActivityResponse | null> => {
-    try {
-      return await activityApi.getActivityById(id);
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const approve = useCallback(async (id: string): Promise<boolean> => {
-    setIsApproving(true);
-    try {
-      await activityApi.approveRequest(id);
-      toast.success('Request approved successfully.');
-      if (mountedRef.current) await fetchPending();
+      await activityV1Api.decideRequest(id, body);
+      toast.success(body.decision === 'APPROVE' ? 'Request approved successfully.' : 'Request rejected successfully.');
+      if (mountedRef.current) {
+        setRecoverable(null);
+        await fetchToReview();
+      }
       return true;
     } catch (err: unknown) {
-      toast.danger(mapActivityError(err, 'Something went wrong while approving the request.'));
+      const raw = extractErrorMessage(err, '');
+      const kind = classifyActivityError(raw);
+      if (kind !== 'other') {
+        // Recoverable: banner + refetch the queue so the row disappears or updates.
+        if (mountedRef.current) setRecoverable(recoverableConflict(kind));
+        if (mountedRef.current) await fetchToReview();
+      } else {
+        toast.danger(raw || 'Something went wrong while processing the request.');
+      }
       return false;
     } finally {
-      if (mountedRef.current) setIsApproving(false);
+      if (mountedRef.current) setIsDeciding(false);
     }
-  }, [fetchPending]);
+  }, [fetchToReview]);
 
-  const reject = useCallback(async (id: string, reason: string): Promise<boolean> => {
-    setIsApproving(true);
-    try {
-      await activityApi.rejectRequest(id, { rejectionReason: reason });
-      toast.success('Request rejected successfully.');
-      if (mountedRef.current) await fetchPending();
-      return true;
-    } catch (err: unknown) {
-      toast.danger(mapActivityError(err, 'Something went wrong while rejecting the request.'));
-      return false;
-    } finally {
-      if (mountedRef.current) setIsApproving(false);
-    }
-  }, [fetchPending]);
+  const clearRecoverable = useCallback(() => {
+    if (mountedRef.current) setRecoverable(null);
+  }, []);
 
   return {
-    pendingRequests, isLoadingPending, pendingError, fetchPending,
-    fetchRequestDetail, fetchCurrentActivity,
-    isApproving, approve, reject,
+    toReview, isLoading, error, fetchToReview,
+    isDeciding, decide,
+    recoverable, clearRecoverable,
   };
 }

@@ -2,60 +2,48 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@heroui/react';
-import { activityApi, extractActivityError } from './activity-api';
-import { mapActivityError } from './activity-error-mapper';
+import { activityV1Api, extractActivityV1Error } from './activity-v1-api';
 import type {
   KpiActivityResponse,
   KpiActivityChangeRequestResponse,
-  AssignableUserPositionResponse,
-  CreateRootActivityPayload,
-  CreateChildActivityPayload,
-  UpdateKpiActivityPayload,
-  CancelKpiActivityPayload,
-} from './activity.types';
+} from './activity-v1.types';
 
+/**
+ * Activity workspace data hook (V1).
+ *
+ * Scope ownership (`/kpi/activities`):
+ *   - My Activities  → GET /api/v1/kpi-activities?scope=mine
+ *   - All Activities → GET /api/v1/kpi-activities?scope=all  (read_all | manage)
+ *   - My Requests    → GET /api/v1/kpi-activity-requests?scope=mine
+ *
+ * `subordinates` (scope=subordinates) and every submission flow are NOT
+ * activated: they require an explicit acting Position (`core_positions.id`)
+ * and the frontend has no self-accessible position source yet (contract
+ * blocker, plan §15.1). No position is ever guessed.
+ */
 export interface UseActivityDataReturn {
-  /* My Activities */
+  /* My Activities (scope=mine) */
   myActivities: KpiActivityResponse[];
   isLoadingMy: boolean;
   myError: string | null;
   fetchMyActivities: () => Promise<void>;
 
-  /* Managed Activities */
-  managedActivities: KpiActivityResponse[];
-  isLoadingManaged: boolean;
-  managedError: string | null;
-  fetchManagedActivities: () => Promise<void>;
+  /* All Activities (scope=all) */
+  allActivities: KpiActivityResponse[];
+  isLoadingAll: boolean;
+  allError: string | null;
+  fetchAllActivities: () => Promise<void>;
 
-  /* Owned Activities */
-  ownedActivities: KpiActivityResponse[];
-  isLoadingOwned: boolean;
-  ownedError: string | null;
-  fetchOwnedActivities: () => Promise<void>;
-
-  /* My Requests */
+  /* My Requests (requests scope=mine) */
   myRequests: KpiActivityChangeRequestResponse[];
   isLoadingRequests: boolean;
   requestsError: string | null;
   fetchMyRequests: () => Promise<void>;
 
-  /* Detail fetch (lazy) */
+  /* Detail fetches (lazy) */
   fetchActivityDetail: (id: string) => Promise<KpiActivityResponse | null>;
   fetchRequestDetail: (id: string) => Promise<KpiActivityChangeRequestResponse | null>;
   isLoadingDetail: boolean;
-
-  /* Assignable UserPositions (P2.2) */
-  assignablePositions: AssignableUserPositionResponse[];
-  isLoadingAssignable: boolean;
-  fetchAssignableForRoot: () => Promise<void>;
-  fetchAssignableForChild: (parentId: string) => Promise<void>;
-
-  /* Mutations (P2.2) */
-  isSubmitting: boolean;
-  submitRootCreate: (payload: CreateRootActivityPayload) => Promise<boolean>;
-  submitChildCreate: (payload: CreateChildActivityPayload) => Promise<boolean>;
-  submitUpdate: (payload: UpdateKpiActivityPayload) => Promise<boolean>;
-  submitCancel: (payload: CancelKpiActivityPayload) => Promise<boolean>;
 }
 
 export function useActivityData(): UseActivityDataReturn {
@@ -63,22 +51,14 @@ export function useActivityData(): UseActivityDataReturn {
   const [isLoadingMy, setIsLoadingMy] = useState(false);
   const [myError, setMyError] = useState<string | null>(null);
 
-  const [managedActivities, setManagedActivities] = useState<KpiActivityResponse[]>([]);
-  const [isLoadingManaged, setIsLoadingManaged] = useState(false);
-  const [managedError, setManagedError] = useState<string | null>(null);
-
-  const [ownedActivities, setOwnedActivities] = useState<KpiActivityResponse[]>([]);
-  const [isLoadingOwned, setIsLoadingOwned] = useState(false);
-  const [ownedError, setOwnedError] = useState<string | null>(null);
+  const [allActivities, setAllActivities] = useState<KpiActivityResponse[]>([]);
+  const [isLoadingAll, setIsLoadingAll] = useState(false);
+  const [allError, setAllError] = useState<string | null>(null);
 
   const [myRequests, setMyRequests] = useState<KpiActivityChangeRequestResponse[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
 
-  const [assignablePositions, setAssignablePositions] = useState<AssignableUserPositionResponse[]>([]);
-  const [isLoadingAssignable, setIsLoadingAssignable] = useState(false);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const mountedRef = useRef(true);
 
@@ -91,10 +71,10 @@ export function useActivityData(): UseActivityDataReturn {
     setIsLoadingMy(true);
     setMyError(null);
     try {
-      const data = await activityApi.getMyActivities();
+      const data = await activityV1Api.getActivities('mine');
       if (mountedRef.current) setMyActivities(data);
     } catch (err: unknown) {
-      const msg = extractActivityError(err);
+      const msg = extractActivityV1Error(err);
       if (mountedRef.current) { setMyError(msg); setMyActivities([]); }
       toast.danger(msg);
     } finally {
@@ -102,33 +82,18 @@ export function useActivityData(): UseActivityDataReturn {
     }
   }, []);
 
-  const fetchManagedActivities = useCallback(async () => {
-    setIsLoadingManaged(true);
-    setManagedError(null);
+  const fetchAllActivities = useCallback(async () => {
+    setIsLoadingAll(true);
+    setAllError(null);
     try {
-      const data = await activityApi.getManagedActivities();
-      if (mountedRef.current) setManagedActivities(data);
+      const data = await activityV1Api.getActivities('all');
+      if (mountedRef.current) setAllActivities(data);
     } catch (err: unknown) {
-      const msg = extractActivityError(err);
-      if (mountedRef.current) { setManagedError(msg); setManagedActivities([]); }
+      const msg = extractActivityV1Error(err);
+      if (mountedRef.current) { setAllError(msg); setAllActivities([]); }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoadingManaged(false);
-    }
-  }, []);
-
-  const fetchOwnedActivities = useCallback(async () => {
-    setIsLoadingOwned(true);
-    setOwnedError(null);
-    try {
-      const data = await activityApi.getOwnedActivities();
-      if (mountedRef.current) setOwnedActivities(data);
-    } catch (err: unknown) {
-      const msg = extractActivityError(err);
-      if (mountedRef.current) { setOwnedError(msg); setOwnedActivities([]); }
-      toast.danger(msg);
-    } finally {
-      if (mountedRef.current) setIsLoadingOwned(false);
+      if (mountedRef.current) setIsLoadingAll(false);
     }
   }, []);
 
@@ -136,10 +101,10 @@ export function useActivityData(): UseActivityDataReturn {
     setIsLoadingRequests(true);
     setRequestsError(null);
     try {
-      const data = await activityApi.getMyRequests();
+      const data = await activityV1Api.getRequests('mine');
       if (mountedRef.current) setMyRequests(data);
     } catch (err: unknown) {
-      const msg = extractActivityError(err);
+      const msg = extractActivityV1Error(err);
       if (mountedRef.current) { setRequestsError(msg); setMyRequests([]); }
       toast.danger(msg);
     } finally {
@@ -150,10 +115,9 @@ export function useActivityData(): UseActivityDataReturn {
   const fetchActivityDetail = useCallback(async (id: string): Promise<KpiActivityResponse | null> => {
     setIsLoadingDetail(true);
     try {
-      return await activityApi.getActivityById(id);
+      return await activityV1Api.getActivityById(id);
     } catch (err: unknown) {
-      const msg = extractActivityError(err);
-      toast.danger(msg);
+      toast.danger(extractActivityV1Error(err));
       return null;
     } finally {
       if (mountedRef.current) setIsLoadingDetail(false);
@@ -163,118 +127,19 @@ export function useActivityData(): UseActivityDataReturn {
   const fetchRequestDetail = useCallback(async (id: string): Promise<KpiActivityChangeRequestResponse | null> => {
     setIsLoadingDetail(true);
     try {
-      return await activityApi.getRequestById(id);
+      return await activityV1Api.getRequestById(id);
     } catch (err: unknown) {
-      const msg = extractActivityError(err);
-      toast.danger(msg);
+      toast.danger(extractActivityV1Error(err));
       return null;
     } finally {
       if (mountedRef.current) setIsLoadingDetail(false);
     }
   }, []);
 
-  /* ── Assignable positions (P2.2) ── */
-
-  const fetchAssignableForRoot = useCallback(async () => {
-    setIsLoadingAssignable(true);
-    try {
-      const data = await activityApi.getAssignableUserPositionsForRoot();
-      if (mountedRef.current) setAssignablePositions(data);
-    } catch (err: unknown) {
-      const msg = extractActivityError(err);
-      toast.danger(msg);
-    } finally {
-      if (mountedRef.current) setIsLoadingAssignable(false);
-    }
-  }, []);
-
-  const fetchAssignableForChild = useCallback(async (parentId: string) => {
-    setIsLoadingAssignable(true);
-    try {
-      const data = await activityApi.getAssignableUserPositionsForChild(parentId);
-      if (mountedRef.current) setAssignablePositions(data);
-    } catch (err: unknown) {
-      const msg = extractActivityError(err);
-      toast.danger(msg);
-    } finally {
-      if (mountedRef.current) setIsLoadingAssignable(false);
-    }
-  }, []);
-
-  /* ── Mutations (P2.2) ── */
-
-  const submitRootCreate = useCallback(async (payload: CreateRootActivityPayload): Promise<boolean> => {
-    setIsSubmitting(true);
-    try {
-      await activityApi.submitRootCreate(payload);
-      toast.success('Activity request submitted successfully.');
-      if (mountedRef.current) await fetchMyRequests();
-      return true;
-    } catch (err: unknown) {
-      const msg = mapActivityError(err, 'Something went wrong while submitting the request.');
-      toast.danger(msg);
-      return false;
-    } finally {
-      if (mountedRef.current) setIsSubmitting(false);
-    }
-  }, [fetchMyRequests]);
-
-  const submitChildCreate = useCallback(async (payload: CreateChildActivityPayload): Promise<boolean> => {
-    setIsSubmitting(true);
-    try {
-      await activityApi.submitChildCreate(payload);
-      toast.success('Activity request submitted successfully.');
-      if (mountedRef.current) await fetchMyRequests();
-      return true;
-    } catch (err: unknown) {
-      const msg = mapActivityError(err, 'Something went wrong while submitting the request.');
-      toast.danger(msg);
-      return false;
-    } finally {
-      if (mountedRef.current) setIsSubmitting(false);
-    }
-  }, [fetchMyRequests]);
-
-  const submitUpdate = useCallback(async (payload: UpdateKpiActivityPayload): Promise<boolean> => {
-    setIsSubmitting(true);
-    try {
-      await activityApi.submitUpdate(payload);
-      toast.success('Activity request submitted successfully.');
-      if (mountedRef.current) await fetchMyRequests();
-      return true;
-    } catch (err: unknown) {
-      const msg = mapActivityError(err, 'Something went wrong while submitting the request.');
-      toast.danger(msg);
-      return false;
-    } finally {
-      if (mountedRef.current) setIsSubmitting(false);
-    }
-  }, [fetchMyRequests]);
-
-  const submitCancel = useCallback(async (payload: CancelKpiActivityPayload): Promise<boolean> => {
-    setIsSubmitting(true);
-    try {
-      await activityApi.submitCancel(payload);
-      toast.success('Activity request submitted successfully.');
-      if (mountedRef.current) await fetchMyRequests();
-      return true;
-    } catch (err: unknown) {
-      const msg = mapActivityError(err, 'Something went wrong while submitting the cancellation request.');
-      toast.danger(msg);
-      return false;
-    } finally {
-      if (mountedRef.current) setIsSubmitting(false);
-    }
-  }, [fetchMyRequests]);
-
   return {
     myActivities, isLoadingMy, myError, fetchMyActivities,
-    managedActivities, isLoadingManaged, managedError, fetchManagedActivities,
-    ownedActivities, isLoadingOwned, ownedError, fetchOwnedActivities,
+    allActivities, isLoadingAll, allError, fetchAllActivities,
     myRequests, isLoadingRequests, requestsError, fetchMyRequests,
     fetchActivityDetail, fetchRequestDetail, isLoadingDetail,
-    assignablePositions, isLoadingAssignable,
-    fetchAssignableForRoot, fetchAssignableForChild,
-    isSubmitting, submitRootCreate, submitChildCreate, submitUpdate, submitCancel,
   };
 }

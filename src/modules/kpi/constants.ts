@@ -1,7 +1,6 @@
 /**
  * KPI feature module — shared constants and types.
  */
-import { PERM } from '@/constants/permissions';
 
 // ── Routes ────────────────────────────────────────────────────────────────
 export const KPI_ROUTES = {
@@ -28,17 +27,3 @@ export const KPI_DESCRIPTIONS = {
   reports: 'Submit execution reports, upload evidence, and review team reports.',
   approvals: 'Approve or reject KPI activity change requests.',
 } as const;
-
-// ── Permission Groups (for sidebar visibility) ─────────────────────────────
-/** All KPI permissions — used for Overview visibility. */
-export const KPI_ANY_PERMISSION = [
-  PERM.CORPORATE_KPI_READ,
-  PERM.CORPORATE_KPI_MANAGE,
-  PERM.KPI_ACTIVITY_READ,
-  PERM.KPI_ACTIVITY_REQUEST,
-  PERM.KPI_ACTIVITY_ROOT_REQUEST,
-  PERM.KPI_ACTIVITY_APPROVE,
-  PERM.KPI_REPORT_READ,
-  PERM.KPI_REPORT_SUBMIT,
-  PERM.KPI_REPORT_REVIEW,
-] as const;

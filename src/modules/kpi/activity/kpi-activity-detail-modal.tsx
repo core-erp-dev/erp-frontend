@@ -2,21 +2,21 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Modal, Badge, Button, Spinner, Surface,
+  Modal, Chip, Button, Spinner, Surface,
 } from '@heroui/react';
 import { X, ClipboardText, Checks } from '@phosphor-icons/react';
 import { useActivityData } from './use-activity-data';
-import { activityApi } from './activity-api';
+import { activityV1Api } from './activity-v1-api';
 import {
   ACTIVITY_STATUS_LABEL,
-  ACTIVITY_STATUS_VARIANT,
   REQUEST_TYPE_LABEL,
-  REQUEST_TYPE_VARIANT,
   REQUEST_STATUS_LABEL,
-  REQUEST_STATUS_VARIANT,
   type KpiActivityResponse,
   type KpiActivityChangeRequestResponse,
-} from './activity.types';
+  type KpiActivityStatus,
+  type KpiActivityRequestType,
+  type KpiActivityRequestStatus,
+} from './activity-v1.types';
 
 type DetailMode = 'ACTIVITY' | 'REQUEST';
 
@@ -27,7 +27,30 @@ interface KpiActivityDetailModalProps {
   entityId: string | null;
 }
 
-/** Shared detail modal for Activity, Request, and UPDATE comparison. */
+/* ── Chip color maps ── */
+
+const ACTIVITY_STATUS_CHIP_COLOR: Record<KpiActivityStatus, 'default' | 'success'> = {
+  ACTIVE: 'success',
+  CANCELLED: 'default',
+};
+
+const REQUEST_TYPE_CHIP_COLOR: Record<KpiActivityRequestType, 'accent' | 'default' | 'warning'> = {
+  CREATE: 'accent',
+  UPDATE: 'default',
+  CANCEL: 'warning',
+};
+
+const REQUEST_STATUS_CHIP_COLOR: Record<KpiActivityRequestStatus, 'success' | 'danger' | 'warning'> = {
+  PENDING: 'warning',
+  APPROVED: 'success',
+  REJECTED: 'danger',
+};
+
+/**
+ * Shared Activity / Activity-request detail modal.
+ * Used by BOTH `/kpi/activities` (activity + request detail) and
+ * `/kpi/approvals` (request detail) — one presentation, no duplication.
+ */
 export function KpiActivityDetailModal({
   isOpen, onClose, mode, entityId,
 }: KpiActivityDetailModalProps) {
@@ -42,6 +65,7 @@ export function KpiActivityDetailModal({
     if (!entityId) return;
     setIsLoading(true);
     setCurrentActivity(null);
+    setLoadError(null);
 
     const load = async () => {
       if (mode === 'ACTIVITY') {
@@ -52,9 +76,10 @@ export function KpiActivityDetailModal({
         const result = await fetchRequestDetail(entityId);
         if (result) {
           setRequest(result);
-          // Lazy-fetch current activity for UPDATE comparison
+          // Lazy-fetch current activity for UPDATE comparison (may 403 for a
+          // requester who is not the assignee — comparison is best-effort).
           if (result.requestType === 'UPDATE' && result.activityId) {
-            const current = await activityApi.getActivityById(result.activityId).catch(() => null);
+            const current = await activityV1Api.getActivityById(result.activityId).catch(() => null);
             setCurrentActivity(current);
           }
         } else {
@@ -91,7 +116,11 @@ export function KpiActivityDetailModal({
           <DetailRow label="Target Value" value={String(activity.targetValue)} />
           <DetailRow label="Realized Value" value={String(activity.realizedValue)} />
           <DetailRow label="Progress" value={`${Math.round(activity.progressPercent)}%`} />
-          <DetailRow label="Status" value={<Badge variant={ACTIVITY_STATUS_VARIANT[activity.status]} size="sm">{ACTIVITY_STATUS_LABEL[activity.status]}</Badge>} />
+          <DetailRow label="Status" value={
+            <Chip size="sm" color={ACTIVITY_STATUS_CHIP_COLOR[activity.status]} variant="soft">
+              {ACTIVITY_STATUS_LABEL[activity.status]}
+            </Chip>
+          } />
           <DetailRow label="Assignee" value={activity.assignedToUserName} />
           <DetailRow label="Position" value={activity.assignedToPositionName} />
         </Surface>
@@ -129,8 +158,16 @@ export function KpiActivityDetailModal({
 
         <Surface className="flex flex-col gap-4 rounded-3xl p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Request Information</h2>
-          <DetailRow label="Request Type" value={<Badge variant={REQUEST_TYPE_VARIANT[request.requestType]} size="sm">{REQUEST_TYPE_LABEL[request.requestType]}</Badge>} />
-          <DetailRow label="Status" value={<Badge variant={REQUEST_STATUS_VARIANT[request.status]} size="sm">{REQUEST_STATUS_LABEL[request.status]}</Badge>} />
+          <DetailRow label="Request Type" value={
+            <Chip size="sm" color={REQUEST_TYPE_CHIP_COLOR[request.requestType]} variant="soft">
+              {REQUEST_TYPE_LABEL[request.requestType]}
+            </Chip>
+          } />
+          <DetailRow label="Status" value={
+            <Chip size="sm" color={REQUEST_STATUS_CHIP_COLOR[request.status]} variant="soft">
+              {REQUEST_STATUS_LABEL[request.status]}
+            </Chip>
+          } />
           <DetailRow label="Activity Name" value={request.activityName || '-'} />
           {isCancel && request.cancellationReason ? <DetailRow label="Cancellation Reason" value={request.cancellationReason} /> : null}
           <DetailRow label="Parent Activity" value={request.parentActivityName || '-'} />
@@ -140,6 +177,7 @@ export function KpiActivityDetailModal({
           <DetailRow label="Unit" value={request.unit || '-'} />
           <DetailRow label="Target Value" value={request.targetValue != null ? String(request.targetValue) : '-'} />
           <DetailRow label="Requested By" value={request.requestedByUserName} />
+          <DetailRow label="Assigned Approver" value={request.approverUserName || '-'} />
           {request.rejectionReason ? <DetailRow label="Rejection Reason" value={request.rejectionReason} /> : null}
         </Surface>
       </div>

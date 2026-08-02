@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Table, Badge, Button } from '@heroui/react';
-import { Eye, Tray } from '@phosphor-icons/react';
+import { Table, Chip, Button } from '@heroui/react';
+import { Eye, ArrowsClockwise, Tray } from '@phosphor-icons/react';
 import {
   REPORT_STATUS_LABEL,
-  REPORT_STATUS_VARIANT,
+  REPORT_STATUS_CHIP_COLOR,
   type KpiReportResponse,
-} from './report.types';
+} from './report-v1.types';
 
 type TableMode = 'MY' | 'TO_REVIEW';
 
@@ -17,10 +17,12 @@ interface ReportTableProps {
   error: string | null;
   mode: TableMode;
   onViewDetail: (id: string) => void;
+  /** T18 — administrative reviewer reassignment; provided only for `kpi_report:manage` holders. */
+  onReassignReviewer?: (report: KpiReportResponse) => void;
 }
 
 export function ReportTable({
-  items, isLoading, error, mode, onViewDetail,
+  items, isLoading, error, mode, onViewDetail, onReassignReviewer,
 }: ReportTableProps) {
   if (error) {
     return (
@@ -78,9 +80,9 @@ export function ReportTable({
                   <Table.Cell>{item.reviewerUserName}</Table.Cell>
                 )}
                 <Table.Cell>
-                  <Badge variant={REPORT_STATUS_VARIANT[item.status]} size="sm">
+                  <Chip size="sm" color={REPORT_STATUS_CHIP_COLOR[item.status]} variant="soft">
                     {REPORT_STATUS_LABEL[item.status]}
-                  </Badge>
+                  </Chip>
                 </Table.Cell>
                 <Table.Cell className="text-muted-foreground">
                   {new Date(item.createdAt).toLocaleDateString('en-GB', {
@@ -92,6 +94,11 @@ export function ReportTable({
                     <Button isIconOnly variant="tertiary" size="sm" aria-label="View detail" onPress={() => onViewDetail(item.id)}>
                       <Eye className="h-4 w-4" />
                     </Button>
+                    {mode === 'TO_REVIEW' && onReassignReviewer && (
+                      <Button isIconOnly variant="tertiary" size="sm" aria-label="Reassign reviewer" onPress={() => onReassignReviewer(item)}>
+                        <ArrowsClockwise className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </Table.Cell>
               </Table.Row>

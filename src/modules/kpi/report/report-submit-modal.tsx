@@ -6,20 +6,20 @@ import {
 } from '@heroui/react';
 import { X } from '@phosphor-icons/react';
 import { useReportData } from './use-report-data';
-import { activityApi } from '@/modules/kpi/activity/activity-api';
-import type { KpiActivityResponse } from '@/modules/kpi/activity/activity.types';
+import { activityV1Api } from '@/modules/kpi/activity/activity-v1-api';
+import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 
 interface ReportSubmitModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;  // Called after successful submit (refreshes My Reports if permitted)
-  canReadMyReports: boolean;
+  /** Called after successful submit (refreshes My Reports). */
+  onSuccess: () => void;
 }
 
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
-export function ReportSubmitModal({ isOpen, onClose, onSuccess, canReadMyReports }: ReportSubmitModalProps) {
+export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitModalProps) {
   const { submitReport, isSubmitting } = useReportData();
 
   /* ── Eligible activities ── */
@@ -39,11 +39,11 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess, canReadMyReports
   /* ── Validation errors ── */
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  /* ── Load eligible activities on open ── */
+  /* ── Load eligible activities on open (exact-assignee selector, scope=mine) ── */
   const loadActivities = useCallback(async () => {
     setIsLoadingActivities(true);
     try {
-      const all = await activityApi.getMyActivities();
+      const all = await activityV1Api.getActivities('mine');
       // Filter to ACTIVE only; CANCELLED omitted
       setActivities(all.filter((a) => a.status === 'ACTIVE'));
     } catch {
@@ -134,11 +134,11 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess, canReadMyReports
     );
 
     if (success) {
-      // Close modal; parent decides whether to refresh My Reports
-      if (canReadMyReports) onSuccess();
+      // Close modal; parent refreshes My Reports
+      onSuccess();
       handleClose();
     }
-  }, [validate, evidenceFile, submitReport, selectedActivityId, reportDate, executionDescription, realizedValue, note, canReadMyReports, onSuccess]);
+  }, [validate, evidenceFile, submitReport, selectedActivityId, reportDate, executionDescription, realizedValue, note, onSuccess]);
 
   /* ── Reset ── */
   const reset = useCallback(() => {

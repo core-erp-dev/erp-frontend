@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { Modal, Button, TextField, TextArea, Label } from '@heroui/react';
 import { Warning } from '@phosphor-icons/react';
 import { useReportData } from './use-report-data';
-import type { KpiReportResponse } from './report.types';
+import type { KpiReportResponse } from './report-v1.types';
 
 type ReviewMode = 'APPROVE' | 'REJECT';
 

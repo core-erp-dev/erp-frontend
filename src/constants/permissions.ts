@@ -38,15 +38,13 @@ export const PERM = {
   CORPORATE_KPI_MANAGE: 'corporate_kpi:manage',
 
   // KPI Activity
-  KPI_ACTIVITY_READ: 'kpi_activity:read',
   KPI_ACTIVITY_ROOT_REQUEST: 'kpi_activity:root_request',
-  KPI_ACTIVITY_REQUEST: 'kpi_activity:request',
   KPI_ACTIVITY_APPROVE: 'kpi_activity:approve',
+  KPI_ACTIVITY_MANAGE: 'kpi_activity:manage',
+  KPI_ACTIVITY_READ_ALL: 'kpi_activity:read_all',
 
   // KPI Report
-  KPI_REPORT_READ: 'kpi_report:read',
-  KPI_REPORT_SUBMIT: 'kpi_report:submit',
-  KPI_REPORT_REVIEW: 'kpi_report:review',
+  KPI_REPORT_MANAGE: 'kpi_report:manage',
 } as const;
 
 export type PermissionCode = (typeof PERM)[keyof typeof PERM];

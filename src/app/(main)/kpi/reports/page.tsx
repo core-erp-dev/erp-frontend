@@ -2,47 +2,50 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Tabs } from '@heroui/react';
-import { Plus, ArrowsClockwise, House } from '@phosphor-icons/react';
+import { Plus, ArrowsClockwise, House, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
-import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
+import { KPI_LABELS } from '@/modules/kpi/constants';
 import { useReportData } from '@/modules/kpi/report/use-report-data';
 import { ReportTable } from '@/modules/kpi/report/report-table';
 import { ReportDetailModal } from '@/modules/kpi/report/report-detail-modal';
 import { ReportSubmitModal } from '@/modules/kpi/report/report-submit-modal';
 import { ReportReviewDialog } from '@/modules/kpi/report/report-review-dialog';
-import type { KpiReportResponse } from '@/modules/kpi/report/report.types';
+import { ReassignReviewerDialog } from '@/modules/kpi/admin/reassign-reviewer-dialog';
+import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
 
 type TabId = 'my-reports' | 'review-queue';
 
+/**
+ * Reports (`/kpi/reports`) — employee Report workflow.
+ *   - My Reports     → GET /api/v1/kpi-reports?scope=mine
+ *   - Review Queue   → GET /api/v1/kpi-reports?scope=to-review (stored reviewer)
+ *   - Submission is exact-assignee; approve/reject are SEPARATE operations
+ *     (T16/T17). `kpi_report:manage` gates only administrative tools (P5).
+ * Any authenticated user may open this page (responsibility-based access).
+ */
 export default function KpiReportsPage() {
-  const { hasPerm, hasAnyPerm } = usePermission();
+  const { hasPerm } = usePermission();
+  // T18 administrative tool — `kpi_report:manage` gates only this, never the page.
+  const canReassignReviewer = hasPerm(PERM.KPI_REPORT_MANAGE);
 
-  // Capabilities (same rule as sidebar)
-  const canReadMyReports = hasPerm(PERM.KPI_REPORT_READ);
-  const canReviewReports = hasPerm(PERM.KPI_REPORT_REVIEW);
-  const canSubmitReport = hasPerm(PERM.KPI_REPORT_SUBMIT) && hasPerm(PERM.KPI_ACTIVITY_READ);
-  const canAccess = canReadMyReports || canReviewReports || canSubmitReport;
-
-  // Data hook
   const {
     myReports, isLoadingMy, myError, fetchMyReports,
     toReview, isLoadingReview, reviewError, fetchToReview,
-    submitReport, isSubmitting,
-    approveReport, isApproving,
-    rejectReport, isRejecting,
+    isSubmitting,
+    isApproving,
+    isRejecting,
+    recoverable, clearRecoverable,
   } = useReportData();
 
-  // ── Tabs (permission-aware) ──
-  const tabs = useMemo(() => {
-    const result: { id: TabId; label: string }[] = [];
-    if (canReadMyReports) result.push({ id: 'my-reports', label: 'My Reports' });
-    if (canReviewReports) result.push({ id: 'review-queue', label: 'Review Queue' });
-    return result;
-  }, [canReadMyReports, canReviewReports]);
+  // ── Tabs (both always available — scopes are responsibility-based) ──
+  const tabs = useMemo<{ id: TabId; label: string }[]>(() => [
+    { id: 'my-reports', label: 'My Reports' },
+    { id: 'review-queue', label: 'Review Queue' },
+  ], []);
 
   const [activeTab, setActiveTab] = useState<TabId>('my-reports');
-  const effectiveTab = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id;
+  const effectiveTab = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0].id;
 
   // ── Fetch on tab activation ──
   useEffect(() => {
@@ -64,11 +67,11 @@ export default function KpiReportsPage() {
     const all = [...myReports, ...toReview];
     const found = all.find((r) => r.id === id);
     if (!found) return;
-    const mode = canReviewReports && found.status === 'PENDING' && toReview.some((r) => r.id === id)
+    const mode = found.status === 'PENDING' && toReview.some((r) => r.id === id)
       ? 'REVIEW' as const
       : 'MY' as const;
     setDetailModal({ isOpen: true, mode, report: found });
-  }, [myReports, toReview, canReviewReports]);
+  }, [myReports, toReview]);
 
   const closeDetail = useCallback(() => {
     setDetailModal({ isOpen: false, mode: 'MY', report: null });
@@ -78,8 +81,8 @@ export default function KpiReportsPage() {
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
 
   const handleSubmitSuccess = useCallback(() => {
-    if (canReadMyReports) fetchMyReports();
-  }, [canReadMyReports, fetchMyReports]);
+    fetchMyReports();
+  }, [fetchMyReports]);
 
   // ── Review dialog ──
   const [reviewDialog, setReviewDialog] = useState<{
@@ -108,27 +111,18 @@ export default function KpiReportsPage() {
     fetchToReview();
   }, [closeDetail, closeReviewDialog, fetchToReview]);
 
-  // ── Permission guard ──
-  if (!canAccess) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Breadcrumbs>
-          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
-          <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Reports</BreadcrumbsItem>
-        </Breadcrumbs>
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.reports}</h1>
-        </div>
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
-          </Alert.Content>
-        </Alert>
-      </div>
-    );
-  }
+  // ── Reassign reviewer dialog state (T18, kpi_report:manage) ──
+  const [reassignReport, setReassignReport] = useState<KpiReportResponse | null>(null);
+
+  const openReassignReviewer = useCallback((report: KpiReportResponse) => {
+    setReassignReport(report);
+  }, []);
+
+  const closeReassignReviewer = useCallback(() => {
+    setReassignReport(null);
+  }, []);
+
+  const isAnyLoading = isLoadingMy || isLoadingReview;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -144,67 +138,80 @@ export default function KpiReportsPage() {
         <div className="flex items-center gap-2">
           <Button isIconOnly variant="tertiary" onPress={() => {
             if (effectiveTab === 'my-reports') fetchMyReports();
-            else if (effectiveTab === 'review-queue') fetchToReview();
-          }}>
-            <ArrowsClockwise className="h-4 w-4" />
+            else fetchToReview();
+          }} isDisabled={isAnyLoading} aria-label="Refresh">
+            <ArrowsClockwise className={`h-4 w-4 ${isAnyLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {canSubmitReport && (
-            <Button variant="primary" size="sm" onPress={() => setSubmitModalOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Submit Report
-            </Button>
-          )}
+          <Button variant="primary" size="sm" onPress={() => setSubmitModalOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Submit Report
+          </Button>
         </div>
       </div>
 
-      {/* Tabs (only when at least one tab) */}
-      {tabs.length > 0 ? (
-        <Tabs
-          className="w-full"
-          selectedKey={effectiveTab || 'my-reports'}
-          onSelectionChange={(key) => setActiveTab(key as TabId)}
-        >
-          <Tabs.ListContainer>
-            <Tabs.List aria-label="KPI Reports">
-              {tabs.map((tab) => (
-                <Tabs.Tab key={tab.id} id={tab.id}>
-                  {tab.label}
-                  <Tabs.Indicator />
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          </Tabs.ListContainer>
-
-          {tabs.map((tab) => (
-            <Tabs.Panel key={tab.id} id={tab.id} className="pt-4">
-              {tab.id === 'my-reports' && (
-                <ReportTable
-                  items={myReports}
-                  isLoading={isLoadingMy}
-                  error={myError}
-                  mode="MY"
-                  onViewDetail={openDetail}
-                />
-              )}
-              {tab.id === 'review-queue' && (
-                <ReportTable
-                  items={toReview}
-                  isLoading={isLoadingReview}
-                  error={reviewError}
-                  mode="TO_REVIEW"
-                  onViewDetail={openDetail}
-                />
-              )}
-            </Tabs.Panel>
-          ))}
-        </Tabs>
-      ) : canSubmitReport ? (
-        /* Submit-only user: show centered prompt */
-        <div className="flex flex-col items-center justify-center gap-3 rounded-3xl p-12 text-muted-foreground">
-          <p className="text-sm">You have permission to submit reports.</p>
-          <p className="text-sm">Use the Submit Report button above to submit an execution report for an assigned activity.</p>
+      {/* Recoverable conflict banner */}
+      {recoverable && (
+        <div className="relative">
+          <Alert status="warning">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Report Already Processed</Alert.Title>
+              <Alert.Description>{recoverable.message}</Alert.Description>
+            </Alert.Content>
+          </Alert>
+          <Button
+            isIconOnly
+            variant="tertiary"
+            size="sm"
+            className="absolute right-2 top-2"
+            onPress={clearRecoverable}
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-      ) : null}
+      )}
+
+      <Tabs
+        className="w-full"
+        selectedKey={effectiveTab}
+        onSelectionChange={(key) => setActiveTab(key as TabId)}
+      >
+        <Tabs.ListContainer>
+          <Tabs.List aria-label="KPI Reports">
+            {tabs.map((tab) => (
+              <Tabs.Tab key={tab.id} id={tab.id}>
+                {tab.label}
+                <Tabs.Indicator />
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs.ListContainer>
+
+        {tabs.map((tab) => (
+          <Tabs.Panel key={tab.id} id={tab.id} className="pt-4">
+            {tab.id === 'my-reports' && (
+              <ReportTable
+                items={myReports}
+                isLoading={isLoadingMy}
+                error={myError}
+                mode="MY"
+                onViewDetail={openDetail}
+              />
+            )}
+            {tab.id === 'review-queue' && (
+              <ReportTable
+                items={toReview}
+                isLoading={isLoadingReview}
+                error={reviewError}
+                mode="TO_REVIEW"
+                onViewDetail={openDetail}
+                onReassignReviewer={canReassignReviewer ? openReassignReviewer : undefined}
+              />
+            )}
+          </Tabs.Panel>
+        ))}
+      </Tabs>
 
       {/* Detail Modal */}
       <ReportDetailModal
@@ -222,7 +229,6 @@ export default function KpiReportsPage() {
         isOpen={submitModalOpen}
         onClose={() => setSubmitModalOpen(false)}
         onSuccess={handleSubmitSuccess}
-        canReadMyReports={canReadMyReports}
       />
 
       {/* Review Dialog */}
@@ -234,6 +240,21 @@ export default function KpiReportsPage() {
           report={reviewDialog.report}
           mode={reviewDialog.mode}
           onSuccess={handleReviewSuccess}
+        />
+      )}
+
+      {(isSubmitting || isApproving || isRejecting) && (
+        <div className="sr-only" aria-live="polite">Processing report...</div>
+      )}
+
+      {/* T18 — administrative reviewer reassignment */}
+      {reassignReport && (
+        <ReassignReviewerDialog
+          key={reassignReport.id}
+          isOpen={true}
+          onClose={closeReassignReviewer}
+          report={reassignReport}
+          onSuccess={fetchToReview}
         />
       )}
     </div>

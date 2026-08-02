@@ -7,7 +7,7 @@ import { useApprovalData } from './use-approval-data';
 import {
   REQUEST_TYPE_LABEL,
   type KpiActivityChangeRequestResponse,
-} from './activity.types';
+} from './activity-v1.types';
 
 type DialogMode = 'APPROVE' | 'REJECT';
 
@@ -18,8 +18,14 @@ interface ApprovalDialogProps {
   request: KpiActivityChangeRequestResponse;
 }
 
+/**
+ * Unified Activity-request decision dialog (T8).
+ * APPROVE sends `{ decision: 'APPROVE' }` — never a rejectionReason.
+ * REJECT requires a non-blank `rejectionReason` (≤1000) and sends
+ * `{ decision: 'REJECT', rejectionReason }`.
+ */
 export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialogProps) {
-  const { approve, reject, isApproving } = useApprovalData();
+  const { decide, isDeciding } = useApprovalData();
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState<string | null>(null);
 
@@ -44,13 +50,13 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
         return;
       }
       setReasonError(null);
-      const ok = await reject(request.id, reason.trim());
+      const ok = await decide(request.id, { decision: 'REJECT', rejectionReason: reason.trim() });
       if (ok) handleClose();
     } else {
-      const ok = await approve(request.id);
+      const ok = await decide(request.id, { decision: 'APPROVE' });
       if (ok) handleClose();
     }
-  }, [mode, reason, request.id, approve, reject, handleClose]);
+  }, [mode, reason, request.id, decide, handleClose]);
 
   const typeLabel = REQUEST_TYPE_LABEL[request.requestType];
 
@@ -77,10 +83,10 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
                 </p>
               </Modal.Body>
               <Modal.Footer className="flex-col-reverse">
-                <Button className="w-full" variant="primary" onPress={handleConfirm} isDisabled={isApproving} isPending={isApproving}>
+                <Button className="w-full" variant="primary" onPress={handleConfirm} isDisabled={isDeciding} isPending={isDeciding}>
                   Approve
                 </Button>
-                <Button className="w-full" variant="secondary" onPress={handleClose} isDisabled={isApproving}>
+                <Button className="w-full" variant="secondary" onPress={handleClose} isDisabled={isDeciding}>
                   Cancel
                 </Button>
               </Modal.Footer>
@@ -120,11 +126,11 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
               {reasonError && <p className="mt-1 text-xs text-danger">{reasonError}</p>}
             </Modal.Body>
             <Modal.Footer>
-              <Button variant="secondary" onPress={handleClose} isDisabled={isApproving}>
+              <Button variant="secondary" onPress={handleClose} isDisabled={isDeciding}>
                 <X className="h-4 w-4" />
                 Cancel
               </Button>
-              <Button variant="danger" onPress={handleConfirm} isDisabled={isApproving} isPending={isApproving}>
+              <Button variant="danger" onPress={handleConfirm} isDisabled={isDeciding} isPending={isDeciding}>
                 Reject
               </Button>
             </Modal.Footer>

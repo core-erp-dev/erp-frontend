@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Modal, Button, Badge, Surface, Spinner, Label } from '@heroui/react';
+import { Modal, Button, Chip, Surface, Spinner, Label } from '@heroui/react';
 import { X, DownloadSimple } from '@phosphor-icons/react';
-import { reportApi } from './report-api';
-import { REPORT_STATUS_LABEL, REPORT_STATUS_VARIANT, type KpiReportResponse } from './report.types';
+import { reportV1Api } from './report-v1-api';
+import { REPORT_STATUS_LABEL, REPORT_STATUS_CHIP_COLOR, type KpiReportResponse } from './report-v1.types';
 
 type DetailMode = 'MY' | 'REVIEW';
 
@@ -31,7 +31,7 @@ export function ReportDetailModal({
     setIsLoadingEvidence(true);
     setEvidenceError(null);
     try {
-      const blob = await reportApi.getEvidence(reportId);
+      const blob = await reportV1Api.getEvidence(reportId);
       // Revoke previous URL
       if (evidenceUrlRef.current) URL.revokeObjectURL(evidenceUrlRef.current);
       const url = URL.createObjectURL(blob);
@@ -99,9 +99,9 @@ export function ReportDetailModal({
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <DetailField label="Date" value={report.reportDate} />
                     <DetailField label="Status" value={
-                      <Badge variant={REPORT_STATUS_VARIANT[report.status]} size="sm">
+                      <Chip size="sm" color={REPORT_STATUS_CHIP_COLOR[report.status]} variant="soft">
                         {REPORT_STATUS_LABEL[report.status]}
-                      </Badge>
+                      </Chip>
                     } />
                     <div className="col-span-2">
                       <DetailField label="Description" value={report.executionDescription} />
