@@ -37,7 +37,7 @@ export default function EditOrganizationUnitPage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  if (!hasPerm(PERM.POSITION_UPDATE)) {
+  if (!hasPerm(PERM.ORGANIZATION_UNIT_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

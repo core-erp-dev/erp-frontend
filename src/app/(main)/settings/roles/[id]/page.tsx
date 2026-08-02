@@ -80,7 +80,7 @@ export default function RoleDetailPage() {
     );
   }
 
-  const showDropdown = hasPerm(PERM.ROLE_UPDATE) || hasPerm(PERM.ROLE_DELETE);
+  const showDropdown = hasPerm(PERM.ROLE_MANAGE);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -109,13 +109,13 @@ export default function RoleDetailPage() {
                   if (key === 'edit') router.push(`/settings/roles/${id}/edit`);
                   if (key === 'delete') setIsDeleteOpen(true);
                 }}>
-                  {hasPerm(PERM.ROLE_UPDATE) && (
+                  {hasPerm(PERM.ROLE_MANAGE) && (
                     <Dropdown.Item id="edit" textValue="Edit">
                       <PencilSimple className="h-4 w-4 text-muted-foreground" />
                       <span>Edit</span>
                     </Dropdown.Item>
                   )}
-                  {hasPerm(PERM.ROLE_DELETE) && (
+                  {hasPerm(PERM.ROLE_MANAGE) && (
                     <Dropdown.Item id="delete" textValue="Delete" variant="danger">
                       <Trash className="h-4 w-4 text-danger" />
                       <span className="text-danger">Delete</span>

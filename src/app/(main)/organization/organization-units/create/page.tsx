@@ -11,7 +11,7 @@ export default function CreateOrganizationUnitPage() {
   const router = useRouter();
   const { hasPerm } = usePermission();
 
-  if (!hasPerm(PERM.POSITION_CREATE)) {
+  if (!hasPerm(PERM.ORGANIZATION_UNIT_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

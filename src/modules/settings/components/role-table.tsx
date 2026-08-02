@@ -20,7 +20,7 @@ interface RoleTableProps {
 }
 
 export function RoleTable({ roles, isLoading = false, pagination, onPageChange, onView, onEdit, onDelete, onRestore }: RoleTableProps) {
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
@@ -79,7 +79,7 @@ export function RoleTable({ roles, isLoading = false, pagination, onPageChange, 
                 <Table.Cell>
                   <div className="flex items-center justify-end gap-1">
                     {role.deletedAt ? (
-                      hasPerm(PERM.ROLE_RESTORE) && (
+                      hasPerm(PERM.ROLE_MANAGE) && (
                         <Button
                           isIconOnly
                           variant="tertiary"
@@ -92,7 +92,7 @@ export function RoleTable({ roles, isLoading = false, pagination, onPageChange, 
                       )
                     ) : (
                       <>
-                        {hasPerm(PERM.ROLE_READ) && (
+                        {hasAnyPerm(PERM.ROLE_READ, PERM.ROLE_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"
@@ -103,7 +103,7 @@ export function RoleTable({ roles, isLoading = false, pagination, onPageChange, 
                             <Eye className="h-4 w-4" />
                           </Button>
                         )}
-                        {hasPerm(PERM.ROLE_UPDATE) && (
+                        {hasPerm(PERM.ROLE_MANAGE) && (
                           <Link href={`/settings/roles/${role.id}/edit`}>
                             <Button
                               isIconOnly
@@ -116,7 +116,7 @@ export function RoleTable({ roles, isLoading = false, pagination, onPageChange, 
                             </Button>
                           </Link>
                         )}
-                        {hasPerm(PERM.ROLE_DELETE) && (
+                        {hasPerm(PERM.ROLE_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="danger-soft"

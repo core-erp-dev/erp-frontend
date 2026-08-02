@@ -30,7 +30,7 @@ export const DataTable: React.FC<DataTableProps> = ({
   onDelete,
   onRestore,
 }) => {
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
@@ -103,7 +103,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   <Table.Cell>
                     {isDeleted ? (
                       <span className="font-medium text-gray-400">{emp.fullName}</span>
-                    ) : hasPerm(PERM.USER_READ) ? (
+                    ) : hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE) ? (
                       <Link
                         href={`/organization/employees/${emp.id}`}
                         className="text-foreground hover:underline font-medium"
@@ -149,7 +149,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                     <div className="flex items-center justify-end gap-1">
                       {isDeleted ? (
                         // Deleted row: only show restore button
-                        hasPerm(PERM.USER_RESTORE) && (
+                        hasPerm(PERM.USER_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"
@@ -163,7 +163,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                       ) : (
                         // Active row: normal actions
                         <>
-                          {hasPerm(PERM.USER_READ) && (
+                          {hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE) && (
                             <Button
                               isIconOnly
                               variant="tertiary"
@@ -176,7 +176,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               </Link>
                             </Button>
                           )}
-                          {hasPerm(PERM.USER_UPDATE) && (
+                          {hasPerm(PERM.USER_MANAGE) && (
                             <Button
                               isIconOnly
                               variant="tertiary"
@@ -189,7 +189,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               </Link>
                             </Button>
                           )}
-                          {hasPerm(PERM.USER_DELETE) && (
+                          {hasPerm(PERM.USER_MANAGE) && (
                             <Button
                               isIconOnly
                               variant="danger-soft"

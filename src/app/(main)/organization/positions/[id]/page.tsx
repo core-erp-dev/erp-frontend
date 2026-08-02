@@ -19,7 +19,7 @@ export default function PositionDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const { position, isLoading, error, deletePosition, isDeleting, refresh } = usePositionDetail(id);
 
@@ -145,7 +145,7 @@ export default function PositionDetailPage() {
 
   const assignedUsers = position.assignedUsers ?? [];
   const assignedIds = new Set(assignedUsers.map((u) => u.id));
-  const showDropdown = hasPerm(PERM.POSITION_UPDATE) || hasPerm(PERM.POSITION_DELETE);
+  const showDropdown = hasPerm(PERM.POSITION_MANAGE);
   const children = position.children ?? [];
 
   return (
@@ -175,12 +175,12 @@ export default function PositionDetailPage() {
                   if (key === 'edit') router.push(`/organization/positions/${id}/edit`);
                   if (key === 'delete') setIsDeleteOpen(true);
                 }}>
-                  {hasPerm(PERM.POSITION_UPDATE) && (
+                  {hasPerm(PERM.POSITION_MANAGE) && (
                     <Dropdown.Item id="edit" textValue="Edit">
                       <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
                     </Dropdown.Item>
                   )}
-                  {hasPerm(PERM.POSITION_DELETE) && (
+                  {hasPerm(PERM.POSITION_MANAGE) && (
                     <Dropdown.Item id="delete" textValue="Delete" variant="danger">
                       <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
                     </Dropdown.Item>
@@ -229,7 +229,7 @@ export default function PositionDetailPage() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Subordinate Positions</h2>
-          {hasPerm(PERM.POSITION_CREATE) && (
+          {hasPerm(PERM.POSITION_MANAGE) && (
             <Button variant="primary" size="sm" onPress={() => router.push(`/organization/positions/create?parentId=${position.id}`)}>
               <Plus className="h-4 w-4" />
               Add Subordinate
@@ -294,7 +294,7 @@ export default function PositionDetailPage() {
                     </Table.Cell>
                     <Table.Cell>
                       <div className="flex items-center justify-end gap-1">
-                        {hasPerm(PERM.POSITION_READ) && (
+                        {hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"
@@ -321,7 +321,7 @@ export default function PositionDetailPage() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Employees</h2>
-          {hasPerm(PERM.POSITION_ASSIGN_USER) && (
+          {hasPerm(PERM.USER_MANAGE) && (
             isAssignExpanded ? (
               <Button variant="tertiary" size="sm" onPress={handleCancelAssign}>
                 <X className="h-4 w-4" />
@@ -430,7 +430,7 @@ export default function PositionDetailPage() {
                     </Table.Cell>
                     <Table.Cell>
                       <div className="flex items-center justify-end gap-1">
-                        {hasPerm(PERM.POSITION_READ) && (
+                        {hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"
@@ -441,7 +441,7 @@ export default function PositionDetailPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         )}
-                        {hasPerm(PERM.POSITION_ASSIGN_USER) && (
+                        {hasPerm(PERM.USER_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="danger-soft"

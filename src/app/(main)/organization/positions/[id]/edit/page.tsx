@@ -16,7 +16,7 @@ export default function EditPositionPage() {
 
   const { position, isLoading, error } = usePositionDetail(id);
 
-  if (!hasPerm(PERM.POSITION_UPDATE)) {
+  if (!hasPerm(PERM.POSITION_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

@@ -18,7 +18,7 @@ export default function EmployeeDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const { employee, isLoading, error, deleteEmployee, isDeleting } = useEmployeeDetail(id);
 
@@ -28,6 +28,7 @@ export default function EmployeeDetailPage() {
   const [departmentMap, setDepartmentMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
+    if (!hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE)) return;
     let cancelled = false;
     employeeApi.getPositions()
       .then((tree) => {
@@ -46,7 +47,7 @@ export default function EmployeeDetailPage() {
         // Supplementary data — fail silently
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [hasAnyPerm]);
 
   const handleDeleteConfirm = async () => {
     const success = await deleteEmployee();
@@ -78,7 +79,7 @@ export default function EmployeeDetailPage() {
   }
 
   const pos = employee.primaryPosition;
-  const showDropdown = hasPerm(PERM.USER_UPDATE) || hasPerm(PERM.USER_DELETE);
+  const showDropdown = hasPerm(PERM.USER_MANAGE);
   const activePositions = (employee.positions ?? []).filter(p => p.isActive);
 
   return (
@@ -109,7 +110,7 @@ export default function EmployeeDetailPage() {
                 if (key === 'edit') router.push(`/organization/employees/${id}/edit`);
                 if (key === 'delete') setIsDeleteOpen(true);
               }}>
-                {hasPerm(PERM.USER_UPDATE) && (
+                {hasPerm(PERM.USER_MANAGE) && (
                   <Dropdown.Item id="edit" textValue="Edit">
                     <div className="flex items-center gap-2">
                       <PencilSimple className="h-4 w-4 text-muted-foreground" />
@@ -117,7 +118,7 @@ export default function EmployeeDetailPage() {
                     </div>
                   </Dropdown.Item>
                 )}
-                {hasPerm(PERM.USER_DELETE) && (
+                {hasPerm(PERM.USER_MANAGE) && (
                   <Dropdown.Item id="delete" textValue="Delete" variant="danger">
                     <div className="flex items-center gap-2 text-danger">
                       <Trash className="h-4 w-4" />
@@ -232,7 +233,7 @@ export default function EmployeeDetailPage() {
                     </Table.Cell>
                     <Table.Cell>
                       <div className="flex items-center justify-end gap-1">
-                        {hasPerm(PERM.POSITION_READ) && (
+                        {hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"

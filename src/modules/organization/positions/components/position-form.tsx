@@ -19,6 +19,8 @@ import { organizationApi } from '@/modules/organization/positions/services/organ
 import { UNIT_TYPE_LABEL, UNIT_TYPE_CHIP_COLOR } from '@/modules/organization/organization-units/types';
 import type { PositionTree, PositionRequest, PositionUpdateRequest } from '@/modules/organization/positions/types';
 import type { RoleResponse } from '@/modules/organization/employees/types';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import { usePositionFormData } from '../hooks/use-position-form-data';
 
 interface PositionFormProps {
@@ -31,6 +33,12 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   const router = useRouter();
   const searchParams = useSearchParams();
   const isEditMode = mode === 'edit';
+  const { hasPerm, hasAnyPerm } = usePermission();
+
+  // Correction #3: the organization-unit field requires position:manage (page
+  // guard) AND organization_unit:read|manage; role binding requires role:manage.
+  const canEditOrgUnit = hasAnyPerm(PERM.ORGANIZATION_UNIT_READ, PERM.ORGANIZATION_UNIT_MANAGE);
+  const canBindRoles = hasPerm(PERM.ROLE_MANAGE);
 
   const { allPositions, roles, orgUnits, isLoadingData, submitCreate, submitUpdate } = usePositionFormData(isEditMode, initialData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +46,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
 
   const { contains } = useFilter({ sensitivity: 'base' });
 
-  // Conditional schema: organizationUnitId required in create mode
+  // Conditional schema: organizationUnitId required in create mode; roleIds
+  // required only when the actor may bind roles (role:manage).
   const formSchema = useMemo(() => z.object({
     positionCode: z.string().min(1, 'Position code is required'),
     positionName: z.string().min(1, 'Position name is required'),
@@ -46,9 +55,13 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
     parentId: z.string().nullable().optional(),
     organizationUnitId: isEditMode
       ? z.string().optional()
-      : z.string().min(1, 'Department is required'),
-    roleIds: z.array(z.number()).min(1, 'Select at least 1 role'),
-  }), [isEditMode]);
+      : canEditOrgUnit
+        ? z.string().min(1, 'Department is required')
+        : z.string().optional(),
+    roleIds: canBindRoles
+      ? z.array(z.number()).min(1, 'Select at least 1 role')
+      : z.array(z.number()).optional(),
+  }), [isEditMode, canEditOrgUnit, canBindRoles]);
 
   type FormValues = z.infer<typeof formSchema>;
 
@@ -68,7 +81,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
   });
 
   useEffect(() => {
-    if (initialData && roles.length > 0) {
+    if (isEditMode && initialData && roles.length > 0 && canBindRoles) {
       organizationApi.getPositionRoles(initialData.id).then((posRoles) => {
         form.reset({
           positionCode: initialData.positionCode,
@@ -80,7 +93,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         });
       });
     }
-  }, [initialData, roles, form]);
+  }, [initialData, roles, form, canBindRoles]);
 
   // Set parentId from query params on create mode
   useEffect(() => {
@@ -123,9 +136,9 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         positionName: values.positionName,
         description: values.description || undefined,
         parentId: values.parentId,
-        organizationUnitId: values.organizationUnitId || null,
+        organizationUnitId: canEditOrgUnit ? (values.organizationUnitId || null) : undefined,
       };
-      const ok = await submitUpdate(initialData.id, payload, values.roleIds);
+      const ok = await submitUpdate(initialData.id, payload, canBindRoles ? values.roleIds ?? [] : []);
       setIsSubmitting(false);
       if (ok) onSuccess();
       else setSubmitError('Failed to update position');
@@ -135,9 +148,11 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
         positionName: values.positionName,
         description: values.description || undefined,
         parentId: values.parentId || undefined,
+        // Create requires a department; the create page guard already enforces
+        // organization_unit:read|manage, so the value is always present here.
         organizationUnitId: values.organizationUnitId!,
       };
-      const newId = await submitCreate(payload, values.roleIds);
+      const newId = await submitCreate(payload, canBindRoles ? values.roleIds ?? [] : []);
       setIsSubmitting(false);
       if (newId) onSuccess();
       else setSubmitError('Failed to add position');
@@ -258,7 +273,9 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   </Select>
                 )}
               />
-              {/* Department — HeroUI ComboBox (single-select) */}
+              {/* Department — HeroUI ComboBox (single-select); requires organization_unit:read|manage */}
+              {canEditOrgUnit && (
+              <>
               <Controller
                 control={form.control}
                 name="organizationUnitId"
@@ -297,7 +314,11 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   </ComboBox>
                 )}
               />
-              {/* Role — Autocomplete Multiselect + Search */}
+              </>
+              )}
+              {/* Role — Autocomplete Multiselect + Search; requires role:manage */}
+              {canBindRoles && (
+              <>
               <Controller
                 control={form.control}
                 name="roleIds"
@@ -381,6 +402,8 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   );
                 }}
               />
+              </>
+              )}
             </div>
           </div>
 

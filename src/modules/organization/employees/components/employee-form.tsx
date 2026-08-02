@@ -74,8 +74,13 @@ interface PendingPosition {
 export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps) {
   const router = useRouter();
   const isEditMode = mode === 'edit';
-  const { hasPerm } = usePermission();
-  const canAssignPositions = hasPerm(PERM.POSITION_ASSIGN_USER);
+  const { hasPerm, hasAnyPerm } = usePermission();
+  // Correction #3: position fields appear only with user:manage AND
+  // (position:read OR position:manage). Omitted from the payload otherwise —
+  // backend leaves existing assignments untouched (update) / creates a
+  // positionless user (create).
+  const canAssignPositions = hasPerm(PERM.USER_MANAGE)
+    && hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE);
 
   const {
     positions,

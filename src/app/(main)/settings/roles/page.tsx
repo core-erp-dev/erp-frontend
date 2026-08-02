@@ -33,7 +33,7 @@ const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
 
 export default function RolesPage() {
   const router = useRouter();
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const {
     roles,
@@ -105,7 +105,7 @@ export default function RolesPage() {
 
   const totalItems = pagination?.totalElements ?? 0;
 
-  if (!hasPerm(PERM.ROLE_READ)) {
+  if (!hasAnyPerm(PERM.ROLE_READ, PERM.ROLE_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">
@@ -150,7 +150,7 @@ export default function RolesPage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {!isDeletedScope && hasPerm(PERM.ROLE_CREATE) && (
+          {!isDeletedScope && hasPerm(PERM.ROLE_MANAGE) && (
             <Button variant="primary" onPress={() => router.push('/settings/roles/create')}>
               <Plus className="h-4 w-4" />
               Add Role
@@ -192,7 +192,7 @@ export default function RolesPage() {
           )}
 
           {/* Scope Toggle: Deleted / Current — last in row order */}
-          {hasPerm(PERM.ROLE_READ_DELETED) && (
+          {hasPerm(PERM.ROLE_MANAGE) && (
             <Button variant="tertiary" aria-label={isDeletedScope ? 'Show current' : 'Show deleted'} onPress={handleScopeToggle}>
               {isDeletedScope ? (
                 <CheckCircle className="h-4 w-4" />

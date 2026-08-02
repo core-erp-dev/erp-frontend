@@ -16,7 +16,7 @@ export default function OrganizationUnitDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const { unit, isLoading, error, deleteUnit, isDeleting } = useOrgUnitDetail(id);
 
@@ -59,7 +59,7 @@ export default function OrganizationUnitDetailPage() {
   }
 
   const children = unit.children ?? [];
-  const showDropdown = hasPerm(PERM.POSITION_UPDATE) || hasPerm(PERM.POSITION_DELETE);
+  const showDropdown = hasPerm(PERM.ORGANIZATION_UNIT_MANAGE);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -88,13 +88,13 @@ export default function OrganizationUnitDetailPage() {
                   if (key === 'edit') router.push(`/organization/organization-units/${id}/edit`);
                   if (key === 'delete') setIsDeleteOpen(true);
                 }}>
-                  {hasPerm(PERM.POSITION_UPDATE) && (
+                  {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
                     <Dropdown.Item id="edit" textValue="Edit">
                       <PencilSimple className="h-4 w-4 text-muted-foreground" />
                       <span>Edit</span>
                     </Dropdown.Item>
                   )}
-                  {hasPerm(PERM.POSITION_DELETE) && (
+                  {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
                     <Dropdown.Item id="delete" textValue="Delete" variant="danger">
                       <Trash className="h-4 w-4 text-danger" />
                       <span className="text-danger">Delete</span>
@@ -144,7 +144,7 @@ export default function OrganizationUnitDetailPage() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Subordinate Units</h2>
-          {hasPerm(PERM.POSITION_CREATE) && (
+          {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
             <Button variant="primary" size="sm" onPress={() => router.push(`/organization/organization-units/create?parentId=${unit.id}`)}>
               <Plus className="h-4 w-4" />
               Add Subordinate
@@ -205,7 +205,7 @@ export default function OrganizationUnitDetailPage() {
                     </Table.Cell>
                     <Table.Cell>
                       <div className="flex items-center justify-end gap-1">
-                        {hasPerm(PERM.POSITION_READ) && (
+                        {hasAnyPerm(PERM.ORGANIZATION_UNIT_READ, PERM.ORGANIZATION_UNIT_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"

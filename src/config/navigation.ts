@@ -84,7 +84,7 @@ export const navigationConfig: SidebarItem[] = [
     href: '/organization/organization-units',
     icon: Stack,
     group: 'ORGANIZATION',
-    permissions: ['position:read'],
+    permissions: ['organization_unit:read'],
   },
 
   // ── SETTINGS ──

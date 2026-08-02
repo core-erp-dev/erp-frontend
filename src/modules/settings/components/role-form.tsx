@@ -32,6 +32,7 @@ interface RoleFormProps {
 }
 
 const moduleLabels: Record<string, string> = {
+  organization_unit: 'Organization Unit',
   position: 'Position',
   user: 'User',
   role: 'Role & Permission',

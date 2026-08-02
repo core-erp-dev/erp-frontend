@@ -16,7 +16,7 @@ export default function EditEmployeePage() {
 
   const { employee, isLoading, error } = useEmployeeDetail(id);
 
-  if (!hasPerm(PERM.USER_UPDATE)) {
+  if (!hasPerm(PERM.USER_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

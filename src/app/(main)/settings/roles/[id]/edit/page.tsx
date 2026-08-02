@@ -16,7 +16,7 @@ export default function EditRolePage() {
 
   const { role, isLoading, error } = useRoleDetail(id);
 
-  if (!hasPerm(PERM.ROLE_UPDATE)) {
+  if (!hasPerm(PERM.ROLE_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

@@ -161,7 +161,7 @@ export default function EmployeePage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {!isDeletedScope && hasPerm(PERM.USER_CREATE) && (
+          {!isDeletedScope && hasPerm(PERM.USER_MANAGE) && (
             <Button variant="primary" onPress={() => router.push('/organization/employees/create')}>
               <Plus className="h-4 w-4" />
               Add Employee
@@ -234,7 +234,7 @@ export default function EmployeePage() {
           )}
 
           {/* Scope Toggle: Deleted / Current — last in row order */}
-          {hasPerm(PERM.USER_READ_DELETED) && (
+          {hasPerm(PERM.USER_MANAGE) && (
             <Button variant="tertiary" aria-label={isDeletedScope ? 'Show current' : 'Show deleted'} onPress={handleScopeToggle}>
               {isDeletedScope ? (
                 <CheckCircle className="h-4 w-4" />

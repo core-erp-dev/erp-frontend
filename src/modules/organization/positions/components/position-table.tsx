@@ -36,7 +36,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   onRestore,
 }) => {
   const router = useRouter();
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
@@ -56,7 +56,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   // ── Inline action buttons (Detail + Edit) — shared by Table and Tree views ──
   const renderInlineActions = (id: string, name: string) => (
     <>
-      {hasPerm(PERM.POSITION_READ) && (
+      {hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) && (
         <Button
           isIconOnly
           variant="tertiary"
@@ -67,7 +67,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
           <Eye className="h-4 w-4" />
         </Button>
       )}
-      {hasPerm(PERM.POSITION_UPDATE) && (
+      {hasPerm(PERM.POSITION_MANAGE) && (
         <Button
           isIconOnly
           variant="tertiary"
@@ -92,13 +92,13 @@ export const PositionTable: React.FC<PositionTableProps> = ({
           if (key === 'add-child') router.push(`/organization/positions/create?parentId=${id}`);
           if (key === 'delete') onDelete(id, name);
         }}>
-          {hasPerm(PERM.POSITION_CREATE) && (
+          {hasPerm(PERM.POSITION_MANAGE) && (
             <Dropdown.Item id="add-child" textValue="Add Subordinate">
               <Plus className="h-4 w-4 text-muted-foreground" />
               <span>Add Subordinate</span>
             </Dropdown.Item>
           )}
-          {hasPerm(PERM.POSITION_DELETE) && (
+          {hasPerm(PERM.POSITION_MANAGE) && (
             <Dropdown.Item id="delete" textValue="Delete" variant="danger">
               <Trash className="h-4 w-4 text-danger" />
               <span className="text-danger">Delete</span>
@@ -192,7 +192,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
                       {row.isDeleted ? (
-                        hasPerm(PERM.POSITION_RESTORE) && (
+                        hasPerm(PERM.POSITION_MANAGE) && (
                           <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>
@@ -289,7 +289,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
                       {isDeleted ? (
-                        hasPerm(PERM.POSITION_RESTORE) && (
+                        hasPerm(PERM.POSITION_MANAGE) && (
                           <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>

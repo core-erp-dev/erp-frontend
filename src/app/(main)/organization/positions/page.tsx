@@ -194,7 +194,7 @@ export default function PositionsPage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          {!isDeletedScope && hasPerm(PERM.POSITION_CREATE) && (
+          {!isDeletedScope && hasPerm(PERM.POSITION_MANAGE) && (
             <Button variant="primary" onPress={() => router.push('/organization/positions/create')}>
               <Plus className="h-4 w-4" />
               Add Position
@@ -270,7 +270,7 @@ export default function PositionsPage() {
           )}
 
           {/* Scope Toggle: Deleted / Current — last in row order */}
-          {hasPerm(PERM.POSITION_READ_DELETED) && (
+          {hasPerm(PERM.POSITION_MANAGE) && (
             <Button variant="tertiary" aria-label={isDeletedScope ? 'Show current' : 'Show deleted'} onPress={handleScopeToggle}>
               {isDeletedScope ? (
                 <CheckCircle className="h-4 w-4" />

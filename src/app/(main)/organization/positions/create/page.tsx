@@ -9,9 +9,12 @@ import { PositionForm } from '@/modules/organization/positions/components/positi
 
 export default function CreatePositionPage() {
   const router = useRouter();
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
-  if (!hasPerm(PERM.POSITION_CREATE)) {
+  // Correction #3: creating a position requires a department, so the
+  // organization-unit field permission is mandatory on the create page.
+  if (!hasPerm(PERM.POSITION_MANAGE)
+      || !hasAnyPerm(PERM.ORGANIZATION_UNIT_READ, PERM.ORGANIZATION_UNIT_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">

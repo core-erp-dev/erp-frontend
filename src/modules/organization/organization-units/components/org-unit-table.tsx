@@ -37,7 +37,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
   viewMode,
 }) => {
   const router = useRouter();
-  const { hasPerm } = usePermission();
+  const { hasPerm, hasAnyPerm } = usePermission();
 
   const currentPage = pagination ? pagination.page : 1;
   const totalPages = pagination ? pagination.totalPages : 1;
@@ -56,7 +56,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
   // ── Inline action buttons (Detail + Edit) — shared by Table and Tree views ──
   const renderInlineActions = (id: string, name: string) => (
     <>
-      {hasPerm(PERM.POSITION_READ) && (
+      {hasAnyPerm(PERM.ORGANIZATION_UNIT_READ, PERM.ORGANIZATION_UNIT_MANAGE) && (
         <Button
           isIconOnly
           variant="tertiary"
@@ -67,7 +67,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
           <Eye className="h-4 w-4" />
         </Button>
       )}
-      {hasPerm(PERM.POSITION_UPDATE) && (
+      {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
         <Button
           isIconOnly
           variant="tertiary"
@@ -94,13 +94,13 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
             onDelete({ id, unitName: name } as unknown as OrganizationUnitResponse);
           }
         }}>
-          {hasPerm(PERM.POSITION_CREATE) && (
+          {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
             <Dropdown.Item id="add-child" textValue="Add Subordinate">
               <Plus className="h-4 w-4 text-muted-foreground" />
               <span>Add Subordinate</span>
             </Dropdown.Item>
           )}
-          {hasPerm(PERM.POSITION_DELETE) && (
+          {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
             <Dropdown.Item id="delete" textValue="Delete" variant="danger">
               <Trash className="h-4 w-4 text-danger" />
               <span className="text-danger">Delete</span>
@@ -260,7 +260,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                   <Table.Cell>
                     {isDeleted ? (
                       <span className="font-medium text-gray-400">{unit.unitName}</span>
-                    ) : hasPerm(PERM.POSITION_READ) ? (
+                    ) : hasAnyPerm(PERM.ORGANIZATION_UNIT_READ, PERM.ORGANIZATION_UNIT_MANAGE) ? (
                       <Link
                         href={`/organization/organization-units/${unit.id}`}
                         className="text-foreground hover:underline font-medium"
@@ -286,7 +286,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
                       {isDeleted ? (
-                        hasPerm(PERM.POSITION_RESTORE) && (
+                        hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
                           <Button
                             isIconOnly
                             variant="tertiary"

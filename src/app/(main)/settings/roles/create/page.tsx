@@ -11,7 +11,7 @@ export default function CreateRolePage() {
   const router = useRouter();
   const { hasPerm } = usePermission();
 
-  if (!hasPerm(PERM.ROLE_CREATE)) {
+  if (!hasPerm(PERM.ROLE_MANAGE)) {
     return (
       <div className="flex w-full flex-col gap-6">
         <Alert status="danger">
