@@ -18,7 +18,7 @@ const activity: KpiActivityResponse = {
   assignedToUserPositionId: 'up-1', assignedToUserName: 'A', assignedToPositionName: 'P1',
   activityName: 'A1', description: null, unit: '%', targetValue: 100,
   periodYear: 2026, periodMonth: 6, status: 'ACTIVE', realizedValue: 50,
-  progressPercent: 50, createdAt: '', updatedAt: '',
+  progressPercent: 50, version: 3, createdAt: '', updatedAt: '',
 };
 
 const request: KpiActivityChangeRequestResponse = {
@@ -112,5 +112,120 @@ describe('activityV1Api.decideRequest (T8 — unified decision)', () => {
     expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/req-1/decision', {
       decision: 'REJECT', rejectionReason: 'not valid',
     });
+  });
+});
+
+describe('activityV1Api.getAssignableAssignees (T3)', () => {
+  it('GET /api/v1/kpi-activities/assignable-assignees with actingPositionId only', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
+    await activityV1Api.getAssignableAssignees('pos-1');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/assignable-assignees', {
+      params: { actingPositionId: 'pos-1' },
+    });
+  });
+
+  it('adds parentId for child create', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
+    await activityV1Api.getAssignableAssignees('pos-1', 'act-parent');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/assignable-assignees', {
+      params: { actingPositionId: 'pos-1', parentId: 'act-parent' },
+    });
+  });
+});
+
+describe('activityV1Api.submitCreateRequest (T4 — root vs child discriminated)', () => {
+  it('POST /api/v1/kpi-activity-requests with the exact ROOT body (no parentId key)', async () => {
+    mockedApi.post.mockResolvedValueOnce({ data: wrap(request) });
+    await activityV1Api.submitCreateRequest({
+      assignedToUserPositionId: 'up-2',
+      actingPositionId: 'pos-1',
+      corporateKpiId: 'ck-1',
+      periodYear: 2026,
+      periodMonth: 6,
+      activityName: 'Root Activity',
+      description: 'root desc',
+      unit: '%',
+      targetValue: 100,
+    });
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', {
+      assignedToUserPositionId: 'up-2',
+      actingPositionId: 'pos-1',
+      corporateKpiId: 'ck-1',
+      periodYear: 2026,
+      periodMonth: 6,
+      activityName: 'Root Activity',
+      description: 'root desc',
+      unit: '%',
+      targetValue: 100,
+    });
+    const body = mockedApi.post.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('parentId');
+  });
+
+  it('POST with the exact CHILD body (no corporateKpiId/periodYear/periodMonth keys)', async () => {
+    mockedApi.post.mockResolvedValueOnce({ data: wrap(request) });
+    await activityV1Api.submitCreateRequest({
+      assignedToUserPositionId: 'up-2',
+      actingPositionId: 'pos-1',
+      parentId: 'act-parent',
+      activityName: 'Child Activity',
+      unit: '%',
+      targetValue: 50,
+    });
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', {
+      assignedToUserPositionId: 'up-2',
+      actingPositionId: 'pos-1',
+      parentId: 'act-parent',
+      activityName: 'Child Activity',
+      unit: '%',
+      targetValue: 50,
+    });
+    const body = mockedApi.post.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('corporateKpiId');
+    expect(body).not.toHaveProperty('periodYear');
+    expect(body).not.toHaveProperty('periodMonth');
+  });
+});
+
+describe('activityV1Api.submitChangeRequest (T5 — UPDATE vs CANCEL discriminated)', () => {
+  it('POST /api/v1/kpi-activities/{id}/change-requests with the exact UPDATE body (no cancellationReason)', async () => {
+    mockedApi.post.mockResolvedValueOnce({ data: wrap(request) });
+    await activityV1Api.submitChangeRequest('act-1', {
+      requestType: 'UPDATE',
+      actingPositionId: 'pos-1',
+      activityName: 'Renamed',
+      description: null,
+      unit: '%',
+      targetValue: 120,
+    });
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activities/act-1/change-requests', {
+      requestType: 'UPDATE',
+      actingPositionId: 'pos-1',
+      activityName: 'Renamed',
+      description: null,
+      unit: '%',
+      targetValue: 120,
+    });
+    const body = mockedApi.post.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('cancellationReason');
+  });
+
+  it('POST with the exact CANCEL body — no UPDATE-only fields serialized', async () => {
+    mockedApi.post.mockResolvedValueOnce({ data: wrap(request) });
+    await activityV1Api.submitChangeRequest('act-1', {
+      requestType: 'CANCEL',
+      actingPositionId: 'pos-1',
+      cancellationReason: 'no longer needed',
+    });
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/kpi-activities/act-1/change-requests', {
+      requestType: 'CANCEL',
+      actingPositionId: 'pos-1',
+      cancellationReason: 'no longer needed',
+    });
+    const body = mockedApi.post.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('activityName');
+    expect(body).not.toHaveProperty('description');
+    expect(body).not.toHaveProperty('unit');
+    expect(body).not.toHaveProperty('targetValue');
   });
 });

@@ -49,6 +49,9 @@ declare module "@phosphor-icons/react" {
   export const Bell: FC<IconProps>;
   export const SignOut: FC<IconProps>;
   export const Eye: FC<IconProps>;
+  export const PencilLine: FC<IconProps>;
+  export const Prohibit: FC<IconProps>;
+  export const Wrench: FC<IconProps>;
   export const Funnel: FC<IconProps>;
   export const Clock: FC<IconProps>;
   export const TrendUp: FC<IconProps>;

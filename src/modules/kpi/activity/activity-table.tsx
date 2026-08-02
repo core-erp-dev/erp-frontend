@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Table, Chip, ProgressBar, Button, Spinner } from '@heroui/react';
-import { Eye, Tray } from '@phosphor-icons/react';
+import { Eye, PencilLine, Plus, Prohibit, Tray, Wrench } from '@phosphor-icons/react';
 import {
   ACTIVITY_STATUS_LABEL,
   type KpiActivityResponse,
@@ -17,6 +17,21 @@ interface ActivityTableProps {
   /** Show the exact assignee identity column (used by the All Activities view). */
   showAssignee?: boolean;
   onRetry?: () => void;
+
+  /* ── Position-dependent actions (only rendered when provided) ── */
+  /**
+   * The selected acting Position's assignment id (`core_user_positions.id`).
+   * Update/Cancel/Add-Child render only for items whose assignee is EXACTLY
+   * this assignment — a same-Position coworker is never the owner.
+   */
+  ownAssignmentUserPositionId?: string | null;
+  /** Child-create trigger for owned ACTIVE activities. */
+  onAddChild?: (item: KpiActivityResponse) => void;
+  /** UPDATE/CANCEL change-request trigger for owned ACTIVE activities. */
+  onRequestChange?: (item: KpiActivityResponse, mode: 'update' | 'cancel') => void;
+  /** T11 administrative edit trigger (`kpi_activity:manage`). */
+  canAdminEdit?: boolean;
+  onAdminEdit?: (item: KpiActivityResponse) => void;
 }
 
 /* ── Chip color map ── */
@@ -26,13 +41,20 @@ const ACTIVITY_STATUS_CHIP_COLOR: Record<KpiActivityStatus, 'default' | 'success
   CANCELLED: 'default',
 };
 
+function isOwned(item: KpiActivityResponse, ownAssignmentUserPositionId: string | null | undefined): boolean {
+  return Boolean(ownAssignmentUserPositionId)
+    && item.assignedToUserPositionId === ownAssignmentUserPositionId;
+}
+
 /**
- * Activity table — view-only. Mutation actions (create child / update / cancel)
- * are not rendered: they require an explicit acting Position that has no
- * frontend data source yet (plan §15.1).
+ * Activity table — view-only unless Position-dependent action handlers are
+ * provided. Ownership is exact-assignment: `assignedToUserPositionId` must
+ * equal the selected acting Position's `userPositionId` (never the Position
+ * id, never a coworker's assignment).
  */
 export function ActivityTable({
   items, isLoading, error, onViewDetail, showAssignee, onRetry,
+  ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit,
 }: ActivityTableProps) {
   return (
     <Table key="kpi-activity-table" aria-label="KPI Activities">
@@ -79,64 +101,112 @@ export function ActivityTable({
               );
             }}
           >
-            {items.map((item) => (
-              <Table.Row key={item.id} id={String(item.id)}>
-                <Table.Cell className="font-medium text-foreground">
-                  {item.activityName}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {item.parentActivityName || '-'}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {item.corporateKpiName}
-                </Table.Cell>
-                {showAssignee && (
-                  <Table.Cell className="text-muted-foreground">
-                    {item.assignedToUserName}
+            {items.map((item) => {
+              const owned = isOwned(item, ownAssignmentUserPositionId);
+              const canChange = owned && item.status === 'ACTIVE' && onRequestChange;
+              return (
+                <Table.Row key={item.id} id={String(item.id)}>
+                  <Table.Cell className="font-medium text-foreground">
+                    {item.activityName}
                   </Table.Cell>
-                )}
-                <Table.Cell className="text-muted-foreground">
-                  {`${item.periodYear}-${String(item.periodMonth).padStart(2, '0')}`}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {`${item.targetValue} ${item.unit}`}
-                </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {`${item.realizedValue} ${item.unit}`}
-                </Table.Cell>
-                <Table.Cell>
-                  <div className="flex items-center gap-2">
-                    <ProgressBar
-                      aria-label="Progress"
-                      value={item.progressPercent}
-                      className="w-20"
-                      size="sm"
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round(item.progressPercent)}%
-                    </span>
-                  </div>
-                </Table.Cell>
-                <Table.Cell>
-                  <Chip size="sm" color={ACTIVITY_STATUS_CHIP_COLOR[item.status]} variant="soft">
-                    {ACTIVITY_STATUS_LABEL[item.status]}
-                  </Chip>
-                </Table.Cell>
-                <Table.Cell>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      isIconOnly
-                      variant="tertiary"
-                      size="sm"
-                      aria-label={`View detail for ${item.activityName}`}
-                      onPress={() => onViewDetail(item.id)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </Table.Cell>
-              </Table.Row>
-            ))}
+                  <Table.Cell className="text-muted-foreground">
+                    {item.parentActivityName || '-'}
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {item.corporateKpiName}
+                  </Table.Cell>
+                  {showAssignee && (
+                    <Table.Cell className="text-muted-foreground">
+                      {item.assignedToUserName}
+                    </Table.Cell>
+                  )}
+                  <Table.Cell className="text-muted-foreground">
+                    {`${item.periodYear}-${String(item.periodMonth).padStart(2, '0')}`}
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {`${item.targetValue} ${item.unit}`}
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {`${item.realizedValue} ${item.unit}`}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex items-center gap-2">
+                      <ProgressBar
+                        aria-label="Progress"
+                        value={item.progressPercent}
+                        className="w-20"
+                        size="sm"
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(item.progressPercent)}%
+                      </span>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Chip size="sm" color={ACTIVITY_STATUS_CHIP_COLOR[item.status]} variant="soft">
+                      {ACTIVITY_STATUS_LABEL[item.status]}
+                    </Chip>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        isIconOnly
+                        variant="tertiary"
+                        size="sm"
+                        aria-label={`View detail for ${item.activityName}`}
+                        onPress={() => onViewDetail(item.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {canChange && onAddChild && (
+                        <Button
+                          isIconOnly
+                          variant="tertiary"
+                          size="sm"
+                          aria-label={`Add child to ${item.activityName}`}
+                          onPress={() => onAddChild(item)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canChange && (
+                        <Button
+                          isIconOnly
+                          variant="tertiary"
+                          size="sm"
+                          aria-label={`Request update for ${item.activityName}`}
+                          onPress={() => onRequestChange(item, 'update')}
+                        >
+                          <PencilLine className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canChange && (
+                        <Button
+                          isIconOnly
+                          variant="tertiary"
+                          size="sm"
+                          aria-label={`Request cancellation for ${item.activityName}`}
+                          onPress={() => onRequestChange(item, 'cancel')}
+                        >
+                          <Prohibit className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canAdminEdit && onAdminEdit && item.version != null && (
+                        <Button
+                          isIconOnly
+                          variant="tertiary"
+                          size="sm"
+                          aria-label={`Admin edit ${item.activityName}`}
+                          onPress={() => onAdminEdit(item)}
+                        >
+                          <Wrench className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
           </Table.Body>
         </Table.Content>
       </Table.ScrollContainer>

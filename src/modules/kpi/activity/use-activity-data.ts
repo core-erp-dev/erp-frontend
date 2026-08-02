@@ -3,7 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from '@heroui/react';
 import { activityV1Api, extractActivityV1Error } from './activity-v1-api';
+import { classifyActivityError, recoverableConflict } from '@/modules/kpi/shared/domain-errors';
+import type { RecoverableConflict } from '@/modules/kpi/shared/domain-errors';
 import type {
+  ChangeRequestRequest,
+  CreateActivityRequest,
   KpiActivityResponse,
   KpiActivityChangeRequestResponse,
 } from './activity-v1.types';
@@ -14,13 +18,28 @@ import type {
  * Scope ownership (`/kpi/activities`):
  *   - My Activities  → GET /api/v1/kpi-activities?scope=mine
  *   - All Activities → GET /api/v1/kpi-activities?scope=all  (read_all | manage)
+ *   - Subordinates   → GET /api/v1/kpi-activities?scope=subordinates&actingPositionId=<core_positions.id>
  *   - My Requests    → GET /api/v1/kpi-activity-requests?scope=mine
  *
- * `subordinates` (scope=subordinates) and every submission flow are NOT
- * activated: they require an explicit acting Position (`core_positions.id`)
- * and the frontend has no self-accessible position source yet (contract
- * blocker, plan §15.1). No position is ever guessed.
+ * `subordinates` and every submission flow require an EXPLICIT acting
+ * Position (`core_positions.id`) chosen by the user — never guessed. The
+ * subordinate result is isolated per acting Position: switching Position
+ * replaces the list, and `subordinatesActingPositionId` records which Position
+ * the current data belongs to (no mixing of cached results).
+ *
+ * Mutations (T4/T5) return a result descriptor: `{ success, conflict, message }`.
+ * Recoverable conflicts (already-processed, version-conflict, duplicate-pending)
+ * are classified via the shared domain-error mapping; the caller surfaces a
+ * banner and refetches authoritative data. No silent retry of stale updates.
  */
+export interface MutationResult {
+  success: boolean;
+  /** Non-null when the failure is a recoverable conflict. */
+  conflict: RecoverableConflict | null;
+  /** Raw user-facing message (backend detail). */
+  message: string | null;
+}
+
 export interface UseActivityDataReturn {
   /* My Activities (scope=mine) */
   myActivities: KpiActivityResponse[];
@@ -34,6 +53,14 @@ export interface UseActivityDataReturn {
   allError: string | null;
   fetchAllActivities: () => Promise<void>;
 
+  /* Subordinates (scope=subordinates + actingPositionId) */
+  subordinatesActivities: KpiActivityResponse[];
+  isLoadingSubordinates: boolean;
+  subordinatesError: string | null;
+  /** The acting Position whose subordinate data is currently loaded (isolation). */
+  subordinatesActingPositionId: string | null;
+  fetchSubordinatesActivities: (actingPositionId: string) => Promise<void>;
+
   /* My Requests (requests scope=mine) */
   myRequests: KpiActivityChangeRequestResponse[];
   isLoadingRequests: boolean;
@@ -44,6 +71,10 @@ export interface UseActivityDataReturn {
   fetchActivityDetail: (id: string) => Promise<KpiActivityResponse | null>;
   fetchRequestDetail: (id: string) => Promise<KpiActivityChangeRequestResponse | null>;
   isLoadingDetail: boolean;
+
+  /* Mutations (T4/T5) */
+  submitCreateRequest: (body: CreateActivityRequest) => Promise<MutationResult>;
+  submitChangeRequest: (activityId: string, body: ChangeRequestRequest) => Promise<MutationResult>;
 }
 
 export function useActivityData(): UseActivityDataReturn {
@@ -54,6 +85,11 @@ export function useActivityData(): UseActivityDataReturn {
   const [allActivities, setAllActivities] = useState<KpiActivityResponse[]>([]);
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [allError, setAllError] = useState<string | null>(null);
+
+  const [subordinatesActivities, setSubordinatesActivities] = useState<KpiActivityResponse[]>([]);
+  const [isLoadingSubordinates, setIsLoadingSubordinates] = useState(false);
+  const [subordinatesError, setSubordinatesError] = useState<string | null>(null);
+  const [subordinatesActingPositionId, setSubordinatesActingPositionId] = useState<string | null>(null);
 
   const [myRequests, setMyRequests] = useState<KpiActivityChangeRequestResponse[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
@@ -97,6 +133,33 @@ export function useActivityData(): UseActivityDataReturn {
     }
   }, []);
 
+  /**
+   * Subordinates — always sends an explicit `scope=subordinates` plus the
+   * selected acting Position. The result replaces any previous list; switching
+   * Position refetches and never mixes cached data from another Position.
+   */
+  const fetchSubordinatesActivities = useCallback(async (actingPositionId: string) => {
+    setIsLoadingSubordinates(true);
+    setSubordinatesError(null);
+    try {
+      const data = await activityV1Api.getActivities('subordinates', actingPositionId);
+      if (mountedRef.current) {
+        setSubordinatesActivities(data);
+        setSubordinatesActingPositionId(actingPositionId);
+      }
+    } catch (err: unknown) {
+      const msg = extractActivityV1Error(err);
+      if (mountedRef.current) {
+        setSubordinatesError(msg);
+        setSubordinatesActivities([]);
+        setSubordinatesActingPositionId(null);
+      }
+      toast.danger(msg);
+    } finally {
+      if (mountedRef.current) setIsLoadingSubordinates(false);
+    }
+  }, []);
+
   const fetchMyRequests = useCallback(async () => {
     setIsLoadingRequests(true);
     setRequestsError(null);
@@ -136,10 +199,44 @@ export function useActivityData(): UseActivityDataReturn {
     }
   }, []);
 
+  const submitCreateRequest = useCallback(async (body: CreateActivityRequest): Promise<MutationResult> => {
+    try {
+      await activityV1Api.submitCreateRequest(body);
+      return { success: true, conflict: null, message: null };
+    } catch (err: unknown) {
+      const raw = extractActivityV1Error(err);
+      const kind = classifyActivityError(raw);
+      if (kind !== 'other') {
+        return { success: false, conflict: recoverableConflict(kind), message: raw };
+      }
+      return { success: false, conflict: null, message: raw };
+    }
+  }, []);
+
+  const submitChangeRequest = useCallback(async (
+    activityId: string,
+    body: ChangeRequestRequest,
+  ): Promise<MutationResult> => {
+    try {
+      await activityV1Api.submitChangeRequest(activityId, body);
+      return { success: true, conflict: null, message: null };
+    } catch (err: unknown) {
+      const raw = extractActivityV1Error(err);
+      const kind = classifyActivityError(raw);
+      if (kind !== 'other') {
+        return { success: false, conflict: recoverableConflict(kind), message: raw };
+      }
+      return { success: false, conflict: null, message: raw };
+    }
+  }, []);
+
   return {
     myActivities, isLoadingMy, myError, fetchMyActivities,
     allActivities, isLoadingAll, allError, fetchAllActivities,
+    subordinatesActivities, isLoadingSubordinates, subordinatesError,
+    subordinatesActingPositionId, fetchSubordinatesActivities,
     myRequests, isLoadingRequests, requestsError, fetchMyRequests,
     fetchActivityDetail, fetchRequestDetail, isLoadingDetail,
+    submitCreateRequest, submitChangeRequest,
   };
 }

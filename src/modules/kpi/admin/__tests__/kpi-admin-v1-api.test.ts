@@ -18,7 +18,7 @@ const activity: KpiActivityResponse = {
   assignedToUserPositionId: 'up-1', assignedToUserName: 'A', assignedToPositionName: 'P1',
   activityName: 'A1', description: null, unit: '%', targetValue: 100,
   periodYear: 2026, periodMonth: 6, status: 'ACTIVE', realizedValue: 0,
-  progressPercent: 0, createdAt: '', updatedAt: '',
+  progressPercent: 0, version: 3, createdAt: '', updatedAt: '',
 };
 
 const request: KpiActivityChangeRequestResponse = {
@@ -89,8 +89,52 @@ describe('kpiAdminV1Api.adminReassignReportReviewer (T18)', () => {
   });
 });
 
+describe('kpiAdminV1Api.adminUpdateActivity (T11)', () => {
+  it('PATCH /api/v1/admin/kpi-activities/{id} sending the authoritative version as expectedVersion', async () => {
+    mockedApi.patch.mockResolvedValueOnce({ data: wrap(activity) });
+    await kpiAdminV1Api.adminUpdateActivity('act-1', {
+      action: 'UPDATE',
+      reason: 'audit correction',
+      expectedVersion: activity.version, // 3 — the persisted version from KpiActivityResponse
+      activityName: 'A1 v2',
+      unit: '%',
+      targetValue: 120,
+    });
+    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/admin/kpi-activities/act-1', {
+      action: 'UPDATE',
+      reason: 'audit correction',
+      expectedVersion: 3,
+      activityName: 'A1 v2',
+      unit: '%',
+      targetValue: 120,
+    });
+  });
+
+  it('sends only REASSIGN fields for action=REASSIGN (no UPDATE-only proposal fields)', async () => {
+    mockedApi.patch.mockResolvedValueOnce({ data: wrap(activity) });
+    await kpiAdminV1Api.adminUpdateActivity('act-1', {
+      action: 'REASSIGN',
+      reason: 'reassign',
+      expectedVersion: activity.version,
+      assignedToUserPositionId: 'up-9',
+    });
+    const body = mockedApi.patch.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(body).toEqual({
+      action: 'REASSIGN',
+      reason: 'reassign',
+      expectedVersion: 3,
+      assignedToUserPositionId: 'up-9',
+    });
+    expect(body).not.toHaveProperty('activityName');
+  });
+});
+
 describe('kpiAdminV1Api surface', () => {
-  it('does NOT expose an adminUpdateActivity (T11) function — version contract blocker', () => {
-    expect((kpiAdminV1Api as Record<string, unknown>).adminUpdateActivity).toBeUndefined();
+  it('exposes exactly the four administrative client functions (T9/T10/T11/T18)', () => {
+    const surface = kpiAdminV1Api as Record<string, unknown>;
+    expect(typeof surface.adminReassignApprover).toBe('function');
+    expect(typeof surface.adminCreateActivity).toBe('function');
+    expect(typeof surface.adminUpdateActivity).toBe('function');
+    expect(typeof surface.adminReassignReportReviewer).toBe('function');
   });
 });

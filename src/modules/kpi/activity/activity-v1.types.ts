@@ -1,8 +1,10 @@
 /**
- * KPI Activity — V1 contract types (erp-backend @ d06ff13).
+ * KPI Activity — V1 contract types (erp-backend @ d06ff13 + 2a71107).
  *
  * Response types mirror KpiActivityResponse / KpiActivityChangeRequestResponse
- * exactly (no `version` field is exposed by the backend).
+ * exactly. `KpiActivityResponse.version` is the authoritative persisted
+ * optimistic-lock version (backend 2a71107) — the only valid source for
+ * `expectedVersion` in T11. Never fabricate or derive a version.
  * Request types are PRECISE DISCRIMINATED UNIONS:
  *   - root vs child create (different required/forbidden fields);
  *   - UPDATE vs CANCEL change requests;
@@ -32,6 +34,8 @@ export interface KpiActivityResponse {
   status: KpiActivityStatus;
   realizedValue: number;
   progressPercent: number;
+  /** Authoritative persisted optimistic-lock version (backend 2a71107) — the only valid `expectedVersion` source for T11. */
+  version: number;
   createdAt: string;
   updatedAt: string;
 }
