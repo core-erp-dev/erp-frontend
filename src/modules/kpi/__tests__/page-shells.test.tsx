@@ -8,7 +8,7 @@
  *  - no fake KPI metrics or mock business data appear
  *  - rendering does not trigger an API call
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import KpiOverviewPage from '@/app/(main)/kpi/page';
 import KpiCorporatePage from '@/app/(main)/kpi/corporate/page';
 import KpiReportsPage from '@/app/(main)/kpi/reports/page';
@@ -55,10 +55,20 @@ jest.mock('@phosphor-icons/react', () => ({
   SlidersHorizontal: () => null,
   CaretDown: () => null,
   CaretRight: () => null,
+  ArrowsOutSimple: () => null,
+  ArrowsInSimple: () => null,
   DownloadSimple: () => null,
 }));
 
 jest.mock('@/lib/axios');
+
+// ── Mock next/navigation (pages use useRouter / useSearchParams) ──
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), refresh: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+  usePathname: () => '/',
+}));
 
 // ── Mock P3 report components (page-shells renders KpiReportsPage directly) ──
 jest.mock('@/modules/kpi/report/use-report-data', () => ({
@@ -69,6 +79,17 @@ jest.mock('@/modules/kpi/report/use-report-data', () => ({
     approveReport: jest.fn(), isApproving: false,
     rejectReport: jest.fn(), isRejecting: false,
     recoverable: null, clearRecoverable: jest.fn(),
+  }),
+}));
+
+// ── Mock legacy corporate KPI data hook (page-shells renders KpiCorporatePage directly) ──
+jest.mock('@/modules/kpi/corporate/use-corporate-kpi-data', () => ({
+  useCorporateKpiData: () => ({
+    tree: [], deletedList: [], isLoadingTree: false, isLoadingDeleted: false,
+    treeError: null, deletedError: null, hasLoadedDeleted: false,
+    fetchTree: jest.fn(), fetchDeleted: jest.fn(),
+    isMutating: false, createNode: jest.fn(), updateNode: jest.fn(), refreshTree: jest.fn(),
+    pendingLifecycle: null, changeStatus: jest.fn(), deleteKpi: jest.fn(), restoreKpi: jest.fn(),
   }),
 }));
 
@@ -148,16 +169,20 @@ describe('Corporate KPI page shell', () => {
     expect(screen.getByRole('heading', { name: KPI_LABELS.corporate })).toBeInTheDocument();
   });
 
-  it('renders the configuration workspace controls', () => {
-    // The legacy description line is gone — the workspace exposes create/refresh
-    // controls and a year selector instead.
-    expect(screen.getByRole('button', { name: /New Configuration/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Refresh configurations/ })).toBeInTheDocument();
-    expect(screen.getByLabelText('Year')).toBeInTheDocument();
+  it('renders the legacy single-page controls', () => {
+    // One main page: Add Corporate KPI button, refresh, year selector, and
+    // the Current | Deleted view toggle.
+    expect(screen.getByRole('button', { name: /Add Corporate KPI/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Refresh/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Select year/ })).toBeInTheDocument();
+    expect(allText()).toMatch(/Current/);
+    expect(allText()).toMatch(/Deleted/);
   });
 
-  it('renders loading state on mount', () => {
-    expect(allText()).toMatch(/Corporate KPI/);
+  it('renders the empty current-view table state', async () => {
+    await waitFor(() => {
+      expect(allText()).toMatch(/No corporate KPI/i);
+    });
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);

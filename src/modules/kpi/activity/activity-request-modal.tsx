@@ -117,7 +117,7 @@ export function ActivityRequestModal({
       const indicators: CorporateKpiNode[] = [];
       const collect = (nodes: CorporateKpiNode[]) => {
         for (const node of nodes) {
-          if (node.nodeType === 'INDICATOR' && node.configurationStatus === 'ACTIVE') {
+          if (node.nodeType === 'INDICATOR' && node.status === 'ACTIVE') {
             indicators.push(node);
           }
           if (node.children.length > 0) collect(node.children);

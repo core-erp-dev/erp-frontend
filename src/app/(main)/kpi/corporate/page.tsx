@@ -1,83 +1,196 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert, Breadcrumbs, BreadcrumbsItem, Button, Chip, Input, Label, Modal, Spinner, Tabs, TextArea, TextField,
-} from '@heroui/react';
-import { House, Plus, Play, ArrowsClockwise, Copy, X } from '@phosphor-icons/react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem } from '@heroui/react';
+import { Plus, House, ArrowsClockwise } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS } from '@/modules/kpi/constants';
-import { useConfigurationWorkspace } from '@/modules/kpi/corporate/use-corporate-kpi-data';
-import { ConfigurationEditor } from '@/modules/kpi/corporate/configuration-editor';
-import { MonthlyValuesEditor } from '@/modules/kpi/corporate/monthly-values-editor';
-import { ResultsView } from '@/modules/kpi/corporate/results-view';
-import { HistoryView } from '@/modules/kpi/corporate/history-view';
-import { DeletedNodesView } from '@/modules/kpi/corporate/deleted-nodes-view';
-import type { CorporateConfigurationSummary } from '@/modules/kpi/corporate/corporate-kpi.types';
+import { useCorporateKpiData } from '@/modules/kpi/corporate/use-corporate-kpi-data';
+import { CorporateKpiFilters } from '@/modules/kpi/corporate/corporate-kpi-filters';
+import { CorporateKpiTable } from '@/modules/kpi/corporate/corporate-kpi-table';
+import { KpiNodeFormModal, type FormMode } from '@/modules/kpi/corporate/kpi-node-form-modal';
+import { LifecycleDialog } from '@/modules/kpi/corporate/corporate-kpi-lifecycle-dialog';
+import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 export default function KpiCorporatePage() {
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
-  const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
+  const canCreate = hasPerm(PERM.CORPORATE_KPI_CREATE);
+  const canUpdate = hasPerm(PERM.CORPORATE_KPI_UPDATE);
+  const canViewDeleted = hasPerm(PERM.CORPORATE_KPI_READ_DELETED);
+  const canRestore = hasPerm(PERM.CORPORATE_KPI_RESTORE);
 
   const currentYear = new Date().getFullYear();
+
+  // ── Page-local UI state ──
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [activeTab, setActiveTab] = useState('definition');
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createYear, setCreateYear] = useState(String(currentYear));
-  const [cloneFromYear, setCloneFromYear] = useState('');
-  const [reasonDialog, setReasonDialog] = useState<null | 'close' | 'reopen'>(null);
-  const [reason, setReason] = useState('');
+  const [viewMode, setViewMode] = useState<'current' | 'deleted'>('current');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const workspace = useConfigurationWorkspace();
+  // ── Create/Edit modal state ──
+  const [modalMode, setModalMode] = useState<FormMode | null>(null);
+  const [editNode, setEditNode] = useState<CorporateKpiNode | undefined>(undefined);
+  const [preselectedParentId, setPreselectedParentId] = useState<string | undefined>(undefined);
+
+  // ── Lifecycle dialog state ──
+  const [lifecycleAction, setLifecycleAction] = useState<LifecycleActionType | null>(null);
+  const [lifecycleNode, setLifecycleNode] = useState<CorporateKpiNode | null>(null);
+
+  // ── Server data ──
   const {
-    configurations, isLoadingConfigs, configsError, fetchConfigurations,
-    selectedConfigId, selectConfiguration,
-    definition, isLoadingDefinition, definitionError,
-    isMutating, conflictMessage, clearConflict,
-    saveDefinition, activate, close, reopen, deleteNode, restoreNode, saveValues,
-    getValuesForMonth,
-    results, isLoadingResults, fetchResults,
-    history, isLoadingHistory, fetchHistory,
-    deletedList, isLoadingDeleted, fetchDeleted,
-  } = workspace;
+    tree, deletedList, isLoadingTree, isLoadingDeleted,
+    treeError, deletedError, hasLoadedDeleted,
+    fetchTree, fetchDeleted,
+    isMutating, createNode, updateNode,
+    pendingLifecycle, changeStatus, deleteKpi, restoreKpi,
+  } = useCorporateKpiData();
 
+  // Fetch tree on mount and when year changes
   useEffect(() => {
-    if (canRead) void fetchConfigurations(selectedYear);
-  }, [canRead, selectedYear, fetchConfigurations]);
+    if (canRead) fetchTree(selectedYear);
+  }, [canRead, selectedYear, fetchTree]);
 
-  // keep the selected config in sync when the year changes
-  const selectedConfig = useMemo(
-    () => configurations.find((c) => c.id === selectedConfigId) ?? null,
-    [configurations, selectedConfigId],
+  // Fetch deleted data when first switching to deleted view
+  useEffect(() => {
+    if (viewMode === 'deleted' && !hasLoadedDeleted && canViewDeleted) {
+      fetchDeleted();
+    }
+  }, [viewMode, hasLoadedDeleted, canViewDeleted, fetchDeleted]);
+
+  // ── Generic handlers ──
+
+  const handleYearChange = useCallback((year: number) => setSelectedYear(year), []);
+  const handleViewModeChange = useCallback((mode: 'current' | 'deleted') => setViewMode(mode), []);
+  const handleSearchChange = useCallback((query: string) => setSearchQuery(query), []);
+
+  const handleToggleExpand = useCallback((id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleExpandAll = useCallback(() => {
+    const allIds = new Set<string>();
+    const collect = (nodes: typeof tree) => {
+      for (const node of nodes) {
+        if (node.children.length > 0) { allIds.add(node.id); collect(node.children); }
+      }
+    };
+    collect(tree);
+    setExpandedIds(allIds);
+  }, [tree]);
+
+  const handleCollapseAll = useCallback(() => setExpandedIds(new Set()), []);
+
+  // ── Create/Edit modal handlers ──
+
+  const openCreateAspect = useCallback(() => {
+    setModalMode('CREATE_ASPECT');
+    setEditNode(undefined);
+    setPreselectedParentId(undefined);
+  }, []);
+
+  const openCreateIndicator = useCallback((aspectId: string) => {
+    setModalMode('CREATE_INDICATOR');
+    setEditNode(undefined);
+    setPreselectedParentId(aspectId);
+  }, []);
+
+  const openEdit = useCallback((node: CorporateKpiNode) => {
+    setModalMode(node.nodeType === 'ASPECT' ? 'EDIT_ASPECT' : 'EDIT_INDICATOR');
+    setEditNode(node);
+    setPreselectedParentId(undefined);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModalMode(null);
+    setEditNode(undefined);
+    setPreselectedParentId(undefined);
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (data: CreateKpiRequest | UpdateKpiRequest, id?: string): Promise<boolean> => {
+      let result: CorporateKpiNode | null = null;
+      if (id) {
+        result = await updateNode(id, data as UpdateKpiRequest);
+        if (result) { closeModal(); return true; }
+      } else {
+        result = await createNode(data as CreateKpiRequest);
+        if (result) { closeModal(); return true; }
+      }
+      return false;
+    },
+    [createNode, updateNode, closeModal],
   );
 
-  const handleCreate = useCallback(async () => {
-    const year = Number(createYear);
-    const clone = cloneFromYear.trim() === '' ? null : Number(cloneFromYear);
-    try {
-      const { corporateKpiApi } = await import('@/modules/kpi/corporate/corporate-kpi-api');
-      const created = await corporateKpiApi.createConfiguration({ year, cloneFromYear: clone });
-      setCreateOpen(false);
-      setCloneFromYear('');
-      await fetchConfigurations(year);
-      selectConfiguration(created.id);
-      setSelectedYear(year);
-    } catch {
-      // error surfaced by the API wrapper's interceptor toast
-    }
-  }, [createYear, cloneFromYear, fetchConfigurations, selectConfiguration]);
+  // ── Lifecycle handlers ──
 
-  const confirmLifecycle = useCallback(async () => {
-    if (reasonDialog === 'close') {
-      const ok = await close(reason);
-      if (ok) { setReasonDialog(null); setReason(''); }
-    } else if (reasonDialog === 'reopen') {
-      const ok = await reopen(reason);
-      if (ok) { setReasonDialog(null); setReason(''); }
+  const openLifecycle = useCallback((action: LifecycleActionType, node: CorporateKpiNode) => {
+    setLifecycleAction(action);
+    setLifecycleNode(node);
+  }, []);
+
+  const closeLifecycle = useCallback(() => {
+    setLifecycleAction(null);
+    setLifecycleNode(null);
+  }, []);
+
+  const handleLifecycleConfirm = useCallback(async () => {
+    if (!lifecycleAction || !lifecycleNode) return;
+    let ok = false;
+    switch (lifecycleAction) {
+      case 'activate':
+        ok = await changeStatus(lifecycleNode.id, 'ACTIVE');
+        break;
+      case 'deactivate':
+        ok = await changeStatus(lifecycleNode.id, 'INACTIVE');
+        break;
+      case 'delete':
+        ok = await deleteKpi(lifecycleNode.id);
+        break;
+      case 'restore':
+        ok = await restoreKpi(lifecycleNode.id);
+        break;
     }
-  }, [reasonDialog, reason, close, reopen]);
+    if (ok) closeLifecycle();
+  }, [lifecycleAction, lifecycleNode, changeStatus, deleteKpi, restoreKpi, closeLifecycle]);
+
+  // All Aspects for parent selector
+  const aspects = useMemo(() => {
+    const result: CorporateKpiNode[] = [];
+    const collect = (nodes: typeof tree) => {
+      for (const n of nodes) {
+        if (n.nodeType === 'ASPECT') result.push(n);
+        if (n.children.length > 0) collect(n.children);
+      }
+    };
+    collect(tree);
+    return result;
+  }, [tree]);
+
+  // Compute total count and all-expanded state
+  const totalCount = viewMode === 'current'
+    ? (() => { let c = 0; const walk = (ns: typeof tree) => { for (const n of ns) { c++; if (n.children.length > 0) walk(n.children); } }; walk(tree); return c; })()
+    : deletedList.length;
+
+  const allExpanded = (() => {
+    if (tree.length === 0 || viewMode !== 'current') return false;
+    const expandableIds = new Set<string>();
+    const collect = (nodes: typeof tree) => {
+      for (const node of nodes) {
+        if (node.children.length > 0) { expandableIds.add(node.id); collect(node.children); }
+      }
+    };
+    collect(tree);
+    return expandableIds.size > 0 && Array.from(expandableIds).every((id) => expandedIds.has(id));
+  })();
+
+  // ── Permission guard ──
 
   if (!canRead) {
     return (
@@ -85,262 +198,116 @@ export default function KpiCorporatePage() {
         <Breadcrumbs>
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
+          <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
         </Breadcrumbs>
+
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
         <Alert status="danger">Access Denied</Alert>
       </div>
     );
   }
 
-  const config = definition?.configuration ?? selectedConfig;
-  const isDraft = config?.configurationStatus === 'DRAFT';
-  const isOpen = config?.recordingStatus === 'OPEN';
+  // ── Rendered page ──
 
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
-        <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
+        <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-          <Chip size="md" className="pointer-events-none" aria-label={`${configurations.length} configurations for ${selectedYear}`}>
-            {configurations.length}
+          <Chip
+            size="md"
+            className="pointer-events-none"
+            aria-label={`Total ${totalCount} corporate kpi`}
+          >
+            {totalCount}
           </Chip>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            isIconOnly variant="tertiary" aria-label="Refresh configurations"
-            onPress={() => fetchConfigurations(selectedYear)} isDisabled={isLoadingConfigs}
+            isIconOnly
+            variant="tertiary"
+            onPress={() => fetchTree(selectedYear)}
+            isDisabled={isLoadingTree}
+            aria-label="Refresh"
           >
-            <ArrowsClockwise className={`h-4 w-4 ${isLoadingConfigs ? 'animate-spin' : ''}`} />
+            <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
           </Button>
-          {canManage && (
-            <Button variant="primary" onPress={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" /> New Configuration
+          {canCreate && viewMode === 'current' && (
+            <Button variant="primary" onPress={openCreateAspect}>
+              <Plus className="h-4 w-4" />
+              Add Corporate KPI
             </Button>
           )}
         </div>
       </div>
 
-      {/* Year + configuration list */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          variant="secondary" aria-label="Year" type="number"
-          value={String(selectedYear)}
-          onChange={(e) => { const y = Number(e.target.value); if (Number.isInteger(y) && y > 2000 && y < 2100) setSelectedYear(y); }}
-          className="w-32"
+      <CorporateKpiFilters
+        selectedYear={selectedYear}
+        onYearChange={handleYearChange}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        canViewDeleted={canViewDeleted}
+        onExpandAll={handleExpandAll}
+        onCollapseAll={handleCollapseAll}
+        allExpanded={allExpanded}
+      />
+
+      <CorporateKpiTable
+        tree={tree}
+        deletedList={deletedList}
+        viewMode={viewMode}
+        expandedIds={expandedIds}
+        onToggleExpand={handleToggleExpand}
+        searchQuery={searchQuery}
+        selectedYear={selectedYear}
+        isLoadingTree={isLoadingTree}
+        isLoadingDeleted={isLoadingDeleted}
+        treeError={treeError}
+        deletedError={deletedError}
+        onRetryTree={() => fetchTree(selectedYear)}
+        onRetryDeleted={fetchDeleted}
+        onCreateIndicator={canCreate ? openCreateIndicator : undefined}
+        onEdit={canUpdate ? openEdit : undefined}
+        onActivate={canUpdate ? (node) => openLifecycle('activate', node) : undefined}
+        onDeactivate={canUpdate ? (node) => openLifecycle('deactivate', node) : undefined}
+        onDelete={(node) => openLifecycle('delete', node)}
+        onRestore={canRestore ? (node) => openLifecycle('restore', node) : undefined}
+      />
+
+      {/* Create/Edit Modal */}
+      {modalMode && (
+        <KpiNodeFormModal
+          mode={modalMode}
+          isOpen={true}
+          onClose={closeModal}
+          onSubmit={handleSubmit}
+          preselectedParentId={preselectedParentId}
+          node={editNode}
+          aspects={aspects}
+          selectedYear={selectedYear}
+          isSubmitting={isMutating}
         />
-        {configsError && <Alert status="danger">{configsError}</Alert>}
-      </div>
-
-      {isLoadingConfigs && configurations.length === 0 && (
-        <div className="flex justify-center py-10"><Spinner aria-label="Loading configurations" /></div>
       )}
 
-      {!isLoadingConfigs && configurations.length === 0 && (
-        <Alert status="accent">
-          No configuration for {selectedYear} yet. Create one to define aspects, indicators, variables, and score bands.
-        </Alert>
+      {/* Lifecycle Confirmation Dialog */}
+      {lifecycleAction && lifecycleNode && (
+        <LifecycleDialog
+          action={lifecycleAction}
+          node={lifecycleNode}
+          isOpen={true}
+          isPending={pendingLifecycle !== null}
+          onConfirm={handleLifecycleConfirm}
+          onCancel={closeLifecycle}
+        />
       )}
-
-      {configurations.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {configurations.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => selectConfiguration(c.id)}
-              className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm transition-colors ${
-                selectedConfigId === c.id
-                  ? 'border-primary bg-primary-soft text-foreground'
-                  : 'border-divider bg-content2/40 text-foreground hover:bg-content2'
-              }`}
-            >
-              <span className="font-medium">{c.year}</span>
-              <Chip size="sm" variant="soft" color={c.configurationStatus === 'ACTIVE' ? 'success' : 'default'}>
-                {c.configurationStatus}
-              </Chip>
-              <Chip size="sm" variant="soft" color={c.recordingStatus === 'OPEN' ? 'accent' : 'warning'}>
-                {c.recordingStatus}
-              </Chip>
-              <span className="text-xs text-muted-foreground">v{c.version}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Workspace */}
-      {selectedConfigId && config && (
-        <div className="flex w-full flex-col gap-4">
-          {conflictMessage && (
-            <div className="flex items-start gap-2">
-              <div className="flex-1"><Alert status="warning">{conflictMessage}</Alert></div>
-              <Button variant="tertiary" isIconOnly aria-label="Dismiss" onPress={clearConflict}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold text-foreground">Configuration {config.year}</h2>
-              <Chip size="sm" variant="soft" color={isDraft ? 'default' : 'success'}>{config.configurationStatus}</Chip>
-              <Chip size="sm" variant="soft" color={isOpen ? 'accent' : 'warning'}>{config.recordingStatus}</Chip>
-              <Chip size="sm" variant="soft" color="accent">v{config.version}</Chip>
-            </div>
-            <div className="flex items-center gap-2">
-              {canManage && isDraft && (
-                <Button variant="primary" onPress={() => activate()} isPending={isMutating}>
-                  <Play className="h-4 w-4" /> Activate
-                </Button>
-              )}
-              {canManage && !isDraft && isOpen && (
-                <Button variant="danger" onPress={() => { setReason(''); setReasonDialog('close'); }} isDisabled={isMutating}>
-                  Close Year
-                </Button>
-              )}
-              {canManage && !isDraft && !isOpen && (
-                <Button variant="secondary" onPress={() => { setReason(''); setReasonDialog('reopen'); }} isDisabled={isMutating}>
-                  Reopen Year
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <Tabs selectedKey={activeTab} onSelectionChange={(k) => setActiveTab(String(k))}>
-            <Tabs.List>
-              <Tabs.Tab id="definition">Definition</Tabs.Tab>
-              <Tabs.Tab id="values">Monthly Values</Tabs.Tab>
-              <Tabs.Tab id="results">Results</Tabs.Tab>
-              <Tabs.Tab id="history">History</Tabs.Tab>
-              <Tabs.Tab id="deleted">Recycle Bin</Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel id="definition" className="pt-4">
-              {definition ? (
-                <ConfigurationEditor
-                  definition={definition}
-                  isLoading={isLoadingDefinition}
-                  error={definitionError}
-                  isMutating={isMutating}
-                  isReadOnly={!canManage}
-                  onSave={saveDefinition}
-                />
-              ) : (
-                <div className="flex justify-center py-10"><Spinner aria-label="Loading definition" /></div>
-              )}
-            </Tabs.Panel>
-            <Tabs.Panel id="values" className="pt-4">
-              {definition && (
-                <MonthlyValuesEditor
-                  definition={definition}
-                  isMutating={isMutating}
-                  onSave={saveValues}
-                  loadValues={getValuesForMonth}
-                />
-              )}
-            </Tabs.Panel>
-            <Tabs.Panel id="results" className="pt-4">
-              <ResultsView
-                configId={selectedConfigId}
-                isMutating={isMutating}
-                results={results}
-                isLoading={isLoadingResults}
-                fetchResults={fetchResults}
-              />
-            </Tabs.Panel>
-            <Tabs.Panel id="history" className="pt-4">
-              <HistoryView history={history} isLoading={isLoadingHistory} />
-            </Tabs.Panel>
-            <Tabs.Panel id="deleted" className="pt-4">
-              <DeletedNodesView
-                deletedList={deletedList}
-                isLoading={isLoadingDeleted}
-                isMutating={isMutating}
-                onRefresh={fetchDeleted}
-                onRestore={restoreNode}
-              />
-            </Tabs.Panel>
-          </Tabs>
-        </div>
-      )}
-
-      {/* Create configuration modal */}
-      <Modal isOpen={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
-        <Modal.Backdrop isDismissable>
-          <Modal.Container>
-            <Modal.Dialog className="sm:max-w-[480px]">
-              <Modal.Header>
-                <Modal.Heading>New Configuration</Modal.Heading>
-                <Modal.CloseTrigger />
-              </Modal.Header>
-              <Modal.Body>
-                <div className="flex flex-col gap-4">
-                  <TextField value={createYear} onChange={setCreateYear}>
-                    <Label>Year</Label>
-                    <Input type="number" />
-                  </TextField>
-                  <div className="flex items-end gap-2">
-                    <TextField value={cloneFromYear} onChange={setCloneFromYear}>
-                      <Label>Clone from year (optional)</Label>
-                      <Input type="number" placeholder="e.g. previous year" />
-                    </TextField>
-                    <Button isIconOnly variant="tertiary" aria-label="Clone previous year" onPress={() => setCloneFromYear(String(Number(createYear) - 1))}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Cloning copies aspects, indicators, variables, and bands (values are not copied). The new configuration starts as DRAFT / OPEN.
-                  </p>
-                </div>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onPress={() => setCreateOpen(false)}>Cancel</Button>
-                <Button variant="primary" onPress={handleCreate} isPending={isMutating} isDisabled={!Number.isInteger(Number(createYear))}>
-                  Create
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
-
-      {/* Close / reopen reason modal */}
-      <Modal isOpen={reasonDialog != null} onOpenChange={(o) => { if (!o) setReasonDialog(null); }}>
-        <Modal.Backdrop isDismissable>
-          <Modal.Container>
-            <Modal.Dialog className="sm:max-w-[440px]">
-              <Modal.Header>
-                <Modal.Heading>{reasonDialog === 'close' ? 'Close Recording Year' : 'Reopen Recording Year'}</Modal.Heading>
-                <Modal.CloseTrigger />
-              </Modal.Header>
-              <Modal.Body>
-                <TextField value={reason} onChange={setReason}>
-                  <Label>Reason (required)</Label>
-                  <TextArea
-                    variant="secondary"
-                    placeholder={reasonDialog === 'close' ? 'e.g. recording finished' : 'e.g. correction needed'}
-                  />
-                </TextField>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onPress={() => setReasonDialog(null)}>Cancel</Button>
-                <Button
-                  variant={reasonDialog === 'close' ? 'danger' : 'primary'}
-                  onPress={confirmLifecycle}
-                  isPending={isMutating}
-                  isDisabled={reason.trim() === ''}
-                >
-                  Confirm
-                </Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      </Modal>
     </div>
   );
 }
