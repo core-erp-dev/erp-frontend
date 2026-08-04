@@ -12,6 +12,12 @@ export interface SidebarItem {
   permissions?: string[];
   /** Compound capability predicate — overrides `permissions` when present. */
   capability?: (permissions: string[]) => boolean;
+  /**
+   * Expandable parent: when present, the item renders as a collapsible menu
+   * header and its children are listed beneath it. The parent is auto-opened
+   * when any child (or the parent href itself) is the active route.
+   */
+  children?: SidebarItem[];
 }
 
 /**
@@ -40,6 +46,29 @@ export const navigationConfig: SidebarItem[] = [
     icon: Buildings,
     group: 'KPI',
     permissions: [PERM.CORPORATE_KPI_READ],
+    children: [
+      {
+        title: 'Corporate KPI',
+        href: KPI_ROUTES.corporate,
+        icon: Buildings,
+        group: 'KPI',
+        permissions: [PERM.CORPORATE_KPI_READ],
+      },
+      {
+        title: 'Input Variables',
+        href: KPI_ROUTES.corporateVariables,
+        icon: Stack,
+        group: 'KPI',
+        permissions: [PERM.CORPORATE_KPI_READ],
+      },
+      {
+        title: 'Monthly Variable Values',
+        href: KPI_ROUTES.corporateVariableValues,
+        icon: ClipboardText,
+        group: 'KPI',
+        permissions: [PERM.CORPORATE_KPI_READ],
+      },
+    ],
   },
   {
     title: 'Activities',

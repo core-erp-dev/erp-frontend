@@ -16,10 +16,8 @@ import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, LifecycleAct
 export default function KpiCorporatePage() {
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
-  const canCreate = hasPerm(PERM.CORPORATE_KPI_CREATE);
-  const canUpdate = hasPerm(PERM.CORPORATE_KPI_UPDATE);
-  const canViewDeleted = hasPerm(PERM.CORPORATE_KPI_READ_DELETED);
-  const canRestore = hasPerm(PERM.CORPORATE_KPI_RESTORE);
+  // Manage implies read on the backend; all mutations + deleted-data views are manage-gated.
+  const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
   const currentYear = new Date().getFullYear();
 
@@ -54,10 +52,10 @@ export default function KpiCorporatePage() {
 
   // Fetch deleted data when first switching to deleted view
   useEffect(() => {
-    if (viewMode === 'deleted' && !hasLoadedDeleted && canViewDeleted) {
+    if (viewMode === 'deleted' && !hasLoadedDeleted && canManage) {
       fetchDeleted();
     }
-  }, [viewMode, hasLoadedDeleted, canViewDeleted, fetchDeleted]);
+  }, [viewMode, hasLoadedDeleted, canManage, fetchDeleted]);
 
   // ── Generic handlers ──
 
@@ -238,7 +236,7 @@ export default function KpiCorporatePage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
           </Button>
-          {canCreate && viewMode === 'current' && (
+          {canManage && viewMode === 'current' && (
             <Button variant="primary" onPress={openCreateAspect}>
               <Plus className="h-4 w-4" />
               Add Corporate KPI
@@ -254,7 +252,7 @@ export default function KpiCorporatePage() {
         onViewModeChange={handleViewModeChange}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
-        canViewDeleted={canViewDeleted}
+        canViewDeleted={canManage}
         onExpandAll={handleExpandAll}
         onCollapseAll={handleCollapseAll}
         allExpanded={allExpanded}
@@ -274,12 +272,12 @@ export default function KpiCorporatePage() {
         deletedError={deletedError}
         onRetryTree={() => fetchTree(selectedYear)}
         onRetryDeleted={fetchDeleted}
-        onCreateIndicator={canCreate ? openCreateIndicator : undefined}
-        onEdit={canUpdate ? openEdit : undefined}
-        onActivate={canUpdate ? (node) => openLifecycle('activate', node) : undefined}
-        onDeactivate={canUpdate ? (node) => openLifecycle('deactivate', node) : undefined}
-        onDelete={(node) => openLifecycle('delete', node)}
-        onRestore={canRestore ? (node) => openLifecycle('restore', node) : undefined}
+        onCreateIndicator={canManage ? openCreateIndicator : undefined}
+        onEdit={canManage ? openEdit : undefined}
+        onActivate={canManage ? (node) => openLifecycle('activate', node) : undefined}
+        onDeactivate={canManage ? (node) => openLifecycle('deactivate', node) : undefined}
+        onDelete={canManage ? (node) => openLifecycle('delete', node) : undefined}
+        onRestore={canManage ? (node) => openLifecycle('restore', node) : undefined}
       />
 
       {/* Create/Edit Modal */}

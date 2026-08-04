@@ -1,6 +1,6 @@
 /**
- * Corporate KPI form modal tests — P1.2.
- * Covers all 4 modes: create/edit Aspect/Indicator.
+ * Corporate KPI form modal tests — new scoring-field contract.
+ * Covers all 4 modes: create/edit Aspect/Indicator with staged scoring config.
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -14,17 +14,23 @@ const mockOnClose = jest.fn();
 
 const aspect: CorporateKpiNode = {
   id: 'asp-1', parentId: null, parentName: null, code: 'FIN', name: 'Financial',
-  nodeType: 'ASPECT', year: 2026, unit: null, targetValue: null, status: 'ACTIVE',
-  description: null, deletedAt: null, createdAt: '2026-01-01T00:00:00',
-  updatedAt: '2026-01-01T00:00:00', children: [],
+  nodeType: 'ASPECT', year: 2026, status: 'ACTIVE', description: null,
+  displayOrder: 0, formula: null, assessmentRules: null, weight: null, targetScore: null,
+  formulaResult: null, actualScore: null, actualResult: null, targetResult: null,
+  calculationStatus: null, calculationError: null,
+  totalWeight: null, remainingWeight: null, weightComplete: null,
+  deletedAt: null, createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00', children: [],
 };
 
 const indicator: CorporateKpiNode = {
+  ...aspect,
   id: 'ind-1', parentId: 'asp-1', parentName: 'Financial', code: 'F01',
-  name: 'Revenue Growth', nodeType: 'INDICATOR', year: 2026, unit: '%',
-  targetValue: 10.5, status: 'DRAFT', description: 'Test indicator',
-  deletedAt: null, createdAt: '2026-01-01T00:00:00',
-  updatedAt: '2026-01-01T00:00:00', children: [],
+  name: 'Revenue Growth', nodeType: 'INDICATOR', status: 'DRAFT', description: 'Test indicator',
+  formula: 'ROI + NPM', weight: 0.25, targetScore: 80,
+  assessmentRules: [
+    { lowerBound: null, lowerInclusive: true, upperBound: 50, upperInclusive: false, score: 0 },
+    { lowerBound: 50, lowerInclusive: true, upperBound: null, upperInclusive: false, score: 100 },
+  ],
 };
 
 const aspects = [
@@ -50,7 +56,7 @@ function renderModal(overrides: Record<string, unknown> = {}) {
 }
 
 function clickSave() {
-  const btn = screen.getByText('Save');
+  const btn = screen.getByText('Create');
   fireEvent.click(btn);
 }
 
@@ -58,7 +64,7 @@ beforeEach(() => { jest.clearAllMocks(); });
 
 /* ── Create Aspect ── */
 
-describe('Add Corporate KPI', () => {
+describe('Add Aspect', () => {
   it('renders title Add Corporate KPI', () => {
     renderModal({ mode: 'CREATE_ASPECT' });
     expect(screen.getByText('Add Corporate KPI')).toBeInTheDocument();
@@ -71,11 +77,12 @@ describe('Add Corporate KPI', () => {
     expect(screen.getByPlaceholderText('Optional description')).toBeInTheDocument();
   });
 
-  it('does not show Indicator-only fields', () => {
+  it('does not show Indicator-only scoring fields', () => {
     renderModal({ mode: 'CREATE_ASPECT' });
     expect(screen.queryByText('Parent Aspect')).not.toBeInTheDocument();
-    expect(screen.queryByText('Unit')).not.toBeInTheDocument();
-    expect(screen.queryByText('Target Value')).not.toBeInTheDocument();
+    expect(screen.queryByText('Formula')).not.toBeInTheDocument();
+    expect(screen.queryByText('Weight (ratio)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Target Score')).not.toBeInTheDocument();
   });
 
   it('rejects blank Code', async () => {
@@ -93,103 +100,70 @@ describe('Add Corporate KPI', () => {
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('submits with nodeType:ASPECT, year, and explicit nulls', async () => {
+  it('submits ASPECT with null scoring fields', async () => {
     renderModal({ mode: 'CREATE_ASPECT' });
     fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'FIN' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Financial' } });
     clickSave();
-    await screen.findByText('Save'); // wait for UI update
+    await screen.findByText('Create');
     expect(mockOnSubmit).toHaveBeenCalledTimes(1);
     const payload = mockOnSubmit.mock.calls[0][0];
     expect(payload).toMatchObject({
-      nodeType: 'ASPECT', year: 2026, parentId: null, unit: null, targetValue: null,
+      nodeType: 'ASPECT', year: 2026, parentId: null,
+      formula: null, assessmentRules: null, weight: null, targetScore: null,
+      displayOrder: 0,
     });
   });
 });
 
-/* ── Create Indicator ── */
+/* ── Create Indicator (staged config — scoring optional) ── */
 
-describe('Add Corporate KPI', () => {
+describe('Add Indicator', () => {
   it('renders title Add Corporate KPI', () => {
     renderModal({ mode: 'CREATE_INDICATOR' });
     expect(screen.getByText('Add Corporate KPI')).toBeInTheDocument();
   });
 
-  it('shows Parent Aspect, Unit, and Target Value fields', () => {
+  it('shows Parent Aspect and scoring fields', () => {
     renderModal({ mode: 'CREATE_INDICATOR' });
     expect(screen.getByText('Parent Aspect')).toBeInTheDocument();
-    expect(screen.getByText('Unit')).toBeInTheDocument();
-    expect(screen.getByText('Target Value')).toBeInTheDocument();
+    expect(screen.getByText('Formula')).toBeInTheDocument();
+    expect(screen.getByText('Weight (ratio)')).toBeInTheDocument();
+    expect(screen.getByText('Target Score')).toBeInTheDocument();
   });
 
   it('rejects blank parent', async () => {
     renderModal({ mode: 'CREATE_INDICATOR' });
     fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'F01' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Revenue' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. %'), { target: { value: '%' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. 10.5'), { target: { value: '10' } });
     clickSave();
     expect(await screen.findByText('Parent Aspect is required')).toBeInTheDocument();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('rejects blank unit', async () => {
+  it('submits valid Indicator without scoring (staged DRAFT)', async () => {
     renderModal({ mode: 'CREATE_INDICATOR', preselectedParentId: 'asp-1' });
     fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'F01' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Revenue' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. 10.5'), { target: { value: '10' } });
     clickSave();
-    expect(await screen.findByText('Unit is required')).toBeInTheDocument();
-    expect(mockOnSubmit).not.toHaveBeenCalled();
-  });
-
-  it('rejects blank target value', async () => {
-    renderModal({ mode: 'CREATE_INDICATOR', preselectedParentId: 'asp-1' });
-    fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'F01' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Revenue' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. %'), { target: { value: '%' } });
-    clickSave();
-    expect(await screen.findByText('Target value must be greater than zero')).toBeInTheDocument();
-    expect(mockOnSubmit).not.toHaveBeenCalled();
-  });
-
-  it('rejects zero target value', async () => {
-    renderModal({ mode: 'CREATE_INDICATOR', preselectedParentId: 'asp-1' });
-    fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'F01' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Revenue' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. %'), { target: { value: '%' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. 10.5'), { target: { value: '0' } });
-    clickSave();
-    expect(await screen.findByText('Target value must be greater than zero')).toBeInTheDocument();
-    expect(mockOnSubmit).not.toHaveBeenCalled();
-  });
-
-  it('rejects negative target value', async () => {
-    renderModal({ mode: 'CREATE_INDICATOR', preselectedParentId: 'asp-1' });
-    fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'F01' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Revenue' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. %'), { target: { value: '%' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. 10.5'), { target: { value: '-1' } });
-    clickSave();
-    // The number input's native min={0} constraint blocks the submit before
-    // zod validation runs — the form must not submit.
-    expect(mockOnSubmit).not.toHaveBeenCalled();
-  });
-
-  it('submits valid Indicator with nodeType:INDICATOR', async () => {
-    renderModal({ mode: 'CREATE_INDICATOR', preselectedParentId: 'asp-1' });
-    fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'F01' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Revenue' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. %'), { target: { value: '%' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. 10.5'), { target: { value: '10.5' } });
-    clickSave();
-    await screen.findByText('Save');
+    await screen.findByText('Create');
     expect(mockOnSubmit).toHaveBeenCalledTimes(1);
     const payload = mockOnSubmit.mock.calls[0][0];
     expect(payload).toMatchObject({
-      nodeType: 'INDICATOR', year: 2026, parentId: 'asp-1', unit: '%', targetValue: 10.5,
+      nodeType: 'INDICATOR', year: 2026, parentId: 'asp-1',
+      formula: null, assessmentRules: null, weight: null, targetScore: null,
     });
     expect(payload).not.toHaveProperty('id');
+  });
+
+  it('rejects weight above 1 (100%)', async () => {
+    renderModal({ mode: 'CREATE_INDICATOR', preselectedParentId: 'asp-1' });
+    fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'F01' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Revenue' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 0.25'), { target: { value: '1.5' } });
+    clickSave();
+    expect(await screen.findByText('Weight must not exceed 100%')).toBeInTheDocument();
+    expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 });
 
@@ -202,7 +176,7 @@ describe('Edit Aspect', () => {
     expect(screen.getByDisplayValue('Financial')).toBeInTheDocument();
   });
 
-  it('shows immutable Type and Year', () => {
+  it('shows immutable Year', () => {
     renderModal({ mode: 'EDIT_ASPECT', node: aspect });
     expect(screen.getByText('Year: 2026')).toBeInTheDocument();
   });
@@ -211,57 +185,42 @@ describe('Edit Aspect', () => {
     renderModal({ mode: 'EDIT_ASPECT', node: aspect });
     const codeInput = screen.getByDisplayValue('FIN');
     fireEvent.change(codeInput, { target: { value: 'FIN-UPD' } });
-    clickSave();
-    await screen.findByText('Save');
+    fireEvent.click(screen.getByText('Save Changes'));
+    await screen.findByText('Save Changes');
     expect(mockOnSubmit).toHaveBeenCalledTimes(1);
     const payload = mockOnSubmit.mock.calls[0][0];
     expect(payload.code).toBe('FIN-UPD');
     expect(payload).not.toHaveProperty('nodeType');
     expect(payload).not.toHaveProperty('year');
     expect(payload.parentId).toBeNull();
-    expect(payload.unit).toBeNull();
-    expect(payload.targetValue).toBeNull();
+    expect(payload.formula).toBeNull();
   });
 });
 
 /* ── Edit Indicator ── */
 
 describe('Edit Indicator', () => {
-  it('populates current values', () => {
+  it('populates current scoring values', () => {
     renderModal({ mode: 'EDIT_INDICATOR', node: indicator });
     expect(screen.getByDisplayValue('F01')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Revenue Growth')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('%')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('10.5')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('ROI + NPM')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('0.25')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('80')).toBeInTheDocument();
   });
 
-  it('rejects empty unit on edit', async () => {
+  it('submits update with scoring fields excluding nodeType/year', async () => {
     renderModal({ mode: 'EDIT_INDICATOR', node: indicator });
-    fireEvent.change(screen.getByDisplayValue('%'), { target: { value: '' } });
-    clickSave();
-    expect(await screen.findByText('Unit is required')).toBeInTheDocument();
-    expect(mockOnSubmit).not.toHaveBeenCalled();
-  });
-
-  it('rejects empty target value on edit', async () => {
-    renderModal({ mode: 'EDIT_INDICATOR', node: indicator });
-    fireEvent.change(screen.getByDisplayValue('10.5'), { target: { value: '' } });
-    clickSave();
-    // Clearing a numeric field reaches zod as NaN — the schema reports the
-    // zod v4 default message for an expected number.
-    expect(await screen.findByText('Invalid input: expected number, received NaN')).toBeInTheDocument();
-    expect(mockOnSubmit).not.toHaveBeenCalled();
-  });
-
-  it('submits update with parent/unit/target excluding nodeType/year', async () => {
-    renderModal({ mode: 'EDIT_INDICATOR', node: indicator });
-    clickSave();
-    await screen.findByText('Save');
+    fireEvent.click(screen.getByText('Save Changes'));
+    await screen.findByText('Save Changes');
     expect(mockOnSubmit).toHaveBeenCalledTimes(1);
     const payload = mockOnSubmit.mock.calls[0][0];
     expect(payload).toMatchObject({
-      code: 'F01', name: 'Revenue Growth', parentId: 'asp-1', unit: '%', targetValue: 10.5,
+      code: 'F01', name: 'Revenue Growth', parentId: 'asp-1',
+      formula: 'ROI + NPM', weight: 0.25, targetScore: 80,
+      displayOrder: 0,
     });
+    expect(payload.assessmentRules).toHaveLength(2);
     expect(payload).not.toHaveProperty('nodeType');
     expect(payload).not.toHaveProperty('year');
   });
@@ -270,19 +229,14 @@ describe('Edit Indicator', () => {
 /* ── Pending state ── */
 
 describe('pending state', () => {
-  it('disables Save while submitting', () => {
+  it('disables Create while submitting', () => {
     renderModal({ mode: 'CREATE_ASPECT', isSubmitting: true });
-    expect(screen.getByText('Saving...')).toBeDisabled();
+    expect(screen.getByText('Create')).toBeDisabled();
   });
 
   it('disables Cancel while submitting', () => {
     renderModal({ mode: 'CREATE_ASPECT', isSubmitting: true });
     expect(screen.getByText('Cancel')).toBeDisabled();
-  });
-
-  it('shows Saving... text while submitting', () => {
-    renderModal({ mode: 'CREATE_ASPECT', isSubmitting: true });
-    expect(screen.getByText('Saving...')).toBeInTheDocument();
   });
 });
 
@@ -317,7 +271,7 @@ describe('form reset', () => {
       mode: 'EDIT_INDICATOR',
       node: indicator,
     });
-    expect(screen.getByDisplayValue('%')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('ROI + NPM')).toBeInTheDocument();
 
     rerender(
       <KpiNodeFormModal
@@ -330,29 +284,7 @@ describe('form reset', () => {
         isSubmitting={false}
       />,
     );
-    expect(screen.queryByDisplayValue('%')).not.toBeInTheDocument();
-    expect(screen.queryByText('Unit')).not.toBeInTheDocument();
-    expect(screen.queryByText('Target Value')).not.toBeInTheDocument();
-  });
-
-  it('pending state resets after success', () => {
-    const { rerender } = renderModal({
-      mode: 'CREATE_ASPECT',
-      isSubmitting: true,
-    });
-    expect(screen.getByText('Saving...')).toBeDisabled();
-
-    rerender(
-      <KpiNodeFormModal
-        mode="CREATE_ASPECT"
-        isOpen={true}
-        onClose={mockOnClose}
-        onSubmit={mockOnSubmit}
-        aspects={aspects}
-        selectedYear={2026}
-        isSubmitting={false}
-      />,
-    );
-    expect(screen.getByText('Save')).not.toBeDisabled();
+    expect(screen.queryByDisplayValue('ROI + NPM')).not.toBeInTheDocument();
+    expect(screen.queryByText('Formula')).not.toBeInTheDocument();
   });
 });

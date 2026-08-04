@@ -1,4 +1,12 @@
-/** Corporate KPI — DTOs matching backend contract. */
+/** Corporate KPI — DTOs matching the backend contract (variables CRUD refactor). */
+
+export interface AssessmentRule {
+  lowerBound: number | null;
+  lowerInclusive: boolean;
+  upperBound: number | null;
+  upperInclusive: boolean;
+  score: number;
+}
 
 export interface CorporateKpiNode {
   id: string;
@@ -8,10 +16,25 @@ export interface CorporateKpiNode {
   name: string;
   nodeType: KpiNodeType;
   year: number;
-  unit: string | null;
-  targetValue: number | null;
   status: KpiStatus;
   description: string | null;
+  displayOrder: number;
+  // Stored scoring fields (INDICATOR-only; null on ASPECT)
+  formula: string | null;
+  assessmentRules: AssessmentRule[] | null;
+  weight: number | null;
+  targetScore: number | null;
+  // Computed fields — populated by /tree when month is provided
+  formulaResult: number | null;
+  actualScore: number | null;
+  actualResult: number | null;
+  targetResult: number | null;
+  calculationStatus: string | null;
+  calculationError: string | null;
+  // Year-level weight summary
+  totalWeight: number | null;
+  remainingWeight: number | null;
+  weightComplete: boolean | null;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -29,22 +52,30 @@ export interface CreateKpiRequest {
   nodeType: KpiNodeType;
   year: number;
   parentId: string | null;
-  unit: string | null;
-  targetValue: number | null;
   description: string | null;
+  displayOrder: number;
+  // Scoring fields — nullable, INDICATOR staged configuration; ASPECT must send null
+  formula: string | null;
+  assessmentRules: AssessmentRule[] | null;
+  weight: number | null;
+  targetScore: number | null;
 }
 
 export interface UpdateKpiRequest {
   code: string;
   name: string;
   parentId: string | null;
-  unit: string | null;
-  targetValue: number | null;
   description: string | null;
+  displayOrder: number;
+  // Full PUT semantics: null clears the scoring configuration (DRAFT only)
+  formula: string | null;
+  assessmentRules: AssessmentRule[] | null;
+  weight: number | null;
+  targetScore: number | null;
   // Note: nodeType and year are immutable — NOT sent in update.
 }
 
-/* ── Lifecycle (P1.3) ── */
+/* ── Lifecycle ── */
 
 export interface ChangeStatusRequest {
   status: KpiStatus;

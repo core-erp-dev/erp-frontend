@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Avatar, Description, Label } from "@heroui/react";
@@ -7,6 +8,8 @@ import {
   SquaresFour,
   Gear as Settings,
   SignOut,
+  CaretDown,
+  CaretRight,
 } from "@phosphor-icons/react";
 import { navigationConfig } from "@/config/navigation";
 import type { SidebarItem } from "@/config/navigation";
@@ -20,9 +23,11 @@ const iconMap: Record<string, React.FC<{ className?: string }>> = {
 };
 
 const getIcon = (
-  icon: string | React.FC<{ className?: string }>,
+  icon: string | React.FC<{ className?: string }> | undefined,
   className?: string,
 ): React.ReactNode => {
+  if (!icon) return null;
+
   if (typeof icon === "string") {
     const IconComponent = iconMap[icon] || SquaresFour;
     return <IconComponent className={cn("h-5 w-5", className)} />;
@@ -36,6 +41,94 @@ interface SidebarProps {
   isOpen: boolean;
 }
 
+/** Permission gate shared by top-level items and expandable children. */
+function itemVisible(item: SidebarItem, userPerms: string[], userRoles: string[]): boolean {
+  if (item.capability) return item.capability(userPerms);
+  if (item.permissions && item.permissions.length > 0) {
+    return item.permissions.some((perm) => userPerms.includes(perm));
+  }
+  if (item.roles && item.roles.length > 0) {
+    return item.roles.some((role) => userRoles.includes(role));
+  }
+  return true;
+}
+
+/**
+ * Expandable parent menu. Auto-opens whenever the parent href or any child
+ * href is the active route; the user can manually collapse/expand otherwise.
+ */
+function ExpandableNavItem({
+  item,
+  pathname,
+  userPerms,
+  userRoles,
+}: {
+  item: SidebarItem;
+  pathname: string;
+  userPerms: string[];
+  userRoles: string[];
+}) {
+  // Default: collapsed. Auto-open whenever the parent/child route is active.
+  const [collapsed, setCollapsed] = React.useState(true);
+
+  const visibleChildren = (item.children ?? []).filter((child) =>
+    itemVisible(child, userPerms, userRoles),
+  );
+  if (visibleChildren.length === 0) return null;
+
+  const isChildActive = visibleChildren.some((child) => pathname === child.href);
+  const isActive = pathname === item.href || isChildActive;
+  const open = isChildActive ? true : !collapsed;
+
+  return (
+    <li key={item.href}>
+      <button
+        type="button"
+        onClick={() => setCollapsed((prev) => !prev)}
+        aria-expanded={open}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+          isActive
+            ? "bg-[#EBEBEC] font-semibold text-foreground"
+            : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+        )}
+      >
+        {getIcon(item.icon, isActive ? "text-foreground" : "text-gray-500")}
+        <span className="flex-1 truncate text-left">{item.title}</span>
+        {open ? (
+          <CaretDown className="h-4 w-4 shrink-0 text-gray-500" />
+        ) : (
+          <CaretRight className="h-4 w-4 shrink-0 text-gray-500" />
+        )}
+      </button>
+
+      {open && (
+        <ul className="space-y-0.5">
+          {visibleChildren.map((child) => {
+            const childActive = pathname === child.href;
+            return (
+              <li key={child.href}>
+                <Link
+                  href={child.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl py-2 pl-11 pr-3 text-sm transition-colors",
+                    childActive
+                      ? "bg-[#EBEBEC] font-semibold text-foreground"
+                      : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+                  )}
+                >
+                  {getIcon(child.icon, childActive ? "text-foreground" : "text-gray-500")}
+                  {child.title}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </li>
+  );
+}
+
 export function Sidebar({ isOpen }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -45,24 +138,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
   const userInitial = displayName.charAt(0).toUpperCase();
   const userEmail = user?.email || "";
 
-  const filteredItems = navigationConfig.filter((item) => {
-    if (item.capability) {
-      const userPerms = user?.permissions ?? [];
-      return item.capability(userPerms);
-    }
+  const userPerms = user?.permissions ?? [];
+  const userRoles = user?.roles ?? [];
 
-    if (item.permissions && item.permissions.length > 0) {
-      const userPerms = user?.permissions ?? [];
-      return item.permissions.some((perm) => userPerms.includes(perm));
-    }
-
-    if (item.roles && item.roles.length > 0) {
-      const userRoles = user?.roles ?? [];
-      return item.roles.some((role) => userRoles.includes(role));
-    }
-
-    return true;
-  });
+  const filteredItems = navigationConfig.filter((item) =>
+    itemVisible(item, userPerms, userRoles),
+  );
 
   const groups = filteredItems.reduce(
     (acc, item) => {
@@ -89,6 +170,18 @@ export function Sidebar({ isOpen }: SidebarProps) {
   );
 
   const renderItem = (item: SidebarItem) => {
+    if (item.children && item.children.length > 0) {
+      return (
+        <ExpandableNavItem
+          key={item.href}
+          item={item}
+          pathname={pathname}
+          userPerms={userPerms}
+          userRoles={userRoles}
+        />
+      );
+    }
+
     const isActive = pathname === item.href;
 
     return (

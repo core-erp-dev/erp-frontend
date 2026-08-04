@@ -25,13 +25,9 @@ export const PERM = {
   ROLE_READ: 'role:read',
   ROLE_MANAGE: 'role:manage',
 
-  // Corporate KPI (legacy granular permissions restored on the backend)
+  // Corporate KPI (collapsed model: read + manage; manage implies read via backend implication map)
   CORPORATE_KPI_READ: 'corporate_kpi:read',
-  CORPORATE_KPI_CREATE: 'corporate_kpi:create',
-  CORPORATE_KPI_UPDATE: 'corporate_kpi:update',
-  CORPORATE_KPI_DELETE: 'corporate_kpi:delete',
-  CORPORATE_KPI_RESTORE: 'corporate_kpi:restore',
-  CORPORATE_KPI_READ_DELETED: 'corporate_kpi:read_deleted',
+  CORPORATE_KPI_MANAGE: 'corporate_kpi:manage',
 
   // KPI Activity
   KPI_ACTIVITY_ROOT_REQUEST: 'kpi_activity:root_request',

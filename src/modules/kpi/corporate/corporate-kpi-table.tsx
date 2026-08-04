@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Table, Spinner, Chip, Button, Dropdown } from '@heroui/react';
-import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, Check, Trash, Copy, DotsThreeVertical, Play, Pause } from '@phosphor-icons/react';
+import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, Check, Copy, DotsThreeVertical, Play, Pause, Trash } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { CorporateKpiNode, KpiStatus } from './corporate-kpi.types';
@@ -15,8 +15,13 @@ interface TreeRow {
   name: string;
   nodeType: string;
   year: number;
-  unit: string | null;
-  targetValue: number | null;
+  formula: string | null;
+  assessmentRules: CorporateKpiNode['assessmentRules'];
+  weight: number | null;
+  actualScore: number | null;
+  actualResult: number | null;
+  targetScore: number | null;
+  targetResult: number | null;
   status: KpiStatus;
   depth: number;
   hasChildren: boolean;
@@ -35,8 +40,13 @@ function buildTreeRows(
       name: node.name,
       nodeType: node.nodeType,
       year: node.year,
-      unit: node.unit,
-      targetValue: node.targetValue,
+      formula: node.formula,
+      assessmentRules: node.assessmentRules,
+      weight: node.weight,
+      actualScore: node.actualScore,
+      actualResult: node.actualResult,
+      targetScore: node.targetScore,
+      targetResult: node.targetResult,
       status: node.status,
       depth,
       hasChildren: node.children.length > 0,
@@ -61,7 +71,11 @@ const typeChipColor: Record<string, 'default' | 'accent'> = {
   INDICATOR: 'accent',
 };
 
-
+/** Weight ratio → percentage label (5.5% stored as 0.055). */
+function formatWeight(weight: number | null): string {
+  if (weight == null) return '–';
+  return `${Math.round(weight * 10000) / 100}%`;
+}
 
 export interface CorporateKpiTableProps {
   tree: CorporateKpiNode[];
@@ -77,10 +91,9 @@ export interface CorporateKpiTableProps {
   deletedError: string | null;
   onRetryTree: () => void;
   onRetryDeleted: () => void;
-  /* ── P1.2 action callbacks ── */
+  /* ── action callbacks (manage-gated) ── */
   onCreateIndicator?: (aspectId: string) => void;
   onEdit?: (node: CorporateKpiNode) => void;
-  /* ── P1.3 lifecycle callbacks ── */
   onActivate?: (node: CorporateKpiNode) => void;
   onDeactivate?: (node: CorporateKpiNode) => void;
   onDelete?: (node: CorporateKpiNode) => void;
@@ -117,12 +130,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 3000);
   }, []);
-  const canCreate = hasPerm(PERM.CORPORATE_KPI_CREATE);
-  const canUpdate = hasPerm(PERM.CORPORATE_KPI_UPDATE);
-  const canDelete = hasPerm(PERM.CORPORATE_KPI_DELETE);
-  const canRestore = hasPerm(PERM.CORPORATE_KPI_RESTORE);
-  const hasLifecyclePerms = hasPerm(PERM.CORPORATE_KPI_UPDATE) || canDelete || canRestore;
-  const hasMutationPerms = canCreate || canUpdate || hasLifecyclePerms;
+  const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
   /* ── Current view ── */
 
@@ -166,16 +174,21 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
         return (
           <Table key="current-kpi">
             <Table.ScrollContainer>
-              <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[900px]">
+              <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[1400px]">
             <Table.Header>
-              <Table.Column id="name" isRowHeader>Name</Table.Column>
+              <Table.Column id="name" isRowHeader>Indicator</Table.Column>
               <Table.Column id="code">Code</Table.Column>
               <Table.Column id="type">Type</Table.Column>
               <Table.Column id="year">Year</Table.Column>
-              <Table.Column id="unit">Unit</Table.Column>
-              <Table.Column id="target">Target Value</Table.Column>
+              <Table.Column id="formula">Formula</Table.Column>
+              <Table.Column id="assessment">Assessment</Table.Column>
+              <Table.Column id="weight">Weight</Table.Column>
+              <Table.Column id="score">Score</Table.Column>
+              <Table.Column id="actual">Actual Result</Table.Column>
+              <Table.Column id="target-score">Target Score</Table.Column>
+              <Table.Column id="target-result">Target Result</Table.Column>
               <Table.Column id="status">Status</Table.Column>
-              {hasMutationPerms && <Table.Column id="actions" className="text-center">{''}</Table.Column>}
+              {canManage && <Table.Column id="actions" className="text-center">{''}</Table.Column>}
             </Table.Header>
             <Table.Body
               renderEmptyState={() => {
@@ -257,21 +270,38 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                       </Chip>
                     </Table.Cell>
                     <Table.Cell className="text-muted-foreground">{row.year}</Table.Cell>
-                    <Table.Cell className="text-muted-foreground">
-                      {row.depth === 0 ? '–' : row.unit || '–'}
+                    <Table.Cell className="max-w-[180px] truncate text-muted-foreground">
+                      {row.nodeType === 'INDICATOR' ? row.formula || '–' : '–'}
                     </Table.Cell>
                     <Table.Cell className="text-muted-foreground">
-                      {row.depth === 0 ? '–' : row.targetValue != null ? row.targetValue : '–'}
+                      {row.nodeType === 'INDICATOR' && row.assessmentRules
+                        ? `${row.assessmentRules.length} rule${row.assessmentRules.length === 1 ? '' : 's'}`
+                        : '–'}
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {row.nodeType === 'INDICATOR' ? formatWeight(row.weight) : '–'}
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {row.nodeType === 'INDICATOR' && row.actualScore != null ? row.actualScore : '–'}
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {row.nodeType === 'INDICATOR' && row.actualResult != null ? row.actualResult : '–'}
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {row.nodeType === 'INDICATOR' ? row.targetScore ?? '–' : '–'}
+                    </Table.Cell>
+                    <Table.Cell className="text-muted-foreground">
+                      {row.nodeType === 'INDICATOR' && row.targetResult != null ? row.targetResult : '–'}
                     </Table.Cell>
                     <Table.Cell>
                       <Chip size="sm" color={statusChipColor[row.status]} variant="soft">
                         {row.status}
                       </Chip>
                     </Table.Cell>
-                    {hasMutationPerms && (
+                    {canManage && (
                       <Table.Cell>
                         <div className="flex items-center justify-end gap-1">
-                          {canUpdate && onEdit && (
+                          {onEdit && (
                             <Button
                               isIconOnly
                               variant="tertiary"
@@ -285,7 +315,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                               <PencilSimple className="h-4 w-4" />
                             </Button>
                           )}
-                          {row.nodeType === 'ASPECT' && canCreate && onCreateIndicator && (
+                          {row.nodeType === 'ASPECT' && onCreateIndicator && (
                             <Button
                               isIconOnly
                               variant="tertiary"
@@ -320,7 +350,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                                     <div className="flex items-center gap-2"><Pause className="h-4 w-4 text-muted-foreground" /><span>Deactivate</span></div>
                                   </Dropdown.Item>
                                 )}
-                                {canDelete && onDelete && (
+                                {onDelete && (
                                   <Dropdown.Item id="delete" textValue="Delete" variant="danger">
                                     <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
                                   </Dropdown.Item>
@@ -362,7 +392,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
             <Table.Column id="year">Year</Table.Column>
             <Table.Column id="parent">Parent Aspect</Table.Column>
             <Table.Column id="status">Status</Table.Column>
-            {canRestore && onRestore && <Table.Column id="actions">{''}</Table.Column>}
+            {canManage && onRestore && <Table.Column id="actions">{''}</Table.Column>}
           </Table.Header>
           <Table.Body
             renderEmptyState={() => {
@@ -409,7 +439,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                   {node.status}
                 </Chip>
               </Table.Cell>
-              {canRestore && onRestore && (
+              {canManage && onRestore && (
                 <Table.Cell>
                     <Button
                       isIconOnly

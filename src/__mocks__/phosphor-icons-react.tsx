@@ -38,3 +38,5 @@ export const Wrench = createIcon('Wrench');
 export const SquaresFour = createIcon('SquaresFour');
 export const Warning = createIcon('Warning');
 export const Pause = createIcon('Pause');
+export const Gear = createIcon('Gear');
+export const SignOut = createIcon('SignOut');

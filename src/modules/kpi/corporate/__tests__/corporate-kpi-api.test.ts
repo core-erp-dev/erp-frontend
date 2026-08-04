@@ -1,5 +1,5 @@
 /**
- * Corporate KPI API contract tests — P1.1 read-only methods.
+ * Corporate KPI API contract tests.
  * Verifies exact method/path, ApiResponse unwrapping, and error propagation.
  */
 import { api } from '@/lib/axios';
@@ -20,10 +20,22 @@ const mockNode: CorporateKpiNode = {
   name: 'Financial',
   nodeType: 'ASPECT',
   year: 2026,
-  unit: null,
-  targetValue: null,
   status: 'ACTIVE',
   description: null,
+  displayOrder: 0,
+  formula: null,
+  assessmentRules: null,
+  weight: null,
+  targetScore: null,
+  formulaResult: null,
+  actualScore: null,
+  actualResult: null,
+  targetResult: null,
+  calculationStatus: null,
+  calculationError: null,
+  totalWeight: null,
+  remainingWeight: null,
+  weightComplete: null,
   deletedAt: null,
   createdAt: '2026-01-01T00:00:00',
   updatedAt: '2026-01-01T00:00:00',
@@ -44,6 +56,18 @@ describe('getTreeByYear', () => {
       params: { year: 2026 },
     });
     expect(result).toEqual([mockNode]);
+  });
+
+  it('adds month parameter when provided', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: [mockNode] } satisfies ApiResponse<CorporateKpiNode[]>,
+    });
+
+    await corporateKpiApi.getTreeByYear(2026, 8);
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/corporate-kpis/tree', {
+      params: { year: 2026, month: 8 },
+    });
   });
 
   it('unwraps ApiResponse.data', async () => {
@@ -115,9 +139,12 @@ describe('create', () => {
       nodeType: 'ASPECT',
       year: 2026,
       parentId: null,
-      unit: null,
-      targetValue: null,
       description: null,
+      displayOrder: 0,
+      formula: null,
+      assessmentRules: null,
+      weight: null,
+      targetScore: null,
     });
 
     expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/corporate-kpis', {
@@ -126,14 +153,17 @@ describe('create', () => {
       nodeType: 'ASPECT',
       year: 2026,
       parentId: null,
-      unit: null,
-      targetValue: null,
       description: null,
+      displayOrder: 0,
+      formula: null,
+      assessmentRules: null,
+      weight: null,
+      targetScore: null,
     });
     expect(result).toEqual(mockNode);
   });
 
-  it('calls POST with Indicator payload including parent/unit/target', async () => {
+  it('calls POST with Indicator payload including parent and scoring fields', async () => {
     mockedApi.post.mockResolvedValueOnce({
       data: { status: 201, message: 'OK', data: { ...mockNode, id: 'ind-1', nodeType: 'INDICATOR' as const } } satisfies ApiResponse<CorporateKpiNode>,
     });
@@ -144,9 +174,12 @@ describe('create', () => {
       nodeType: 'INDICATOR',
       year: 2026,
       parentId: 'asp-1',
-      unit: '%',
-      targetValue: 10.5,
       description: null,
+      displayOrder: 1,
+      formula: 'ROI + NPM',
+      assessmentRules: [{ lowerBound: null, lowerInclusive: true, upperBound: null, upperInclusive: false, score: 100 }],
+      weight: 0.25,
+      targetScore: 80,
     });
 
     expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/corporate-kpis', {
@@ -155,9 +188,12 @@ describe('create', () => {
       nodeType: 'INDICATOR',
       year: 2026,
       parentId: 'asp-1',
-      unit: '%',
-      targetValue: 10.5,
       description: null,
+      displayOrder: 1,
+      formula: 'ROI + NPM',
+      assessmentRules: [{ lowerBound: null, lowerInclusive: true, upperBound: null, upperInclusive: false, score: 100 }],
+      weight: 0.25,
+      targetScore: 80,
     });
     expect(result).toEqual(expect.objectContaining({ id: 'ind-1' }));
   });
@@ -168,7 +204,8 @@ describe('create', () => {
     });
     const result = await corporateKpiApi.create({
       code: 'FIN', name: 'Financial', nodeType: 'ASPECT', year: 2026,
-      parentId: null, unit: null, targetValue: null, description: null,
+      parentId: null, description: null, displayOrder: 0,
+      formula: null, assessmentRules: null, weight: null, targetScore: null,
     });
     expect(result).toEqual(mockNode);
   });
@@ -177,7 +214,8 @@ describe('create', () => {
     mockedApi.post.mockRejectedValueOnce(new Error('Code already exists'));
     await expect(corporateKpiApi.create({
       code: 'FIN', name: 'Financial', nodeType: 'ASPECT', year: 2026,
-      parentId: null, unit: null, targetValue: null, description: null,
+      parentId: null, description: null, displayOrder: 0,
+      formula: null, assessmentRules: null, weight: null, targetScore: null,
     })).rejects.toThrow('Code already exists');
   });
 });
@@ -194,18 +232,24 @@ describe('update', () => {
       code: 'FIN',
       name: 'Financial',
       parentId: null,
-      unit: null,
-      targetValue: null,
       description: null,
+      displayOrder: 0,
+      formula: null,
+      assessmentRules: null,
+      weight: null,
+      targetScore: null,
     });
 
     expect(mockedApi.put).toHaveBeenCalledWith('/api/v1/corporate-kpis/asp-1', {
       code: 'FIN',
       name: 'Financial',
       parentId: null,
-      unit: null,
-      targetValue: null,
       description: null,
+      displayOrder: 0,
+      formula: null,
+      assessmentRules: null,
+      weight: null,
+      targetScore: null,
     });
     expect(result).toEqual(mockNode);
   });
@@ -219,13 +263,15 @@ describe('update', () => {
       code: 'FIN',
       name: 'Financial',
       parentId: null,
-      unit: null,
-      targetValue: null,
       description: null,
+      displayOrder: 0,
+      formula: null,
+      assessmentRules: null,
+      weight: null,
+      targetScore: null,
     };
     await corporateKpiApi.update('asp-1', payload);
 
-    // Verify nodeType and year are NOT sent
     const callArg = mockedApi.put.mock.calls[0][1] as Record<string, unknown>;
     expect(callArg).not.toHaveProperty('nodeType');
     expect(callArg).not.toHaveProperty('year');
@@ -233,7 +279,10 @@ describe('update', () => {
 
   it('propagates backend errors', async () => {
     mockedApi.put.mockRejectedValueOnce(new Error('Not found'));
-    await expect(corporateKpiApi.update('bad-id', { code: 'X', name: 'X', parentId: null, unit: null, targetValue: null, description: null })).rejects.toThrow('Not found');
+    await expect(corporateKpiApi.update('bad-id', {
+      code: 'X', name: 'X', parentId: null, description: null, displayOrder: 0,
+      formula: null, assessmentRules: null, weight: null, targetScore: null,
+    })).rejects.toThrow('Not found');
   });
 });
 

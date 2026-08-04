@@ -16,7 +16,7 @@ import {
   ListBox,
   TextArea,
 } from '@heroui/react';
-import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, KpiNodeType } from './corporate-kpi.types';
+import type { AssessmentRule, CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, KpiNodeType } from './corporate-kpi.types';
 
 export type FormMode =
   | 'CREATE_ASPECT'
@@ -52,52 +52,78 @@ function buildSchema(isEdit: boolean, isIndicator: boolean) {
     description: z.string().optional(),
     nodeType: isEdit ? z.enum(['ASPECT', 'INDICATOR']) : z.string().min(1, 'Type is required'),
     year: z.coerce.number().int().min(2000).max(2100),
+    displayOrder: z.coerce.number().int().min(0, 'Display order must be non-negative').optional(),
+    // Scoring fields — raw strings so empty stays distinct; ranges refined below
+    formula: z.string().optional(),
+    assessmentRulesJson: z.string().optional(),
+    weight: z.string().optional(),
+    targetScore: z.string().optional(),
+  };
+
+  const refineScoring = (data: Record<string, unknown>, ctx: z.RefinementCtx) => {
+    if (data.nodeType === 'INDICATOR' && isIndicator) {
+      if (data.weight != null && data.weight !== '') {
+        const w = Number(data.weight);
+        if (!Number.isFinite(w) || w <= 0) {
+          ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Weight must be greater than 0' });
+        } else if (w > 1) {
+          ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Weight must not exceed 100%' });
+        }
+      }
+      if (data.targetScore != null && data.targetScore !== '') {
+        const t = Number(data.targetScore);
+        if (!Number.isFinite(t) || t <= 0) {
+          ctx.addIssue({ code: 'custom', path: ['targetScore'], message: 'Target score must be greater than zero' });
+        }
+      }
+    }
   };
 
   if (isEdit) {
-    if (isIndicator) {
-      return z.object({
-        ...base,
-        parentId: z.string().min(1, 'Parent Aspect is required'),
-        unit: z.string().min(1, 'Unit is required').max(50, 'Unit must be at most 50 characters'),
-        targetValue: z.coerce.number().positive('Target value must be greater than zero'),
-      });
-    }
     return z.object({
       ...base,
-      parentId: z.string().optional(),
-      unit: z.string().optional(),
-      targetValue: z.coerce.number().optional(),
-    });
+      parentId: isIndicator
+        ? z.string().min(1, 'Parent Aspect is required')
+        : z.string().optional(),
+    }).superRefine(refineScoring);
   }
 
-  // Create mode — all indicator fields optional, refined conditionally
+  // Create mode — parent required conditionally for INDICATOR
   return z.object({
     ...base,
     parentId: z.string().optional(),
-    unit: z.string().optional(),
-    targetValue: z.coerce.number().optional(),
   }).superRefine((data, ctx) => {
-    if (data.nodeType === 'INDICATOR') {
-      if (!data.parentId) {
-        ctx.addIssue({ code: 'custom', path: ['parentId'], message: 'Parent Aspect is required' });
-      }
-      if (!data.unit) {
-        ctx.addIssue({ code: 'custom', path: ['unit'], message: 'Unit is required' });
-      }
-      if (data.targetValue == null || data.targetValue <= 0) {
-        ctx.addIssue({ code: 'custom', path: ['targetValue'], message: 'Target value must be greater than zero' });
-      }
+    if (data.nodeType === 'INDICATOR' && !data.parentId) {
+      ctx.addIssue({ code: 'custom', path: ['parentId'], message: 'Parent Aspect is required' });
     }
+    refineScoring(data, ctx);
   });
 }
 
-type AspectFormValues = z.input<ReturnType<typeof buildSchema>>;
+type NodeFormValues = z.input<ReturnType<typeof buildSchema>>;
+
+/* ── Helpers ── */
+
+/** Parse the assessment-rules JSON textarea; returns rules or throws. */
+function parseAssessmentRules(json: string | undefined): AssessmentRule[] | null {
+  if (!json || !json.trim()) return null;
+  const parsed: unknown = JSON.parse(json);
+  if (!Array.isArray(parsed)) {
+    throw new Error('Assessment rules must be a JSON array.');
+  }
+  return parsed as AssessmentRule[];
+}
+
+/** assessmentRules → pretty JSON for the textarea. */
+function rulesToJson(rules: AssessmentRule[] | null | undefined): string {
+  if (!rules || rules.length === 0) return '';
+  return JSON.stringify(rules, null, 2);
+}
 
 /* ── Inner form component ── */
 
 interface FormBodyProps {
-  initial: AspectFormValues;
+  initial: NodeFormValues;
   isEdit: boolean;
   isIndicator: boolean;
   mode: FormMode;
@@ -127,75 +153,62 @@ function FormBody({
     control,
     handleSubmit,
     setValue,
-  } = useForm<AspectFormValues>({
+  } = useForm<NodeFormValues>({
     resolver: zodResolver(schema),
     defaultValues: initial,
   });
 
   const nodeType = useWatch({ control, name: 'nodeType' });
+  const isInd = nodeType === 'INDICATOR';
   const aspectOptions = useMemo(() => aspects.filter((a) => a.nodeType === 'ASPECT'), [aspects]);
 
   const onFormSubmit = useCallback(
     async (data: Record<string, unknown>) => {
-      const isInd = data.nodeType === 'INDICATOR';
-      if (isInd) {
-        const payload: CreateKpiRequest | UpdateKpiRequest = isEdit
-          ? {
-              code: data.code as string,
-              name: data.name as string,
-              parentId: (data.parentId as string) || null,
-              unit: (data.unit as string) || null,
-              targetValue: (data.targetValue as number) ?? null,
-              description: (data.description as string) || null,
-            }
-          : {
-              code: data.code as string,
-              name: data.name as string,
-              nodeType: 'INDICATOR' as KpiNodeType,
-              year: data.year as number,
-              parentId: (data.parentId as string) || null,
-              unit: (data.unit as string) || null,
-              targetValue: (data.targetValue as number) ?? null,
-              description: (data.description as string) || null,
-            };
-        const ok = await onSubmit(payload, isEdit ? node?.id : undefined);
-        if (!ok) throw new Error('Submit failed');
-      } else {
-        const payload: CreateKpiRequest | UpdateKpiRequest = isEdit
-          ? {
-              code: data.code as string,
-              name: data.name as string,
-              parentId: null,
-              unit: null,
-              targetValue: null,
-              description: (data.description as string) || null,
-            }
-          : {
-              code: data.code as string,
-              name: data.name as string,
-              nodeType: 'ASPECT' as KpiNodeType,
-              year: data.year as number,
-              parentId: null,
-              unit: null,
-              targetValue: null,
-              description: (data.description as string) || null,
-            };
-        const ok = await onSubmit(payload, isEdit ? node?.id : undefined);
-        if (!ok) throw new Error('Submit failed');
+      // Parse assessment rules first — invalid JSON aborts the submit
+      let rules: AssessmentRule[] | null = null;
+      try {
+        rules = parseAssessmentRules(data.assessmentRulesJson as string | undefined);
+      } catch (err: unknown) {
+        console.log('FORM ERRORS', err);
+        return;
       }
+
+      const common = {
+        code: data.code as string,
+        name: data.name as string,
+        parentId: (data.parentId as string) || null,
+        description: (data.description as string) || null,
+        displayOrder: (data.displayOrder as number) ?? 0,
+      };
+
+      const scoring = {
+        formula: (data.formula as string) || null,
+        assessmentRules: rules,
+        weight: data.weight ? Number(data.weight) : null,
+        targetScore: data.targetScore ? Number(data.targetScore) : null,
+      };
+
+      const payload: CreateKpiRequest | UpdateKpiRequest = isEdit
+        ? { ...common, ...scoring }
+        : {
+            ...common,
+            ...scoring,
+            nodeType: (isInd ? 'INDICATOR' : 'ASPECT') as KpiNodeType,
+            year: data.year as number,
+          };
+
+      const ok = await onSubmit(payload, isEdit ? node?.id : undefined);
+      if (!ok) throw new Error('Submit failed');
     },
-    [isEdit, node?.id, onSubmit],
+    [isEdit, isInd, node?.id, onSubmit],
   );
 
   const handleTypeChange = useCallback(
     (key: React.Key | null) => {
       if (!key) return;
-      const newType = key as KpiNodeType;
-      setValue('nodeType', newType, { shouldValidate: true });
-      if (newType === 'ASPECT') {
+      setValue('nodeType', key as KpiNodeType, { shouldValidate: true });
+      if (key === 'ASPECT') {
         setValue('parentId', '', { shouldDirty: true });
-        setValue('unit', '', { shouldDirty: true });
-        setValue('targetValue', undefined, { shouldDirty: true });
       }
     },
     [setValue],
@@ -208,7 +221,7 @@ function FormBody({
       onSubmit={(e) => {
         e.preventDefault();
         handleSubmit(
-          onFormSubmit as (data: AspectFormValues) => Promise<void>,
+          onFormSubmit as (data: NodeFormValues) => Promise<void>,
           (formErrors) => console.log('FORM ERRORS', formErrors),
         )();
       }}
@@ -302,8 +315,32 @@ function FormBody({
         )}
       />
 
+      {/* Display order */}
+      <Controller
+        name="displayOrder"
+        control={control}
+        render={({ field, fieldState }) => (
+          <TextField
+            className="w-full"
+            name={field.name}
+            value={field.value != null ? String(field.value) : ''}
+            onChange={(val) => field.onChange(val ? Number(val) : undefined)}
+            onBlur={field.onBlur}
+            ref={field.ref}
+            isInvalid={fieldState.invalid}
+            isDisabled={isSubmitting}
+            validationBehavior="aria"
+            variant="secondary"
+          >
+            <Label>Display Order</Label>
+            <Input type="number" min={0} step={1} placeholder="e.g. 1" />
+            <FieldError>{fieldState.error?.message}</FieldError>
+          </TextField>
+        )}
+      />
+
       {/* Parent Aspect — indicator only */}
-      {nodeType === 'INDICATOR' && (
+      {isInd && (
         <Controller
           name="parentId"
           control={control}
@@ -345,13 +382,13 @@ function FormBody({
         />
       )}
 
-      {/* Unit + Target Value — side by side (indicator only) */}
-      {nodeType === 'INDICATOR' && (
-        <div className="grid grid-cols-2 gap-4">
+      {/* Scoring fields — indicator only, optional (staged DRAFT configuration) */}
+      {isInd && (
+        <>
           <Controller
-            name="unit"
+            name="formula"
             control={control}
-            render={({ field, fieldState }) => (
+            render={({ field }) => (
               <TextField
                 className="w-full"
                 name={field.name}
@@ -359,42 +396,81 @@ function FormBody({
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 ref={field.ref}
-                isRequired
-                isInvalid={fieldState.invalid}
                 isDisabled={isSubmitting}
                 validationBehavior="aria"
                 variant="secondary"
               >
-                <Label>Unit</Label>
-                <Input placeholder="e.g. %" />
-                <FieldError>{fieldState.error?.message}</FieldError>
+                <Label>Formula</Label>
+                <Input placeholder="e.g. ROI + NPM" />
+                <FieldError />
               </TextField>
             )}
           />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Controller
+              name="weight"
+              control={control}
+              render={({ field, fieldState }) => (
+                <TextField
+                  className="w-full"
+                  name={field.name}
+                  value={field.value != null ? String(field.value) : ''}
+                  onChange={(val) => field.onChange(val)}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  isInvalid={fieldState.invalid}
+                  isDisabled={isSubmitting}
+                  validationBehavior="aria"
+                  variant="secondary"
+                >
+                  <Label>Weight (ratio)</Label>
+                  <Input type="number" step="any" placeholder="e.g. 0.25" />
+                  <FieldError>{fieldState.error?.message}</FieldError>
+                </TextField>
+              )}
+            />
+            <Controller
+              name="targetScore"
+              control={control}
+              render={({ field, fieldState }) => (
+                <TextField
+                  className="w-full"
+                  name={field.name}
+                  value={field.value != null ? String(field.value) : ''}
+                  onChange={(val) => field.onChange(val)}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                  isInvalid={fieldState.invalid}
+                  isDisabled={isSubmitting}
+                  validationBehavior="aria"
+                  variant="secondary"
+                >
+                  <Label>Target Score</Label>
+                  <Input type="number" step="any" placeholder="e.g. 80" />
+                  <FieldError>{fieldState.error?.message}</FieldError>
+                </TextField>
+              )}
+            />
+          </div>
+
           <Controller
-            name="targetValue"
+            name="assessmentRulesJson"
             control={control}
-            render={({ field, fieldState }) => (
-              <TextField
+            render={({ field }) => (
+              <TextArea
                 className="w-full"
                 name={field.name}
-                value={field.value != null ? String(field.value) : ''}
-                onChange={(val) => field.onChange(val ? Number(val) : undefined)}
-                onBlur={field.onBlur}
-                ref={field.ref}
-                isRequired
-                isInvalid={fieldState.invalid}
-                isDisabled={isSubmitting}
-                validationBehavior="aria"
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(e.target.value)}
+                disabled={isSubmitting}
                 variant="secondary"
-              >
-                <Label>Target Value</Label>
-                <Input type="number" min={0} step="any" placeholder="e.g. 10.5" />
-                <FieldError>{fieldState.error?.message}</FieldError>
-              </TextField>
+                placeholder={'Assessment rules JSON — e.g. [{"lowerBound":null,"lowerInclusive":true,"upperBound":50,"upperInclusive":false,"score":0}]'}
+                rows={4}
+              />
             )}
           />
-        </div>
+        </>
       )}
 
       {/* Description — shared */}
@@ -475,15 +551,18 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
   const isEdit = mode === 'EDIT_ASPECT' || mode === 'EDIT_INDICATOR';
   const isIndicator = mode === 'CREATE_INDICATOR' || mode === 'EDIT_INDICATOR';
 
-  const initial: AspectFormValues = {
+  const initial: NodeFormValues = {
     code: node?.code ?? '',
     name: node?.name ?? '',
     nodeType: isIndicator ? 'INDICATOR' : 'ASPECT',
     year: node?.year ?? selectedYear,
     parentId: (mode === 'CREATE_INDICATOR' && preselectedParentId ? preselectedParentId : node?.parentId) ?? '',
-    unit: node?.unit ?? '',
-    targetValue: node?.targetValue ?? undefined,
     description: node?.description ?? '',
+    displayOrder: node?.displayOrder ?? 0,
+    formula: node?.formula ?? '',
+    assessmentRulesJson: rulesToJson(node?.assessmentRules ?? null),
+    weight: node?.weight != null ? String(node.weight) : '',
+    targetScore: node?.targetScore != null ? String(node.targetScore) : '',
   };
 
   const formKey = `${mode}--${node?.id ?? 'new'}--${preselectedParentId ?? ''}--${isOpen}`;
@@ -496,36 +575,43 @@ export const KpiNodeFormModal: React.FC<KpiNodeFormModalProps> = ({
         onOpenChange={(open: boolean) => { if (!open) onClose(); }}
       >
         <Modal.Container>
-          <Modal.Dialog className="sm:max-w-[480px]">
+          <Modal.Dialog className="sm:max-w-[560px]">
             <Modal.Header className="flex items-center justify-between">
-              <Modal.Heading className="text-lg font-semibold">{MODE_TITLE[mode]}</Modal.Heading>
+              <Modal.Heading>{MODE_TITLE[mode]}</Modal.Heading>
+              <Modal.CloseTrigger />
             </Modal.Header>
-            <Modal.Body className="flex flex-col gap-4 p-6">
-              <div key={formKey}>
-                <FormBody
-                  initial={initial}
-                  isEdit={isEdit}
-                  isIndicator={isIndicator}
-                  mode={mode}
-                  node={node}
-                  aspects={aspects}
-                  isSubmitting={isSubmitting}
-                  selectedYear={selectedYear}
-                  preselectedParentId={preselectedParentId}
-                  onClose={onClose}
-                  onSubmit={onSubmit}
-                />
-              </div>
+
+            <Modal.Body className="p-6">
+              <FormBody
+                key={formKey}
+                initial={initial}
+                isEdit={isEdit}
+                isIndicator={isIndicator}
+                mode={mode}
+                node={node}
+                aspects={aspects}
+                isSubmitting={isSubmitting}
+                selectedYear={selectedYear}
+                preselectedParentId={preselectedParentId}
+                onClose={onClose}
+                onSubmit={onSubmit}
+              />
             </Modal.Body>
+
             <Modal.Footer className="flex justify-end gap-2">
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button variant="primary" type="submit" form="corporate-kpi-node-form" isDisabled={isSubmitting}>
-                {isSubmitting ? 'Saving...' : 'Save'}
+              <Button
+                variant="primary"
+                type="submit"
+                form="corporate-kpi-node-form"
+                isDisabled={isSubmitting}
+                isPending={isSubmitting}
+              >
+                {isEdit ? 'Save Changes' : 'Create'}
               </Button>
             </Modal.Footer>
-            <Modal.CloseTrigger />
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

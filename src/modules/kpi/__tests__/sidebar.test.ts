@@ -68,3 +68,38 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     }
   });
 });
+
+/* ── Expandable Corporate KPI parent ── */
+
+describe('expandable Corporate KPI parent', () => {
+  const corporate = kpiItems.find((i) => i.href === KPI_ROUTES.corporate);
+
+  it('is a parent with exactly three children', () => {
+    expect(corporate?.children).toHaveLength(3);
+    const titles = corporate?.children?.map((c) => c.title);
+    expect(titles).toEqual(['Corporate KPI', 'Input Variables', 'Monthly Variable Values']);
+  });
+
+  it('children route to the three corporate pages', () => {
+    const hrefs = corporate?.children?.map((c) => c.href);
+    expect(hrefs).toContain(KPI_ROUTES.corporate);
+    expect(hrefs).toContain(KPI_ROUTES.corporateVariables);
+    expect(hrefs).toContain(KPI_ROUTES.corporateVariableValues);
+  });
+
+  it('parent and all children are gated by corporate_kpi:read', () => {
+    expect(corporate?.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
+    for (const child of corporate?.children ?? []) {
+      expect(child.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
+    }
+  });
+
+  it('defines corporate sub-routes uniquely across the whole config', () => {
+    const allHrefs = navigationConfig.flatMap((i) => [i.href, ...(i.children ?? []).map((c) => c.href)]);
+    // /kpi/corporate appears twice by design (parent header + first child link);
+    // the other two sub-routes exactly once each.
+    expect(allHrefs.filter((h) => h === KPI_ROUTES.corporate)).toHaveLength(2);
+    expect(allHrefs.filter((h) => h === KPI_ROUTES.corporateVariables)).toHaveLength(1);
+    expect(allHrefs.filter((h) => h === KPI_ROUTES.corporateVariableValues)).toHaveLength(1);
+  });
+});

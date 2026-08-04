@@ -3,14 +3,15 @@ import { extractErrorMessage } from '@/types/api';
 import type { ApiResponse } from '@/types/api';
 import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, ChangeStatusRequest } from './corporate-kpi.types';
 
-/** Corporate KPI API — P1.1 read + P1.2 create/update. */
+/** Corporate KPI API — reads + create/update + lifecycle against the variables-contract backend. */
 export const corporateKpiApi = {
-  /* ── Read (P1.1) ── */
+  /* ── Read ── */
 
-  getTreeByYear: async (year: number): Promise<CorporateKpiNode[]> => {
+  /** @param month optional — computed scoring fields are only populated when month is provided. */
+  getTreeByYear: async (year: number, month?: number): Promise<CorporateKpiNode[]> => {
     const response = await api.get<ApiResponse<CorporateKpiNode[]>>(
       '/api/v1/corporate-kpis/tree',
-      { params: { year } },
+      { params: month != null ? { year, month } : { year } },
     );
     return response.data.data;
   },
@@ -22,7 +23,7 @@ export const corporateKpiApi = {
     return response.data.data;
   },
 
-  /* ── Mutations (P1.2) ── */
+  /* ── Mutations ── */
 
   create: async (payload: CreateKpiRequest): Promise<CorporateKpiNode> => {
     const response = await api.post<ApiResponse<CorporateKpiNode>>(
@@ -40,7 +41,7 @@ export const corporateKpiApi = {
     return response.data.data;
   },
 
-  /* ── Lifecycle (P1.3) ── */
+  /* ── Lifecycle ── */
 
   changeStatus: async (id: string, payload: ChangeStatusRequest): Promise<CorporateKpiNode> => {
     const response = await api.patch<ApiResponse<CorporateKpiNode>>(
@@ -62,7 +63,7 @@ export const corporateKpiApi = {
   },
 };
 
-/** Read-error wrapper (P1.1). */
+/** Read-error wrapper. */
 export function extractKpiError(error: unknown): string {
   return extractErrorMessage(error, 'Failed to load Corporate KPIs.');
 }
