@@ -1,22 +1,47 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import { ArrowRightLeft, Settings } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Bell, MagnifyingGlass } from "@phosphor-icons/react";
+import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/icons/SidebarSimple";
 
-export function Header() {
-  const router = useRouter();
+interface HeaderProps {
+  onToggleSidebar?: () => void;
+}
 
+export function Header({ onToggleSidebar }: HeaderProps) {
   return (
-    <header className="flex h-16 items-center justify-end bg-[#f5f5f5] px-6">
-      <div className="flex items-center gap-2">
-        <Button variant="tertiary" size="md" onPress={() => router.push("/")}>
-          <ArrowRightLeft className="h-4 w-4" />
-          Ganti Modul
-        </Button>
+    <header className="flex h-16 items-center bg-[#f5f5f5] px-6">
+      {/* Left: Sidebar toggle */}
+      <Button
+        variant="ghost"
+        size="md"
+        isIconOnly
+        onPress={onToggleSidebar}
+        aria-label="Toggle sidebar"
+      >
+        <SidebarSimpleIcon className="h-5 w-5" />
+      </Button>
 
-        <Button variant="tertiary" size="md" isIconOnly aria-label="Pengaturan">
-          <Settings className="h-4 w-4" />
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Right: Search + Notification */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="tertiary"
+          size="md"
+          isIconOnly
+          aria-label="Search"
+        >
+          <MagnifyingGlass className="h-5 w-5" />
+        </Button>
+        <Button
+          variant="tertiary"
+          size="md"
+          isIconOnly
+          aria-label="Notifications"
+        >
+          <Bell className="h-5 w-5" />
         </Button>
       </div>
     </header>

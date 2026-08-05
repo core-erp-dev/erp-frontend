@@ -1,0 +1,393 @@
+'use client';
+
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Button, Input, Label, ListBox, Modal, Select, Spinner, TextArea, TextField, toast,
+} from '@heroui/react';
+import { X as XIcon } from '@phosphor-icons/react';
+import { activityV1Api } from './activity-v1-api';
+import { useActivityData } from './use-activity-data';
+import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
+import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
+import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
+import type { RecoverableConflict } from '@/modules/kpi/shared/domain-errors';
+import type {
+  AssignableUserPositionResponse,
+  CreateActivityRequest,
+  KpiActivityResponse,
+} from './activity-v1.types';
+
+interface ActivityRequestModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  /** root = new root Activity (indicator + period); child = under a selected parent. */
+  mode: 'root' | 'child';
+  /** The explicitly selected acting Position (`positionId` is sent as `actingPositionId`). */
+  actingPosition: ActingPosition;
+  /** Child mode: eligible parents — the actor's own ACTIVE activities. */
+  parents: KpiActivityResponse[];
+  /** Child mode: pre-select this parent (from the row's Add Child action). */
+  initialParentId?: string | null;
+  /** Called after a successful submission (refetch relevant data). */
+  onSuccess: () => void;
+  /** Called after a recoverable conflict (refetch authoritative data). */
+  onConflict: () => void;
+}
+
+/**
+ * T4 — unified CREATE Activity request (root vs child discriminated).
+ *
+ * Root body: `{ assignedToUserPositionId, actingPositionId, corporateKpiId,
+ * periodYear, periodMonth, activityName, description?, unit, targetValue }`
+ * Child body: `{ assignedToUserPositionId, actingPositionId, parentId,
+ * activityName, description?, unit, targetValue }` — indicator/period are
+ * inherited and NEVER serialized (typed `never`).
+ *
+ * The assignee is chosen from `GET /assignable-assignees` (explicit user-
+ * position selection); the acting Position is the page-level explicit choice.
+ * Closes only after a successful mutation; recoverable conflicts surface a
+ * banner and trigger a refetch.
+ */
+export function ActivityRequestModal({
+  isOpen, onClose, mode, actingPosition, parents, initialParentId, onSuccess, onConflict,
+}: ActivityRequestModalProps) {
+  const { submitCreateRequest } = useActivityData();
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 1 + i);
+
+  const [assignees, setAssignees] = useState<AssignableUserPositionResponse[]>([]);
+  const [isLoadingAssignees, setIsLoadingAssignees] = useState(false);
+  const [assigneeId, setAssigneeId] = useState('');
+  const [parentId, setParentId] = useState('');
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
+  const [ckTree, setCkTree] = useState<CorporateKpiNode[]>([]);
+  const [isLoadingCk, setIsLoadingCk] = useState(false);
+  const [ckId, setCkId] = useState('');
+  const [activityName, setActivityName] = useState('');
+  const [description, setDescription] = useState('');
+  const [unit, setUnit] = useState('');
+  const [targetValue, setTargetValue] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<RecoverableConflict | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  /* Reset on open; load assignable assignees for the acting Position. */
+  useEffect(() => {
+    if (!isOpen) return;
+    setAssigneeId('');
+    setParentId(mode === 'child' && initialParentId ? initialParentId : '');
+    setCkId('');
+    setActivityName('');
+    setDescription('');
+    setUnit('');
+    setTargetValue('');
+    setValidationError(null);
+    setConflict(null);
+    /* Child-mode assignees load via the parent-change effect below. */
+    if (mode !== 'child') {
+      setIsLoadingAssignees(true);
+      setAssignees([]);
+      activityV1Api
+        .getAssignableAssignees(actingPosition.positionId)
+        .then(setAssignees)
+        .catch(() => setAssignees([]))
+        .finally(() => setIsLoadingAssignees(false));
+    }
+  }, [isOpen, mode, initialParentId, actingPosition.positionId]);
+
+  /* Child mode: reload assignees when the parent changes (direct subordinates of the parent assignee). */
+  useEffect(() => {
+    if (!isOpen || mode !== 'child' || !parentId) return;
+    setIsLoadingAssignees(true);
+    setAssigneeId('');
+    setAssignees([]);
+    activityV1Api
+      .getAssignableAssignees(actingPosition.positionId, parentId)
+      .then(setAssignees)
+      .catch(() => setAssignees([]))
+      .finally(() => setIsLoadingAssignees(false));
+  }, [isOpen, mode, parentId, actingPosition.positionId]);
+
+  /* Root mode: CK indicators for the selected year. */
+  const fetchCkTree = useCallback(async (year: number) => {
+    setIsLoadingCk(true);
+    try {
+      const tree = await corporateKpiApi.getTreeByYear(year);
+      const indicators: CorporateKpiNode[] = [];
+      const collect = (nodes: CorporateKpiNode[]) => {
+        for (const node of nodes) {
+          if (node.nodeType === 'INDICATOR' && node.status === 'ACTIVE') {
+            indicators.push(node);
+          }
+          if (node.children.length > 0) collect(node.children);
+        }
+      };
+      collect(tree);
+      setCkTree(indicators);
+    } catch {
+      setCkTree([]);
+    } finally {
+      setIsLoadingCk(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && mode === 'root') void fetchCkTree(selectedYear);
+  }, [isOpen, mode, selectedYear, fetchCkTree]);
+
+  const handleSubmit = useCallback(async () => {
+    setValidationError(null);
+    setConflict(null);
+    if (!assigneeId) {
+      setValidationError('Select an assignee position.');
+      return;
+    }
+    if (!activityName.trim()) {
+      setValidationError('Activity name is required.');
+      return;
+    }
+    if (!unit.trim()) {
+      setValidationError('Unit is required.');
+      return;
+    }
+    const tv = parseFloat(targetValue);
+    if (!targetValue || Number.isNaN(tv) || tv <= 0) {
+      setValidationError('Target value must be a positive number.');
+      return;
+    }
+    if (mode === 'root' && !ckId) {
+      setValidationError('Select a Corporate KPI indicator for a root activity.');
+      return;
+    }
+    if (mode === 'child' && !parentId) {
+      setValidationError('Select a parent activity for a child activity.');
+      return;
+    }
+
+    const body: CreateActivityRequest = mode === 'root'
+      ? {
+          assignedToUserPositionId: assigneeId,
+          actingPositionId: actingPosition.positionId,
+          corporateKpiId: ckId,
+          periodYear: selectedYear,
+          periodMonth,
+          activityName: activityName.trim(),
+          description: description.trim() || undefined,
+          unit: unit.trim(),
+          targetValue: tv,
+        }
+      : {
+          assignedToUserPositionId: assigneeId,
+          actingPositionId: actingPosition.positionId,
+          parentId,
+          activityName: activityName.trim(),
+          description: description.trim() || undefined,
+          unit: unit.trim(),
+          targetValue: tv,
+        };
+
+    setIsSubmitting(true);
+    try {
+      const result = await submitCreateRequest(body);
+      if (result.success) {
+        toast.success('Activity request submitted successfully.');
+        onSuccess();
+        onClose();
+      } else if (result.conflict) {
+        setConflict(result.conflict);
+        onConflict();
+      } else {
+        toast.danger(result.message ?? 'Failed to submit the activity request.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    mode, assigneeId, activityName, unit, targetValue, ckId, parentId,
+    selectedYear, periodMonth, description, actingPosition.positionId,
+    submitCreateRequest, onSuccess, onClose, onConflict,
+  ]);
+
+  return (
+    <Modal isOpen={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <Modal.Backdrop isDismissable={false}>
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-[600px]">
+            <Modal.Header>
+              <Modal.Heading>
+                {mode === 'root' ? 'Request Root Activity' : 'Request Child Activity'}
+              </Modal.Heading>
+              <Modal.CloseTrigger />
+            </Modal.Header>
+            <Modal.Body>
+              <div className="flex flex-col gap-4">
+                {conflict && (
+                  <div className="rounded-lg bg-warning-soft p-3 text-sm text-warning-soft-foreground">
+                    {conflict.message}
+                  </div>
+                )}
+                {validationError && (
+                  <div className="rounded-lg bg-danger-soft p-3 text-sm text-danger-soft-foreground">
+                    {validationError}
+                  </div>
+                )}
+
+                <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
+                  Acting Position: <span className="font-medium text-foreground">{actingPosition.positionName}</span>
+                  {actingPosition.isPrimary ? ' (Primary)' : ''}
+                </div>
+
+                {isLoadingAssignees ? (
+                  <div className="flex items-center justify-center py-4"><Spinner size="sm" /></div>
+                ) : (
+                  <Select
+                    variant="secondary"
+                    selectedKey={assigneeId || null}
+                    onSelectionChange={(k) => setAssigneeId(String(k || ''))}
+                    placeholder={assignees.length === 0 ? 'No assignable positions' : 'Select assignee position...'}
+                  >
+                    <Label>Assignee Position</Label>
+                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {assignees.map((a) => (
+                          <ListBox.Item key={a.userPositionId} id={a.userPositionId} textValue={a.userFullName}>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm text-foreground">
+                                {a.userFullName}{a.isSelf ? ' (You)' : ''}
+                              </span>
+                              <span className="text-xs text-muted-foreground">{a.positionName}</span>
+                            </div>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                )}
+
+                {mode === 'child' && (
+                  <Select
+                    variant="secondary"
+                    selectedKey={parentId || null}
+                    onSelectionChange={(k) => { setParentId(String(k || '')); setAssigneeId(''); }}
+                    placeholder={parents.length === 0 ? 'No eligible parent activities' : 'Select parent activity...'}
+                  >
+                    <Label>Parent Activity</Label>
+                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {parents.map((p) => (
+                          <ListBox.Item key={p.id} id={p.id} textValue={p.activityName}>
+                            <span className="text-sm text-foreground">{p.activityName}</span>
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                )}
+
+                {mode === 'root' && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Select
+                        variant="secondary"
+                        selectedKey={String(selectedYear)}
+                        onSelectionChange={(k) => { setSelectedYear(Number(k)); setCkId(''); }}
+                      >
+                        <Label>Period Year</Label>
+                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {yearOptions.map((y) => (
+                              <ListBox.Item key={String(y)} id={String(y)} textValue={String(y)}>
+                                {y}
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                      </Select>
+                      <Select
+                        variant="secondary"
+                        selectedKey={String(periodMonth)}
+                        onSelectionChange={(k) => setPeriodMonth(Number(k))}
+                      >
+                        <Label>Period Month</Label>
+                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                              <ListBox.Item key={String(m)} id={String(m)} textValue={String(m).padStart(2, '0')}>
+                                {String(m).padStart(2, '0')}
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                      </Select>
+                    </div>
+
+                    {isLoadingCk ? (
+                      <div className="flex items-center justify-center py-4"><Spinner size="sm" /></div>
+                    ) : (
+                      <Select
+                        variant="secondary"
+                        selectedKey={ckId || null}
+                        onSelectionChange={(k) => setCkId(String(k || ''))}
+                        placeholder={ckTree.length === 0 ? 'No active indicators for this year' : 'Select Corporate KPI indicator...'}
+                      >
+                        <Label>Corporate KPI Indicator</Label>
+                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {ckTree.map((node) => (
+                              <ListBox.Item key={node.id} id={node.id} textValue={`${node.code} - ${node.name}`}>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-foreground">{node.code}</span>
+                                  <span className="text-xs text-muted-foreground">{node.name}</span>
+                                </div>
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                      </Select>
+                    )}
+                  </>
+                )}
+
+                <TextField isRequired value={activityName} onChange={setActivityName}>
+                  <Label>Activity Name</Label>
+                  <Input variant="secondary" placeholder="Enter activity name..." />
+                </TextField>
+
+                <TextField value={description} onChange={setDescription}>
+                  <Label>Description</Label>
+                  <TextArea variant="secondary" placeholder="Optional description..." rows={2} />
+                </TextField>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <TextField isRequired value={unit} onChange={setUnit}>
+                    <Label>Unit</Label>
+                    <Input variant="secondary" placeholder="e.g. %, IDR, units" />
+                  </TextField>
+                  <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
+                    <Label>Target Value</Label>
+                    <Input variant="secondary" placeholder="e.g. 100" />
+                  </TextField>
+                </div>
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
+                <XIcon className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button variant="primary" onPress={handleSubmit} isDisabled={isSubmitting} isPending={isSubmitting}>
+                Submit Request
+              </Button>
+            </Modal.Footer>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
+  );
+}

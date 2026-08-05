@@ -1,0 +1,102 @@
+import { api } from '@/lib/axios';
+import {
+  CoreUser,
+  UserCreateRequest,
+  UserUpdateRequest,
+  AssignUserPositionRequest,
+  UserPositionResponse,
+  ApiResponse,
+  PaginatedResponse,
+  RoleResponse,
+  PositionOption,
+} from '../types';
+
+export interface UserFilterParams {
+  search?: string;
+  roleCode?: string;
+  scope?: string;
+  positionId?: string;
+  page?: number;
+  size?: number;
+  sortBy?: string;
+  sortDirection?: string;
+}
+
+export const employeeApi = {
+  getUsers: async (params?: UserFilterParams): Promise<PaginatedResponse<CoreUser>> => {
+    const response = await api.get<ApiResponse<PaginatedResponse<CoreUser>>>(
+      '/api/v1/users',
+      { params },
+    );
+    return response.data.data;
+  },
+
+  getUserById: async (id: string): Promise<CoreUser> => {
+    const response = await api.get<ApiResponse<CoreUser>>(
+      `/api/v1/users/${id}`,
+    );
+    return response.data.data;
+  },
+
+  createUser: async (data: UserCreateRequest): Promise<CoreUser> => {
+    const response = await api.post<ApiResponse<CoreUser>>(
+      '/api/v1/users',
+      data,
+    );
+    return response.data.data;
+  },
+
+  updateUser: async (id: string, data: UserUpdateRequest): Promise<CoreUser> => {
+    const response = await api.put<ApiResponse<CoreUser>>(
+      `/api/v1/users/${id}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  deleteUser: async (id: string): Promise<void> => {
+    await api.patch(`/api/v1/users/${id}/delete`);
+  },
+
+  restoreUser: async (id: string): Promise<CoreUser> => {
+    const response = await api.post<ApiResponse<CoreUser>>(
+      `/api/v1/users/${id}/restore`,
+    );
+    return response.data.data;
+  },
+
+  assignUserToPosition: async (
+    data: AssignUserPositionRequest,
+  ): Promise<UserPositionResponse> => {
+    const response = await api.post<ApiResponse<UserPositionResponse>>(
+      '/api/v1/user-positions',
+      data,
+    );
+    return response.data.data;
+  },
+
+  getRoles: async (): Promise<RoleResponse[]> => {
+    const response = await api.get<ApiResponse<RoleResponse[]>>(
+      '/api/v1/roles',
+    );
+    return response.data.data;
+  },
+
+  getPositions: async (): Promise<PositionOption[]> => {
+    const response = await api.get<ApiResponse<{ tree: PositionOption[] }>>(
+      '/api/v1/positions/tree',
+    );
+    return response.data.data.tree;
+  },
+
+  getUserPositions: async (userId: string): Promise<UserPositionResponse[]> => {
+    const response = await api.get<ApiResponse<UserPositionResponse[]>>(
+      `/api/v1/users/${userId}/positions`,
+    );
+    return response.data.data;
+  },
+
+  deactivateUserPosition: async (userPositionId: string): Promise<void> => {
+    await api.patch(`/api/v1/user-positions/${userPositionId}/deactivate`);
+  },
+};

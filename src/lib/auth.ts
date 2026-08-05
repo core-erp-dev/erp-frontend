@@ -23,5 +23,4 @@ export const removeToken = (): void => {
 export function logout(): void {
   useAuthStore.getState().clearAuth();
   removeToken();
-  window.location.href = '/login';
 }

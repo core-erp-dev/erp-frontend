@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -9,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ERP",
-  description: "Enterprise Resource Planning System",
+  title: "performa | PMS",
+  description: "Performance Management System",
 };
 
 export default function RootLayout({
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} antialiased`}>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

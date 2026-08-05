@@ -1,141 +1,284 @@
 "use client";
 
-import * as React from "react";
+import React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Dropdown, Avatar, Label, Separator } from "@heroui/react";
-import { sidebarConfig } from "@/config/sidebar";
-import { cn } from "@/lib/utils";
+import { Avatar, Description, Label } from "@heroui/react";
 import {
-  LayoutDashboard,
-  MoreVertical,
-  User as UserIcon,
-  Settings,
-  LogOut,
-} from "lucide-react";
-import { logout } from "@/lib/auth";
+  SquaresFour,
+  Gear as Settings,
+  SignOut,
+  CaretDown,
+  CaretUp,
+} from "@phosphor-icons/react";
+import { navigationConfig } from "@/config/navigation";
+import type { SidebarItem } from "@/config/navigation";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
+import { logout } from "@/lib/auth";
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
-  dashboard: LayoutDashboard,
+  dashboard: SquaresFour,
+  settings: Settings,
 };
 
 const getIcon = (
-  icon: string | React.FC<{ className?: string }>,
+  icon: string | React.FC<{ className?: string }> | undefined,
   className?: string,
 ): React.ReactNode => {
+  if (!icon) return null;
+
   if (typeof icon === "string") {
-    const IconComponent = iconMap[icon] || LayoutDashboard;
+    const IconComponent = iconMap[icon] || SquaresFour;
     return <IconComponent className={cn("h-5 w-5", className)} />;
   }
+
   const IconComponent = icon;
   return <IconComponent className={cn("h-5 w-5", className)} />;
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+}
+
+/** Permission gate shared by top-level items and expandable children. */
+function itemVisible(item: SidebarItem, userPerms: string[], userRoles: string[]): boolean {
+  if (item.capability) return item.capability(userPerms);
+  if (item.permissions && item.permissions.length > 0) {
+    return item.permissions.some((perm) => userPerms.includes(perm));
+  }
+  if (item.roles && item.roles.length > 0) {
+    return item.roles.some((role) => userRoles.includes(role));
+  }
+  return true;
+}
+
+/**
+ * Expandable parent menu. Auto-opens whenever the parent href or any child
+ * href is the active route; the user can manually collapse/expand otherwise.
+ */
+function ExpandableNavItem({
+  item,
+  pathname,
+  userPerms,
+  userRoles,
+}: {
+  item: SidebarItem;
+  pathname: string;
+  userPerms: string[];
+  userRoles: string[];
+}) {
+  // Default: collapsed. Auto-open whenever the parent/child route is active.
+  const [collapsed, setCollapsed] = React.useState(true);
+
+  const visibleChildren = (item.children ?? []).filter((child) =>
+    itemVisible(child, userPerms, userRoles),
+  );
+  if (visibleChildren.length === 0) return null;
+
+  const isChildActive = visibleChildren.some((child) => pathname === child.href);
+  const isActive = pathname === item.href || isChildActive;
+  const open = isChildActive ? true : !collapsed;
+
+  return (
+    <li key={item.href}>
+      <button
+        type="button"
+        onClick={() => setCollapsed((prev) => !prev)}
+        aria-expanded={open}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+          isActive
+            ? "bg-[#EBEBEC] font-semibold text-foreground"
+            : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+        )}
+      >
+        {getIcon(item.icon, isActive ? "text-foreground" : "text-gray-500")}
+        <span className="flex-1 truncate text-left">{item.title}</span>
+        {open ? (
+          <CaretUp className="h-4 w-4 shrink-0 text-gray-500" />
+        ) : (
+          <CaretDown className="h-4 w-4 shrink-0 text-gray-500" />
+        )}
+      </button>
+
+      {open && (
+        <div className="relative">
+          {/* VS Code-style vertical guide line beside the submenu group */}
+          <span
+            aria-hidden="true"
+            data-testid="submenu-guide"
+            className="pointer-events-none absolute bottom-1 left-7 top-1 w-px border-l border-border"
+          />
+          <ul className="space-y-0.5">
+            {visibleChildren.map((child) => {
+              const childActive = pathname === child.href;
+              return (
+                <li key={child.href}>
+                  <Link
+                    href={child.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl py-2 pl-11 pr-3 text-sm transition-colors",
+                      childActive
+                        ? "font-semibold text-foreground hover:bg-[#EBEBEC] hover:text-foreground"
+                        : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+                    )}
+                  >
+                    {getIcon(child.icon, childActive ? "text-foreground" : "text-gray-500")}
+                    {child.title}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </li>
+  );
+}
+
+export function Sidebar({ isOpen }: SidebarProps) {
+  const router = useRouter();
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
 
-  const activeModule = pathname.split("/").filter(Boolean)[0] || "";
+  const displayName = user?.username || "User";
+  const userInitial = displayName.charAt(0).toUpperCase();
+  const userEmail = user?.email || "";
 
-  const filteredItems = sidebarConfig.filter(
-    (item) => item.module === activeModule,
+  const userPerms = user?.permissions ?? [];
+  const userRoles = user?.roles ?? [];
+
+  const filteredItems = navigationConfig.filter((item) =>
+    itemVisible(item, userPerms, userRoles),
   );
 
-  const userInitial = user?.username
-    ? user.username.charAt(0).toUpperCase()
-    : "U";
-  const displayName = user?.username || "Pengguna";
-  const displayEmail = user?.email || "-";
+  const groups = filteredItems.reduce(
+    (acc, item) => {
+      const group = item.group || "default";
+
+      if (!acc[group]) {
+        acc[group] = [];
+      }
+
+      acc[group].push(item);
+      return acc;
+    },
+    {} as Record<string, SidebarItem[]>,
+  );
+
+  const mainGroups = Object.entries(groups).filter(
+    ([key]) => key !== "SETTINGS" && key !== "default",
+  );
+
+  const defaultGroup = groups.default || [];
+
+  const settingsGroup = (groups.SETTINGS || []).filter(
+    (item) => item.title !== "Access Control & Roles",
+  );
+
+  const renderItem = (item: SidebarItem) => {
+    if (item.children && item.children.length > 0) {
+      return (
+        <ExpandableNavItem
+          key={item.href}
+          item={item}
+          pathname={pathname}
+          userPerms={userPerms}
+          userRoles={userRoles}
+        />
+      );
+    }
+
+    const isActive = pathname === item.href;
+
+    return (
+      <li key={item.href}>
+        <Link
+          href={item.href}
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+            isActive
+              ? "bg-[#EBEBEC] font-semibold text-foreground"
+              : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+          )}
+        >
+          {getIcon(
+            item.icon,
+            isActive ? "text-foreground" : "text-gray-500",
+          )}
+          {item.title}
+        </Link>
+      </li>
+    );
+  };
+
+  const renderGroup = (label: string, items: SidebarItem[]) => (
+    <div key={label} className="mb-4">
+      <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+        {label}
+      </p>
+
+      <ul className="space-y-0.5">{items.map(renderItem)}</ul>
+    </div>
+  );
 
   return (
-    <aside className="flex w-64 flex-col border-r border-border bg-background">
-      <div className="flex h-14 items-center px-4">
-        <span className="font-bold text-foreground">erpsystem</span>
+    <aside
+      className={cn(
+        "flex flex-col overflow-hidden border-r border-border bg-background transition-all duration-300",
+        isOpen ? "w-64" : "w-0",
+      )}
+    >
+      {/* Account section */}
+      <div className="flex shrink-0 items-center gap-3 px-6 py-5">
+        <Avatar size="sm">
+          <Avatar.Fallback>{userInitial}</Avatar.Fallback>
+        </Avatar>
+
+        <div className="flex min-w-0 flex-col">
+          <Label className="truncate text-sm font-medium text-foreground">
+            {displayName}
+          </Label>
+
+          <Description className="truncate text-xs">
+            {userEmail}
+          </Description>
+        </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-4">
-        <ul className="space-y-1">
-          {filteredItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
-                    isActive
-                      ? "bg-[#EBEBEC] text-foreground font-semibold"
-                      : "text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground font-normal",
-                  )}
-                >
-                  {getIcon(
-                    item.icon,
-                    isActive ? "text-foreground" : "text-gray-500",
-                  )}
-                  {item.title}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <nav className="flex min-w-56 flex-1 flex-col overflow-y-auto p-4 pt-3">
+        {/* Main groups */}
+        <div className="flex-1">
+          {mainGroups.map(([label, items]) => renderGroup(label, items))}
 
-      <div className="p-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 overflow-hidden pl-1">
-          <Avatar size="sm">
-            <Avatar.Fallback>{userInitial}</Avatar.Fallback>
-          </Avatar>
-          <div className="flex flex-col items-start text-left truncate">
-            <span className="font-medium text-foreground truncate w-full">
-              {displayName}
-            </span>
-            <span className="text-xs text-muted-foreground truncate w-full">
-              {displayEmail}
-            </span>
-          </div>
+          {defaultGroup.length > 0 && (
+            <ul className="space-y-1">{defaultGroup.map(renderItem)}</ul>
+          )}
         </div>
 
-        <Dropdown>
-          <Dropdown.Trigger className="outline-none">
-            <div
-              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[#EBEBEC] outline-none"
-              aria-label="Menu profil"
-            >
-              <MoreVertical className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </Dropdown.Trigger>
-          <Dropdown.Popover placement="right bottom" className="min-w-50">
-            <Dropdown.Menu
-              onAction={(key) => {
-                if (key === "logout") {
-                  logout();
-                }
+        {/* Bottom section: Settings + Sign Out */}
+        <ul className="space-y-0.5">
+          {settingsGroup.map(renderItem)}
+
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                router.replace("/login");
               }}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+              )}
             >
-              <Dropdown.Item id="account" textValue="Akun">
-                <div className="flex items-center gap-2">
-                  <UserIcon className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-normal">Akun</Label>
-                </div>
-              </Dropdown.Item>
-              <Dropdown.Item id="settings" textValue="Pengaturan">
-                <div className="flex items-center gap-2">
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-normal">Pengaturan</Label>
-                </div>
-              </Dropdown.Item>
-              <Separator />
-              <Dropdown.Item id="logout" textValue="Keluar" variant="danger">
-                <div className="flex items-center gap-2 text-danger">
-                  <LogOut className="h-4 w-4" />
-                  <Label className="font-normal">Keluar</Label>
-                </div>
-              </Dropdown.Item>
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
-      </div>
+              <SignOut className="h-5 w-5 text-gray-500" />
+              Sign Out
+            </button>
+          </li>
+        </ul>
+      </nav>
     </aside>
   );
 }

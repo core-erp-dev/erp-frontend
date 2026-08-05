@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Spinner } from '@heroui/react';
 import { useAuthStore } from '@/store/auth-store';
 
 interface AuthGuardProps {
@@ -25,7 +26,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (isInitializing) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-border border-t-transparent" />
+        <Spinner size="md" />
       </div>
     );
   }
