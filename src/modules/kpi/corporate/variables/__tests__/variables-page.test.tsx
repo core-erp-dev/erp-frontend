@@ -60,7 +60,7 @@ describe('Variables page', () => {
   it('renders title and variable rows for read-only user', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariablesPage />);
-    expect(await screen.findByRole('heading', { name: 'Variables' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'KPI Variables' })).toBeInTheDocument();
     expect(await screen.findByText('ROI')).toBeInTheDocument();
     expect(screen.getByText('Return on Investment')).toBeInTheDocument();
   });
@@ -74,7 +74,7 @@ describe('Variables page', () => {
     expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument();
   });
 
-  it('manage user sees Add Variable and Deleted tab', async () => {
+  it('manage user sees Add Variable and the Deleted toggle', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporateVariablesPage />);
     expect(await screen.findByText('Add Variable')).toBeInTheDocument();
@@ -108,6 +108,18 @@ describe('Variables page', () => {
     expect(screen.getByLabelText('Restore')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Restore'));
     await waitFor(() => expect(mockedApi.restore).toHaveBeenCalledWith('var-9'));
+  });
+
+  it('toggles back to Current view with the same button', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    render(<KpiCorporateVariablesPage />);
+    fireEvent.click(await screen.findByText('Deleted'));
+    // Deleted scope: the toggle reads "Current" and the deleted data was fetched
+    expect(await screen.findByText('Current')).toBeInTheDocument();
+    expect(mockedApi.getDeleted).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Current'));
+    expect(await screen.findByText('Deleted')).toBeInTheDocument();
   });
 
   it('delete flow confirms then soft-deletes', async () => {

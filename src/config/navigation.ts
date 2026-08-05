@@ -6,7 +6,8 @@ import { PERM } from '@/constants/permissions';
 export interface SidebarItem {
   title: string;
   href: string;
-  icon: string | React.FC<{ className?: string }>;
+  /** Optional — submenu children may be text-only (getIcon returns null when absent). */
+  icon?: string | React.FC<{ className?: string }>;
   group?: string;
   roles?: string[];
   permissions?: string[];
@@ -48,23 +49,20 @@ export const navigationConfig: SidebarItem[] = [
     permissions: [PERM.CORPORATE_KPI_READ],
     children: [
       {
-        title: 'Corporate KPI',
+        title: 'Structure',
         href: KPI_ROUTES.corporate,
-        icon: Buildings,
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
       {
         title: 'Variables',
         href: KPI_ROUTES.corporateVariables,
-        icon: Stack,
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
       {
-        title: 'KPI Values',
+        title: 'Values',
         href: KPI_ROUTES.corporateVariableValues,
-        icon: ClipboardText,
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },

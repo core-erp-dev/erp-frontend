@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem, Tabs, SearchField } from '@heroui/react';
-import { Plus, House, ArrowsClockwise } from '@phosphor-icons/react';
+import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem, SearchField } from '@heroui/react';
+import { Plus, House, ArrowsClockwise, Trash, CheckCircle } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
@@ -86,8 +86,8 @@ export default function KpiCorporateVariablesPage() {
         <Breadcrumbs>
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Variables</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.corporateVariables}</BreadcrumbsItem>
         </Breadcrumbs>
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariables}</h1>
         <Alert status="danger">Access Denied</Alert>
@@ -102,8 +102,8 @@ export default function KpiCorporateVariablesPage() {
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
-        <BreadcrumbsItem href={KPI_ROUTES.corporate}>Corporate KPI</BreadcrumbsItem>
-        <BreadcrumbsItem>Variables</BreadcrumbsItem>
+        <BreadcrumbsItem href={KPI_ROUTES.corporate}>{KPI_LABELS.corporate}</BreadcrumbsItem>
+        <BreadcrumbsItem>{KPI_LABELS.corporateVariables}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
@@ -132,19 +132,25 @@ export default function KpiCorporateVariablesPage() {
         </div>
       </div>
 
-      {/* Filters row — same pattern as the Corporate KPI page (tabs + search) */}
+      {/* Filters row — same pattern as the Corporate KPI page (deleted toggle + search) */}
       <div className="flex items-center justify-between">
-        <Tabs
-          selectedKey={viewMode}
-          onSelectionChange={(key) => setViewMode(key as 'current' | 'deleted')}
-        >
-          <Tabs.ListContainer>
-            <Tabs.List aria-label="View">
-              <Tabs.Tab id="current">Current<Tabs.Indicator /></Tabs.Tab>
-              {canManage && <Tabs.Tab id="deleted">Deleted<Tabs.Indicator /></Tabs.Tab>}
-            </Tabs.List>
-          </Tabs.ListContainer>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          {/* Deleted scope toggle — Positions-style button */}
+          {canManage && (
+            <Button
+              variant="tertiary"
+              aria-label={viewMode === 'deleted' ? 'Show current' : 'Show deleted'}
+              onPress={() => setViewMode(viewMode === 'deleted' ? 'current' : 'deleted')}
+            >
+              {viewMode === 'deleted' ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <Trash className="h-4 w-4" />
+              )}
+              {viewMode === 'deleted' ? 'Current' : 'Deleted'}
+            </Button>
+          )}
+        </div>
         <SearchField
           aria-label="Search variables"
           value={searchQuery}

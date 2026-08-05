@@ -59,7 +59,7 @@ describe('read permissions', () => {
   it('renders title', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    expect(await screen.findByRole('heading', { name: 'Corporate KPI' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Corporate KPI Structure' })).toBeInTheDocument();
   });
 
   it('shows access denied without read permission', () => {

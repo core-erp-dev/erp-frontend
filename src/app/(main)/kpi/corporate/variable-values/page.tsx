@@ -81,7 +81,7 @@ export default function KpiCorporateVariableValuesPage() {
         <Breadcrumbs>
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
           <BreadcrumbsItem>{KPI_LABELS.corporateVariableValues}</BreadcrumbsItem>
         </Breadcrumbs>
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariableValues}</h1>
@@ -97,7 +97,7 @@ export default function KpiCorporateVariableValuesPage() {
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
-        <BreadcrumbsItem href={KPI_ROUTES.corporate}>Corporate KPI</BreadcrumbsItem>
+        <BreadcrumbsItem href={KPI_ROUTES.corporate}>{KPI_LABELS.corporate}</BreadcrumbsItem>
         <BreadcrumbsItem>{KPI_LABELS.corporateVariableValues}</BreadcrumbsItem>
       </Breadcrumbs>
 

@@ -77,7 +77,13 @@ describe('expandable Corporate KPI parent', () => {
   it('is a parent with exactly three children', () => {
     expect(corporate?.children).toHaveLength(3);
     const titles = corporate?.children?.map((c) => c.title);
-    expect(titles).toEqual(['Corporate KPI', 'Variables', 'KPI Values']);
+    expect(titles).toEqual(['Structure', 'Variables', 'Values']);
+  });
+
+  it('submenu children are text-only (no icons)', () => {
+    for (const child of corporate?.children ?? []) {
+      expect(child.icon).toBeUndefined();
+    }
   });
 
   it('children route to the three corporate pages', () => {

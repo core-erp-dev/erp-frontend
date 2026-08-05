@@ -71,18 +71,53 @@ describe('Sidebar expandable Corporate KPI', () => {
     render(<Sidebar isOpen />);
     const parent = screen.getByRole('button', { name: /Corporate KPI/ });
     expect(parent).toHaveAttribute('aria-expanded', 'true');
-    // All three children are visible
+    // All three children are visible as text-only labels
+    expect(screen.getByText('Structure')).toBeInTheDocument();
     expect(screen.getByText('Variables')).toBeInTheDocument();
-    expect(screen.getByText('KPI Values')).toBeInTheDocument();
+    expect(screen.getByText('Values')).toBeInTheDocument();
   });
 
-  it('shows the active child with the same active styling', () => {
+  it('marks the active child with semibold text only (no background container)', () => {
     mockPathname = '/kpi/corporate/variable-values';
     render(<Sidebar isOpen />);
-    const activeLink = screen.getByText('KPI Values');
-    expect(activeLink.closest('a')).toHaveClass('font-semibold');
+    const activeLink = screen.getByText('Values').closest('a');
+    expect(activeLink).toHaveClass('font-semibold');
+    // No active background/pill — only the text weight changes
+    expect(activeLink).not.toHaveClass('bg-[#EBEBEC]');
     // Parent also carries the active state
-    expect(screen.getByRole('button', { name: /KPI Values|Corporate KPI/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Values|Corporate KPI/ })).toBeInTheDocument();
+  });
+
+  it('shows CaretDown when collapsed and CaretUp when expanded', () => {
+    mockPathname = '/kpi/activities';
+    render(<Sidebar isOpen />);
+    const parent = screen.getByRole('button', { name: /Corporate KPI/ });
+    expect(parent).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByTestId('icon-CaretDown')).toBeInTheDocument();
+    expect(screen.queryByTestId('icon-CaretUp')).not.toBeInTheDocument();
+
+    fireEvent.click(parent);
+    expect(parent).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('icon-CaretUp')).toBeInTheDocument();
+    expect(screen.queryByTestId('icon-CaretDown')).not.toBeInTheDocument();
+  });
+
+  it('renders submenu items as text-only labels (no icons)', () => {
+    mockPathname = '/kpi/corporate';
+    render(<Sidebar isOpen />);
+    for (const label of ['Structure', 'Variables', 'Values']) {
+      const link = screen.getByText(label).closest('a');
+      expect(link?.querySelector('[data-testid^="icon-"]')).toBeNull();
+    }
+  });
+
+  it('renders a subtle vertical guide line beside the submenu group', () => {
+    mockPathname = '/kpi/corporate';
+    render(<Sidebar isOpen />);
+    const guide = screen.getByTestId('submenu-guide');
+    expect(guide).toHaveAttribute('aria-hidden', 'true');
+    expect(guide).toHaveClass('pointer-events-none');
+    expect(guide).toHaveClass('border-border');
   });
 
   it('collapses when the parent header is clicked and no child is active', () => {

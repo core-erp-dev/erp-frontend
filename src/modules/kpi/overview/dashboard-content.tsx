@@ -135,7 +135,7 @@ export function DashboardContent() {
               error={corporateKpiError}
               isEmpty={!corporateKpiError && corporateKpiTree.length === 0}
               emptyMessage="No active Corporate KPI indicators."
-              footerLink={{ href: KPI_ROUTES.corporate, label: 'Open Corporate KPI' }}
+              footerLink={{ href: KPI_ROUTES.corporate, label: 'Open Corporate KPI Structure' }}
             >
               {!corporateKpiError && corporateKpiTree.length > 0 && (
                 <MetricBlock

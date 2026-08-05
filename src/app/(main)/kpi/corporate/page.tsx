@@ -217,7 +217,7 @@ export default function KpiCorporatePage() {
         <Breadcrumbs>
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
         </Breadcrumbs>
 
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
@@ -233,7 +233,7 @@ export default function KpiCorporatePage() {
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
-        <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
+        <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
       </Breadcrumbs>
 
       {/* Row 1: Title + Chip + Refresh + Add */}

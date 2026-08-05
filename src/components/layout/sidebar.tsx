@@ -9,7 +9,7 @@ import {
   Gear as Settings,
   SignOut,
   CaretDown,
-  CaretRight,
+  CaretUp,
 } from "@phosphor-icons/react";
 import { navigationConfig } from "@/config/navigation";
 import type { SidebarItem } from "@/config/navigation";
@@ -96,34 +96,42 @@ function ExpandableNavItem({
         {getIcon(item.icon, isActive ? "text-foreground" : "text-gray-500")}
         <span className="flex-1 truncate text-left">{item.title}</span>
         {open ? (
-          <CaretDown className="h-4 w-4 shrink-0 text-gray-500" />
+          <CaretUp className="h-4 w-4 shrink-0 text-gray-500" />
         ) : (
-          <CaretRight className="h-4 w-4 shrink-0 text-gray-500" />
+          <CaretDown className="h-4 w-4 shrink-0 text-gray-500" />
         )}
       </button>
 
       {open && (
-        <ul className="space-y-0.5">
-          {visibleChildren.map((child) => {
-            const childActive = pathname === child.href;
-            return (
-              <li key={child.href}>
-                <Link
-                  href={child.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl py-2 pl-11 pr-3 text-sm transition-colors",
-                    childActive
-                      ? "bg-[#EBEBEC] font-semibold text-foreground"
-                      : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
-                  )}
-                >
-                  {getIcon(child.icon, childActive ? "text-foreground" : "text-gray-500")}
-                  {child.title}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="relative">
+          {/* VS Code-style vertical guide line beside the submenu group */}
+          <span
+            aria-hidden="true"
+            data-testid="submenu-guide"
+            className="pointer-events-none absolute bottom-1 left-7 top-1 w-px border-l border-border"
+          />
+          <ul className="space-y-0.5">
+            {visibleChildren.map((child) => {
+              const childActive = pathname === child.href;
+              return (
+                <li key={child.href}>
+                  <Link
+                    href={child.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl py-2 pl-11 pr-3 text-sm transition-colors",
+                      childActive
+                        ? "font-semibold text-foreground hover:bg-[#EBEBEC] hover:text-foreground"
+                        : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
+                    )}
+                  >
+                    {getIcon(child.icon, childActive ? "text-foreground" : "text-gray-500")}
+                    {child.title}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </li>
   );

@@ -14,6 +14,7 @@ export const Article = createIcon('Article');
 export const Checks = createIcon('Checks');
 export const CaretDown = createIcon('CaretDown');
 export const CaretRight = createIcon('CaretRight');
+export const CaretUp = createIcon('CaretUp');
 export const ArrowsOutSimple = createIcon('ArrowsOutSimple');
 export const ArrowsInSimple = createIcon('ArrowsInSimple');
 export const Tray = createIcon('Tray');

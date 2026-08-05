@@ -171,11 +171,11 @@ describe('Corporate KPI page shell', () => {
 
   it('renders the legacy single-page controls', () => {
     // One main page: Add Corporate KPI button, refresh, year selector, and
-    // the Current | Deleted view toggle.
+    // the Deleted scope toggle button (Positions-style).
     expect(screen.getByRole('button', { name: /Add Corporate KPI/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Refresh/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Select year/ })).toBeInTheDocument();
-    expect(allText()).toMatch(/Current/);
+    expect(screen.getByRole('button', { name: /Show deleted/ })).toBeInTheDocument();
     expect(allText()).toMatch(/Deleted/);
   });
 
