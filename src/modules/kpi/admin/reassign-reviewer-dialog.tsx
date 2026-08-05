@@ -97,7 +97,7 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
                   Reassign the review for{' '}
                   <strong className="text-foreground">{report.activityName}</strong>{' '}
                   (currently assigned to{' '}
-                  <strong className="text-foreground">{report.reviewerUserName}</strong>).
+                  <strong className="text-foreground">{report.reviewerUserName ?? 'the current reviewer'}</strong>).
                 </p>
 
                 <div>
