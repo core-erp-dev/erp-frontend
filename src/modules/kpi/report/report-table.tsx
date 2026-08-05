@@ -77,7 +77,7 @@ export function ReportTable({
                   <Table.Cell>{item.submittedByUserName}</Table.Cell>
                 )}
                 {showReviewer && (
-                  <Table.Cell>{item.reviewerUserName}</Table.Cell>
+                  <Table.Cell>{item.reviewerUserName ?? 'Company queue'}</Table.Cell>
                 )}
                 <Table.Cell>
                   <Chip size="sm" color={REPORT_STATUS_CHIP_COLOR[item.status]} variant="soft">
@@ -94,7 +94,10 @@ export function ReportTable({
                     <Button isIconOnly variant="tertiary" size="sm" aria-label="View detail" onPress={() => onViewDetail(item.id)}>
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {mode === 'TO_REVIEW' && onReassignReviewer && (
+                    {/* T18 reassignment applies to hierarchy-assigned reports only —
+                        top-level root reports live in the permission-based company
+                        queue and must not be silently pulled out of it. */}
+                    {mode === 'TO_REVIEW' && onReassignReviewer && item.reviewerUserId && (
                       <Button isIconOnly variant="tertiary" size="sm" aria-label="Reassign reviewer" onPress={() => onReassignReviewer(item)}>
                         <ArrowsClockwise className="h-4 w-4" />
                       </Button>

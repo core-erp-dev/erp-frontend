@@ -16,10 +16,15 @@ interface ReportDetailModalProps {
   /** Only for REVIEW mode: callbacks for approve/reject */
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  /**
+   * UX guard: true when the actor submitted this report (visible in the queue
+   * but NOT actionable). The backend is the authoritative self-review ban.
+   */
+  disableDecisions?: boolean;
 }
 
 export function ReportDetailModal({
-  isOpen, onClose, report, mode, onApprove, onReject,
+  isOpen, onClose, report, mode, onApprove, onReject, disableDecisions,
 }: ReportDetailModalProps) {
   /* ── Evidence loading ── */
   const [evidenceUrl, setEvidenceUrl] = useState<string | null>(null);
@@ -112,7 +117,7 @@ export function ReportDetailModal({
                       </div>
                     )}
                     <DetailField label="Submitted By" value={report.submittedByUserName} />
-                    <DetailField label="Reviewer" value={report.reviewerUserName} />
+                    <DetailField label="Reviewer" value={report.reviewerUserName ?? 'Company queue'} />
                   </div>
                 </Surface>
 
@@ -174,12 +179,20 @@ export function ReportDetailModal({
             <Modal.Footer>
               {isReviewMode && report.status === 'PENDING' && (
                 <div className="flex w-full gap-2">
-                  <Button variant="danger" className="flex-1" onPress={() => onReject?.(report.id)}>
-                    Reject
-                  </Button>
-                  <Button variant="primary" className="flex-1" onPress={() => onApprove?.(report.id)}>
-                    Approve
-                  </Button>
+                  {disableDecisions ? (
+                    <Button variant="secondary" className="flex-1" isDisabled>
+                      You cannot review your own report
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="danger" className="flex-1" onPress={() => onReject?.(report.id)}>
+                        Reject
+                      </Button>
+                      <Button variant="primary" className="flex-1" onPress={() => onApprove?.(report.id)}>
+                        Approve
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
               {(!isReviewMode || report.status !== 'PENDING') && (

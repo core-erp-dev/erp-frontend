@@ -13,6 +13,7 @@ export type RecoverableErrorKind =
   | 'duplicate-pending'
   | 'own-request'
   | 'not-reviewer'
+  | 'not-root-reviewer'
   | 'own-report'
   | 'other';
 
@@ -34,6 +35,7 @@ const ACTIVITY_KIND_MAP: ReadonlyArray<readonly [string, RecoverableErrorKind]> 
 const REPORT_KIND_MAP: ReadonlyArray<readonly [string, RecoverableErrorKind]> = [
   ['Report has already been processed', 'already-processed'],
   ['You are not the designated reviewer', 'not-reviewer'],
+  ['You are not a root report reviewer', 'not-root-reviewer'],
   ['Cannot review your own report', 'own-report'],
   ['A pending report already exists', 'duplicate-pending'],
 ] as const;
@@ -44,6 +46,7 @@ const KIND_MESSAGE: Record<RecoverableErrorKind, string> = {
   'duplicate-pending': 'A pending request already exists for this item — it must be processed first.',
   'own-request': 'You cannot approve or reject your own request.',
   'not-reviewer': 'You are not the designated reviewer for this report.',
+  'not-root-reviewer': 'You are not a root report reviewer.',
   'own-report': 'You cannot review your own report.',
   'other': 'Something went wrong. Please try again.',
 };

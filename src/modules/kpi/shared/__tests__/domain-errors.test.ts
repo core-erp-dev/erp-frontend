@@ -48,6 +48,10 @@ describe('classifyReportError', () => {
     expect(classifyReportError('Cannot review your own report')).toBe('own-report');
   });
 
+  it('classifies not-root-reviewer (centralized root queue)', () => {
+    expect(classifyReportError('You are not a root report reviewer')).toBe('not-root-reviewer');
+  });
+
   it('falls back to other for unknown strings', () => {
     expect(classifyReportError('Evidence file not found')).toBe('other');
   });

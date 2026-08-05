@@ -37,6 +37,7 @@ export const PERM = {
 
   // KPI Report
   KPI_REPORT_MANAGE: 'kpi_report:manage',
+  KPI_REPORT_ROOT_REVIEW: 'kpi_report:root_review',
 } as const;
 
 export type PermissionCode = (typeof PERM)[keyof typeof PERM];

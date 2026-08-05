@@ -32,9 +32,14 @@ export interface KpiReportResponse {
   submittedByUserPositionId: string;
   submittedByUserName: string;
   submittedByPositionName: string;
-  /** Canonical reviewer identity — always present. */
-  reviewerUserId: string;
-  reviewerUserName: string;
+  /**
+   * Reviewer identity — present for hierarchy-assigned reports (child →
+   * parent assignee; non-top-level root → unique superior). NULL for
+   * top-level root reports, which are reviewed through the centralized
+   * company queue (kpi_report:root_review).
+   */
+  reviewerUserId: string | null;
+  reviewerUserName: string | null;
   /** Optional organisational context — null for positionless reviewers. */
   reviewerUserPositionId: string | null;
   reviewerPositionName: string | null;

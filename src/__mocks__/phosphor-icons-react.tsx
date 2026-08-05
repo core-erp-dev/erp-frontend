@@ -33,6 +33,7 @@ export const Copy = createIcon('Copy');
 export const FloppyDisk = createIcon('FloppyDisk');
 export const MagnifyingGlass = createIcon('MagnifyingGlass');
 export const ArrowsClockwise = createIcon('ArrowsClockwise');
+export const DownloadSimple = createIcon('DownloadSimple');
 export const Eye = createIcon('Eye');
 export const PencilLine = createIcon('PencilLine');
 export const Prohibit = createIcon('Prohibit');

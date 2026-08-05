@@ -19,9 +19,12 @@ type TabId = 'my-reports' | 'review-queue';
 /**
  * Reports (`/kpi/reports`) — employee Report workflow.
  *   - My Reports     → GET /api/v1/kpi-reports?scope=mine
- *   - Review Queue   → GET /api/v1/kpi-reports?scope=to-review (stored reviewer)
+ *   - Review Queue   → GET /api/v1/kpi-reports?scope=to-review — assigned
+ *     hierarchy reports (stored reviewer) PLUS top-level root reports in the
+ *     centralized company queue for kpi_report:root_review holders.
  *   - Submission is exact-assignee; approve/reject are SEPARATE operations
- *     (T16/T17). `kpi_report:manage` gates only administrative tools (P5).
+ *     (T16/T17). `kpi_report:manage` gates only administrative tools (P5);
+ *     T18 reassignment is available for hierarchy-assigned reports only.
  * Any authenticated user may open this page (responsibility-based access).
  */
 export default function KpiReportsPage() {
@@ -37,6 +40,10 @@ export default function KpiReportsPage() {
     isRejecting,
     recoverable, clearRecoverable,
   } = useReportData();
+
+  // Reports the actor submitted — visible in the queue but NOT actionable
+  // (UX guard; the backend is the authoritative self-review ban).
+  const ownReportIds = useMemo(() => new Set(myReports.map((r) => r.id)), [myReports]);
 
   // ── Tabs (both always available — scopes are responsibility-based) ──
   const tabs = useMemo<{ id: TabId; label: string }[]>(() => [
@@ -93,13 +100,17 @@ export default function KpiReportsPage() {
 
   const openApprove = useCallback((id: string) => {
     const found = toReview.find((r) => r.id === id);
-    if (found) setReviewDialog({ isOpen: true, mode: 'APPROVE', report: found });
-  }, [toReview]);
+    if (found && !ownReportIds.has(found.id)) {
+      setReviewDialog({ isOpen: true, mode: 'APPROVE', report: found });
+    }
+  }, [toReview, ownReportIds]);
 
   const openReject = useCallback((id: string) => {
     const found = toReview.find((r) => r.id === id);
-    if (found) setReviewDialog({ isOpen: true, mode: 'REJECT', report: found });
-  }, [toReview]);
+    if (found && !ownReportIds.has(found.id)) {
+      setReviewDialog({ isOpen: true, mode: 'REJECT', report: found });
+    }
+  }, [toReview, ownReportIds]);
 
   const closeReviewDialog = useCallback(() => {
     setReviewDialog({ isOpen: false, mode: 'APPROVE', report: null });
@@ -222,6 +233,7 @@ export default function KpiReportsPage() {
         mode={detailModal.mode}
         onApprove={detailModal.mode === 'REVIEW' ? openApprove : undefined}
         onReject={detailModal.mode === 'REVIEW' ? openReject : undefined}
+        disableDecisions={detailModal.report ? ownReportIds.has(detailModal.report.id) : false}
       />
 
       {/* Submit Modal */}
