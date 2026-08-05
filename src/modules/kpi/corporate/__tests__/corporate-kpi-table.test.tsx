@@ -3,7 +3,7 @@
  * Covers ASPECT/INDICATOR rendering, expand/collapse, status badges, and search.
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { CorporateKpiTable } from '../corporate-kpi-table';
 import type { CorporateKpiNode } from '../corporate-kpi.types';
 
@@ -14,6 +14,32 @@ jest.mock('@/hooks/use-permission', () => ({
     hasPerm: () => true,
   }),
 }));
+
+// Drive the More menu: clicking a menu item fires onAction with its id
+// (the shared mock renders inert items).
+jest.mock('@heroui/react', () => {
+  const actual = jest.requireActual('@heroui/react');
+  const React = jest.requireActual('react');
+  return {
+    ...actual,
+    Dropdown: Object.assign(actual.Dropdown, {
+      Menu: (props: { onAction?: (key: React.Key) => void; children?: React.ReactNode }) =>
+        React.createElement(
+          'div',
+          {
+            'data-mock': 'Dropdown.Menu',
+            onClick: (e: React.MouseEvent) => {
+              const item = (e.target as HTMLElement).closest('[data-item-id]');
+              if (item) props.onAction?.(item.getAttribute('data-item-id') as React.Key);
+            },
+          },
+          props.children,
+        ),
+      Item: (props: { id?: React.Key; children?: React.ReactNode }) =>
+        React.createElement('div', { 'data-mock': 'Dropdown.Item', 'data-item-id': props.id }, props.children),
+    }),
+  };
+});
 
 /* ── Sample data ── */
 
@@ -129,6 +155,24 @@ describe('Current KPIs view', () => {
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Add Indicator')).not.toBeInTheDocument();
     expect(screen.getAllByLabelText('More actions').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('fires Edit and Add Indicator from the More menu', () => {
+    const onEdit = jest.fn();
+    const onCreateIndicator = jest.fn();
+    render(
+      <CorporateKpiTable
+        {...defaultProps}
+        tree={[aspectWithChildren]}
+        expandedIds={new Set(['asp-1'])}
+        onEdit={onEdit}
+        onCreateIndicator={onCreateIndicator}
+      />,
+    );
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+    expect(onEdit).toHaveBeenCalledWith(aspectWithChildren);
+    fireEvent.click(screen.getByText('Add Indicator'));
+    expect(onCreateIndicator).toHaveBeenCalledWith('asp-1');
   });
 
   it('renders Indicator under expanded Aspect', () => {

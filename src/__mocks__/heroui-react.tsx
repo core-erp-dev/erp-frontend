@@ -61,7 +61,12 @@ export const Checkbox = mk('Checkbox');
 export const TextArea = mk('TextArea');
 export const Breadcrumbs = mk('Breadcrumbs');
 export const BreadcrumbsItem = mk('BreadcrumbsItem');
-export const ComboBox = mk('ComboBox');
+export const ComboBox = Object.assign(mk('ComboBox'), {
+  InputGroup: mk('ComboBox.InputGroup'),
+  Trigger: mk('ComboBox.Trigger'),
+  Value: mk('ComboBox.Value'),
+  Popover: mk('ComboBox.Popover'),
+});
 export const FieldError = mk('FieldError');
 
 /* ── TextField: forwards control props to the inner Input/TextArea and
@@ -238,6 +243,81 @@ export const Dropdown = Object.assign(mk('Dropdown'), {
   Item: mk('Dropdown.Item'),
   Section: mk('Dropdown.Section'),
 });
+
+/* ── Formula builder compounds (inert) ── */
+
+export const Autocomplete = Object.assign(mk('Autocomplete'), {
+  Trigger: mk('Autocomplete.Trigger'),
+  Value: mk('Autocomplete.Value'),
+  ClearButton: mk('Autocomplete.ClearButton'),
+  Indicator: mk('Autocomplete.Indicator'),
+  Popover: mk('Autocomplete.Popover'),
+  Filter: mk('Autocomplete.Filter'),
+});
+
+/* ── NumberField: renders a real number input (aria-label/value/onChange
+   forwarded) so score/threshold/sample values are queryable and editable. ── */
+
+export const NumberField = (props: MockProps) => {
+  const { children, value, onChange, 'aria-label': ariaLabel, ...rest0 } = props as MockProps & {
+    value?: number;
+    onChange?: (value: unknown) => void;
+  };
+  const rest = stripNonDomProps(rest0);
+  const extra: Record<string, unknown> = { 'data-mock': 'NumberField', ...rest };
+  if (rest0.variant !== undefined) extra['data-variant'] = rest0.variant;
+  return React.createElement(
+    'div',
+    extra,
+    React.createElement('input', {
+      'aria-label': ariaLabel,
+      'data-mock': 'NumberField.Input',
+      type: 'number',
+      value: value != null ? String(value) : '',
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChange?.(e.target.value),
+    }),
+    children,
+  );
+};
+NumberField.Group = mk('NumberField.Group');
+NumberField.Input = mk('NumberField.Input');
+NumberField.IncrementButton = mk('NumberField.IncrementButton');
+NumberField.DecrementButton = mk('NumberField.DecrementButton');
+
+export const RadioGroup = mk('RadioGroup');
+
+export const Radio = Object.assign(mk('Radio'), {
+  Content: mk('Radio.Content'),
+  Control: mk('Radio.Control'),
+  Indicator: mk('Radio.Indicator'),
+});
+
+export const Toolbar = mk('Toolbar');
+
+export const ButtonGroup = Object.assign(mk('ButtonGroup'), {
+  Separator: mk('ButtonGroup.Separator'),
+});
+
+export const Disclosure = Object.assign(mk('Disclosure'), {
+  Heading: mk('Disclosure.Heading'),
+  Trigger: mk('Disclosure.Trigger'),
+  Indicator: mk('Disclosure.Indicator'),
+  Content: mk('Disclosure.Content'),
+  Body: mk('Disclosure.Body'),
+});
+
+export const ErrorMessage = mk('ErrorMessage');
+export const EmptyState = mk('EmptyState');
+
+export const TagGroup = Object.assign(mk('TagGroup'), {
+  List: mk('TagGroup.List'),
+});
+
+export const Tag = Object.assign(mk('Tag'), {
+  RemoveButton: mk('Tag.RemoveButton'),
+});
+
+export const useFilter = () => ({ contains: () => true });
 
 /* ── Toast ── */
 

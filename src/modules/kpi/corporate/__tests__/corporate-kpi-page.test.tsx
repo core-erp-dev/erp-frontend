@@ -14,6 +14,13 @@ import type { CorporateKpiNode } from '../corporate-kpi.types';
 jest.mock('../corporate-kpi-api');
 const mockedApi = jest.mocked(corporateKpiApi);
 
+const mockPush = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn(), refresh: jest.fn(), prefetch: jest.fn() }),
+  usePathname: () => '/kpi/corporate',
+}));
+
 let mockPermissions: Record<string, boolean> = {};
 
 jest.mock('@/hooks/use-permission', () => ({
@@ -97,6 +104,13 @@ describe('manage permissions', () => {
     mockedApi.getTreeByYear.mockResolvedValue([{ ...sampleNode, children: [] }]);
     render(<KpiCorporatePage />);
     expect(await screen.findByText('Add Corporate KPI')).toBeInTheDocument();
+  });
+
+  it('Add Corporate KPI navigates to the Add page', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    render(<KpiCorporatePage />);
+    fireEvent.click(await screen.findByText('Add Corporate KPI'));
+    expect(mockPush).toHaveBeenCalledWith('/kpi/corporate/add');
   });
 
   it('read-only user cannot see the Deleted toggle', async () => {

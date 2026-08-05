@@ -1,21 +1,22 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem } from '@heroui/react';
 import { Plus, House, ArrowsClockwise } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
-import { KPI_LABELS } from '@/modules/kpi/constants';
+import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
 import { useCorporateKpiData } from '@/modules/kpi/corporate/use-corporate-kpi-data';
 import { CorporateKpiFilters } from '@/modules/kpi/corporate/corporate-kpi-filters';
 import { CorporateKpiTable } from '@/modules/kpi/corporate/corporate-kpi-table';
-import { KpiNodeFormModal, type FormMode } from '@/modules/kpi/corporate/kpi-node-form-modal';
 import { LifecycleDialog } from '@/modules/kpi/corporate/corporate-kpi-lifecycle-dialog';
-import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
+import type { CorporateKpiNode, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 type PeriodMode = 'monthly' | 'annual';
 
 export default function KpiCorporatePage() {
+  const router = useRouter();
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
   // Manage implies read on the backend; all mutations + deleted-data views are manage-gated.
@@ -34,11 +35,6 @@ export default function KpiCorporatePage() {
   // The first user toggle materializes a real Set (see handleToggleExpand).
   const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null);
 
-  // ── Create/Edit modal state ──
-  const [modalMode, setModalMode] = useState<FormMode | null>(null);
-  const [editNode, setEditNode] = useState<CorporateKpiNode | undefined>(undefined);
-  const [preselectedParentId, setPreselectedParentId] = useState<string | undefined>(undefined);
-
   // ── Lifecycle dialog state ──
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleActionType | null>(null);
   const [lifecycleNode, setLifecycleNode] = useState<CorporateKpiNode | null>(null);
@@ -48,7 +44,6 @@ export default function KpiCorporatePage() {
     tree, deletedList, isLoadingTree, isLoadingDeleted,
     treeError, deletedError, hasLoadedDeleted,
     fetchTree, fetchDeleted,
-    isMutating, createNode, updateNode,
     pendingLifecycle, changeStatus, deleteKpi, restoreKpi,
   } = useCorporateKpiData();
 
@@ -113,47 +108,6 @@ export default function KpiCorporatePage() {
   const handleViewModeChange = useCallback((mode: 'current' | 'deleted') => setViewMode(mode), []);
   const handleSearchChange = useCallback((query: string) => setSearchQuery(query), []);
 
-  // ── Create/Edit modal handlers ──
-
-  const openCreateAspect = useCallback(() => {
-    setModalMode('CREATE_ASPECT');
-    setEditNode(undefined);
-    setPreselectedParentId(undefined);
-  }, []);
-
-  const openCreateIndicator = useCallback((aspectId: string) => {
-    setModalMode('CREATE_INDICATOR');
-    setEditNode(undefined);
-    setPreselectedParentId(aspectId);
-  }, []);
-
-  const openEdit = useCallback((node: CorporateKpiNode) => {
-    setModalMode(node.nodeType === 'ASPECT' ? 'EDIT_ASPECT' : 'EDIT_INDICATOR');
-    setEditNode(node);
-    setPreselectedParentId(undefined);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setModalMode(null);
-    setEditNode(undefined);
-    setPreselectedParentId(undefined);
-  }, []);
-
-  const handleSubmit = useCallback(
-    async (data: CreateKpiRequest | UpdateKpiRequest, id?: string): Promise<boolean> => {
-      let result: CorporateKpiNode | null = null;
-      if (id) {
-        result = await updateNode(id, data as UpdateKpiRequest);
-        if (result) { closeModal(); return true; }
-      } else {
-        result = await createNode(data as CreateKpiRequest);
-        if (result) { closeModal(); return true; }
-      }
-      return false;
-    },
-    [createNode, updateNode, closeModal],
-  );
-
   // ── Lifecycle handlers ──
 
   const openLifecycle = useCallback((action: LifecycleActionType, node: CorporateKpiNode) => {
@@ -186,18 +140,19 @@ export default function KpiCorporatePage() {
     if (ok) closeLifecycle();
   }, [lifecycleAction, lifecycleNode, changeStatus, deleteKpi, restoreKpi, closeLifecycle]);
 
-  // All Aspects for parent selector
-  const aspects = useMemo(() => {
-    const result: CorporateKpiNode[] = [];
-    const collect = (nodes: typeof tree) => {
-      for (const n of nodes) {
-        if (n.nodeType === 'ASPECT') result.push(n);
-        if (n.children.length > 0) collect(n.children);
-      }
-    };
-    collect(tree);
-    return result;
-  }, [tree]);
+  // ── Create/Edit navigation (dedicated pages instead of the old modal) ──
+
+  const handleCreateAspect = useCallback(() => {
+    router.push(KPI_ROUTES.corporateAdd);
+  }, [router]);
+
+  const handleCreateIndicator = useCallback((aspectId: string) => {
+    router.push(`${KPI_ROUTES.corporateAdd}?parentId=${aspectId}&type=INDICATOR`);
+  }, [router]);
+
+  const handleEdit = useCallback((node: CorporateKpiNode) => {
+    router.push(KPI_ROUTES.corporateEditRoute(node.id));
+  }, [router]);
 
   // Compute total count and all-expanded state
   const totalCount = viewMode === 'current'
@@ -259,7 +214,7 @@ export default function KpiCorporatePage() {
             <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
           </Button>
           {canManage && viewMode === 'current' && (
-            <Button variant="primary" onPress={openCreateAspect}>
+            <Button variant="primary" onPress={handleCreateAspect}>
               <Plus className="h-4 w-4" />
               Add Corporate KPI
             </Button>
@@ -299,28 +254,13 @@ export default function KpiCorporatePage() {
         deletedError={deletedError}
         onRetryTree={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)}
         onRetryDeleted={fetchDeleted}
-        onCreateIndicator={canManage ? openCreateIndicator : undefined}
-        onEdit={canManage ? openEdit : undefined}
+        onCreateIndicator={canManage ? handleCreateIndicator : undefined}
+        onEdit={canManage ? handleEdit : undefined}
         onActivate={canManage ? (node) => openLifecycle('activate', node) : undefined}
         onDeactivate={canManage ? (node) => openLifecycle('deactivate', node) : undefined}
         onDelete={canManage ? (node) => openLifecycle('delete', node) : undefined}
         onRestore={canManage ? (node) => openLifecycle('restore', node) : undefined}
       />
-
-      {/* Create/Edit Modal */}
-      {modalMode && (
-        <KpiNodeFormModal
-          mode={modalMode}
-          isOpen={true}
-          onClose={closeModal}
-          onSubmit={handleSubmit}
-          preselectedParentId={preselectedParentId}
-          node={editNode}
-          aspects={aspects}
-          selectedYear={selectedYear}
-          isSubmitting={isMutating}
-        />
-      )}
 
       {/* Lifecycle Confirmation Dialog */}
       {lifecycleAction && lifecycleNode && (

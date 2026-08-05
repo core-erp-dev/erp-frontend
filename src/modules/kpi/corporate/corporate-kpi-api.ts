@@ -23,6 +23,14 @@ export const corporateKpiApi = {
     return response.data.data;
   },
 
+  /** Single node by id — used by the Edit page (includes formula/rules/weight). */
+  getById: async (id: string): Promise<CorporateKpiNode> => {
+    const response = await api.get<ApiResponse<CorporateKpiNode>>(
+      `/api/v1/corporate-kpis/${id}`,
+    );
+    return response.data.data;
+  },
+
   /* ── Mutations ── */
 
   create: async (payload: CreateKpiRequest): Promise<CorporateKpiNode> => {

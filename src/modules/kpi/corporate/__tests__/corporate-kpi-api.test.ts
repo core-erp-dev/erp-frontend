@@ -137,6 +137,27 @@ describe('getDeleted', () => {
   });
 });
 
+/* ── getById ── */
+
+describe('getById', () => {
+  it('calls GET /api/v1/corporate-kpis/{id} and unwraps the node', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
+    });
+
+    const result = await corporateKpiApi.getById('a1b2c3d4-...');
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/corporate-kpis/a1b2c3d4-...');
+    expect(result).toEqual(mockNode);
+  });
+
+  it('propagates backend errors', async () => {
+    mockedApi.get.mockRejectedValueOnce(new Error('Corporate KPI not found'));
+
+    await expect(corporateKpiApi.getById('missing')).rejects.toThrow('Corporate KPI not found');
+  });
+});
+
 /* ── create ── */
 
 describe('create', () => {

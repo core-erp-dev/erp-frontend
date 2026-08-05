@@ -6,6 +6,8 @@
 export const KPI_ROUTES = {
   overview: '/kpi',
   corporate: '/kpi/corporate',
+  corporateAdd: '/kpi/corporate/add',
+  corporateEditRoute: (id: string) => `/kpi/corporate/${id}/edit`,
   corporateVariables: '/kpi/corporate/variables',
   corporateVariableValues: '/kpi/corporate/variable-values',
   activities: '/kpi/activities',
