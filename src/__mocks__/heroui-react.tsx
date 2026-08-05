@@ -111,6 +111,7 @@ export const Alert = Object.assign(mk('Alert'), {
   Indicator: mk('Alert.Indicator'),
   Content: mk('Alert.Content'),
   Title: mk('Alert.Title'),
+  Description: mk('Alert.Description'),
 });
 
 /* ── Modal compound (gated on isOpen so closed modals render nothing) ── */

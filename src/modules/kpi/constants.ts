@@ -12,6 +12,7 @@ export const KPI_ROUTES = {
   corporateVariableValues: '/kpi/corporate/variable-values',
   activities: '/kpi/activities',
   reports: '/kpi/reports',
+  reportReviews: '/kpi/report-reviews',
   approvals: '/kpi/approvals',
 } as const;
 
@@ -22,7 +23,8 @@ export const KPI_LABELS = {
   corporateVariables: 'KPI Variables',
   corporateVariableValues: 'KPI Values',
   activities: 'KPI Activities',
-  reports: 'Execution Reports',
+  reports: 'My Reports',
+  reportReviews: 'Report Reviews',
   approvals: 'Activity Approvals',
 } as const;
 
@@ -32,6 +34,7 @@ export const KPI_DESCRIPTIONS = {
   corporateVariables: 'Manage corporate KPI variable master data.',
   corporateVariableValues: 'View Corporate KPI variable values for a selected month or year.',
   activities: 'Manage KPI activities, create change requests, and monitor progress.',
-  reports: 'Submit execution reports, upload evidence, and review team reports.',
+  reports: 'Your submitted execution reports, evidence, and review status.',
+  reportReviews: 'Execution reports assigned to you or waiting in the company review queue.',
   approvals: 'Approve or reject KPI activity change requests.',
 } as const;

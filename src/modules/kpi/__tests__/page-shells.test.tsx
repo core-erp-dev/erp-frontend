@@ -12,6 +12,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import KpiOverviewPage from '@/app/(main)/kpi/page';
 import KpiCorporatePage from '@/app/(main)/kpi/corporate/page';
 import KpiReportsPage from '@/app/(main)/kpi/reports/page';
+import KpiReportReviewsPage from '@/app/(main)/kpi/report-reviews/page';
 import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
 
 // ── Mock usePermission — allow reading by default ──
@@ -201,7 +202,7 @@ describe('KPI Activities page shell', () => {
 
 // ── Reports ─────────────────────────────────────────────────────────────────
 
-describe('KPI Reports page', () => {
+describe('KPI My Reports page', () => {
   beforeEach(() => {
     render(<KpiReportsPage />);
   });
@@ -210,11 +211,11 @@ describe('KPI Reports page', () => {
     expect(screen.getByRole('heading', { name: KPI_LABELS.reports })).toBeInTheDocument();
   });
 
-  it('renders the implemented reports surface', () => {
-    // The canonical description line is not rendered by the page — assert the
-    // implemented tab surface instead.
+  it('renders the own-reports surface without the legacy tab toggle', () => {
+    // The My Reports / Review Queue tab toggle was removed by the navigation
+    // split — review actions live on the separate /kpi/report-reviews page.
     expect(allText()).toMatch(/My Reports/i);
-    expect(allText()).toMatch(/Review Queue/i);
+    expect(allText()).not.toMatch(/Review Queue/i);
   });
 
   it('does not contain P3 placeholder text (feature implemented)', () => {
@@ -222,6 +223,25 @@ describe('KPI Reports page', () => {
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);
+
+  it('does not contain fake KPI metrics', assertNoFakeMetrics);
+});
+
+// ── Report Reviews ──────────────────────────────────────────────────────────
+
+describe('KPI Report Reviews page', () => {
+  beforeEach(() => {
+    render(<KpiReportReviewsPage />);
+  });
+
+  it('renders canonical title', () => {
+    expect(screen.getByRole('heading', { name: KPI_LABELS.reportReviews })).toBeInTheDocument();
+  });
+
+  it('renders its own review-queue surface', () => {
+    expect(allText()).toMatch(/Report Reviews/i);
+    expect(allText()).not.toMatch(/Review Queue/i);
+  });
 
   it('does not contain fake KPI metrics', assertNoFakeMetrics);
 });

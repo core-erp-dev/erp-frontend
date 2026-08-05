@@ -45,7 +45,7 @@ export function ReportTable({
       <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
         <Tray className="h-8 w-8" />
         <span className="text-sm">
-          {mode === 'MY' ? 'No reports yet.' : 'No reports to review.'}
+          {mode === 'MY' ? 'No reports submitted yet.' : 'No reports to review.'}
         </span>
       </div>
     );

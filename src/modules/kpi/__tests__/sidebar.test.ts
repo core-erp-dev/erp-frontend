@@ -12,8 +12,8 @@ import { KPI_ROUTES } from '@/modules/kpi/constants';
 const kpiItems = navigationConfig.filter((item) => item.group === 'KPI');
 
 describe('KPI sidebar configuration (canonical navigationConfig)', () => {
-  it('contains exactly 4 KPI items', () => {
-    expect(kpiItems).toHaveLength(4);
+  it('contains exactly 5 KPI items', () => {
+    expect(kpiItems).toHaveLength(5);
   });
 
   it('contains separate Activities and Activity Approvals entries', () => {
@@ -42,11 +42,32 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     expect(approvals?.permissions).not.toContain(PERM.KPI_ACTIVITY_MANAGE);
   });
 
-  it('Reports is discoverable by any authenticated user (no gate; manage is not required)', () => {
-    const reports = kpiItems.find((i) => i.href === KPI_ROUTES.reports);
-    expect(reports?.permissions).toBeUndefined();
-    expect(reports?.capability).toBeUndefined();
-    expect(reports?.roles).toBeUndefined();
+  it('My Reports and Report Reviews are separate sidebar entries with separate routes', () => {
+    const myReports = kpiItems.find((i) => i.href === KPI_ROUTES.reports);
+    const reviews = kpiItems.find((i) => i.href === KPI_ROUTES.reportReviews);
+    expect(myReports?.title).toBe('My Reports');
+    expect(reviews?.title).toBe('Report Reviews');
+    // Separate pages — never the same href, never a tab of each other.
+    expect(KPI_ROUTES.reports).not.toBe(KPI_ROUTES.reportReviews);
+  });
+
+  it('My Reports is discoverable by any authenticated user (no gate)', () => {
+    const myReports = kpiItems.find((i) => i.href === KPI_ROUTES.reports);
+    expect(myReports?.permissions).toBeUndefined();
+    expect(myReports?.capability).toBeUndefined();
+    expect(myReports?.roles).toBeUndefined();
+  });
+
+  it('Report Reviews is NOT gated by kpi_report:root_review (hierarchy reviewers without it must still open the page)', () => {
+    const reviews = kpiItems.find((i) => i.href === KPI_ROUTES.reportReviews);
+    expect(reviews?.permissions).toBeUndefined();
+    expect(reviews?.capability).toBeUndefined();
+    expect(reviews?.roles).toBeUndefined();
+  });
+
+  it('Report Reviews is not gated by kpi_report:manage either', () => {
+    const reviews = kpiItems.find((i) => i.href === KPI_ROUTES.reportReviews);
+    expect(reviews?.permissions).toBeUndefined();
   });
 
   it('Corporate KPI keeps the existing corporate_kpi:read gate', () => {
@@ -63,7 +84,10 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
 
   it('defines every canonical KPI route exactly once', () => {
     const hrefs = kpiItems.map((i) => i.href);
-    for (const route of [KPI_ROUTES.corporate, KPI_ROUTES.activities, KPI_ROUTES.approvals, KPI_ROUTES.reports]) {
+    for (const route of [
+      KPI_ROUTES.corporate, KPI_ROUTES.activities, KPI_ROUTES.approvals,
+      KPI_ROUTES.reports, KPI_ROUTES.reportReviews,
+    ]) {
       expect(hrefs.filter((h) => h === route)).toHaveLength(1);
     }
   });

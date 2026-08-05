@@ -1,4 +1,4 @@
-import { ChartBar, Buildings, ClipboardText, Checks, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
+import { ChartBar, Buildings, ClipboardText, Checks, Article, Tray, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
 import type React from 'react';
 import { KPI_ROUTES } from '@/modules/kpi/constants';
 import { PERM } from '@/constants/permissions';
@@ -83,12 +83,20 @@ export const navigationConfig: SidebarItem[] = [
     permissions: [PERM.KPI_ACTIVITY_APPROVE],
   },
   {
-    title: 'Reports',
+    title: 'My Reports',
     href: KPI_ROUTES.reports,
     icon: Article,
     group: 'KPI',
-    // Any authenticated user — submission, `scope=mine`, and stored-reviewer
-    // access are responsibility-based. `kpi_report:manage` gates only admin tools.
+    // Any authenticated user — submission and `scope=mine` are responsibility-based.
+  },
+  {
+    title: 'Report Reviews',
+    href: KPI_ROUTES.reportReviews,
+    icon: Tray,
+    group: 'KPI',
+    // Same Reporting audience as My Reports: hierarchy reviewers see assigned
+    // non-root reports without kpi_report:root_review; root_review only adds
+    // the centralized top-level root queue and root decision rights.
   },
 
   // ── ORGANIZATION ──

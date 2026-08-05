@@ -14,7 +14,9 @@ import type { KpiReportResponse, SubmitReportPayload, RejectReportPayload } from
 /**
  * Combined report data hook (V1).
  *   - My Reports    → GET /api/v1/kpi-reports?scope=mine
- *   - Review Queue  → GET /api/v1/kpi-reports?scope=to-review (stored reviewer)
+ *   - Review Queue  → GET /api/v1/kpi-reports?scope=to-review — assigned
+ *     hierarchy reports (stored reviewer) PLUS top-level root reports in the
+ *     centralized company queue for kpi_report:root_review holders.
  *   - Submit/approve/reject per T12/T16/T17.
  * Already-processed failures surface as a recoverable conflict (banner + refetch).
  */
