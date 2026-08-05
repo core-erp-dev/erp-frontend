@@ -177,7 +177,6 @@ export function KpiActivityDetailModal({
           <DetailRow label="Unit" value={request.unit || '-'} />
           <DetailRow label="Target Value" value={request.targetValue != null ? String(request.targetValue) : '-'} />
           <DetailRow label="Requested By" value={request.requestedByUserName} />
-          <DetailRow label="Assigned Approver" value={request.approverUserName || '-'} />
           {request.rejectionReason ? <DetailRow label="Rejection Reason" value={request.rejectionReason} /> : null}
         </Surface>
       </div>

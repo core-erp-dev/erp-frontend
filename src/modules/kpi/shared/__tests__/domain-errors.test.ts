@@ -22,12 +22,12 @@ describe('classifyActivityError', () => {
     expect(classifyActivityError('A pending update or cancel request already exists for this activity')).toBe('duplicate-pending');
   });
 
-  it('classifies not-assigned-approver', () => {
-    expect(classifyActivityError('You are not the assigned approver for this request')).toBe('not-assigned-approver');
+  it('classifies own-request (exact backend string)', () => {
+    expect(classifyActivityError('Cannot approve your own request')).toBe('own-request');
   });
 
-  it('classifies own-request', () => {
-    expect(classifyActivityError('Cannot approve or reject your own request')).toBe('own-request');
+  it('no longer recognizes the removed stored-approver message (centralized queue)', () => {
+    expect(classifyActivityError('You are not the assigned approver for this request')).toBe('other');
   });
 
   it('falls back to other for unknown strings', () => {

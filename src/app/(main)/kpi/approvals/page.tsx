@@ -1,44 +1,54 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert, Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
 import { ArrowsClockwise, House, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS } from '@/modules/kpi/constants';
 import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
+import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
 import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
 import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
 import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
-import { ReassignApproverDialog } from '@/modules/kpi/admin/reassign-approver-dialog';
 import type { KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity-v1.types';
 
 /**
  * Activity Approvals — standalone page (`/kpi/approvals`).
  *
- * Owns: request `scope=to-review`, approval request detail, the unified
- * APPROVE/REJECT decision (T8), conditional rejection reason, stored-approver
- * and maker–checker UX, already-processed recovery, and refetch after
- * decisions. It is NOT a tab of `/kpi/activities` and is NOT deleted or
- * redirected. Guarded by exactly `kpi_activity:approve` (sidebar + page).
+ * Centralized approval queue (2026-08-05): every `kpi_activity:approve`
+ * holder sees the SAME company-wide PENDING queue. Owns: request
+ * `scope=to-review`, approval request detail, the unified APPROVE/REJECT
+ * decision (T8), conditional rejection reason, self-processing UX (own
+ * requests visible but not actionable — matched via `scope=mine` ids, and
+ * the backend enforces CANNOT_APPROVE_OWN_REQUEST regardless),
+ * already-processed recovery, and refetch after decisions. It is NOT a tab
+ * of `/kpi/activities` and is NOT deleted or redirected. Guarded by exactly
+ * `kpi_activity:approve` (sidebar + page). There is no reassignment UI —
+ * T9 was removed.
  */
 export default function KpiApprovalsPage() {
   const { hasPerm } = usePermission();
   const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
-  // T9 administrative tool — manage is NOT an approval bypass; it only enables
-  // stuck-request approver reassignment.
-  const canReassignApprover = hasPerm(PERM.KPI_ACTIVITY_MANAGE);
 
   const {
     toReview, isLoading, error, fetchToReview,
     isDeciding,
     recoverable, clearRecoverable,
   } = useApprovalData();
+  const { myRequests, fetchMyRequests } = useActivityData();
 
-  // Fetch on mount
+  // Own request ids (scope=mine) — used only to disable self-processing UI;
+  // the backend is the authoritative self-approval ban.
+  const ownRequestIds = useMemo(() => new Set(myRequests.map((r) => r.id)), [myRequests]);
+
+  // Fetch on mount: company queue + own requests (for the self-processing UX)
   useEffect(() => {
-    if (canApprove) fetchToReview();
-  }, [canApprove, fetchToReview]);
+    if (canApprove) {
+      fetchToReview();
+      fetchMyRequests();
+    }
+  }, [canApprove, fetchToReview, fetchMyRequests]);
 
   // ── Detail modal state ──
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -71,17 +81,6 @@ export default function KpiApprovalsPage() {
   const closeDialog = useCallback(() => {
     setDialogMode(null);
     setDialogRequest(null);
-  }, []);
-
-  // ── Reassign approver dialog state (T9, kpi_activity:manage) ──
-  const [reassignRequest, setReassignRequest] = useState<KpiActivityChangeRequestResponse | null>(null);
-
-  const openReassign = useCallback((req: KpiActivityChangeRequestResponse) => {
-    setReassignRequest(req);
-  }, []);
-
-  const closeReassign = useCallback(() => {
-    setReassignRequest(null);
   }, []);
 
   // ── Permission guard ──
@@ -151,7 +150,7 @@ export default function KpiApprovalsPage() {
         onViewDetail={openDetail}
         onApprove={openApprove}
         onReject={openReject}
-        onReassignApprover={canReassignApprover ? openReassign : undefined}
+        ownRequestIds={ownRequestIds}
         onRetry={fetchToReview}
       />
 
@@ -177,17 +176,6 @@ export default function KpiApprovalsPage() {
 
       {isDeciding && (
         <div className="sr-only" aria-live="polite">Processing decision...</div>
-      )}
-
-      {/* T9 — administrative approver reassignment */}
-      {reassignRequest && (
-        <ReassignApproverDialog
-          key={reassignRequest.id}
-          isOpen={true}
-          onClose={closeReassign}
-          request={reassignRequest}
-          onSuccess={fetchToReview}
-        />
       )}
     </div>
   );

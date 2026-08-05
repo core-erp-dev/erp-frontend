@@ -27,7 +27,7 @@ const request: KpiActivityChangeRequestResponse = {
   corporateKpiName: 'CK', assignedToUserPositionId: 'up-2',
   assignedToUserName: 'B', activityName: 'A2', description: null, unit: '%',
   targetValue: 10, periodYear: 2026, periodMonth: 7, requestedByUser: 'u-1',
-  requestedByUserName: 'A', approverUserId: 'u-2', approverUserName: 'C',
+  requestedByUserName: 'A',
   reviewedBy: null, reviewedAt: null, rejectionReason: null,
   cancellationReason: null, createdAt: '', updatedAt: '',
 };

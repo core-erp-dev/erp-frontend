@@ -62,9 +62,6 @@ export interface KpiActivityChangeRequestResponse {
   periodMonth: number | null;
   requestedByUser: string;
   requestedByUserName: string;
-  /** V1 stored assigned approver (identity that may decide the request). */
-  approverUserId: string | null;
-  approverUserName: string | null;
   /** UUID only — the backend exposes no reviewedByUserName. */
   reviewedBy: string | null;
   reviewedAt: string | null;
@@ -197,15 +194,6 @@ export interface AdminUpdateActivityRequest {
   unit?: string;
   targetValue?: number;
   assignedToUserPositionId?: string;
-}
-
-/** Administrative approver reassignment (T9, `kpi_activity:manage`). */
-export interface AdminReassignApproverRequest {
-  newApproverUserId: string;
-  /** Optional validated position context belonging to the new approver. */
-  newApproverUserPositionId?: string;
-  /** Mandatory administrative audit reason (≤1000). */
-  reason: string;
 }
 
 /** Administrative report reviewer reassignment (T18, `kpi_report:manage`). */

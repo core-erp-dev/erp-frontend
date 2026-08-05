@@ -21,17 +21,6 @@ const activity: KpiActivityResponse = {
   progressPercent: 0, version: 3, createdAt: '', updatedAt: '',
 };
 
-const request: KpiActivityChangeRequestResponse = {
-  id: 'req-1', requestType: 'CREATE', status: 'PENDING', activityId: null,
-  parentId: null, parentActivityName: null, corporateKpiId: 'ck-1',
-  corporateKpiName: 'CK', assignedToUserPositionId: 'up-2',
-  assignedToUserName: 'B', activityName: 'A2', description: null, unit: '%',
-  targetValue: 10, periodYear: 2026, periodMonth: 7, requestedByUser: 'u-1',
-  requestedByUserName: 'A', approverUserId: 'u-2', approverUserName: 'C',
-  reviewedBy: null, reviewedAt: null, rejectionReason: null,
-  cancellationReason: null, createdAt: '', updatedAt: '',
-};
-
 const report: KpiReportResponse = {
   id: 'rep-1', activityId: 'act-1', activityName: 'A1', unit: '%',
   activityTargetValue: 100, submittedByUserPositionId: 'up-1',
@@ -46,19 +35,6 @@ const report: KpiReportResponse = {
 };
 
 const wrap = <T>(data: T): ApiResponse<T> => ({ status: 200, message: 'ok', data });
-
-describe('kpiAdminV1Api.adminReassignApprover (T9)', () => {
-  it('PATCH /api/v1/admin/kpi-activity-requests/{id}/approver with user + reason', async () => {
-    mockedApi.patch.mockResolvedValueOnce({ data: wrap(request) });
-    const result = await kpiAdminV1Api.adminReassignApprover('req-1', {
-      newApproverUserId: 'u-9', reason: 'stuck request',
-    });
-    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/admin/kpi-activity-requests/req-1/approver', {
-      newApproverUserId: 'u-9', reason: 'stuck request',
-    });
-    expect(result.id).toBe('req-1');
-  });
-});
 
 describe('kpiAdminV1Api.adminCreateActivity (T10)', () => {
   it('POST /api/v1/admin/kpi-activities with assignee, root fields and reason', async () => {
@@ -130,11 +106,12 @@ describe('kpiAdminV1Api.adminUpdateActivity (T11)', () => {
 });
 
 describe('kpiAdminV1Api surface', () => {
-  it('exposes exactly the four administrative client functions (T9/T10/T11/T18)', () => {
+  it('exposes exactly the three remaining administrative client functions (T10/T11/T18)', () => {
     const surface = kpiAdminV1Api as Record<string, unknown>;
-    expect(typeof surface.adminReassignApprover).toBe('function');
     expect(typeof surface.adminCreateActivity).toBe('function');
     expect(typeof surface.adminUpdateActivity).toBe('function');
     expect(typeof surface.adminReassignReportReviewer).toBe('function');
+    // T9 Activity approver reassignment was removed with the centralized queue
+    expect(surface.adminReassignApprover).toBeUndefined();
   });
 });

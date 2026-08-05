@@ -2,36 +2,24 @@ import { api } from '@/lib/axios';
 import type { ApiResponse } from '@/types/api';
 import type {
   AdminCreateActivityRequest,
-  AdminReassignApproverRequest,
   AdminReassignReviewerRequest,
   AdminUpdateActivityRequest,
   KpiActivityResponse,
-  KpiActivityChangeRequestResponse,
 } from '@/modules/kpi/activity/activity-v1.types';
 import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
 
 /**
- * KPI administrative client — 4 endpoints (T9/T10/T11/T18).
+ * KPI administrative client — 3 endpoints (T10/T11/T18).
  *
- * Access is action-level: T9/T10/T11 require `kpi_activity:manage`; T18
+ * Access is action-level: T10/T11 require `kpi_activity:manage`; T18
  * requires `kpi_report:manage` (all enforced by backend @PreAuthorize).
+ * The T9 Activity approver reassignment was removed with the centralized
+ * approval queue (2026-08-05) — there is no replacement endpoint.
  * T11 sends the Activity's authoritative persisted `version` (exposed on
  * KpiActivityResponse by backend 2a71107) as `expectedVersion` — the client
  * never fabricates or derives a version.
  */
 export const kpiAdminV1Api = {
-  /** T9 — administrative Activity-request approver reassignment (stuck-request recovery). */
-  adminReassignApprover: async (
-    requestId: string,
-    body: AdminReassignApproverRequest,
-  ): Promise<KpiActivityChangeRequestResponse> => {
-    const response = await api.patch<ApiResponse<KpiActivityChangeRequestResponse>>(
-      `/api/v1/admin/kpi-activity-requests/${requestId}/approver`,
-      body,
-    );
-    return response.data.data;
-  },
-
   /** T10 — administrative Activity create for anyone (no approval flow). */
   adminCreateActivity: async (body: AdminCreateActivityRequest): Promise<KpiActivityResponse> => {
     const response = await api.post<ApiResponse<KpiActivityResponse>>(

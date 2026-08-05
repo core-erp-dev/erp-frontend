@@ -58,7 +58,6 @@ export function RequestTable({ items, isLoading, error, onViewDetail, onRetry }:
           <Table.Header>
             <Table.Column isRowHeader id="requestType">Request Type</Table.Column>
             <Table.Column id="activityName">Activity Name</Table.Column>
-            <Table.Column id="approver">Approver</Table.Column>
             <Table.Column id="status">Status</Table.Column>
             <Table.Column id="created">Created</Table.Column>
             <Table.Column id="reviewed">Reviewed</Table.Column>
@@ -105,9 +104,6 @@ export function RequestTable({ items, isLoading, error, onViewDetail, onRetry }:
                   {item.activityName || '-'}
                 </Table.Cell>
                 <Table.Cell className="text-muted-foreground">
-                  {item.approverUserName || '-'}
-                </Table.Cell>
-                <Table.Cell>
                   <Chip size="sm" color={REQUEST_STATUS_CHIP_COLOR[item.status]} variant="soft">
                     {REQUEST_STATUS_LABEL[item.status]}
                   </Chip>

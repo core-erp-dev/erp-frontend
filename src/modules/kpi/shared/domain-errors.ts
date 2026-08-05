@@ -11,9 +11,8 @@ export type RecoverableErrorKind =
   | 'already-processed'
   | 'version-conflict'
   | 'duplicate-pending'
-  | 'not-assigned-approver'
-  | 'not-reviewer'
   | 'own-request'
+  | 'not-reviewer'
   | 'own-report'
   | 'other';
 
@@ -29,8 +28,7 @@ const ACTIVITY_KIND_MAP: ReadonlyArray<readonly [string, RecoverableErrorKind]> 
   ['Request has already been processed', 'already-processed'],
   ['Activity was modified by another user', 'version-conflict'],
   ['A pending update or cancel request already exists', 'duplicate-pending'],
-  ['You are not the assigned approver', 'not-assigned-approver'],
-  ['Cannot approve or reject your own request', 'own-request'],
+  ['Cannot approve your own request', 'own-request'],
 ] as const;
 
 const REPORT_KIND_MAP: ReadonlyArray<readonly [string, RecoverableErrorKind]> = [
@@ -44,9 +42,8 @@ const KIND_MESSAGE: Record<RecoverableErrorKind, string> = {
   'already-processed': 'This request has already been processed — showing the latest data.',
   'version-conflict': 'This item was modified by another user — reload and retry.',
   'duplicate-pending': 'A pending request already exists for this item — it must be processed first.',
-  'not-assigned-approver': 'You are not the assigned approver for this request.',
-  'not-reviewer': 'You are not the designated reviewer for this report.',
   'own-request': 'You cannot approve or reject your own request.',
+  'not-reviewer': 'You are not the designated reviewer for this report.',
   'own-report': 'You cannot review your own report.',
   'other': 'Something went wrong. Please try again.',
 };
