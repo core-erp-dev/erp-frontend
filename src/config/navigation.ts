@@ -1,4 +1,4 @@
-import { ChartBar, Buildings, ClipboardText, Checks, Article, Tray, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
+import { ChartBar, Buildings, ClipboardText, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
 import type React from 'react';
 import { KPI_ROUTES } from '@/modules/kpi/constants';
 import { PERM } from '@/constants/permissions';
@@ -73,30 +73,37 @@ export const navigationConfig: SidebarItem[] = [
     href: KPI_ROUTES.activities,
     icon: ClipboardText,
     group: 'KPI',
-    // Any authenticated user — `scope=mine` reads are responsibility-based.
+    // Expandable parent (Corporate KPI pattern). Children map to the split
+    // /kpi/activities/* routes; `all` keeps its read_all|manage gate, Approval
+    // keeps the kpi_activity:approve gate of the existing /kpi/approvals page.
+    children: [
+      {
+        title: 'All Activities',
+        href: KPI_ROUTES.activitiesAll,
+        permissions: [PERM.KPI_ACTIVITY_READ_ALL, PERM.KPI_ACTIVITY_MANAGE],
+      },
+      { title: 'My Activities', href: KPI_ROUTES.activitiesMine },
+      { title: 'Subordinate', href: KPI_ROUTES.activitiesSubordinate },
+      { title: 'My Request', href: KPI_ROUTES.activitiesMyRequests },
+      {
+        title: 'Approval',
+        href: KPI_ROUTES.approvals,
+        permissions: [PERM.KPI_ACTIVITY_APPROVE],
+      },
+    ],
   },
   {
-    title: 'Activity Approvals',
-    href: KPI_ROUTES.approvals,
-    icon: Checks,
-    group: 'KPI',
-    permissions: [PERM.KPI_ACTIVITY_APPROVE],
-  },
-  {
-    title: 'My Reports',
+    title: 'Report',
     href: KPI_ROUTES.reports,
     icon: Article,
     group: 'KPI',
-    // Any authenticated user — submission and `scope=mine` are responsibility-based.
-  },
-  {
-    title: 'Report Reviews',
-    href: KPI_ROUTES.reportReviews,
-    icon: Tray,
-    group: 'KPI',
-    // Same Reporting audience as My Reports: hierarchy reviewers see assigned
-    // non-root reports without kpi_report:root_review; root_review only adds
-    // the centralized top-level root queue and root decision rights.
+    // Expandable parent (Corporate KPI pattern). Report > Approval is NOT
+    // gated by kpi_report:root_review — hierarchy reviewers without it must
+    // still open the queue; root_review only adds root queue contents.
+    children: [
+      { title: 'My Report', href: KPI_ROUTES.reports },
+      { title: 'Approval', href: KPI_ROUTES.reportReviews },
+    ],
   },
 
   // ── ORGANIZATION ──

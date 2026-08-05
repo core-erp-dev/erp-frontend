@@ -93,13 +93,13 @@ describe('Sidebar expandable Corporate KPI', () => {
     render(<Sidebar isOpen />);
     const parent = screen.getByRole('button', { name: /Corporate KPI/ });
     expect(parent).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByTestId('icon-CaretDown')).toBeInTheDocument();
-    expect(screen.queryByTestId('icon-CaretUp')).not.toBeInTheDocument();
+    expect(parent.querySelector('[data-testid="icon-CaretDown"]')).toBeTruthy();
+    expect(parent.querySelector('[data-testid="icon-CaretUp"]')).toBeNull();
 
     fireEvent.click(parent);
     expect(parent).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByTestId('icon-CaretUp')).toBeInTheDocument();
-    expect(screen.queryByTestId('icon-CaretDown')).not.toBeInTheDocument();
+    expect(parent.querySelector('[data-testid="icon-CaretUp"]')).toBeTruthy();
+    expect(parent.querySelector('[data-testid="icon-CaretDown"]')).toBeNull();
   });
 
   it('renders submenu items as text-only labels (no icons)', () => {
@@ -156,3 +156,93 @@ describe('Sidebar expandable Corporate KPI', () => {
     expect(screen.queryByText('Variables')).not.toBeInTheDocument();
   });
 });
+
+describe('Sidebar expandable Activities parent', () => {
+  beforeEach(() => {
+    mockUser = {
+      username: 'admin',
+      email: 'admin@erp.com',
+      permissions: ['kpi_activity:read_all', 'kpi_activity:approve', 'kpi_activity:manage'],
+      roles: ['ADMIN'],
+    };
+  });
+
+  it('auto-opens with all five submenus when a child route is active (direct-load)', () => {
+    mockPathname = '/kpi/activities/my-requests';
+    render(<Sidebar isOpen />);
+    const parent = screen.getByRole('button', { name: /^Activities/ });
+    expect(parent).toHaveAttribute('aria-expanded', 'true');
+    for (const label of ['All Activities', 'My Activities', 'Subordinate', 'My Request', 'Approval']) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  it('marks the active child with semibold text and keeps the parent open', () => {
+    mockPathname = '/kpi/activities/all';
+    render(<Sidebar isOpen />);
+    const activeLink = screen.getByText('All Activities').closest('a');
+    expect(activeLink).toHaveClass('font-semibold');
+    expect(screen.getByRole('button', { name: /^Activities/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('hides gated children but keeps the parent visible (partial visibility)', () => {
+    // No read_all/manage and no kpi_activity:approve → only the three
+    // responsibility-based children remain; the parent itself stays.
+    mockUser = { username: 'u', email: 'u@x.com', permissions: [], roles: [] };
+    mockPathname = '/kpi/activities/mine';
+    render(<Sidebar isOpen />);
+    const parent = screen.getByRole('button', { name: /^Activities/ });
+    expect(parent).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('My Activities')).toBeInTheDocument();
+    expect(screen.getByText('Subordinate')).toBeInTheDocument();
+    expect(screen.getByText('My Request')).toBeInTheDocument();
+    expect(screen.queryByText('All Activities')).not.toBeInTheDocument();
+    expect(screen.queryByText('Approval')).not.toBeInTheDocument();
+  });
+
+  it('renders submenu items as text-only labels (no icons), like Corporate KPI', () => {
+    mockPathname = '/kpi/activities/mine'; // child route → parent open
+    render(<Sidebar isOpen />);
+    for (const label of ['My Activities', 'Subordinate', 'My Request']) {
+      const link = screen.getByText(label).closest('a');
+      expect(link?.querySelector('[data-testid^="icon-"]')).toBeNull();
+    }
+  });
+});
+
+describe('Sidebar expandable Report parent', () => {
+  beforeEach(() => {
+    mockUser = {
+      username: 'u',
+      email: 'u@x.com',
+      permissions: [],
+      roles: [],
+    };
+  });
+
+  it('auto-opens with My Report and Approval when a child route is active (direct-load)', () => {
+    mockPathname = '/kpi/report-reviews';
+    render(<Sidebar isOpen />);
+    const parent = screen.getByRole('button', { name: /^Report/ });
+    expect(parent).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('My Report')).toBeInTheDocument();
+    expect(screen.getByText('Approval')).toBeInTheDocument();
+  });
+
+  it('is NOT gated by kpi_report:root_review — visible for a user with no report permissions', () => {
+    mockPathname = '/kpi/reports';
+    render(<Sidebar isOpen />);
+    expect(screen.getByRole('button', { name: /^Report/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('My Report')).toBeInTheDocument();
+    expect(screen.getByText('Approval')).toBeInTheDocument();
+  });
+
+  it('marks the active child and keeps the parent open on the review route', () => {
+    mockPathname = '/kpi/report-reviews';
+    render(<Sidebar isOpen />);
+    const activeLink = screen.getByText('Approval').closest('a');
+    expect(activeLink).toHaveClass('font-semibold');
+    expect(screen.getByRole('button', { name: /^Report/ })).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+

@@ -69,8 +69,8 @@ describe('My Reports page (/kpi/reports)', () => {
 
   it('renders directly with its own header and breadcrumb (direct-load safe)', () => {
     render(<KpiMyReportsPage />);
-    expect(screen.getByRole('heading', { name: 'My Reports' })).toBeInTheDocument();
-    expect(allText()).toMatch(/My Reports/);
+    expect(screen.getByRole('heading', { name: 'My Report' })).toBeInTheDocument();
+    expect(allText()).toMatch(/My Report/);
   });
 
   it('fetches scope=mine and never scope=to-review', () => {

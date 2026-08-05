@@ -194,9 +194,9 @@ describe('Corporate KPI page shell', () => {
 // ── Activities ──────────────────────────────────────────────────────────────
 
 describe('KPI Activities page shell', () => {
-  it('renders canonical title', () => {
-    // Activities page is fully implemented in P2.1 — see activity-page.test.tsx
-    expect(KPI_LABELS.activities).toBe('KPI Activities');
+  it('uses the Activities parent label', () => {
+    // The workspace is split into per-view routes; see activity-page.test.tsx
+    expect(KPI_LABELS.activities).toBe('Activities');
   });
 });
 
