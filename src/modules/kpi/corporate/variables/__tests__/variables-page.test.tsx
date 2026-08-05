@@ -1,5 +1,5 @@
 /**
- * Input Variables page tests — permissions, rendering, deleted view.
+ * Variables page tests — permissions, rendering, deleted view.
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -32,6 +32,7 @@ const sampleVariable = {
   code: 'ROI',
   name: 'Return on Investment',
   unit: '%',
+  aggregationMode: 'SUM',
   description: null,
   deletedAt: null,
   createdAt: '2026-01-01T00:00:00',
@@ -49,7 +50,7 @@ beforeEach(() => {
   mockedApi.restore.mockResolvedValue(sampleVariable);
 });
 
-describe('Input Variables page', () => {
+describe('Variables page', () => {
   it('shows access denied without read permission', () => {
     mockPermissions = {};
     render(<KpiCorporateVariablesPage />);
@@ -59,7 +60,7 @@ describe('Input Variables page', () => {
   it('renders title and variable rows for read-only user', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariablesPage />);
-    expect(await screen.findByRole('heading', { name: 'Input Variables' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Variables' })).toBeInTheDocument();
     expect(await screen.findByText('ROI')).toBeInTheDocument();
     expect(screen.getByText('Return on Investment')).toBeInTheDocument();
   });
@@ -117,5 +118,22 @@ describe('Input Variables page', () => {
     expect(await screen.findByText('Delete Variable')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Delete'));
     await waitFor(() => expect(mockedApi.softDelete).toHaveBeenCalledWith('var-1'));
+  });
+
+  it('edit form submits the loaded mode — an unrelated edit never erases it', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    mockedApi.list.mockResolvedValue([{ ...sampleVariable, aggregationMode: 'ANNUAL_REQUIRED' }]);
+    mockedApi.update.mockResolvedValue({ ...sampleVariable, aggregationMode: 'ANNUAL_REQUIRED' });
+    render(<KpiCorporateVariablesPage />);
+    await screen.findByText('ROI');
+
+    fireEvent.click(screen.getByLabelText('Edit'));
+    expect(await screen.findByText('Edit Variable')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Save Changes'));
+    await waitFor(() => expect(mockedApi.update).toHaveBeenCalled());
+    const payload = mockedApi.update.mock.calls[0][1] as Record<string, unknown>;
+    // The persisted ANNUAL_REQUIRED mode is submitted back, not dropped
+    expect(payload.aggregationMode).toBe('ANNUAL_REQUIRED');
+    expect(payload).not.toHaveProperty('code');
   });
 });

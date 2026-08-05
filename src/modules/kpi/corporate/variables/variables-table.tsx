@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Table, Spinner, Button } from '@heroui/react';
+import { Table, Spinner, Button, Chip } from '@heroui/react';
 import { Tray, PencilSimple, Trash, ArrowCounterClockwise, Copy, Check } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { aggregationModeLabel } from './aggregation-mode';
 import type { Variable } from './variables.types';
 
 export interface VariablesTableProps {
@@ -91,6 +92,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
               <Table.Column id="code" isRowHeader>Code</Table.Column>
               <Table.Column id="name">Name</Table.Column>
               <Table.Column id="unit">Unit</Table.Column>
+              <Table.Column id="aggregationMode">Aggregation Mode</Table.Column>
               <Table.Column id="description">Description</Table.Column>
               {canManage && (onCreate || onEdit || onDelete) && (
                 <Table.Column id="actions" className="text-center">{''}</Table.Column>
@@ -130,6 +132,11 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                   </Table.Cell>
                   <Table.Cell className="text-foreground">{variable.name}</Table.Cell>
                   <Table.Cell className="text-muted-foreground">{variable.unit || '–'}</Table.Cell>
+                  <Table.Cell>
+                    <Chip size="sm" className="pointer-events-none" variant="soft">
+                      {aggregationModeLabel(variable.aggregationMode)}
+                    </Chip>
+                  </Table.Cell>
                   <Table.Cell className="max-w-[280px] truncate text-muted-foreground">
                     {variable.description || '–'}
                   </Table.Cell>

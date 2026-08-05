@@ -5,7 +5,7 @@ import { toast } from '@heroui/react';
 import { valuesApi, extractValuesError } from './values-api';
 import { variablesApi } from '../variables/variables-api';
 import { extractErrorMessage } from '@/types/api';
-import type { VariableValueSheetRow, BatchVariableValueItem } from './values.types';
+import type { VariableValueSheetRow, BatchVariableValueItem, SheetPeriod } from './values.types';
 
 export interface UseVariableValuesDataReturn {
   sheet: VariableValueSheetRow[];
@@ -13,9 +13,28 @@ export interface UseVariableValuesDataReturn {
   error: string | null;
   isSaving: boolean;
   saveError: string | null;
-  loadedKey: string | null; // `${year}-${month}` of the currently loaded sheet
-  fetchSheet: (year: number, month: number) => Promise<void>;
+  /**
+   * Cache/query key of the loaded sheet — monthly: `${year}-${month}`,
+   * annual: `${year}-annual`. Monthly and annual scopes NEVER share a key.
+   */
+  loadedKey: string | null;
+  fetchSheet: (period: SheetPeriod) => Promise<void>;
   saveBatch: (items: BatchVariableValueItem[]) => Promise<boolean>;
+  /** Delete the explicit annual value (month = null) for a variable + year. */
+  deleteAnnual: (variableId: string, year: number) => Promise<boolean>;
+}
+
+function mergeRows(rows: VariableValueSheetRow[], variables: Array<{ id: string; name: string; unit: string | null; aggregationMode: string | null }>): VariableValueSheetRow[] {
+  const meta = new Map(variables.map((v) => [v.id, v]));
+  return rows.map((row) => {
+    const variable = meta.get(row.variableId);
+    return {
+      ...row,
+      name: variable?.name ?? row.variableCode,
+      unit: variable?.unit ?? null,
+      aggregationMode: variable?.aggregationMode ?? null,
+    };
+  });
 }
 
 export function useVariableValuesData(): UseVariableValuesDataReturn {
@@ -26,29 +45,27 @@ export function useVariableValuesData(): UseVariableValuesDataReturn {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const loadedKeyRef = useRef<string | null>(null);
 
-  const fetchSheet = useCallback(async (year: number, month: number) => {
+  const keyFor = useCallback((period: SheetPeriod) =>
+    period.month != null ? `${period.year}-${period.month}` : `${period.year}-annual`, []);
+
+  const fetchSheet = useCallback(async (period: SheetPeriod) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Merge the monthly sheet with variable metadata (name/unit) — the
-      // backend sheet returns code only, so we join with the variables list.
+      // Merge the sheet with variable metadata (name/unit/mode) — the backend
+      // sheet returns code only, so we join with the variables list.
       const [rows, variables] = await Promise.all([
-        valuesApi.getSheet(year, month),
+        valuesApi.getSheet(period),
         variablesApi.list(),
       ]);
-      const meta = new Map(variables.map((v) => [v.id, v]));
-      const merged: VariableValueSheetRow[] = rows.map((row) => {
-        const variable = meta.get(row.variableId);
-        return {
-          ...row,
-          name: variable?.name ?? row.variableCode,
-          unit: variable?.unit ?? null,
-        };
-      });
+      const merged = mergeRows(rows as VariableValueSheetRow[], variables);
       if (mountedRef.current) {
         setSheet(merged);
-        setLoadedKey(`${year}-${month}`);
+        const key = keyFor(period);
+        setLoadedKey(key);
+        loadedKeyRef.current = key;
       }
     } catch (err: unknown) {
       const msg = extractValuesError(err);
@@ -57,51 +74,72 @@ export function useVariableValuesData(): UseVariableValuesDataReturn {
     } finally {
       if (mountedRef.current) setIsLoading(false);
     }
+  }, [keyFor]);
+
+  const refetchLoaded = useCallback(async () => {
+    const key = loadedKeyRef.current;
+    if (!key) return;
+    const [yearStr, scope] = key.split('-');
+    const year = Number(yearStr);
+    const period: SheetPeriod = scope === 'annual' ? { year } : { year, month: Number(scope) };
+    const [rows, variables] = await Promise.all([
+      valuesApi.getSheet(period),
+      variablesApi.list(),
+    ]);
+    if (mountedRef.current) {
+      setSheet(mergeRows(rows as VariableValueSheetRow[], variables));
+    }
   }, []);
 
   const saveBatch = useCallback(async (items: BatchVariableValueItem[]): Promise<boolean> => {
     setIsSaving(true);
     setSaveError(null);
     try {
-      const result = await valuesApi.saveBatch({ items });
-      // Refetch the sheet to reflect server state; keep the returned values as
-      // a fallback if the refetch fails.
-      const key = loadedKey;
-      if (key) {
-        const [year, month] = key.split('-').map(Number);
-        try {
-          const [rows, variables] = await Promise.all([
-            valuesApi.getSheet(year, month),
-            variablesApi.list(),
-          ]);
-          const meta = new Map(variables.map((v) => [v.id, v]));
-          if (mountedRef.current) {
-            setSheet(rows.map((row) => ({
-              ...row,
-              name: meta.get(row.variableId)?.name ?? row.variableCode,
-              unit: meta.get(row.variableId)?.unit ?? null,
-            })));
-          }
-        } catch {
-          if (mountedRef.current) setSheet(result as VariableValueSheetRow[]);
-        }
+      await valuesApi.saveBatch({ items });
+      // Refetch only the active sheet — monthly and annual scopes stay distinct.
+      try {
+        await refetchLoaded();
+      } catch {
+        // keep the optimistic state if the refetch fails
       }
-      toast.success('Monthly values saved successfully.');
+      toast.success('Values saved successfully.');
       return true;
     } catch (err: unknown) {
-      const msg = extractErrorMessage(err, 'Something went wrong while saving the monthly values.');
+      const msg = extractErrorMessage(err, 'Something went wrong while saving the values.');
       if (mountedRef.current) setSaveError(msg);
       toast.danger(msg);
       return false;
     } finally {
       if (mountedRef.current) setIsSaving(false);
     }
-  }, [loadedKey]);
+  }, [refetchLoaded]);
+
+  const deleteAnnual = useCallback(async (variableId: string, year: number): Promise<boolean> => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await valuesApi.deleteAnnual(variableId, year);
+      try {
+        await refetchLoaded();
+      } catch {
+        // keep the sheet as-is if the refetch fails
+      }
+      toast.success('Annual value deleted.');
+      return true;
+    } catch (err: unknown) {
+      const msg = extractErrorMessage(err, 'Something went wrong while deleting the annual value.');
+      if (mountedRef.current) setSaveError(msg);
+      toast.danger(msg);
+      return false;
+    } finally {
+      if (mountedRef.current) setIsSaving(false);
+    }
+  }, [refetchLoaded]);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  return { sheet, isLoading, error, isSaving, saveError, loadedKey, fetchSheet, saveBatch };
+  return { sheet, isLoading, error, isSaving, saveError, loadedKey, fetchSheet, saveBatch, deleteAnnual };
 }

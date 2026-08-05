@@ -55,14 +55,14 @@ export const navigationConfig: SidebarItem[] = [
         permissions: [PERM.CORPORATE_KPI_READ],
       },
       {
-        title: 'Input Variables',
+        title: 'Variables',
         href: KPI_ROUTES.corporateVariables,
         icon: Stack,
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
       {
-        title: 'Monthly Variable Values',
+        title: 'KPI Values',
         href: KPI_ROUTES.corporateVariableValues,
         icon: ClipboardText,
         group: 'KPI',

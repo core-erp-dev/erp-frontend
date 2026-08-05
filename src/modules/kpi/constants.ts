@@ -17,8 +17,8 @@ export const KPI_ROUTES = {
 export const KPI_LABELS = {
   overview: 'Dashboard',
   corporate: 'Corporate KPI',
-  corporateVariables: 'Input Variables',
-  corporateVariableValues: 'Monthly Variable Values',
+  corporateVariables: 'Variables',
+  corporateVariableValues: 'KPI Values',
   activities: 'KPI Activities',
   reports: 'Execution Reports',
   approvals: 'Activity Approvals',
@@ -26,9 +26,9 @@ export const KPI_LABELS = {
 
 export const KPI_DESCRIPTIONS = {
   overview: 'Organization KPI performance summary.',
-  corporate: 'Manage the corporate KPI tree and annual targets.',
+  corporate: 'Corporate KPI structure and evaluation results.',
   corporateVariables: 'Manage corporate KPI variable master data.',
-  corporateVariableValues: 'Input monthly values for corporate KPI variables.',
+  corporateVariableValues: 'View Corporate KPI variable values for a selected month or year.',
   activities: 'Manage KPI activities, create change requests, and monitor progress.',
   reports: 'Submit execution reports, upload evidence, and review team reports.',
   approvals: 'Approve or reject KPI activity change requests.',

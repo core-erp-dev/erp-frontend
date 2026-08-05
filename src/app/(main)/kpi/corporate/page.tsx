@@ -13,6 +13,8 @@ import { KpiNodeFormModal, type FormMode } from '@/modules/kpi/corporate/kpi-nod
 import { LifecycleDialog } from '@/modules/kpi/corporate/corporate-kpi-lifecycle-dialog';
 import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
 
+type PeriodMode = 'monthly' | 'annual';
+
 export default function KpiCorporatePage() {
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
@@ -20,12 +22,17 @@ export default function KpiCorporatePage() {
   const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
 
   // ── Page-local UI state ──
   const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('monthly');
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
   const [viewMode, setViewMode] = useState<'current' | 'deleted'>('current');
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  // null = AUTO mode: every expandable row is expanded by default on first load.
+  // The first user toggle materializes a real Set (see handleToggleExpand).
+  const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null);
 
   // ── Create/Edit modal state ──
   const [modalMode, setModalMode] = useState<FormMode | null>(null);
@@ -45,10 +52,13 @@ export default function KpiCorporatePage() {
     pendingLifecycle, changeStatus, deleteKpi, restoreKpi,
   } = useCorporateKpiData();
 
-  // Fetch tree on mount and when year changes
+  // Fetch tree on mount and when the period (year/mode/month) changes.
+  // Monthly: year + month. Annual: year only — the month parameter is omitted.
   useEffect(() => {
-    if (canRead) fetchTree(selectedYear);
-  }, [canRead, selectedYear, fetchTree]);
+    if (canRead) {
+      fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined);
+    }
+  }, [canRead, selectedYear, periodMode, selectedMonth, fetchTree]);
 
   // Fetch deleted data when first switching to deleted view
   useEffect(() => {
@@ -57,33 +67,51 @@ export default function KpiCorporatePage() {
     }
   }, [viewMode, hasLoadedDeleted, canManage, fetchDeleted]);
 
-  // ── Generic handlers ──
+  // ── Tree expansion ──
 
-  const handleYearChange = useCallback((year: number) => setSelectedYear(year), []);
-  const handleViewModeChange = useCallback((mode: 'current' | 'deleted') => setViewMode(mode), []);
-  const handleSearchChange = useCallback((query: string) => setSearchQuery(query), []);
+  // Every node with children is expandable.
+  const expandableIds = useMemo(() => {
+    const ids = new Set<string>();
+    const collect = (nodes: typeof tree) => {
+      for (const node of nodes) {
+        if (node.children.length > 0) { ids.add(node.id); collect(node.children); }
+      }
+    };
+    collect(tree);
+    return ids;
+  }, [tree]);
+
+  // Effective expansion: AUTO mode (null) expands every expandable row; once the
+  // user toggles, the materialized Set wins.
+  const effectiveExpandedIds = expandedIds ?? expandableIds;
 
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
-      const next = new Set(prev);
+      const base = prev ?? expandableIds;
+      const next = new Set(base);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  }, []);
+  }, [expandableIds]);
 
   const handleExpandAll = useCallback(() => {
-    const allIds = new Set<string>();
-    const collect = (nodes: typeof tree) => {
-      for (const node of nodes) {
-        if (node.children.length > 0) { allIds.add(node.id); collect(node.children); }
-      }
-    };
-    collect(tree);
-    setExpandedIds(allIds);
-  }, [tree]);
+    setExpandedIds(new Set(expandableIds));
+  }, [expandableIds]);
 
   const handleCollapseAll = useCallback(() => setExpandedIds(new Set()), []);
+
+  // ── Generic handlers ──
+
+  const handleYearChange = useCallback((year: number) => setSelectedYear(year), []);
+  const handleModeChange = useCallback((mode: PeriodMode) => {
+    setPeriodMode(mode);
+    // Annual scope omits the month entirely; keep the month selection for the Month tab.
+    if (mode === 'annual') setSelectedMonth(currentMonth);
+  }, [currentMonth]);
+  const handleMonthChange = useCallback((month: number) => setSelectedMonth(month), []);
+  const handleViewModeChange = useCallback((mode: 'current' | 'deleted') => setViewMode(mode), []);
+  const handleSearchChange = useCallback((query: string) => setSearchQuery(query), []);
 
   // ── Create/Edit modal handlers ──
 
@@ -178,14 +206,7 @@ export default function KpiCorporatePage() {
 
   const allExpanded = (() => {
     if (tree.length === 0 || viewMode !== 'current') return false;
-    const expandableIds = new Set<string>();
-    const collect = (nodes: typeof tree) => {
-      for (const node of nodes) {
-        if (node.children.length > 0) { expandableIds.add(node.id); collect(node.children); }
-      }
-    };
-    collect(tree);
-    return expandableIds.size > 0 && Array.from(expandableIds).every((id) => expandedIds.has(id));
+    return expandableIds.size > 0 && Array.from(expandableIds).every((id) => effectiveExpandedIds.has(id));
   })();
 
   // ── Permission guard ──
@@ -215,6 +236,7 @@ export default function KpiCorporatePage() {
         <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
       </Breadcrumbs>
 
+      {/* Row 1: Title + Chip + Refresh + Add */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
@@ -230,7 +252,7 @@ export default function KpiCorporatePage() {
           <Button
             isIconOnly
             variant="tertiary"
-            onPress={() => fetchTree(selectedYear)}
+            onPress={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)}
             isDisabled={isLoadingTree}
             aria-label="Refresh"
           >
@@ -245,9 +267,14 @@ export default function KpiCorporatePage() {
         </div>
       </div>
 
+      {/* Row 2: Period tabs + Year/Month dropdowns + Expand + Deleted | Search */}
       <CorporateKpiFilters
+        periodMode={periodMode}
+        onPeriodModeChange={handleModeChange}
         selectedYear={selectedYear}
         onYearChange={handleYearChange}
+        selectedMonth={selectedMonth}
+        onMonthChange={handleMonthChange}
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
         searchQuery={searchQuery}
@@ -262,7 +289,7 @@ export default function KpiCorporatePage() {
         tree={tree}
         deletedList={deletedList}
         viewMode={viewMode}
-        expandedIds={expandedIds}
+        expandedIds={effectiveExpandedIds}
         onToggleExpand={handleToggleExpand}
         searchQuery={searchQuery}
         selectedYear={selectedYear}
@@ -270,7 +297,7 @@ export default function KpiCorporatePage() {
         isLoadingDeleted={isLoadingDeleted}
         treeError={treeError}
         deletedError={deletedError}
-        onRetryTree={() => fetchTree(selectedYear)}
+        onRetryTree={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)}
         onRetryDeleted={fetchDeleted}
         onCreateIndicator={canManage ? openCreateIndicator : undefined}
         onEdit={canManage ? openEdit : undefined}

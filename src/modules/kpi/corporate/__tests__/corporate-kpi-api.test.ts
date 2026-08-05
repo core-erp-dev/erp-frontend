@@ -70,6 +70,18 @@ describe('getTreeByYear', () => {
     });
   });
 
+  it('annual request NEVER carries a month parameter (not 0/null/empty string)', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: [mockNode] } satisfies ApiResponse<CorporateKpiNode[]>,
+    });
+
+    await corporateKpiApi.getTreeByYear(2026);
+
+    const [, config] = mockedApi.get.mock.calls[0] as [string, { params?: Record<string, unknown> }];
+    expect(config.params).toEqual({ year: 2026 });
+    expect(config.params).not.toHaveProperty('month');
+  });
+
   it('unwraps ApiResponse.data', async () => {
     const payload: ApiResponse<CorporateKpiNode[]> = {
       status: 200,

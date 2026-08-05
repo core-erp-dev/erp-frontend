@@ -1,93 +1,79 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { Alert, Button, Breadcrumbs, BreadcrumbsItem, Select, ListBox, Label, FieldError } from '@heroui/react';
-import { House } from '@phosphor-icons/react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Alert, Button, Breadcrumbs, BreadcrumbsItem, Chip, Tabs, Dropdown, SearchField } from '@heroui/react';
+import { House, CaretDown } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
 import { useVariableValuesData } from '@/modules/kpi/corporate/values/use-variable-values-data';
-import { ValuesSheetTable, valueToDraft, isValidValueInput } from '@/modules/kpi/corporate/values/values-sheet-table';
-import type { ValueDraft, BatchVariableValueItem } from '@/modules/kpi/corporate/values/values.types';
+import { ValuesSheetTable } from '@/modules/kpi/corporate/values/values-sheet-table';
+import { MONTH_NAMES_EN } from '@/modules/kpi/corporate/period-label';
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+type PeriodMode = 'monthly' | 'annual';
 
 export default function KpiCorporateVariableValuesPage() {
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
-  const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
-
-  // Explicit period selection — no silent default month.
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [draft, setDraft] = useState<ValueDraft>({});
-
-  const {
-    sheet, isLoading, error, isSaving, saveError, loadedKey, fetchSheet, saveBatch,
-  } = useVariableValuesData();
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 7 }, (_, i) => currentYear + i - 3);
+  const currentMonth = new Date().getMonth() + 1;
+  const years = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => currentYear + i - 3),
+    [currentYear],
+  );
 
-  const periodSelected = selectedYear != null && selectedMonth != null;
-  const loadedMatchesSelection =
-    loadedKey != null && selectedYear != null && selectedMonth != null &&
-    loadedKey === `${selectedYear}-${selectedMonth}`;
+  // ── Page-local UI state ──
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('monthly');
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const handleLoad = useCallback(() => {
-    if (selectedYear == null || selectedMonth == null) return;
-    setDraft({});
-    void fetchSheet(selectedYear, selectedMonth);
-  }, [selectedYear, selectedMonth, fetchSheet]);
+  // ── Server data ──
+  const { sheet, isLoading, error, fetchSheet } = useVariableValuesData();
 
-  const handleDraftChange = useCallback((variableId: string, value: string) => {
-    setDraft((prev) => ({ ...prev, [variableId]: value }));
-  }, []);
-
-  // Dirty detection: compare draft string against the loaded value string.
-  const hasChanges = useMemo(() => {
-    if (!loadedMatchesSelection) return false;
-    return sheet.some((row) => {
-      const raw = draft[row.variableId] ?? valueToDraft(row.value);
-      return raw !== valueToDraft(row.value);
-    });
-  }, [draft, sheet, loadedMatchesSelection]);
-
-  // Invalid inputs block saving.
-  const hasInvalid = useMemo(() => {
-    return sheet.some((row) => {
-      const raw = draft[row.variableId] ?? valueToDraft(row.value);
-      return !isValidValueInput(raw);
-    });
-  }, [draft, sheet]);
-
-  const canSave = canManage && loadedMatchesSelection && hasChanges && !hasInvalid && !isLoading && !isSaving;
-
-  const handleSave = useCallback(async () => {
-    if (selectedYear == null || selectedMonth == null) return;
-    // Batch payload: only CHANGED rows with a non-empty, valid value.
-    // Natural key (variableId, year, month) is unique by construction —
-    // each row maps to one item, so no duplicate keys can occur.
-    const items: BatchVariableValueItem[] = [];
-    const seen = new Set<string>();
-    for (const row of sheet) {
-      const raw = draft[row.variableId] ?? valueToDraft(row.value);
-      if (raw === valueToDraft(row.value)) continue; // unchanged — skip
-      if (!isValidValueInput(raw) || raw.trim() === '') continue; // empty/cleared — not supported by batch upsert (value is required)
-      const num = Number(raw);
-      const key = `${row.variableId}|${selectedYear}|${selectedMonth}`;
-      if (seen.has(key)) continue; // defensive duplicate guard
-      seen.add(key);
-      items.push({ variableId: row.variableId, year: selectedYear, month: selectedMonth, value: num });
+  // Auto-fetch on mount and when the period changes.
+  // Monthly: year + month. Annual: year only — the month parameter is omitted.
+  useEffect(() => {
+    if (canRead) {
+      fetchSheet({ year: selectedYear, ...(periodMode === 'monthly' ? { month: selectedMonth } : {}) });
     }
-    if (items.length === 0) return;
-    const ok = await saveBatch(items);
-    if (ok) {
-      // Preserve saved inputs as the new baseline; refetch happened in the hook.
-      setDraft({});
-    }
-    // On failure the draft is kept untouched — unsaved inputs survive.
-  }, [sheet, draft, selectedYear, selectedMonth, saveBatch]);
+  }, [canRead, selectedYear, periodMode, selectedMonth, fetchSheet]);
+
+  // ── Handlers ──
+
+  const handleModeChange = useCallback((mode: PeriodMode) => {
+    setPeriodMode(mode);
+    // Annual scope omits the month entirely; keep the month selection for the Month tab.
+    if (mode === 'annual') setSelectedMonth(currentMonth);
+  }, [currentMonth]);
+
+  const handleYearChange = useCallback((year: number) => setSelectedYear(year), []);
+  const handleMonthChange = useCallback((month: number) => setSelectedMonth(month), []);
+  const handleRetry = useCallback(() => {
+    fetchSheet({ year: selectedYear, ...(periodMode === 'monthly' ? { month: selectedMonth } : {}) });
+  }, [fetchSheet, selectedYear, periodMode, selectedMonth]);
+
+  // Client-side search over code/name — same pattern as the Corporate KPI list page.
+  const filteredRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return sheet;
+    return sheet.filter(
+      (row) =>
+        row.variableCode.toLowerCase().includes(q) ||
+        row.name.toLowerCase().includes(q),
+    );
+  }, [sheet, searchQuery]);
+
+  const selectedMonthName = MONTH_NAMES_EN[selectedMonth - 1] ?? String(selectedMonth);
+
+  const emptyLabel = searchQuery.trim()
+    ? `No values match "${searchQuery.trim()}".`
+    : periodMode === 'annual'
+      ? 'No variables require an annual value for this year.'
+      : 'No variable values found for the selected period.';
+
+  // ── Permission guard ──
 
   if (!canRead) {
     return (
@@ -96,7 +82,7 @@ export default function KpiCorporateVariableValuesPage() {
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
           <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Monthly Variable Values</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.corporateVariableValues}</BreadcrumbsItem>
         </Breadcrumbs>
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariableValues}</h1>
         <Alert status="danger">Access Denied</Alert>
@@ -104,93 +90,103 @@ export default function KpiCorporateVariableValuesPage() {
     );
   }
 
+  // ── Rendered page ──
+
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
         <BreadcrumbsItem href={KPI_ROUTES.corporate}>Corporate KPI</BreadcrumbsItem>
-        <BreadcrumbsItem>Monthly Variable Values</BreadcrumbsItem>
+        <BreadcrumbsItem>{KPI_LABELS.corporateVariableValues}</BreadcrumbsItem>
       </Breadcrumbs>
 
+      {/* Row 1: Title + Chip counter — no page-level action buttons */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariableValues}</h1>
-        {canManage && (
-          <Button variant="primary" onPress={handleSave} isDisabled={!canSave} isPending={isSaving}>
-            Save
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariableValues}</h1>
+          <Chip
+            size="md"
+            className="pointer-events-none"
+            aria-label={`Total ${sheet.length} variable values`}
+          >
+            {sheet.length}
+          </Chip>
+        </div>
       </div>
 
-      {/* Period selector row — explicit year + month + Load */}
-      <div className="flex items-center gap-3">
-        <Select
-          className="w-40"
-          selectedKey={selectedYear != null ? String(selectedYear) : null}
-          onSelectionChange={(key) => setSelectedYear(key != null ? Number(key) : null)}
-          isRequired
-          variant="secondary"
-          aria-label="Select year"
-        >
-          <Label>Year</Label>
-          <Select.Trigger>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              {years.map((y) => (
-                <ListBox.Item key={String(y)} id={String(y)} textValue={String(y)}>
-                  {String(y)}
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-          <FieldError />
-        </Select>
+      {/* Row 2: Period tabs + Year/Month dropdowns | Search */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {/* Period mode — Month | Year */}
+          <Tabs
+            selectedKey={periodMode}
+            onSelectionChange={(key) => handleModeChange(key as PeriodMode)}
+          >
+            <Tabs.ListContainer>
+              <Tabs.List aria-label="Period">
+                <Tabs.Tab id="monthly">Month<Tabs.Indicator /></Tabs.Tab>
+                <Tabs.Tab id="annual">Year<Tabs.Indicator /></Tabs.Tab>
+              </Tabs.List>
+            </Tabs.ListContainer>
+          </Tabs>
 
-        <Select
-          className="w-44"
-          selectedKey={selectedMonth != null ? String(selectedMonth) : null}
-          onSelectionChange={(key) => setSelectedMonth(key != null ? Number(key) : null)}
-          isRequired
-          variant="secondary"
-          aria-label="Select month"
-        >
-          <Label>Month</Label>
-          <Select.Trigger>
-            <Select.Value />
-            <Select.Indicator />
-          </Select.Trigger>
-          <Select.Popover>
-            <ListBox>
-              {MONTHS.map((m) => (
-                <ListBox.Item key={String(m)} id={String(m)} textValue={String(m)}>
-                  {String(m)}
-                  <ListBox.ItemIndicator />
-                </ListBox.Item>
-              ))}
-            </ListBox>
-          </Select.Popover>
-          <FieldError />
-        </Select>
+          {/* Year — HeroUI Dropdown */}
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Select year">
+              {selectedYear}
+              <CaretDown className="h-4 w-4" />
+            </Button>
+            <Dropdown.Popover>
+              <Dropdown.Menu onAction={(key) => handleYearChange(Number(key))}>
+                {years.map((y) => (
+                  <Dropdown.Item key={y} id={String(y)} textValue={String(y)}>
+                    {String(y)}
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
 
-        <Button variant="tertiary" onPress={handleLoad} isDisabled={!periodSelected || isLoading}>
-          {isLoading ? 'Loading…' : 'Load'}
-        </Button>
+          {/* Month — relevant only to the Month tab */}
+          {periodMode === 'monthly' && (
+            <Dropdown>
+              <Button variant="tertiary" aria-label="Select month">
+                {selectedMonthName}
+                <CaretDown className="h-4 w-4" />
+              </Button>
+              <Dropdown.Popover>
+                <Dropdown.Menu onAction={(key) => handleMonthChange(Number(key))}>
+                  {MONTH_NAMES_EN.map((name, i) => (
+                    <Dropdown.Item key={name} id={String(i + 1)} textValue={name}>
+                      {name}
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          )}
+        </div>
+
+        {/* Search — right side */}
+        <SearchField aria-label="Search KPI values" value={searchQuery} onChange={setSearchQuery} className="w-72">
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="Search" />
+            <SearchField.ClearButton aria-label="Clear search" />
+          </SearchField.Group>
+        </SearchField>
       </div>
 
-      {saveError && <Alert status="danger">{saveError}</Alert>}
-
+      {/* Read-only values table (values are entered on the Year/Month sheet views) */}
       <ValuesSheetTable
-        sheet={sheet}
-        draft={draft}
-        onDraftChange={handleDraftChange}
+        sheet={filteredRows}
         isLoading={isLoading}
         error={error}
-        onRetry={handleLoad}
-        canEdit={canManage}
+        onRetry={handleRetry}
+        canEdit={false}
+        tableKey={`kpi-values-${periodMode}`}
+        emptyLabel={emptyLabel}
       />
     </div>
   );

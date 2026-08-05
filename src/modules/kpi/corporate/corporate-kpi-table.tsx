@@ -14,9 +14,6 @@ interface TreeRow {
   code: string;
   name: string;
   nodeType: string;
-  year: number;
-  formula: string | null;
-  assessmentRules: CorporateKpiNode['assessmentRules'];
   weight: number | null;
   actualScore: number | null;
   actualResult: number | null;
@@ -39,9 +36,6 @@ function buildTreeRows(
       code: node.code,
       name: node.name,
       nodeType: node.nodeType,
-      year: node.year,
-      formula: node.formula,
-      assessmentRules: node.assessmentRules,
       weight: node.weight,
       actualScore: node.actualScore,
       actualResult: node.actualResult,
@@ -75,6 +69,12 @@ const typeChipColor: Record<string, 'default' | 'accent'> = {
 function formatWeight(weight: number | null): string {
   if (weight == null) return '–';
   return `${Math.round(weight * 10000) / 100}%`;
+}
+
+/** Scoring-cell fallback: `–` for an INDICATOR without a computed value, empty for ASPECT rows. */
+function scoreValue(isIndicator: boolean, value: number | null | undefined): number | string {
+  if (!isIndicator) return '';
+  return value != null ? value : '–';
 }
 
 export interface CorporateKpiTableProps {
@@ -171,17 +171,13 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
     const effectiveExpanded = searchQuery.trim() ? searchExpanded : expandedIds;
     const treeRows = filtered.length > 0 ? buildTreeRows(filtered, effectiveExpanded, 0) : [];
 
-        return (
-          <Table key="current-kpi">
-            <Table.ScrollContainer>
-              <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[1400px]">
+    return (
+      <Table key="current-kpi">
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Corporate KPI Hierarchy" className="min-w-[1000px]">
             <Table.Header>
               <Table.Column id="name" isRowHeader>Indicator</Table.Column>
               <Table.Column id="code">Code</Table.Column>
-              <Table.Column id="type">Type</Table.Column>
-              <Table.Column id="year">Year</Table.Column>
-              <Table.Column id="formula">Formula</Table.Column>
-              <Table.Column id="assessment">Assessment</Table.Column>
               <Table.Column id="weight">Weight</Table.Column>
               <Table.Column id="score">Score</Table.Column>
               <Table.Column id="actual">Actual Result</Table.Column>
@@ -222,147 +218,119 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
               }}
             >
               {treeRows.map((row) => (
-                  <Table.Row key={row.id}>
-                    <Table.Cell>
-                      <div className="flex items-center gap-1" style={{ paddingLeft: row.depth * 24 }}>
-                        {row.hasChildren ? (
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            size="sm"
-                            aria-label={effectiveExpanded.has(row.id) ? 'Collapse' : 'Expand'}
-                            onPress={() => onToggleExpand(row.id)}
-                            className="mr-1 h-5 w-5 min-w-0"
-                          >
-                            {effectiveExpanded.has(row.id) ? (
-                              <CaretDown className="h-3.5 w-3.5 text-gray-500" />
-                            ) : (
-                              <CaretRight className="h-3.5 w-3.5 text-gray-500" />
-                            )}
-                          </Button>
-                        ) : (
-                          <span className="mr-1 w-5" />
-                        )}
-                        <span className="font-medium text-foreground">{row.name}</span>
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-foreground">{row.code}</span>
+                <Table.Row key={row.id}>
+                  <Table.Cell>
+                    <div className="flex items-center gap-1" style={{ paddingLeft: row.depth * 24 }}>
+                      {row.hasChildren ? (
                         <Button
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Copy code ${row.code}`}
-                          onPress={() => handleCopyCode(row.id, row.code)}
+                          aria-label={effectiveExpanded.has(row.id) ? 'Collapse' : 'Expand'}
+                          onPress={() => onToggleExpand(row.id)}
+                          className="mr-1 h-5 w-5 min-w-0"
                         >
-                          {copiedId === row.id ? (
-                            <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                          {effectiveExpanded.has(row.id) ? (
+                            <CaretDown className="h-3.5 w-3.5 text-gray-500" />
                           ) : (
-                            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                            <CaretRight className="h-3.5 w-3.5 text-gray-500" />
                           )}
                         </Button>
+                      ) : (
+                        <span className="mr-1 w-5" />
+                      )}
+                      <span className="font-medium text-foreground">{row.name}</span>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-foreground">{row.code}</span>
+                      <Button
+                        isIconOnly
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Copy code ${row.code}`}
+                        onPress={() => handleCopyCode(row.id, row.code)}
+                      >
+                        {copiedId === row.id ? (
+                          <Check className="h-3.5 w-3.5 text-muted-foreground" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {row.nodeType === 'INDICATOR' ? formatWeight(row.weight) : ''}
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {scoreValue(row.nodeType === 'INDICATOR', row.actualScore)}
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {scoreValue(row.nodeType === 'INDICATOR', row.actualResult)}
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {row.nodeType === 'INDICATOR' ? row.targetScore ?? '–' : ''}
+                  </Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {scoreValue(row.nodeType === 'INDICATOR', row.targetResult)}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Chip size="sm" color={statusChipColor[row.status]} variant="soft">
+                      {row.status}
+                    </Chip>
+                  </Table.Cell>
+                  {canManage && (
+                    <Table.Cell>
+                      <div className="flex items-center justify-end">
+                        {/* All row actions live in the More menu */}
+                        <Dropdown>
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label="More actions">
+                            <DotsThreeVertical className="h-4 w-4" />
+                          </Button>
+                          <Dropdown.Popover placement="top">
+                            <Dropdown.Menu onAction={(key) => {
+                              const full = findNodeById(tree, row.id);
+                              if (!full) return;
+                              if (key === 'edit') onEdit?.(full);
+                              if (key === 'add-indicator') onCreateIndicator?.(full.id);
+                              if (key === 'activate') onActivate?.(full);
+                              if (key === 'deactivate') onDeactivate?.(full);
+                              if (key === 'delete') onDelete?.(full);
+                            }}>
+                              {onEdit && (
+                                <Dropdown.Item id="edit" textValue="Edit">
+                                  <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit</span></div>
+                                </Dropdown.Item>
+                              )}
+                              {row.nodeType === 'ASPECT' && onCreateIndicator && (
+                                <Dropdown.Item id="add-indicator" textValue="Add Indicator">
+                                  <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Add Indicator</span></div>
+                                </Dropdown.Item>
+                              )}
+                              {onActivate && (row.status === 'DRAFT' || row.status === 'INACTIVE') && (
+                                <Dropdown.Item id="activate" textValue="Activate">
+                                  <div className="flex items-center gap-2"><Play className="h-4 w-4 text-muted-foreground" /><span>Activate</span></div>
+                                </Dropdown.Item>
+                              )}
+                              {onDeactivate && row.status === 'ACTIVE' && (
+                                <Dropdown.Item id="deactivate" textValue="Deactivate">
+                                  <div className="flex items-center gap-2"><Pause className="h-4 w-4 text-muted-foreground" /><span>Deactivate</span></div>
+                                </Dropdown.Item>
+                              )}
+                              {onDelete && (
+                                <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+                                  <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
+                                </Dropdown.Item>
+                              )}
+                            </Dropdown.Menu>
+                          </Dropdown.Popover>
+                        </Dropdown>
                       </div>
                     </Table.Cell>
-                    <Table.Cell>
-                      <Chip size="sm" color={typeChipColor[row.nodeType] || 'default'} variant="soft">
-                        {row.nodeType}
-                      </Chip>
-                    </Table.Cell>
-                    <Table.Cell className="text-muted-foreground">{row.year}</Table.Cell>
-                    <Table.Cell className="max-w-[180px] truncate text-muted-foreground">
-                      {row.nodeType === 'INDICATOR' ? row.formula || '–' : '–'}
-                    </Table.Cell>
-                    <Table.Cell className="text-muted-foreground">
-                      {row.nodeType === 'INDICATOR' && row.assessmentRules
-                        ? `${row.assessmentRules.length} rule${row.assessmentRules.length === 1 ? '' : 's'}`
-                        : '–'}
-                    </Table.Cell>
-                    <Table.Cell className="text-muted-foreground">
-                      {row.nodeType === 'INDICATOR' ? formatWeight(row.weight) : '–'}
-                    </Table.Cell>
-                    <Table.Cell className="text-muted-foreground">
-                      {row.nodeType === 'INDICATOR' && row.actualScore != null ? row.actualScore : '–'}
-                    </Table.Cell>
-                    <Table.Cell className="text-muted-foreground">
-                      {row.nodeType === 'INDICATOR' && row.actualResult != null ? row.actualResult : '–'}
-                    </Table.Cell>
-                    <Table.Cell className="text-muted-foreground">
-                      {row.nodeType === 'INDICATOR' ? row.targetScore ?? '–' : '–'}
-                    </Table.Cell>
-                    <Table.Cell className="text-muted-foreground">
-                      {row.nodeType === 'INDICATOR' && row.targetResult != null ? row.targetResult : '–'}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Chip size="sm" color={statusChipColor[row.status]} variant="soft">
-                        {row.status}
-                      </Chip>
-                    </Table.Cell>
-                    {canManage && (
-                      <Table.Cell>
-                        <div className="flex items-center justify-end gap-1">
-                          {onEdit && (
-                            <Button
-                              isIconOnly
-                              variant="tertiary"
-                              size="sm"
-                              aria-label="Edit"
-                              onPress={() => {
-                                const full = findNodeById(tree, row.id);
-                                if (full) onEdit(full);
-                              }}
-                            >
-                              <PencilSimple className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {row.nodeType === 'ASPECT' && onCreateIndicator && (
-                            <Button
-                              isIconOnly
-                              variant="tertiary"
-                              size="sm"
-                              aria-label="Add Indicator"
-                              onPress={() => onCreateIndicator(row.id)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          )}
-
-                          {/* More menu: Activate/Deactivate + Delete */}
-                          <Dropdown>
-                            <Button isIconOnly variant="tertiary" size="sm" aria-label="More actions">
-                              <DotsThreeVertical className="h-4 w-4" />
-                            </Button>
-                            <Dropdown.Popover placement="top">
-                              <Dropdown.Menu onAction={(key) => {
-                                const full = findNodeById(tree, row.id);
-                                if (!full) return;
-                                if (key === 'activate') onActivate?.(full);
-                                if (key === 'deactivate') onDeactivate?.(full);
-                                if (key === 'delete') onDelete?.(full);
-                              }}>
-                                {onActivate && (row.status === 'DRAFT' || row.status === 'INACTIVE') && (
-                                  <Dropdown.Item id="activate" textValue="Activate">
-                                    <div className="flex items-center gap-2"><Play className="h-4 w-4 text-muted-foreground" /><span>Activate</span></div>
-                                  </Dropdown.Item>
-                                )}
-                                {onDeactivate && row.status === 'ACTIVE' && (
-                                  <Dropdown.Item id="deactivate" textValue="Deactivate">
-                                    <div className="flex items-center gap-2"><Pause className="h-4 w-4 text-muted-foreground" /><span>Deactivate</span></div>
-                                  </Dropdown.Item>
-                                )}
-                                {onDelete && (
-                                  <Dropdown.Item id="delete" textValue="Delete" variant="danger">
-                                    <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Delete</span></div>
-                                  </Dropdown.Item>
-                                )}
-                              </Dropdown.Menu>
-                            </Dropdown.Popover>
-                          </Dropdown>
-                        </div>
-                      </Table.Cell>
-                    )}
-                  </Table.Row>
-                ))}
+                  )}
+                </Table.Row>
+              ))}
             </Table.Body>
           </Table.Content>
         </Table.ScrollContainer>
@@ -374,15 +342,15 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
 
   const yearFiltered = deletedList.filter((n) => n.year === selectedYear);
 
-    const searchFiltered = searchQuery.trim()
-      ? yearFiltered.filter((n) => {
-          const q = searchQuery.trim().toLowerCase();
-          return n.code.toLowerCase().includes(q) || n.name.toLowerCase().includes(q);
-        })
-      : yearFiltered;
+  const searchFiltered = searchQuery.trim()
+    ? yearFiltered.filter((n) => {
+        const q = searchQuery.trim().toLowerCase();
+        return n.code.toLowerCase().includes(q) || n.name.toLowerCase().includes(q);
+      })
+    : yearFiltered;
 
-    return (
-      <Table key="deleted-kpi">
+  return (
+    <Table key="deleted-kpi">
       <Table.ScrollContainer>
         <Table.Content aria-label="Deleted Corporate KPIs" className="min-w-[800px]">
           <Table.Header>
@@ -424,23 +392,23 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
             }}
           >
             {searchFiltered.map((node) => (
-            <Table.Row key={node.id}>
-              <Table.Cell><span className="font-medium text-gray-400 line-through">{node.name}</span></Table.Cell>
-              <Table.Cell><span className="font-medium text-gray-400 line-through">{node.code}</span></Table.Cell>
-              <Table.Cell className="text-muted-foreground">
-                <Chip size="sm" color={typeChipColor[node.nodeType] || 'default'} variant="soft">
-                  {node.nodeType}
-                </Chip>
-              </Table.Cell>
-              <Table.Cell className="text-muted-foreground">{node.year}</Table.Cell>
-              <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>
-              <Table.Cell>
-                <Chip size="sm" color={statusChipColor[node.status]} variant="soft">
-                  {node.status}
-                </Chip>
-              </Table.Cell>
-              {canManage && onRestore && (
+              <Table.Row key={node.id}>
+                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.name}</span></Table.Cell>
+                <Table.Cell><span className="font-medium text-gray-400 line-through">{node.code}</span></Table.Cell>
+                <Table.Cell className="text-muted-foreground">
+                  <Chip size="sm" color={typeChipColor[node.nodeType] || 'default'} variant="soft">
+                    {node.nodeType}
+                  </Chip>
+                </Table.Cell>
+                <Table.Cell className="text-muted-foreground">{node.year}</Table.Cell>
+                <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>
                 <Table.Cell>
+                  <Chip size="sm" color={statusChipColor[node.status]} variant="soft">
+                    {node.status}
+                  </Chip>
+                </Table.Cell>
+                {canManage && onRestore && (
+                  <Table.Cell>
                     <Button
                       isIconOnly
                       variant="ghost"

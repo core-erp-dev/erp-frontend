@@ -1,5 +1,6 @@
 /**
- * Monthly sheet table tests — null-value rows, 0 vs empty, invalid input.
+ * Sheet table tests — null-value rows, 0 vs empty, invalid input, mode badge,
+ * annual delete action, and per-scope empty states.
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
@@ -7,9 +8,9 @@ import { ValuesSheetTable, valueToDraft, isValidValueInput } from '../values-she
 import type { VariableValueSheetRow } from '../values.types';
 
 const rows: VariableValueSheetRow[] = [
-  { id: null, variableId: 'v1', variableCode: 'ROI', name: 'Return on Investment', unit: '%', year: 2026, month: 8, value: null },
-  { id: 'r2', variableId: 'v2', variableCode: 'NPM', name: 'Net Profit Margin', unit: '%', year: 2026, month: 8, value: 0 },
-  { id: 'r3', variableId: 'v3', variableCode: 'REV', name: 'Revenue', unit: 'IDR', year: 2026, month: 8, value: 12.5 },
+  { id: null, variableId: 'v1', variableCode: 'ROI', name: 'Return on Investment', unit: '%', aggregationMode: 'SUM', year: 2026, month: 8, value: null },
+  { id: 'r2', variableId: 'v2', variableCode: 'NPM', name: 'Net Profit Margin', unit: '%', aggregationMode: 'ANNUAL_REQUIRED', year: 2026, month: 8, value: 0 },
+  { id: 'r3', variableId: 'v3', variableCode: 'REV', name: 'Revenue', unit: 'IDR', aggregationMode: 'LAST_NON_NULL', year: 2026, month: 8, value: 12.5 },
 ];
 
 function renderTable(overrides: Record<string, unknown> = {}) {
@@ -22,6 +23,7 @@ function renderTable(overrides: Record<string, unknown> = {}) {
       error={null}
       onRetry={jest.fn()}
       canEdit
+      tableKey="monthly-values"
       {...overrides}
     />,
   );
@@ -34,6 +36,13 @@ describe('values sheet table', () => {
     expect(screen.getByText('Return on Investment')).toBeInTheDocument();
     expect(screen.getByText('NPM')).toBeInTheDocument();
     expect(screen.getByText('IDR')).toBeInTheDocument();
+  });
+
+  it('renders the aggregation mode badge per row', () => {
+    renderTable();
+    expect(screen.getByText('Sum')).toBeInTheDocument(); // SUM
+    expect(screen.getByText('Annual Value')).toBeInTheDocument(); // ANNUAL_REQUIRED
+    expect(screen.getByText('Last Non-Null')).toBeInTheDocument(); // LAST_NON_NULL
   });
 
   it('shows an empty input for a variable with value null', () => {
@@ -53,7 +62,7 @@ describe('values sheet table', () => {
     expect(screen.queryByLabelText('Value for ROI')).not.toBeInTheDocument();
     expect(screen.getByText('12.5')).toBeInTheDocument();
     // null value shows an em dash in read-only mode
-    expect(screen.getByText('–')).toBeInTheDocument();
+    expect(screen.getAllByText('–').length).toBeGreaterThan(0);
   });
 
   it('marks invalid input and blocks nothing (validation surfaces on Save)', () => {
@@ -67,6 +76,7 @@ describe('values sheet table', () => {
         error={null}
         onRetry={jest.fn()}
         canEdit
+        tableKey="monthly-values"
       />,
     );
     expect(screen.getByText('Enter a valid number')).toBeInTheDocument();
@@ -79,16 +89,34 @@ describe('values sheet table', () => {
         error={null}
         onRetry={jest.fn()}
         canEdit
+        tableKey="monthly-values"
       />,
     );
     expect(screen.queryByText('Enter a valid number')).not.toBeInTheDocument();
   });
 
-  it('shows empty-state prompt before a period is loaded', () => {
+  it('shows the default empty state when no rows exist', () => {
     renderTable({ sheet: [], isLoading: false, error: null });
     expect(
-      screen.getByText('Select a year and month, then press Load to view the monthly sheet.'),
+      screen.getByText('No variable values found for the selected period.'),
     ).toBeInTheDocument();
+  });
+
+  it('shows the annual empty state when no ANNUAL_REQUIRED variable exists', () => {
+    renderTable({ sheet: [], isLoading: false, error: null, tableKey: 'annual-values',
+      emptyLabel: 'No variables require an annual value for this year.' });
+    expect(
+      screen.getByText('No variables require an annual value for this year.'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a per-row annual delete action only for stored values', () => {
+    const onDeleteAnnual = jest.fn();
+    renderTable({ tableKey: 'annual-values', onDeleteAnnual });
+    expect(screen.getByLabelText('Delete annual value for NPM')).toBeInTheDocument();
+    expect(screen.getByLabelText('Delete annual value for REV')).toBeInTheDocument();
+    // ROI has value null → no delete action (nothing to clear)
+    expect(screen.queryByLabelText('Delete annual value for ROI')).not.toBeInTheDocument();
   });
 });
 

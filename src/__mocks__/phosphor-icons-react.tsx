@@ -25,6 +25,7 @@ export const ArrowLeft = createIcon('ArrowLeft');
 export const ArrowCounterClockwise = createIcon('ArrowCounterClockwise');
 export const Check = createIcon('Check');
 export const Trash = createIcon('Trash');
+export const CheckCircle = createIcon('CheckCircle');
 export const House = createIcon('House');
 export const Play = createIcon('Play');
 export const Copy = createIcon('Copy');

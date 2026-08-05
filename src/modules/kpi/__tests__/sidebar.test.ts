@@ -77,7 +77,7 @@ describe('expandable Corporate KPI parent', () => {
   it('is a parent with exactly three children', () => {
     expect(corporate?.children).toHaveLength(3);
     const titles = corporate?.children?.map((c) => c.title);
-    expect(titles).toEqual(['Corporate KPI', 'Input Variables', 'Monthly Variable Values']);
+    expect(titles).toEqual(['Corporate KPI', 'Variables', 'KPI Values']);
   });
 
   it('children route to the three corporate pages', () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -13,7 +13,14 @@ import {
   Label,
   FieldError,
   TextArea,
+  Select,
+  ListBox,
 } from '@heroui/react';
+import {
+  AGGREGATION_MODES,
+  AGGREGATION_MODE_LABELS,
+  AGGREGATION_MODE_DESCRIPTIONS,
+} from './aggregation-mode';
 import type { Variable, CreateVariableRequest, UpdateVariableRequest } from './variables.types';
 
 export type VariableFormMode = 'CREATE' | 'EDIT';
@@ -34,6 +41,10 @@ function buildSchema(isEdit: boolean) {
     name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
     unit: z.string().max(50, 'Unit must be at most 50 characters').optional(),
     description: z.string().optional(),
+    // Edit: the loaded mode is prefilled; omitting it preserves the stored mode.
+    aggregationMode: isEdit
+      ? z.string().optional()
+      : z.string().min(1, 'Aggregation mode is required'),
   };
   if (isEdit) {
     // Code is immutable — the edit schema has NO code field at all.
@@ -55,6 +66,7 @@ type VariableFormValues = {
   name: string;
   unit?: string;
   description?: string;
+  aggregationMode?: string;
 };
 
 export const VariableFormModal: React.FC<VariableFormModalProps> = ({
@@ -72,12 +84,20 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
     name: variable?.name ?? '',
     unit: variable?.unit ?? '',
     description: variable?.description ?? '',
+    aggregationMode: variable?.aggregationMode ?? '',
   };
 
-  const { control, handleSubmit } = useForm<VariableFormValues>({
-    resolver: zodResolver(schema),
+  const { control, handleSubmit, watch } = useForm<VariableFormValues>({
+    // The create/edit schemas produce different input shapes (code + required
+    // mode vs mode-optional); the resolver is structurally compatible.
+    resolver: zodResolver(schema) as Resolver<VariableFormValues>,
     defaultValues: initial,
   });
+
+  const selectedMode = watch('aggregationMode');
+  const selectedModeDescription = selectedMode
+    ? AGGREGATION_MODE_DESCRIPTIONS[selectedMode as keyof typeof AGGREGATION_MODE_DESCRIPTIONS]
+    : undefined;
 
   const formKey = `${mode}--${variable?.id ?? 'new'}--${isOpen}`;
 
@@ -87,12 +107,16 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
         ? {
             name: data.name,
             unit: data.unit || null,
+            // Submit the loaded/selected mode explicitly; null/omitted would
+            // preserve the stored mode on the backend.
+            aggregationMode: data.aggregationMode || null,
             description: data.description || null,
           }
         : {
             code: data.code ?? '',
             name: data.name,
             unit: data.unit || null,
+            aggregationMode: data.aggregationMode ?? '',
             description: data.description || null,
           };
       const ok = await onSubmit(payload, isEdit ? variable?.id : undefined);
@@ -177,6 +201,50 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                       <Input placeholder="e.g. Return on Investment" />
                       <FieldError>{fieldState.error?.message}</FieldError>
                     </TextField>
+                  )}
+                />
+
+                <Controller
+                  name="aggregationMode"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <div className="flex w-full flex-col gap-1">
+                      <Select
+                        className="w-full"
+                        aria-label="Aggregation mode"
+                        selectedKey={field.value || null}
+                        onSelectionChange={(key) => field.onChange(key != null ? String(key) : '')}
+                        isRequired={!isEdit}
+                        isInvalid={fieldState.invalid}
+                        isDisabled={isSubmitting}
+                        validationBehavior="aria"
+                        variant="secondary"
+                      >
+                        <Label>Aggregation Mode</Label>
+                        <Select.Trigger>
+                          <Select.Value />
+                          <Select.Indicator />
+                        </Select.Trigger>
+                        <Select.Popover>
+                          <ListBox>
+                            {AGGREGATION_MODES.map((modeValue) => (
+                              <ListBox.Item
+                                key={modeValue}
+                                id={modeValue}
+                                textValue={AGGREGATION_MODE_LABELS[modeValue]}
+                              >
+                                {AGGREGATION_MODE_LABELS[modeValue]}
+                                <ListBox.ItemIndicator />
+                              </ListBox.Item>
+                            ))}
+                          </ListBox>
+                        </Select.Popover>
+                        <FieldError>{fieldState.error?.message}</FieldError>
+                      </Select>
+                      {selectedModeDescription && (
+                        <p className="px-1 text-xs text-muted-foreground">{selectedModeDescription}</p>
+                      )}
+                    </div>
                   )}
                 />
 

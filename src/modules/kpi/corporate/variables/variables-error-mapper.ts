@@ -18,6 +18,12 @@ export function mapVariableError(error: unknown, fallback: string): string {
       'The variable could not be found.',
     'Cannot delete — variable is still referenced by an active indicator':
       'This variable is still bound to an active indicator and cannot be deleted. Unlink it first.',
+    'Cannot change aggregation mode — delete the annual value first':
+      'Mode cannot be changed while an annual value exists. Delete the annual value first (KPI Values, Year tab), then retry.',
+    'Annual values are only allowed for variables with aggregationMode ANNUAL_REQUIRED':
+      'Annual values are only allowed for variables with the ANNUAL_REQUIRED aggregation mode.',
+    'Aggregation mode is required':
+      'Aggregation mode is required.',
     'ACCESS_DENIED':
       'You do not have permission to perform this action.',
   };

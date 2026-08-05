@@ -87,7 +87,7 @@ export default function KpiCorporateVariablesPage() {
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
           <BreadcrumbsItem>Corporate KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Input Variables</BreadcrumbsItem>
+          <BreadcrumbsItem>Variables</BreadcrumbsItem>
         </Breadcrumbs>
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariables}</h1>
         <Alert status="danger">Access Denied</Alert>
@@ -103,7 +103,7 @@ export default function KpiCorporateVariablesPage() {
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
         <BreadcrumbsItem href={KPI_ROUTES.corporate}>Corporate KPI</BreadcrumbsItem>
-        <BreadcrumbsItem>Input Variables</BreadcrumbsItem>
+        <BreadcrumbsItem>Variables</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">

@@ -110,7 +110,25 @@ describe('Current KPIs view', () => {
     render(<CorporateKpiTable {...defaultProps} tree={[aspect]} />);
     expect(screen.getByText('FIN')).toBeInTheDocument();
     expect(screen.getByText('Financial')).toBeInTheDocument();
-    expect(screen.getByText('ASPECT')).toBeInTheDocument();
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+  });
+
+  it('keeps all row actions inside the More menu (no inline action buttons)', () => {
+    render(
+      <CorporateKpiTable
+        {...defaultProps}
+        tree={[aspectWithChildren]}
+        expandedIds={new Set(['asp-1'])}
+        onEdit={jest.fn()}
+        onCreateIndicator={jest.fn()}
+        onDelete={jest.fn()}
+      />,
+    );
+    expect(screen.getByText('Revenue Growth')).toBeInTheDocument();
+    // Inline icon buttons are gone — only the More menu trigger remains
+    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Add Indicator')).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText('More actions').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders Indicator under expanded Aspect', () => {
@@ -169,10 +187,15 @@ describe('Current KPIs view', () => {
     expect(screen.getByText('Retry')).toBeInTheDocument();
   });
 
-  it('uses em dash for Aspect unit and target value', () => {
+  it('renders no em dash placeholders in ASPECT scoring columns', () => {
     render(<CorporateKpiTable {...defaultProps} tree={[aspect]} />);
-    const dashes = screen.getAllByText('–');
-    expect(dashes.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryAllByText('–')).toHaveLength(0);
+  });
+
+  it('renders the em dash fallback only for INDICATOR rows without a computed value', () => {
+    render(<CorporateKpiTable {...defaultProps} tree={[indicator]} />);
+    // actualScore/actualResult/targetResult are null on the sample indicator
+    expect(screen.getAllByText('–').length).toBeGreaterThanOrEqual(3);
   });
 
   /* ── Search ── */

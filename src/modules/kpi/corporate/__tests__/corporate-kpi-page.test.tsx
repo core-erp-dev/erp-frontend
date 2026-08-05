@@ -4,7 +4,7 @@
  * toggle, lazy deleted fetch, and modal orchestration.
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import KpiCorporatePage from '@/app/(main)/kpi/corporate/page';
 import { corporateKpiApi } from '../corporate-kpi-api';
 import type { CorporateKpiNode } from '../corporate-kpi.types';
@@ -68,14 +68,14 @@ describe('read permissions', () => {
     expect(screen.getByText('Access Denied')).toBeInTheDocument();
   });
 
-  it('hides Deleted view without manage', async () => {
+  it('hides the Deleted toggle without manage', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    await screen.findByText('Current');
+    await screen.findByText('Month');
     expect(screen.queryByText('Deleted')).not.toBeInTheDocument();
   });
 
-  it('shows Deleted view with manage', async () => {
+  it('shows the Deleted toggle with manage', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporatePage />);
     expect(await screen.findByText('Deleted')).toBeInTheDocument();
@@ -88,7 +88,7 @@ describe('manage permissions', () => {
   it('read-only user sees no mutation actions', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    await screen.findByText('Current');
+    await screen.findByText('Month');
     expect(screen.queryByText('Add Corporate KPI')).not.toBeInTheDocument();
   });
 
@@ -99,31 +99,93 @@ describe('manage permissions', () => {
     expect(await screen.findByText('Add Corporate KPI')).toBeInTheDocument();
   });
 
-  it('read-only user cannot see Deleted actions', async () => {
+  it('read-only user cannot see the Deleted toggle', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    await screen.findByText('Current');
+    await screen.findByText('Month');
     expect(screen.queryByText('Deleted')).not.toBeInTheDocument();
   });
 });
 
 /* ── Year selection ── */
 
-describe('year selection', () => {
-  it('defaults to current year', () => {
+describe('period selection', () => {
+  it('defaults to the current year in MONTHLY mode (year + month)', () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    expect(mockedApi.getTreeByYear).toHaveBeenCalledWith(new Date().getFullYear());
+    expect(mockedApi.getTreeByYear).toHaveBeenCalledWith(
+      new Date().getFullYear(),
+      new Date().getMonth() + 1,
+    );
+  });
+
+  it('switching to Year refetches the ANNUAL tree with year only (month omitted)', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedApi.getTreeByYear.mockResolvedValue([sampleNode]);
+    render(<KpiCorporatePage />);
+    await screen.findByText('Month');
+
+    fireEvent.click(screen.getByText('Year', { selector: 'button' }));
+    await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
+      new Date().getFullYear(),
+      undefined,
+    ));
+  });
+
+  it('switching back to Month refetches with the month again', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedApi.getTreeByYear.mockResolvedValue([sampleNode]);
+    render(<KpiCorporatePage />);
+    await screen.findByText('Month');
+
+    fireEvent.click(screen.getByText('Year', { selector: 'button' }));
+    await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
+      new Date().getFullYear(), undefined,
+    ));
+    fireEvent.click(screen.getByText('Month', { selector: 'button' }));
+    await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
+      new Date().getFullYear(), new Date().getMonth() + 1,
+    ));
+  });
+
+  it('read-only users see the tree but never the Input Values action', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    render(<KpiCorporatePage />);
+    await screen.findByText('Month');
+    expect(screen.queryByText('Input Nilai')).not.toBeInTheDocument();
+    expect(screen.queryByText('Input Values')).not.toBeInTheDocument();
+  });
+
+  it('manage users never see an Input Values button (values entry lives on its own page)', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    render(<KpiCorporatePage />);
+    expect(await screen.findByText('Month')).toBeInTheDocument();
+    expect(screen.queryByText('Input Nilai')).not.toBeInTheDocument();
+    expect(screen.queryByText('Input Values')).not.toBeInTheDocument();
   });
 });
 
 /* ── View toggle ── */
 
 describe('view toggle', () => {
-  it('renders Current view as default', async () => {
+  it('renders Current view as default (toggle reads "Deleted")', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporatePage />);
+    expect(await screen.findByText('Deleted')).toBeInTheDocument();
+  });
+
+  it('toggles to Deleted view and back', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    mockedApi.getTreeByYear.mockResolvedValue([sampleNode]);
+    render(<KpiCorporatePage />);
+
+    fireEvent.click(await screen.findByText('Deleted'));
+    // Deleted scope: toggle reads "Current" and the deleted data is fetched
     expect(await screen.findByText('Current')).toBeInTheDocument();
+    expect(mockedApi.getDeleted).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Current'));
+    expect(await screen.findByText('Deleted')).toBeInTheDocument();
   });
 });
 
@@ -134,5 +196,38 @@ describe('lazy deleted fetch', () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporatePage />);
     expect(mockedApi.getDeleted).not.toHaveBeenCalled();
+  });
+});
+
+/* ── Default tree expansion ── */
+
+describe('tree expansion', () => {
+  const indicator: CorporateKpiNode = {
+    ...sampleNode,
+    id: 'ind-1',
+    parentId: 'asp-1',
+    parentName: 'Financial',
+    code: 'F01',
+    name: 'Revenue Growth',
+    nodeType: 'INDICATOR',
+    children: [],
+  };
+
+  it('expands every expandable row by default on first load', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedApi.getTreeByYear.mockResolvedValue([{ ...sampleNode, children: [indicator] }]);
+    render(<KpiCorporatePage />);
+    // The child indicator is visible without any expand interaction
+    expect(await screen.findByText('Revenue Growth')).toBeInTheDocument();
+  });
+
+  it('collapses a row once the user toggles it (auto-expand ends on first toggle)', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedApi.getTreeByYear.mockResolvedValue([{ ...sampleNode, children: [indicator] }]);
+    render(<KpiCorporatePage />);
+    await screen.findByText('Revenue Growth');
+
+    fireEvent.click(screen.getByLabelText('Collapse'));
+    expect(screen.queryByText('Revenue Growth')).not.toBeInTheDocument();
   });
 });

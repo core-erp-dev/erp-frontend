@@ -1,7 +1,11 @@
 /**
- * Monthly Variable Values page tests — permissions, dirty state, batch payload.
- * The data hook is mocked; the page logic (period selection, dirty detection,
- * batch payload construction, Save gating) is what we verify here.
+ * KPI Values page tests — Positions-style list page: read permission guard,
+ * title, auto-fetch on mount (monthly year + month), Year tab refetch
+ * (year only, month omitted), month-selector visibility, client-side search,
+ * empty/loading/error states, and the absence of any action buttons
+ * (no Add/Save/Input/Deleted — the deleted scope is not in the API).
+ * The data hook is mocked; page orchestration (period fetch contract, search
+ * filtering, states) is what we verify here.
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -24,34 +28,26 @@ jest.mock('@heroui/react', () => {
   const React = jest.requireActual('react');
   return {
     ...actual,
-    // Controllable Select: fires a fixed selection per aria-label so the page's
-    // explicit year/month choice can be driven in jsdom.
-    Select: (props: { 'aria-label'?: string; onSelectionChange?: (key: string | number) => void }) => {
-      const label = props['aria-label'] ?? '';
-      const value = label === 'Select month' ? '8' : '2026';
-      return React.createElement(
-        'button',
-        {
-          'data-testid': `select-${label.toLowerCase().replace(/\s+/g, '-')}`,
-          type: 'button',
-          onClick: () => props.onSelectionChange?.(value),
-        },
-        label,
-      );
-    },
+    // Drive the page's search box in jsdom (the shared mock renders a plain div).
+    SearchField: (props: { value?: string; onChange?: (v: string) => void }) =>
+      React.createElement('input', {
+        'data-testid': 'search-kpi-values',
+        defaultValue: props.value,
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => props.onChange?.(e.target.value),
+      }),
     toast: { success: jest.fn(), danger: jest.fn(), warning: jest.fn(), info: jest.fn() },
   };
 });
 
 const mockedHook = jest.mocked(useVariableValuesData);
 
-const sheet: VariableValueSheetRow[] = [
-  { id: null, variableId: 'v1', variableCode: 'ROI', name: 'Return on Investment', unit: '%', year: 2026, month: 8, value: null },
-  { id: 'r2', variableId: 'v2', variableCode: 'NPM', name: 'Net Profit Margin', unit: '%', year: 2026, month: 8, value: 5 },
+const monthlySheet: VariableValueSheetRow[] = [
+  { id: null, variableId: 'v1', variableCode: 'ROI', name: 'Return on Investment', unit: '%', aggregationMode: 'SUM', year: 2026, month: 8, value: null },
+  { id: 'r2', variableId: 'v2', variableCode: 'NPM', name: 'Net Profit Margin', unit: '%', aggregationMode: 'ANNUAL_REQUIRED', year: 2026, month: 8, value: 5 },
 ];
 
 const baseHook = {
-  sheet,
+  sheet: monthlySheet,
   isLoading: false,
   error: null,
   isSaving: false,
@@ -59,104 +55,129 @@ const baseHook = {
   loadedKey: '2026-8',
   fetchSheet: jest.fn().mockResolvedValue(undefined),
   saveBatch: jest.fn().mockResolvedValue(true),
+  deleteAnnual: jest.fn().mockResolvedValue(true),
 };
+
+let fetchSheetMock: jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockPermissions = {};
-  mockedHook.mockReturnValue({ ...baseHook, fetchSheet: jest.fn().mockResolvedValue(undefined) });
+  fetchSheetMock = jest.fn().mockResolvedValue(undefined);
+  mockedHook.mockReturnValue({ ...baseHook, fetchSheet: fetchSheetMock });
 });
 
-async function loadPeriod() {
-  fireEvent.click(screen.getByTestId('select-select-year'));
-  fireEvent.click(screen.getByTestId('select-select-month'));
-  fireEvent.click(screen.getByText('Load'));
-  await waitFor(() => expect(screen.getByText('ROI')).toBeInTheDocument());
-}
-
-describe('Monthly Variable Values page', () => {
+describe('KPI Values page', () => {
   it('shows access denied without read permission', () => {
     mockPermissions = {};
     render(<KpiCorporateVariableValuesPage />);
     expect(screen.getByText('Access Denied')).toBeInTheDocument();
   });
 
-  it('read-only user sees the sheet but no Save button', async () => {
+  it('renders the KPI Values title and breadcrumb', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    await loadPeriod();
-    expect(screen.getByText('Return on Investment')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'KPI Values' })).toBeInTheDocument();
+    // Breadcrumb + heading both carry the KPI Values label
+    expect(screen.getAllByText('KPI Values').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('auto-fetches the MONTHLY sheet on mount (year + month)', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    render(<KpiCorporateVariableValuesPage />);
+    await screen.findByText('Month');
+    expect(fetchSheetMock).toHaveBeenCalledWith({
+      year: new Date().getFullYear(),
+      month: new Date().getMonth() + 1,
+    });
+  });
+
+  it('displays values read-only with no page-level action buttons', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    render(<KpiCorporateVariableValuesPage />);
+    expect(await screen.findByText('Return on Investment')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument(); // NPM value rendered as plain text
     expect(screen.queryByText('Save')).not.toBeInTheDocument();
+    expect(screen.queryByText('Load')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add')).not.toBeInTheDocument();
+    expect(screen.queryByText('Deleted')).not.toBeInTheDocument();
+    // The forbidden names never appear on this page
+    expect(screen.queryByText('Input Nilai')).not.toBeInTheDocument();
+    expect(screen.queryByText('Input Variable')).not.toBeInTheDocument();
+    expect(screen.queryByText('Input Variables')).not.toBeInTheDocument();
+    expect(screen.queryByText('Variable Input')).not.toBeInTheDocument();
   });
 
-  it('manage user sees Save disabled until a value changes', async () => {
-    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+  it('switching to Year refetches the ANNUAL sheet (month omitted) and hides the month selector', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    await loadPeriod();
-    const save = screen.getByText('Save');
-    expect(save).toBeDisabled();
+    await screen.findByText('Month');
+    expect(screen.getByLabelText('Select month')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Year'));
+    await waitFor(() => expect(fetchSheetMock).toHaveBeenLastCalledWith({
+      year: new Date().getFullYear(),
+    }));
+    expect(screen.queryByLabelText('Select month')).not.toBeInTheDocument();
   });
 
-  it('Save becomes enabled after editing and sends only changed rows as batch payload', async () => {
-    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
-    mockedHook.mockReturnValue({ ...baseHook, fetchSheet: jest.fn().mockResolvedValue(undefined) });
+  it('switching back to Month refetches with the month again', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    await loadPeriod();
+    await screen.findByText('Month');
 
-    // Edit NPM 5 → 7 (changed) and leave ROI empty (unchanged null)
-    fireEvent.change(screen.getByLabelText('Value for NPM'), { target: { value: '7' } });
-    const save = screen.getByText('Save');
-    expect(save).not.toBeDisabled();
-
-    fireEvent.click(save);
-    await waitFor(() => expect(baseHook.saveBatch).toHaveBeenCalledTimes(1));
-    const payload = baseHook.saveBatch.mock.calls[0][0] as Array<Record<string, unknown>>;
-    expect(payload).toEqual([
-      { variableId: 'v2', year: 2026, month: 8, value: 7 },
-    ]);
-    // No duplicate natural keys
-    expect(new Set(payload.map((i) => `${i.variableId}|${i.year}|${i.month}`)).size)
-      .toBe(payload.length);
+    fireEvent.click(screen.getByText('Year'));
+    await waitFor(() => expect(fetchSheetMock).toHaveBeenLastCalledWith({
+      year: new Date().getFullYear(),
+    }));
+    fireEvent.click(screen.getByText('Month'));
+    await waitFor(() => expect(fetchSheetMock).toHaveBeenLastCalledWith({
+      year: new Date().getFullYear(),
+      month: new Date().getMonth() + 1,
+    }));
   });
 
-  it('clearing a stored value marks the sheet dirty (0 vs empty distinction)', async () => {
-    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+  it('filters rows client-side by code or name', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    await loadPeriod();
-    // Save disabled at baseline
-    expect(screen.getByText('Save')).toBeDisabled();
-    // Clear NPM's stored value 5 → dirty; the atomic upsert requires a value,
-    // so cleared rows are skipped and no batch request is fired.
-    fireEvent.change(screen.getByLabelText('Value for NPM'), { target: { value: '' } });
-    expect(screen.getByText('Save')).not.toBeDisabled();
-    fireEvent.click(screen.getByText('Save'));
-    await waitFor(() => expect(baseHook.saveBatch).not.toHaveBeenCalled());
-    // The cleared draft survives
-    expect((screen.getByLabelText('Value for NPM') as HTMLInputElement).value).toBe('');
+    await screen.findByText('Return on Investment');
+
+    fireEvent.change(screen.getByTestId('search-kpi-values'), { target: { value: 'NPM' } });
+    expect(screen.getByText('NPM')).toBeInTheDocument();
+    expect(screen.queryByText('Return on Investment')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId('search-kpi-values'), { target: { value: 'zzz' } });
+    expect(await screen.findByText(/No values match/)).toBeInTheDocument();
   });
 
-  it('Save stays disabled while loading or saving', async () => {
-    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
-    mockedHook.mockReturnValue({ ...baseHook, isLoading: true });
+  it('renders the annual empty state after switching to Year with no rows', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedHook.mockReturnValue({ ...baseHook, sheet: [], fetchSheet: fetchSheetMock });
     render(<KpiCorporateVariableValuesPage />);
-    expect(screen.getByText('Save')).toBeDisabled();
+    fireEvent.click(await screen.findByText('Year'));
+    expect(
+      await screen.findByText('No variables require an annual value for this year.'),
+    ).toBeInTheDocument();
   });
 
-  it('keeps draft and shows error when save fails', async () => {
-    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
-    baseHook.saveBatch.mockResolvedValue(false);
+  it('shows the loading spinner while the sheet is loading', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedHook.mockReturnValue({ ...baseHook, sheet: [], isLoading: true, fetchSheet: fetchSheetMock });
+    render(<KpiCorporateVariableValuesPage />);
+    expect(document.querySelector('[data-mock="Spinner"]')).toBeInTheDocument();
+  });
+
+  it('shows the error state and refetches on Retry', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
     mockedHook.mockReturnValue({
       ...baseHook,
-      fetchSheet: jest.fn().mockResolvedValue(undefined),
-      saveError: 'Something went wrong while saving the monthly values.',
+      sheet: [],
+      error: 'Failed to load variable values.',
+      fetchSheet: fetchSheetMock,
     });
     render(<KpiCorporateVariableValuesPage />);
-    await loadPeriod();
-    fireEvent.change(screen.getByLabelText('Value for NPM'), { target: { value: '9' } });
-    fireEvent.click(screen.getByText('Save'));
-    await waitFor(() => expect(baseHook.saveBatch).toHaveBeenCalled());
-    // Input survives the failed save
-    expect((screen.getByLabelText('Value for NPM') as HTMLInputElement).value).toBe('9');
-    expect(screen.getByText('Something went wrong while saving the monthly values.')).toBeInTheDocument();
+    expect(await screen.findByText('Failed to load variable values.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Retry'));
+    expect(fetchSheetMock).toHaveBeenCalledTimes(2);
   });
 });

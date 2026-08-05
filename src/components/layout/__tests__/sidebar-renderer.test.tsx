@@ -72,17 +72,17 @@ describe('Sidebar expandable Corporate KPI', () => {
     const parent = screen.getByRole('button', { name: /Corporate KPI/ });
     expect(parent).toHaveAttribute('aria-expanded', 'true');
     // All three children are visible
-    expect(screen.getByText('Input Variables')).toBeInTheDocument();
-    expect(screen.getByText('Monthly Variable Values')).toBeInTheDocument();
+    expect(screen.getByText('Variables')).toBeInTheDocument();
+    expect(screen.getByText('KPI Values')).toBeInTheDocument();
   });
 
   it('shows the active child with the same active styling', () => {
     mockPathname = '/kpi/corporate/variable-values';
     render(<Sidebar isOpen />);
-    const activeLink = screen.getByText('Monthly Variable Values');
+    const activeLink = screen.getByText('KPI Values');
     expect(activeLink.closest('a')).toHaveClass('font-semibold');
     // Parent also carries the active state
-    expect(screen.getByRole('button', { name: /Monthly Variable Values|Corporate KPI/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /KPI Values|Corporate KPI/ })).toBeInTheDocument();
   });
 
   it('collapses when the parent header is clicked and no child is active', () => {
@@ -90,18 +90,18 @@ describe('Sidebar expandable Corporate KPI', () => {
     render(<Sidebar isOpen />);
     const parent = screen.getByRole('button', { name: /Corporate KPI/ });
     expect(parent).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Input Variables')).not.toBeInTheDocument();
+    expect(screen.queryByText('Variables')).not.toBeInTheDocument();
 
     fireEvent.click(parent);
     expect(parent).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByText('Input Variables')).toBeInTheDocument();
+    expect(screen.getByText('Variables')).toBeInTheDocument();
   });
 
   it('hides the expandable entirely without corporate_kpi:read', () => {
     mockUser = { username: 'u', email: 'u@x.com', permissions: [], roles: [] };
     render(<Sidebar isOpen />);
     expect(screen.queryByRole('button', { name: /Corporate KPI/ })).not.toBeInTheDocument();
-    expect(screen.queryByText('Input Variables')).not.toBeInTheDocument();
+    expect(screen.queryByText('Variables')).not.toBeInTheDocument();
   });
 
   it('manual collapse persists after navigating away from the active child', () => {
@@ -118,6 +118,6 @@ describe('Sidebar expandable Corporate KPI', () => {
     rerender(<Sidebar isOpen />);
     fireEvent.click(screen.getByRole('button', { name: /Corporate KPI/ }));
     expect(screen.getByRole('button', { name: /Corporate KPI/ })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Input Variables')).not.toBeInTheDocument();
+    expect(screen.queryByText('Variables')).not.toBeInTheDocument();
   });
 });

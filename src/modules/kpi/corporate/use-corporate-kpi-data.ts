@@ -22,14 +22,15 @@ export interface UseCorporateKpiDataReturn {
   treeError: string | null;
   deletedError: string | null;
   hasLoadedDeleted: boolean;
-  fetchTree: (year: number) => Promise<void>;
+  /** month omitted → the ANNUAL tree; month given → the MONTHLY tree. */
+  fetchTree: (year: number, month?: number) => Promise<void>;
   fetchDeleted: () => Promise<void>;
 
   /* ── Create/update mutations (P1.2) ── */
   isMutating: boolean;
   createNode: (payload: CreateKpiRequest) => Promise<CorporateKpiNode | null>;
   updateNode: (id: string, payload: UpdateKpiRequest) => Promise<CorporateKpiNode | null>;
-  refreshTree: (year: number) => Promise<void>;
+  refreshTree: (year: number, month?: number) => Promise<void>;
 
   /* ── Lifecycle (P1.3) ── */
   pendingLifecycle: PendingLifecycleAction;
@@ -50,13 +51,15 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
   const [pendingLifecycle, setPendingLifecycle] = useState<PendingLifecycleAction>(null);
   const mountedRef = useRef(true);
   const currentYearRef = useRef<number | null>(null);
+  const currentMonthRef = useRef<number | undefined>(undefined);
 
-  const fetchTree = useCallback(async (year: number) => {
+  const fetchTree = useCallback(async (year: number, month?: number) => {
     setIsLoadingTree(true);
     setTreeError(null);
     currentYearRef.current = year;
+    currentMonthRef.current = month;
     try {
-      const data = await corporateKpiApi.getTreeByYear(year);
+      const data = await corporateKpiApi.getTreeByYear(year, month);
       if (mountedRef.current) setTree(data);
     } catch (err: unknown) {
       const msg = extractKpiError(err);
@@ -82,9 +85,9 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
     }
   }, []);
 
-  const refreshTree = useCallback(async (year: number) => {
+  const refreshTree = useCallback(async (year: number, month?: number) => {
     try {
-      const data = await corporateKpiApi.getTreeByYear(year);
+      const data = await corporateKpiApi.getTreeByYear(year, month);
       if (mountedRef.current) setTree(data);
     } catch (err: unknown) {
       const msg = extractKpiError(err);
@@ -93,12 +96,12 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
     }
   }, []);
 
-  /** Refresh the current-year tree (silent — uses currentYearRef). */
+  /** Refresh the current-period tree (silent — uses the refs). */
   const refreshTreeSilent = useCallback(async () => {
     const year = currentYearRef.current;
     if (year == null) return;
     try {
-      const data = await corporateKpiApi.getTreeByYear(year);
+      const data = await corporateKpiApi.getTreeByYear(year, currentMonthRef.current);
       if (mountedRef.current) setTree(data);
     } catch {
       toast.danger('Tree refresh failed. You may retry manually.');
