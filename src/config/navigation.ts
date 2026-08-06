@@ -66,6 +66,12 @@ export const navigationConfig: SidebarItem[] = [
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
+      {
+        title: 'Unit Performance',
+        href: KPI_ROUTES.unitPerformance,
+        group: 'KPI',
+        permissions: [PERM.UNIT_PERFORMANCE_READ],
+      },
     ],
   },
   {

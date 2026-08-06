@@ -30,9 +30,11 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     expect(report?.children?.map((c) => c.title)).toEqual(['My Report', 'Approval']);
   });
 
-  it('Corporate KPI keeps its 3 submenus (unchanged reference pattern)', () => {
+  it('Corporate KPI keeps its 4 submenus (Unit Performance added)', () => {
     const corporate = kpiItems.find((i) => i.title === 'Corporate KPI');
-    expect(corporate?.children?.map((c) => c.title)).toEqual(['Structure', 'Variables', 'Values']);
+    expect(corporate?.children?.map((c) => c.title)).toEqual([
+      'Structure', 'Variables', 'Values', 'Unit Performance',
+    ]);
   });
 
   it('all three KPI parents use the SAME expandable mechanism (children array)', () => {
@@ -113,6 +115,12 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     expect(corporate?.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
   });
 
+  it('Corporate KPI > Unit Performance keeps the unit_performance:read gate', () => {
+    const corporate = kpiItems.find((i) => i.title === 'Corporate KPI');
+    const unitPerf = corporate?.children?.find((c) => c.href === KPI_ROUTES.unitPerformance);
+    expect(unitPerf?.permissions).toEqual([PERM.UNIT_PERFORMANCE_READ]);
+  });
+
   it('Dashboard points to / and sits outside the KPI group', () => {
     const dashboard = navigationConfig.find((i) => i.title === 'Dashboard');
     expect(dashboard?.href).toBe('/');
@@ -125,6 +133,7 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     for (const route of [
       KPI_ROUTES.corporate, // appears twice by design (parent header + first child)
       KPI_ROUTES.corporateVariables, KPI_ROUTES.corporateVariableValues,
+      KPI_ROUTES.unitPerformance,
       KPI_ROUTES.activities, KPI_ROUTES.activitiesAll, KPI_ROUTES.activitiesMine,
       KPI_ROUTES.activitiesSubordinate, KPI_ROUTES.activitiesMyRequests,
       KPI_ROUTES.reports, // parent header + first child (same pattern as corporate)
