@@ -36,6 +36,7 @@ import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
 import { useCorporateKpiData } from '../use-corporate-kpi-data';
+import { corporateKpiApi } from '../corporate-kpi-api';
 import { variablesApi } from '../variables/variables-api';
 import type { Variable } from '../variables/variables.types';
 import type {
@@ -424,6 +425,61 @@ export function CorporateKpiForm({
   // ── Submit ──
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  /**
+   * Variable codes referenced by a serialized formula, in first-appearance
+   * order. The built-in PERIOD_MONTH_COUNT token is a 'symbol', never a
+   * 'variable' — it is excluded here and never bound.
+   */
+  const referencedVariableCodes = useCallback((formula: string | null): string[] => {
+    if (!formula) return [];
+    const tokens = tokenizeGuidedFormula(formula);
+    if (!tokens) return [];
+    const seen = new Set<string>();
+    const codes: string[] = [];
+    for (const token of tokens) {
+      if (token.kind === 'variable' && !seen.has(token.value)) {
+        seen.add(token.value);
+        codes.push(token.value);
+      }
+    }
+    return codes;
+  }, []);
+
+  /**
+   * Sync the indicator's variable bindings to its formula: create every
+   * missing binding (displayOrder = first-appearance index) and, when
+   * `unlinkRemoved` is set, delete bindings whose variable left the formula.
+   *
+   * Ordering matters for edit mode: creating BEFORE the PUT lets the backend
+   * unbound-variable check pass for the new formula; unlinking AFTER the PUT
+   * is safe because the stored formula is then the new one (the backend
+   * rejects unlinking variables still referenced by the formula).
+   */
+  const syncBindings = useCallback(
+    async (indicatorId: string, codes: string[], unlinkRemoved: boolean): Promise<void> => {
+      const existing = await corporateKpiApi.listBindings(indicatorId);
+      const existingByCode = new Map(existing.map((binding) => [binding.variableCode, binding]));
+      for (const code of codes) {
+        if (existingByCode.has(code)) continue;
+        const variable = variables.find((v) => v.code === code);
+        if (!variable) continue; // unknown code — the backend reports it
+        await corporateKpiApi.createBinding({
+          indicatorId,
+          variableId: variable.id,
+          displayOrder: codes.indexOf(code),
+        });
+      }
+      if (unlinkRemoved) {
+        for (const binding of existing) {
+          if (!codes.includes(binding.variableCode)) {
+            await corporateKpiApi.deleteBinding(binding.id);
+          }
+        }
+      }
+    },
+    [variables],
+  );
+
   const onSubmit = async (values: FormValues) => {
     setSubmitError(null);
 
@@ -479,15 +535,42 @@ export function CorporateKpiForm({
       targetScore: isIndicator && values.targetScore ? Number(values.targetScore) : null,
     };
 
+    const codes = isIndicator ? referencedVariableCodes(formula) : [];
+
     let ok = false;
-    if (isEditMode && initialData) {
-      ok = (await updateNode(initialData.id, common as UpdateKpiRequest)) != null;
-    } else {
-      ok = (await createNode({
-        ...common,
-        nodeType: (values.nodeType || 'ASPECT') as KpiNodeType,
-        year: Number(values.year),
-      } as CreateKpiRequest)) != null;
+    let nodeSaved = false;
+    try {
+      if (isEditMode && initialData) {
+        if (isIndicator) {
+          // Bind the new formula's variables first so the PUT's
+          // unbound-variable check passes.
+          await syncBindings(initialData.id, codes, false);
+        }
+        ok = (await updateNode(initialData.id, common as UpdateKpiRequest)) != null;
+        nodeSaved = ok;
+        if (ok && isIndicator) {
+          // Stored formula is now the new one — unlink variables that left it.
+          await syncBindings(initialData.id, codes, true);
+        }
+      } else {
+        const created = await createNode({
+          ...common,
+          nodeType: (values.nodeType || 'ASPECT') as KpiNodeType,
+          year: Number(values.year),
+        } as CreateKpiRequest);
+        ok = created != null;
+        nodeSaved = ok;
+        if (ok && isIndicator && created) {
+          await syncBindings(created.id, codes, true);
+        }
+      }
+    } catch {
+      setSubmitError(
+        nodeSaved
+          ? 'The indicator was saved, but its variable bindings could not be synchronized. Reopen the indicator and save again to retry.'
+          : 'The indicator could not be saved — its variable bindings could not be updated.',
+      );
+      return;
     }
     if (ok) onSuccess();
   };

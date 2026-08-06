@@ -23,6 +23,18 @@ export function mapKpiError(error: unknown, fallback: string): string {
       'The Indicator and its parent Aspect must belong to the same year.',
     'An INDICATOR can only become ACTIVE when its parent ASPECT is ACTIVE':
       'An Indicator cannot be activated while its parent Aspect is inactive.',
+    'Indicator cannot be activated — formula is required':
+      'The indicator cannot be activated — configure a formula first.',
+    'Indicator cannot be activated — assessment rules are required':
+      'The indicator cannot be activated — configure assessment rules first.',
+    'Indicator cannot be activated — weight is required':
+      'The indicator cannot be activated — set a weight first.',
+    'Indicator cannot be activated — target score is required':
+      'The indicator cannot be activated — set a target score first.',
+    'Indicator cannot be activated — bind the formula variables to the indicator first':
+      'The indicator cannot be activated — its formula variables are not bound. Save the indicator to bind them automatically.',
+    'Formula references a variable that is not bound to the indicator':
+      'The formula references a variable that is not bound to the indicator — save the indicator to bind it automatically.',
     'Cannot deactivate ASPECT — it has ACTIVE INDICATOR children':
       'This Aspect cannot be deactivated while it has active Indicators.',
     'Cannot delete — KPI node still has active children':

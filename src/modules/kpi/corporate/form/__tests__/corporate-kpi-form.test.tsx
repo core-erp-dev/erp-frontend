@@ -8,11 +8,13 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { CorporateKpiForm } from '../corporate-kpi-form';
 import { useCorporateKpiData } from '../../use-corporate-kpi-data';
+import { corporateKpiApi } from '../../corporate-kpi-api';
 import { variablesApi } from '../../variables/variables-api';
 import type { CorporateKpiNode } from '../../corporate-kpi.types';
 import type { AssessmentRule } from '../../corporate-kpi.types';
 
 jest.mock('../../use-corporate-kpi-data');
+jest.mock('../../corporate-kpi-api');
 jest.mock('../../variables/variables-api');
 
 const mockCreateNode = jest.fn().mockResolvedValue(null);
@@ -69,10 +71,6 @@ jest.mock('@heroui/react', () => {
     children?: React.ReactNode;
   }) => {
     const label = props['aria-label'] ?? '';
-    const value =
-      label === 'Parent Aspect' ? 'asp-1'
-      : label === 'Built-in values' ? 'PERIOD_MONTH_COUNT'
-      : 'ROI';
     return React.createElement(
       'div',
       { 'data-mock': 'ComboBox' },
@@ -81,7 +79,14 @@ jest.mock('@heroui/react', () => {
         {
           'data-testid': `combobox-${label.toLowerCase().replace(/\s+/g, '-')}`,
           type: 'button',
-          onClick: () => props.onSelectionChange?.(value),
+          // Read mockVariableCode at CLICK time (the module var is not React
+          // state, so a render-time closure would freeze the first value).
+          onClick: () =>
+            props.onSelectionChange?.(
+              label === 'Parent Aspect' ? 'asp-1'
+              : label === 'Built-in values' ? 'PERIOD_MONTH_COUNT'
+              : mockVariableCode,
+            ),
         },
         label,
       ),
@@ -198,6 +203,7 @@ jest.mock('@heroui/react', () => {
 });
 
 let mockYearValue = '2026';
+let mockVariableCode = 'ROI';
 
 /* ── Sample data ── */
 
@@ -236,10 +242,14 @@ const indicator: CorporateKpiNode = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockYearValue = '2026';
+  mockVariableCode = 'ROI';
   (useCorporateKpiData as jest.Mock).mockReturnValue({
     tree: [aspect], fetchTree: mockFetchTree, createNode: mockCreateNode,
     updateNode: mockUpdateNode, isMutating: false,
   });
+  (corporateKpiApi.listBindings as jest.Mock).mockResolvedValue([]);
+  (corporateKpiApi.createBinding as jest.Mock).mockResolvedValue({});
+  (corporateKpiApi.deleteBinding as jest.Mock).mockResolvedValue(undefined);
   (variablesApi.list as jest.Mock).mockResolvedValue([
     { id: 'v1', code: 'ROI', name: 'Return on Investment', unit: '%', aggregationMode: 'SUM' },
     { id: 'v2', code: 'NPM', name: 'Net Profit Margin', unit: '%', aggregationMode: 'SUM' },
@@ -829,5 +839,136 @@ describe('refined Score Configuration UI', () => {
     await fillHigherThresholds();
     fireEvent.change(screen.getByLabelText('Sample result'), { target: { value: '85' } });
     expect(screen.getByText('4')).toBeInTheDocument();
+  });
+});
+
+/* ── Indicator-variable binding sync (regression: activation needs bindings) ── */
+
+describe('Corporate KPI form — variable bindings', () => {
+  it('creates bindings for every formula variable on create (built-in excluded)', async () => {
+    mockCreateNode.mockResolvedValue(indicator);
+    const onSuccess = jest.fn();
+    render(<CorporateKpiForm mode="create" onSuccess={onSuccess} />);
+
+    fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
+    await fillBasicFields();
+    fireEvent.click(screen.getByTestId('combobox-parent-aspect'));
+
+    // Formula: ROI + NPM + PERIOD_MONTH_COUNT
+    fireEvent.click(screen.getByTestId('combobox-formula-variable'));
+    fireEvent.click(screen.getByLabelText('Add variable'));
+    fireEvent.click(screen.getByLabelText('Add +'));
+    mockVariableCode = 'NPM';
+    fireEvent.click(screen.getByTestId('combobox-formula-variable'));
+    fireEvent.click(screen.getByLabelText('Add variable'));
+    fireEvent.click(screen.getByLabelText('Add +'));
+    fireEvent.click(screen.getByTestId('combobox-built-in-values'));
+    fireEvent.click(screen.getByLabelText('Add built-in value'));
+
+    await fillHigherThresholds();
+    fireEvent.change(screen.getByPlaceholderText('e.g. 0.25 (25%)'), { target: { value: '0.25' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 80'), { target: { value: '80' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockCreateNode).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(corporateKpiApi.createBinding).toHaveBeenCalledTimes(2));
+    expect(corporateKpiApi.listBindings).toHaveBeenCalledWith('ind-1');
+    expect(corporateKpiApi.createBinding).toHaveBeenCalledWith({
+      indicatorId: 'ind-1',
+      variableId: 'v1',
+      displayOrder: 0,
+    });
+    expect(corporateKpiApi.createBinding).toHaveBeenCalledWith({
+      indicatorId: 'ind-1',
+      variableId: 'v2',
+      displayOrder: 1,
+    });
+    // The built-in PERIOD_MONTH_COUNT is never bound
+    expect(corporateKpiApi.deleteBinding).not.toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it('preserves existing bindings and binds only the newly referenced variable on edit', async () => {
+    mockUpdateNode.mockResolvedValue(indicator);
+    const node = { ...indicator, formula: 'ROI' };
+    // Stateful binding store mirroring the backend: createBinding pushes a new
+    // row so the post-PUT sync sees it (a static listBindings stub would
+    // re-create the binding on the second sync).
+    const bindingStore = [
+      { id: 'b1', indicatorId: 'ind-1', variableId: 'v1', variableCode: 'ROI', variableName: 'Return on Investment', displayOrder: 0 },
+    ];
+    (corporateKpiApi.listBindings as jest.Mock).mockImplementation(async () => [...bindingStore]);
+    (corporateKpiApi.createBinding as jest.Mock).mockImplementation(
+      async (payload: { variableId: string; displayOrder: number }) => {
+        const binding = {
+          id: `new-${payload.variableId}`,
+          indicatorId: 'ind-1',
+          variableId: payload.variableId,
+          variableCode: payload.variableId === 'v1' ? 'ROI' : 'NPM',
+          variableName: payload.variableId === 'v1' ? 'Return on Investment' : 'Net Profit Margin',
+          displayOrder: payload.displayOrder,
+        };
+        bindingStore.push(binding);
+        return binding;
+      },
+    );
+    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+
+    // Wait for the variables list to load (tag labels switch from codes to names)
+    await screen.findByLabelText('Remove Return on Investment');
+
+    // Formula: ROI + NPM
+    mockVariableCode = 'NPM';
+    fireEvent.click(screen.getByTestId('combobox-formula-variable'));
+    fireEvent.click(screen.getByLabelText('Add +'));
+    fireEvent.click(screen.getByLabelText('Add variable'));
+    fireEvent.click(screen.getByText('Save Changes'));
+
+    await waitFor(() => expect(mockUpdateNode).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(corporateKpiApi.createBinding).toHaveBeenCalledTimes(1));
+    expect(corporateKpiApi.createBinding).toHaveBeenCalledWith({
+      indicatorId: 'ind-1',
+      variableId: 'v2',
+      displayOrder: 1,
+    });
+    // ROI stays bound — nothing unlinked
+    expect(corporateKpiApi.deleteBinding).not.toHaveBeenCalled();
+  });
+
+  it('unlinks bindings whose variable left the formula on edit', async () => {
+    mockUpdateNode.mockResolvedValue(indicator);
+    const node = { ...indicator, formula: 'ROI + NPM' };
+    const bindingStore = [
+      { id: 'b1', indicatorId: 'ind-1', variableId: 'v1', variableCode: 'ROI', variableName: 'Return on Investment', displayOrder: 0 },
+      { id: 'b2', indicatorId: 'ind-1', variableId: 'v2', variableCode: 'NPM', variableName: 'Net Profit Margin', displayOrder: 1 },
+    ];
+    (corporateKpiApi.listBindings as jest.Mock).mockImplementation(async () => [...bindingStore]);
+    (corporateKpiApi.deleteBinding as jest.Mock).mockImplementation(async (id: string) => {
+      const index = bindingStore.findIndex((binding) => binding.id === id);
+      if (index >= 0) bindingStore.splice(index, 1);
+    });
+    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+
+    // Remove NPM and its trailing operator from the canvas → formula becomes ROI
+    fireEvent.click(await screen.findByLabelText('Remove Net Profit Margin'));
+    fireEvent.click(screen.getByLabelText('Remove +'));
+    fireEvent.click(screen.getByText('Save Changes'));
+
+    await waitFor(() => expect(mockUpdateNode).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(corporateKpiApi.deleteBinding).toHaveBeenCalledWith('b2'));
+    expect(corporateKpiApi.createBinding).not.toHaveBeenCalled();
+  });
+
+  it('never touches bindings when saving an Aspect', async () => {
+    mockCreateNode.mockResolvedValue(aspect);
+    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+
+    await fillBasicFields();
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(mockCreateNode).toHaveBeenCalledTimes(1));
+    expect(corporateKpiApi.listBindings).not.toHaveBeenCalled();
+    expect(corporateKpiApi.createBinding).not.toHaveBeenCalled();
+    expect(corporateKpiApi.deleteBinding).not.toHaveBeenCalled();
   });
 });

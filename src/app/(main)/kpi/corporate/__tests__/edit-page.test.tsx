@@ -13,7 +13,12 @@ import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.typ
 jest.mock('@/modules/kpi/corporate/use-corporate-kpi-data');
 jest.mock('@/modules/kpi/corporate/variables/variables-api');
 jest.mock('@/modules/kpi/corporate/corporate-kpi-api', () => ({
-  corporateKpiApi: { getById: jest.fn() },
+  corporateKpiApi: {
+    getById: jest.fn(),
+    listBindings: jest.fn(),
+    createBinding: jest.fn(),
+    deleteBinding: jest.fn(),
+  },
   extractKpiError: jest.fn(() => 'Failed to load Corporate KPIs.'),
 }));
 
@@ -86,6 +91,9 @@ beforeEach(() => {
     { id: 'v2', code: 'NPM', name: 'Net Profit Margin', unit: '%', aggregationMode: 'SUM' },
   ]);
   mockedApi.getById.mockResolvedValue(indicator);
+  mockedApi.listBindings.mockResolvedValue([]);
+  mockedApi.createBinding.mockResolvedValue({} as never);
+  mockedApi.deleteBinding.mockResolvedValue(undefined);
 });
 
 describe('Edit Corporate KPI page', () => {

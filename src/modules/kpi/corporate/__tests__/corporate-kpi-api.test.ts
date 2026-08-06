@@ -355,3 +355,73 @@ describe('restoreNode', () => {
     expect(result).toEqual(mockNode);
   });
 });
+
+/* ── indicator-variable bindings ── */
+
+const mockBinding = {
+  id: 'b1',
+  indicatorId: 'ind-1',
+  variableId: 'v1',
+  variableCode: 'ROI',
+  variableName: 'Return on Investment',
+  displayOrder: 0,
+};
+
+describe('listBindings', () => {
+  it('calls GET /api/v1/corporate-kpis/indicator-variables with the indicatorId param', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: [mockBinding] } satisfies ApiResponse<Array<typeof mockBinding>>,
+    });
+
+    const result = await corporateKpiApi.listBindings('ind-1');
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/corporate-kpis/indicator-variables', {
+      params: { indicatorId: 'ind-1' },
+    });
+    expect(result).toEqual([mockBinding]);
+  });
+
+  it('propagates backend errors', async () => {
+    mockedApi.get.mockRejectedValueOnce(new Error('Corporate KPI not found'));
+    await expect(corporateKpiApi.listBindings('bad-id')).rejects.toThrow('Corporate KPI not found');
+  });
+});
+
+describe('createBinding', () => {
+  it('POSTs {indicatorId, variableId, displayOrder} to /api/v1/corporate-kpis/indicator-variables', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: mockBinding } satisfies ApiResponse<typeof mockBinding>,
+    });
+
+    const result = await corporateKpiApi.createBinding({ indicatorId: 'ind-1', variableId: 'v1', displayOrder: 0 });
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/corporate-kpis/indicator-variables', {
+      indicatorId: 'ind-1',
+      variableId: 'v1',
+      displayOrder: 0,
+    });
+    expect(result).toEqual(mockBinding);
+  });
+
+  it('propagates backend errors', async () => {
+    mockedApi.post.mockRejectedValueOnce(new Error('Binding already exists'));
+    await expect(
+      corporateKpiApi.createBinding({ indicatorId: 'ind-1', variableId: 'v1', displayOrder: 0 }),
+    ).rejects.toThrow('Binding already exists');
+  });
+});
+
+describe('deleteBinding', () => {
+  it('DELETEs /api/v1/corporate-kpis/indicator-variables/{id}', async () => {
+    mockedApi.delete.mockResolvedValueOnce({ data: { status: 200, message: 'Binding deleted' } });
+
+    await corporateKpiApi.deleteBinding('b1');
+
+    expect(mockedApi.delete).toHaveBeenCalledWith('/api/v1/corporate-kpis/indicator-variables/b1');
+  });
+
+  it('propagates backend errors', async () => {
+    mockedApi.delete.mockRejectedValueOnce(new Error('Binding not found'));
+    await expect(corporateKpiApi.deleteBinding('bad-id')).rejects.toThrow('Binding not found');
+  });
+});
