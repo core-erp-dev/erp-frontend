@@ -45,13 +45,13 @@ jest.mock('@heroui/react', () => {
 
 const aspect: CorporateKpiNode = {
   id: 'asp-1',
+  structureId: 'struct-2026',
   parentId: null,
   parentName: null,
   code: 'FIN',
   name: 'Financial',
   nodeType: 'ASPECT',
   year: 2026,
-  status: 'ACTIVE',
   description: null,
   displayOrder: 0,
   formula: null,
@@ -75,13 +75,13 @@ const aspect: CorporateKpiNode = {
 
 const indicator: CorporateKpiNode = {
   id: 'ind-1',
+  structureId: 'struct-2026',
   parentId: 'asp-1',
   parentName: 'Financial',
   code: 'F01',
   name: 'Revenue Growth',
   nodeType: 'INDICATOR',
   year: 2026,
-  status: 'DRAFT',
   description: null,
   displayOrder: 1,
   formula: 'ROI + NPM',
@@ -127,6 +127,7 @@ const defaultProps = {
   deletedError: null as string | null,
   onRetryTree: jest.fn(),
   onRetryDeleted: jest.fn(),
+  lockedStructureIds: new Set<string>(),
 };
 
 /* ── Current view ── */
@@ -136,7 +137,27 @@ describe('Current KPIs view', () => {
     render(<CorporateKpiTable {...defaultProps} tree={[aspect]} />);
     expect(screen.getByText('FIN')).toBeInTheDocument();
     expect(screen.getByText('Financial')).toBeInTheDocument();
-    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+  });
+
+  it('has NO node-level status UI (no status column, no per-row chips)', () => {
+    render(<CorporateKpiTable {...defaultProps} tree={[aspect, indicator]} />);
+    // The lifecycle lives on the yearly structure — nodes must not carry status
+    expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
+    expect(screen.queryByText('DRAFT')).not.toBeInTheDocument();
+    expect(screen.queryByText('Status')).not.toBeInTheDocument();
+  });
+
+  it('has NO per-row Activate/Deactivate lifecycle actions', () => {
+    render(
+      <CorporateKpiTable
+        {...defaultProps}
+        tree={[aspect]}
+        onActivate={undefined as never}
+        onDeactivate={undefined as never}
+      />,
+    );
+    expect(screen.queryByText('Activate')).not.toBeInTheDocument();
+    expect(screen.queryByText('Deactivate')).not.toBeInTheDocument();
   });
 
   it('keeps all row actions inside the More menu (no inline action buttons)', () => {
@@ -198,20 +219,18 @@ describe('Current KPIs view', () => {
     expect(screen.queryByText('F01')).not.toBeInTheDocument();
   });
 
-  it('shows DRAFT, ACTIVE, and INACTIVE status badges', () => {
-    const active: CorporateKpiNode = { ...aspect, status: 'ACTIVE' };
-    const draft: CorporateKpiNode = { ...indicator, status: 'DRAFT' };
-    const inactive: CorporateKpiNode = { ...aspect, id: 'asp-3', code: 'CUST', name: 'Customer', status: 'INACTIVE' };
-
+  it('disables the More menu for rows of an ACTIVE (locked) structure', () => {
     render(
       <CorporateKpiTable
         {...defaultProps}
-        tree={[active, inactive]}
-        deletedList={[draft]}
+        tree={[aspect]}
+        lockedStructureIds={new Set(['struct-2026'])}
+        onEdit={jest.fn()}
+        onDelete={jest.fn()}
       />,
     );
-    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
-    expect(screen.getByText('INACTIVE')).toBeInTheDocument();
+    // Configuration is frozen — the trigger must not offer mutations
+    expect(screen.getByLabelText('More actions')).toBeDisabled();
   });
 
   it('shows empty state when no KPIs', () => {
@@ -289,6 +308,26 @@ describe('Deleted KPIs view', () => {
     );
     expect(screen.getByText('F01')).toBeInTheDocument();
     expect(screen.getByText('Financial')).toBeInTheDocument(); // parentName column
+    // Deleted rows expose the DERIVED year (backend provides node.year from the structure)
+    expect(screen.getAllByText('2026').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('has no status column in the deleted view either', () => {
+    const deletedNode: CorporateKpiNode = {
+      ...indicator,
+      deletedAt: '2026-06-01T00:00:00',
+    };
+    render(
+      <CorporateKpiTable
+        {...defaultProps}
+        deletedList={[deletedNode]}
+        viewMode="deleted"
+        selectedYear={2026}
+      />,
+    );
+    expect(screen.queryByText('Status')).not.toBeInTheDocument();
+    expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
+    expect(screen.queryByText('DRAFT')).not.toBeInTheDocument();
   });
 
   it('filters deleted nodes by year', () => {

@@ -14,13 +14,13 @@ const mockedApi = jest.mocked(api);
 
 const mockNode: CorporateKpiNode = {
   id: 'a1b2c3d4-...',
+  structureId: 'struct-2026',
   parentId: null,
   parentName: null,
   code: 'FIN',
   name: 'Financial',
   nodeType: 'ASPECT',
   year: 2026,
-  status: 'ACTIVE',
   description: null,
   displayOrder: 0,
   formula: null,
@@ -170,7 +170,7 @@ describe('create', () => {
       code: 'FIN',
       name: 'Financial',
       nodeType: 'ASPECT',
-      year: 2026,
+      structureId: 'struct-2026',
       parentId: null,
       description: null,
       displayOrder: 0,
@@ -184,7 +184,7 @@ describe('create', () => {
       code: 'FIN',
       name: 'Financial',
       nodeType: 'ASPECT',
-      year: 2026,
+      structureId: 'struct-2026',
       parentId: null,
       description: null,
       displayOrder: 0,
@@ -205,7 +205,7 @@ describe('create', () => {
       code: 'F01',
       name: 'Revenue',
       nodeType: 'INDICATOR',
-      year: 2026,
+      structureId: 'struct-2026',
       parentId: 'asp-1',
       description: null,
       displayOrder: 1,
@@ -219,7 +219,7 @@ describe('create', () => {
       code: 'F01',
       name: 'Revenue',
       nodeType: 'INDICATOR',
-      year: 2026,
+      structureId: 'struct-2026',
       parentId: 'asp-1',
       description: null,
       displayOrder: 1,
@@ -236,7 +236,7 @@ describe('create', () => {
       data: { status: 201, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
     });
     const result = await corporateKpiApi.create({
-      code: 'FIN', name: 'Financial', nodeType: 'ASPECT', year: 2026,
+      code: 'FIN', name: 'Financial', nodeType: 'ASPECT', structureId: 'struct-2026',
       parentId: null, description: null, displayOrder: 0,
       formula: null, assessmentRules: null, weight: null, targetScore: null,
     });
@@ -246,7 +246,7 @@ describe('create', () => {
   it('propagates backend errors', async () => {
     mockedApi.post.mockRejectedValueOnce(new Error('Code already exists'));
     await expect(corporateKpiApi.create({
-      code: 'FIN', name: 'Financial', nodeType: 'ASPECT', year: 2026,
+      code: 'FIN', name: 'Financial', nodeType: 'ASPECT', structureId: 'struct-2026',
       parentId: null, description: null, displayOrder: 0,
       formula: null, assessmentRules: null, weight: null, targetScore: null,
     })).rejects.toThrow('Code already exists');
@@ -319,23 +319,7 @@ describe('update', () => {
   });
 });
 
-/* ── lifecycle ── */
-
-describe('changeStatus', () => {
-  it('calls PATCH /api/v1/corporate-kpis/{id}/status', async () => {
-    mockedApi.patch.mockResolvedValueOnce({
-      data: { status: 200, message: 'OK', data: mockNode } satisfies ApiResponse<CorporateKpiNode>,
-    });
-    const result = await corporateKpiApi.changeStatus('asp-1', { status: 'ACTIVE' });
-    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/corporate-kpis/asp-1/status', { status: 'ACTIVE' });
-    expect(result).toEqual(mockNode);
-  });
-
-  it('propagates backend errors', async () => {
-    mockedApi.patch.mockRejectedValueOnce(new Error('Cannot activate'));
-    await expect(corporateKpiApi.changeStatus('bad-id', { status: 'ACTIVE' })).rejects.toThrow('Cannot activate');
-  });
-});
+/* ── node lifecycle (structure lifecycle lives in the structures API) ── */
 
 describe('deleteNode', () => {
   it('calls PATCH /api/v1/corporate-kpis/{id}/delete', async () => {

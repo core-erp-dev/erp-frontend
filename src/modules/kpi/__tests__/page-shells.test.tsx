@@ -83,14 +83,18 @@ jest.mock('@/modules/kpi/report/use-report-data', () => ({
   }),
 }));
 
-// ── Mock legacy corporate KPI data hook (page-shells renders KpiCorporatePage directly) ──
+// ── Mock corporate KPI data hook (page-shells renders KpiCorporatePage directly) ──
 jest.mock('@/modules/kpi/corporate/use-corporate-kpi-data', () => ({
   useCorporateKpiData: () => ({
-    tree: [], deletedList: [], isLoadingTree: false, isLoadingDeleted: false,
-    treeError: null, deletedError: null, hasLoadedDeleted: false,
-    fetchTree: jest.fn(), fetchDeleted: jest.fn(),
+    tree: [], deletedList: [],
+    structures: [{ id: 'struct-2026', year: new Date().getFullYear(), status: 'DRAFT', activatedAt: null, activatedBy: null, deletedAt: null, createdAt: '2026-01-01T00:00:00', updatedAt: '2026-01-01T00:00:00' }],
+    isLoadingTree: false, isLoadingDeleted: false,
+    isLoadingStructures: false, treeError: null, deletedError: null, structuresError: null,
+    hasLoadedDeleted: false,
+    fetchTree: jest.fn(), fetchDeleted: jest.fn(), fetchStructures: jest.fn(),
+    isStructureMutating: false, createStructure: jest.fn(), changeStructureStatus: jest.fn(),
     isMutating: false, createNode: jest.fn(), updateNode: jest.fn(), refreshTree: jest.fn(),
-    pendingLifecycle: null, changeStatus: jest.fn(), deleteKpi: jest.fn(), restoreKpi: jest.fn(),
+    pendingLifecycle: null, deleteKpi: jest.fn(), restoreKpi: jest.fn(),
   }),
 }));
 
@@ -102,11 +106,11 @@ jest.mock('@/modules/kpi/overview/use-overview-data', () => ({
     pendingReviews: [], pendingReviewsError: null,
     myReports: [], myReportsError: null,
     corporateKpiTree: [], corporateKpiError: null,
+    activeIndicatorCount: 0,
     isLoading: false,
   }),
   averageProgress: () => null,
   targetReachedCount: () => 0,
-  countActiveIndicators: () => 0,
 }));
 jest.mock('@/modules/kpi/report/report-table', () => ({ ReportTable: () => null }));
 jest.mock('@/modules/kpi/report/report-detail-modal', () => ({ ReportDetailModal: () => null }));

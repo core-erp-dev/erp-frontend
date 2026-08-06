@@ -1,18 +1,23 @@
 /**
- * Corporate KPI page orchestration tests.
- * Covers permissions (read/manage), year selection, current/deleted view
- * toggle, lazy deleted fetch, and modal orchestration.
+ * Corporate KPI page orchestration tests (structure lifecycle).
+ * Covers permissions (read/manage), structure-driven year selection,
+ * empty-structure state + Create Structure flow, page-level ACTIVE lifecycle,
+ * current/deleted view toggle, lazy deleted fetch, and tree expansion.
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import KpiCorporatePage from '@/app/(main)/kpi/corporate/page';
 import { corporateKpiApi } from '../corporate-kpi-api';
-import type { CorporateKpiNode } from '../corporate-kpi.types';
+import { corporateKpiStructuresApi } from '../corporate-kpi-structures-api';
+import type { CorporateKpiNode, CorporateKpiStructure } from '../corporate-kpi.types';
 
 /* ── Mock dependencies ── */
 
 jest.mock('../corporate-kpi-api');
 const mockedApi = jest.mocked(corporateKpiApi);
+
+jest.mock('../corporate-kpi-structures-api');
+const mockedStructuresApi = jest.mocked(corporateKpiStructuresApi);
 
 const mockPush = jest.fn();
 
@@ -39,9 +44,22 @@ jest.mock('@heroui/react', () => {
 
 /* ── Sample data ── */
 
+const currentYear = new Date().getFullYear();
+
+const sampleStructure: CorporateKpiStructure = {
+  id: 'struct-current',
+  year: currentYear,
+  status: 'DRAFT',
+  activatedAt: null,
+  activatedBy: null,
+  deletedAt: null,
+  createdAt: '2026-01-01T00:00:00',
+  updatedAt: '2026-01-01T00:00:00',
+};
+
 const sampleNode: CorporateKpiNode = {
-  id: 'asp-1', parentId: null, parentName: null, code: 'FIN', name: 'Financial',
-  nodeType: 'ASPECT', year: 2026, status: 'ACTIVE', description: null,
+  id: 'asp-1', structureId: 'struct-current', parentId: null, parentName: null, code: 'FIN', name: 'Financial',
+  nodeType: 'ASPECT', year: currentYear, description: null,
   displayOrder: 0, formula: null, assessmentRules: null, weight: null, targetScore: null,
   formulaResult: null, actualScore: null, actualResult: null, targetResult: null,
   calculationStatus: null, calculationError: null,
@@ -58,6 +76,9 @@ beforeEach(() => {
   mockedApi.getDeleted.mockResolvedValue([]);
   mockedApi.create.mockResolvedValue(sampleNode);
   mockedApi.update.mockResolvedValue(sampleNode);
+  mockedStructuresApi.list.mockResolvedValue([sampleStructure]);
+  mockedStructuresApi.create.mockResolvedValue(sampleStructure);
+  mockedStructuresApi.changeStatus.mockResolvedValue({ ...sampleStructure, status: 'ACTIVE' });
 });
 
 /* ── Permissions: read ── */
@@ -106,42 +127,37 @@ describe('manage permissions', () => {
     expect(await screen.findByText('Add Corporate KPI')).toBeInTheDocument();
   });
 
-  it('Add Corporate KPI navigates to the Add page', async () => {
+  it('Add Corporate KPI navigates to the Add page with the selected structure', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporatePage />);
-    fireEvent.click(await screen.findByText('Add Corporate KPI'));
-    expect(mockPush).toHaveBeenCalledWith('/kpi/corporate/add');
-  });
-
-  it('read-only user cannot see the Deleted toggle', async () => {
-    mockPermissions = { 'corporate_kpi:read': true };
-    render(<KpiCorporatePage />);
-    await screen.findByText('Month');
-    expect(screen.queryByText('Deleted')).not.toBeInTheDocument();
+    // Wait until the structure is loaded (the Add handler needs it for structureId)
+    await screen.findByText(`${currentYear} · DRAFT`);
+    fireEvent.click(screen.getByText('Add Corporate KPI'));
+    expect(mockPush).toHaveBeenCalledWith(`/kpi/corporate/add?structureId=${sampleStructure.id}`);
   });
 });
 
-/* ── Year selection ── */
+/* ── Structure-driven period selection ── */
 
-describe('period selection', () => {
-  it('defaults to the current year in MONTHLY mode (year + month)', () => {
+describe('structure-driven period selection', () => {
+  it('fetches the tree for the default structure year in MONTHLY mode', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    expect(mockedApi.getTreeByYear).toHaveBeenCalledWith(
-      new Date().getFullYear(),
+    await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenCalledWith(
+      currentYear,
       new Date().getMonth() + 1,
-    );
+    ));
   });
 
   it('switching to Year refetches the ANNUAL tree with year only (month omitted)', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     mockedApi.getTreeByYear.mockResolvedValue([sampleNode]);
     render(<KpiCorporatePage />);
-    await screen.findByText('Month');
+    await screen.findByText(`${currentYear} · DRAFT`);
 
     fireEvent.click(screen.getByText('Year', { selector: 'button' }));
     await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
-      new Date().getFullYear(),
+      currentYear,
       undefined,
     ));
   });
@@ -150,32 +166,97 @@ describe('period selection', () => {
     mockPermissions = { 'corporate_kpi:read': true };
     mockedApi.getTreeByYear.mockResolvedValue([sampleNode]);
     render(<KpiCorporatePage />);
-    await screen.findByText('Month');
+    await screen.findByText(`${currentYear} · DRAFT`);
 
     fireEvent.click(screen.getByText('Year', { selector: 'button' }));
     await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
-      new Date().getFullYear(), undefined,
+      currentYear, undefined,
     ));
     fireEvent.click(screen.getByText('Month', { selector: 'button' }));
     await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
-      new Date().getFullYear(), new Date().getMonth() + 1,
+      currentYear, new Date().getMonth() + 1,
     ));
   });
+});
 
-  it('read-only users see the tree but never the Input Values action', async () => {
+/* ── Structure lifecycle (page level) ── */
+
+describe('structure lifecycle', () => {
+  it('shows the structure status chip (year · status)', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    await screen.findByText('Month');
-    expect(screen.queryByText('Input Nilai')).not.toBeInTheDocument();
-    expect(screen.queryByText('Input Values')).not.toBeInTheDocument();
+    expect(await screen.findByText(`${currentYear} · DRAFT`)).toBeInTheDocument();
   });
 
-  it('manage users never see an Input Values button (values entry lives on its own page)', async () => {
+  it('DRAFT structure shows the Activate action', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporatePage />);
-    expect(await screen.findByText('Month')).toBeInTheDocument();
-    expect(screen.queryByText('Input Nilai')).not.toBeInTheDocument();
-    expect(screen.queryByText('Input Values')).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Activate$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Deactivate$/ })).not.toBeInTheDocument();
+  });
+
+  it('ACTIVE structure shows Deactivate and no Activate', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    mockedStructuresApi.list.mockResolvedValue([{ ...sampleStructure, status: 'ACTIVE' }]);
+    render(<KpiCorporatePage />);
+    expect(await screen.findByText(`${currentYear} · ACTIVE`)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Activate$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Deactivate$/ })).toBeInTheDocument();
+  });
+
+  it('ACTIVE structure freezes Add Corporate KPI and shows the lock notice', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    mockedStructuresApi.list.mockResolvedValue([{ ...sampleStructure, status: 'ACTIVE' }]);
+    render(<KpiCorporatePage />);
+    expect(await screen.findByText(/deactivate it before editing/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Add Corporate KPI/i })).toBeDisabled();
+  });
+
+  it('confirming Activate calls changeStatus(ACTIVE) and refreshes the tree', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    render(<KpiCorporatePage />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Activate$/ }));
+    expect(await screen.findByText(/Activate Corporate KPI Structure/i)).toBeInTheDocument();
+    // Two buttons match: the header trigger and the modal confirm — click the modal one.
+    const buttons = screen.getAllByRole('button', { name: /^Activate$/ });
+    fireEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() => expect(mockedStructuresApi.changeStatus)
+      .toHaveBeenCalledWith(sampleStructure.id, { status: 'ACTIVE' }));
+    expect(mockedStructuresApi.list).toHaveBeenCalled();
+  });
+});
+
+/* ── Empty structure state + Create Structure ── */
+
+describe('empty structure state', () => {
+  it('shows the empty state with Create Structure for manage users', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    mockedStructuresApi.list.mockResolvedValue([]);
+    render(<KpiCorporatePage />);
+    expect(await screen.findByText('No Corporate KPI structure yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create Structure/i })).toBeInTheDocument();
+  });
+
+  it('read-only users see the empty state without the create button', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedStructuresApi.list.mockResolvedValue([]);
+    render(<KpiCorporatePage />);
+    expect(await screen.findByText('No Corporate KPI structure yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Create Structure/i })).not.toBeInTheDocument();
+  });
+
+  it('Create Structure flow creates and selects the new structure', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    mockedStructuresApi.list.mockResolvedValue([]);
+    render(<KpiCorporatePage />);
+    fireEvent.click(await screen.findByRole('button', { name: /Create Structure/i }));
+
+    expect(await screen.findByText('Create Corporate KPI Structure')).toBeInTheDocument();
+    // Two buttons match: the empty-state trigger and the modal confirm — click the modal one.
+    const buttons = screen.getAllByRole('button', { name: /Create Structure/i });
+    fireEvent.click(buttons[buttons.length - 1]);
+
+    await waitFor(() => expect(mockedStructuresApi.create).toHaveBeenCalledWith({ year: currentYear }));
   });
 });
 
@@ -194,7 +275,6 @@ describe('view toggle', () => {
     render(<KpiCorporatePage />);
 
     fireEvent.click(await screen.findByText('Deleted'));
-    // Deleted scope: toggle reads "Current" and the deleted data is fetched
     expect(await screen.findByText('Current')).toBeInTheDocument();
     expect(mockedApi.getDeleted).toHaveBeenCalled();
 
@@ -231,7 +311,6 @@ describe('tree expansion', () => {
     mockPermissions = { 'corporate_kpi:read': true };
     mockedApi.getTreeByYear.mockResolvedValue([{ ...sampleNode, children: [indicator] }]);
     render(<KpiCorporatePage />);
-    // The child indicator is visible without any expand interaction
     expect(await screen.findByText('Revenue Growth')).toBeInTheDocument();
   });
 

@@ -5,7 +5,7 @@ import { Spinner } from '@heroui/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_DESCRIPTIONS, KPI_ROUTES } from '@/modules/kpi/constants';
-import { useOverviewData, averageProgress, targetReachedCount, countActiveIndicators } from '@/modules/kpi/overview/use-overview-data';
+import { useOverviewData, averageProgress, targetReachedCount } from '@/modules/kpi/overview/use-overview-data';
 import { OverviewSection, MetricBlock } from '@/modules/kpi/overview/overview-section';
 import { REPORT_STATUS_LABEL } from '@/modules/kpi/report/report-v1.types';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
@@ -25,6 +25,7 @@ export function DashboardContent() {
     pendingReviews, pendingReviewsError,
     myReports, myReportsError,
     corporateKpiTree, corporateKpiError,
+    activeIndicatorCount,
     isLoading,
   } = useOverviewData();
 
@@ -141,7 +142,7 @@ export function DashboardContent() {
                 <MetricBlock
                   label="Active Indicators"
                   metrics={[
-                    { label: 'active', value: countActiveIndicators(corporateKpiTree) },
+                    { label: 'active', value: activeIndicatorCount },
                   ]}
                 />
               )}

@@ -2,48 +2,33 @@
 
 import React from 'react';
 import { Modal, Button } from '@heroui/react';
-import type { CorporateKpiNode, LifecycleActionType } from './corporate-kpi.types';
 
 export interface LifecycleDialogProps {
-  action: LifecycleActionType;
-  node: CorporateKpiNode;
+  title: string;
+  message: React.ReactNode;
+  confirmLabel: string;
+  variant?: 'primary' | 'danger';
   isOpen: boolean;
   isPending: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-const ACTION_LABEL: Record<LifecycleActionType, string> = {
-  activate: 'Activate',
-  deactivate: 'Deactivate',
-  delete: 'Delete',
-  restore: 'Restore',
-};
-
-const ACTION_TITLE: Record<LifecycleActionType, string> = {
-  activate: 'Activate Corporate KPI',
-  deactivate: 'Deactivate Corporate KPI',
-  delete: 'Delete Corporate KPI',
-  restore: 'Restore Corporate KPI',
-};
-
-const ACTION_BODY: Record<LifecycleActionType, string> = {
-  activate: 'Are you sure you want to activate',
-  deactivate: 'Are you sure you want to deactivate',
-  delete: 'Are you sure you want to delete',
-  restore: 'Are you sure you want to restore',
-};
-
+/**
+ * Generic confirmation dialog used for both node lifecycle actions
+ * (delete/restore) and yearly-structure actions (activate/deactivate/delete).
+ */
 export const LifecycleDialog: React.FC<LifecycleDialogProps> = ({
-  action,
-  node,
+  title,
+  message,
+  confirmLabel,
+  variant = 'primary',
   isOpen,
   isPending,
   onConfirm,
   onCancel,
 }) => {
-  const isDelete = action === 'delete';
-  const verb = isPending ? 'Processing...' : ACTION_LABEL[action];
+  const verb = isPending ? 'Processing...' : confirmLabel;
 
   return (
     <Modal>
@@ -54,13 +39,11 @@ export const LifecycleDialog: React.FC<LifecycleDialogProps> = ({
       >
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[400px]">
-            <Modal.Header className={isDelete ? 'items-center text-center' : 'items-center'}>
-              <Modal.Heading>{ACTION_TITLE[action]}</Modal.Heading>
+            <Modal.Header className={variant === 'danger' ? 'items-center text-center' : 'items-center'}>
+              <Modal.Heading>{title}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <p className="text-sm text-muted-foreground">
-                {ACTION_BODY[action]} <strong className="text-foreground">{node.code} — {node.name}</strong>?
-              </p>
+              <p className="text-sm text-muted-foreground">{message}</p>
             </Modal.Body>
             <Modal.Footer className="flex justify-end gap-2">
               <Button
@@ -72,7 +55,7 @@ export const LifecycleDialog: React.FC<LifecycleDialogProps> = ({
                 Cancel
               </Button>
               <Button
-                variant={isDelete ? 'danger' : 'primary'}
+                variant={variant}
                 onPress={onConfirm}
                 isDisabled={isPending}
               >

@@ -1,7 +1,7 @@
 import { api } from '@/lib/axios';
 import { extractErrorMessage } from '@/types/api';
 import type { ApiResponse } from '@/types/api';
-import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest, ChangeStatusRequest } from './corporate-kpi.types';
+import type { CorporateKpiNode, CreateKpiRequest, UpdateKpiRequest } from './corporate-kpi.types';
 
 /** Indicator-variable binding (backend `IndicatorVariableResponse`). */
 export interface IndicatorBinding {
@@ -65,15 +65,7 @@ export const corporateKpiApi = {
     return response.data.data;
   },
 
-  /* ── Lifecycle ── */
-
-  changeStatus: async (id: string, payload: ChangeStatusRequest): Promise<CorporateKpiNode> => {
-    const response = await api.patch<ApiResponse<CorporateKpiNode>>(
-      `/api/v1/corporate-kpis/${id}/status`,
-      payload,
-    );
-    return response.data.data;
-  },
+  /* ── Node lifecycle (structure-level lifecycle lives in corporate-kpi-structures-api) ── */
 
   deleteNode: async (id: string): Promise<void> => {
     await api.patch<ApiResponse<void>>(`/api/v1/corporate-kpis/${id}/delete`);

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { activityV1Api } from '@/modules/kpi/activity/activity-v1-api';
 import { reportV1Api } from '@/modules/kpi/report/report-v1-api';
 import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
@@ -31,19 +32,21 @@ export interface OverviewData {
   /* Corporate KPI group */
   corporateKpiTree: CorporateKpiNode[];
   corporateKpiError: string | null;
+  /** Indicators belonging to ACTIVE yearly structures (node status no longer exists). */
+  activeIndicatorCount: number;
 
   /* Loading */
   isLoading: boolean;
 }
 
-function countActiveIndicators(nodes: CorporateKpiNode[]): number {
+function countActiveIndicators(nodes: CorporateKpiNode[], activeStructureIds: Set<string>): number {
   let count = 0;
   for (const node of nodes) {
-    if (node.nodeType === 'INDICATOR' && node.status === 'ACTIVE') {
+    if (node.nodeType === 'INDICATOR' && activeStructureIds.has(node.structureId)) {
       count += 1;
     }
     if (node.children?.length) {
-      count += countActiveIndicators(node.children);
+      count += countActiveIndicators(node.children, activeStructureIds);
     }
   }
   return count;
@@ -105,6 +108,7 @@ export function useOverviewData(): OverviewData {
   const [myReportsError, setMyReportsError] = useState<string | null>(null);
   const [corporateKpiTree, setCorporateKpiTree] = useState<CorporateKpiNode[]>([]);
   const [corporateKpiError, setCorporateKpiError] = useState<string | null>(null);
+  const [activeStructureIds, setActiveStructureIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const fetches: Promise<void>[] = [];
@@ -157,6 +161,18 @@ export function useOverviewData(): OverviewData {
           if (mountedRef.current) { setCorporateKpiTree([]); setCorporateKpiError(extractOverviewError(err)); }
         }
       })());
+      fetches.push((async () => {
+        try {
+          const structures = await corporateKpiStructuresApi.list();
+          if (mountedRef.current) {
+            setActiveStructureIds(new Set(
+              structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id),
+            ));
+          }
+        } catch {
+          if (mountedRef.current) setActiveStructureIds(new Set());
+        }
+      })());
     }
 
     await Promise.allSettled(fetches);
@@ -182,6 +198,7 @@ export function useOverviewData(): OverviewData {
     pendingReviews, pendingReviewsError,
     myReports, myReportsError,
     corporateKpiTree, corporateKpiError,
+    activeIndicatorCount: countActiveIndicators(corporateKpiTree, activeStructureIds),
     isLoading,
   };
 }

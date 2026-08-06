@@ -9,6 +9,7 @@ import type { CoreUser, UserPositionResponse } from '@/modules/organization/empl
 import { kpiAdminV1Api } from './kpi-admin-v1-api';
 import { activityV1Api } from '@/modules/kpi/activity/activity-v1-api';
 import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 
@@ -85,10 +86,16 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
     setIsLoadingCk(true);
     try {
       const tree = await corporateKpiApi.getTreeByYear(year);
+      // Lifecycle lives on the yearly structure: only ACTIVE structures'
+      // indicators are bindable for Activities.
+      const structures = await corporateKpiStructuresApi.list();
+      const activeStructureIds = new Set(
+        structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id),
+      );
       const indicators: CorporateKpiNode[] = [];
       const collect = (nodes: CorporateKpiNode[]) => {
         for (const node of nodes) {
-          if (node.nodeType === 'INDICATOR' && node.status === 'ACTIVE') {
+          if (node.nodeType === 'INDICATOR' && activeStructureIds.has(node.structureId)) {
             indicators.push(node);
           }
           if (node.children.length > 0) collect(node.children);
