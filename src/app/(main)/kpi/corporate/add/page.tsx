@@ -17,6 +17,7 @@ function AddCorporateKpiPageInner() {
 
   const preselectedType = (searchParams.get('type') === 'INDICATOR' ? 'INDICATOR' : 'ASPECT') as KpiNodeType;
   const preselectedParentId = searchParams.get('parentId') ?? undefined;
+  const preselectedStructureId = searchParams.get('structureId') ?? undefined;
 
   const handleSuccess = useCallback(() => {
     router.push(KPI_ROUTES.corporate);
@@ -45,6 +46,7 @@ function AddCorporateKpiPageInner() {
         mode="create"
         preselectedType={preselectedType}
         preselectedParentId={preselectedParentId}
+        preselectedStructureId={preselectedStructureId}
         onSuccess={handleSuccess}
       />
     </div>

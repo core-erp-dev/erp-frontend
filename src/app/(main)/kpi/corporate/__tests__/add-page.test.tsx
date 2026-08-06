@@ -6,10 +6,12 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AddCorporateKpiPage from '@/app/(main)/kpi/corporate/add/page';
 import { useCorporateKpiData } from '@/modules/kpi/corporate/use-corporate-kpi-data';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import { variablesApi } from '@/modules/kpi/corporate/variables/variables-api';
-import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
+import type { CorporateKpiNode, CorporateKpiStructure } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 jest.mock('@/modules/kpi/corporate/use-corporate-kpi-data');
+jest.mock('@/modules/kpi/corporate/corporate-kpi-structures-api');
 jest.mock('@/modules/kpi/corporate/variables/variables-api');
 
 const mockCreateNode = jest.fn().mockResolvedValue(null);
@@ -53,7 +55,7 @@ jest.mock('@heroui/react', () => {
     })(),
     Select: (props: { 'aria-label'?: string; onSelectionChange?: (key: string | number) => void }) => {
       const label = props['aria-label'] ?? '';
-      const value = label === 'Type' ? 'INDICATOR' : '2026';
+      const value = label === 'Type' ? 'INDICATOR' : label === 'Structure' ? 'struct-2026' : '2026';
       return React.createElement(
         'button',
         {
@@ -68,9 +70,20 @@ jest.mock('@heroui/react', () => {
   };
 });
 
+const sampleStructure: CorporateKpiStructure = {
+  id: 'struct-2026',
+  year: 2026,
+  status: 'DRAFT',
+  activatedAt: null,
+  activatedBy: null,
+  deletedAt: null,
+  createdAt: '2026-01-01T00:00:00',
+  updatedAt: '2026-01-01T00:00:00',
+};
+
 const aspect: CorporateKpiNode = {
-  id: 'asp-1', parentId: null, parentName: null, code: 'FIN', name: 'Financial',
-  nodeType: 'ASPECT', year: 2026, status: 'DRAFT', description: null,
+  id: 'asp-1', structureId: 'struct-2026', parentId: null, parentName: null, code: 'FIN', name: 'Financial',
+  nodeType: 'ASPECT', year: 2026, description: null,
   displayOrder: 0, formula: null, assessmentRules: null, weight: null, targetScore: null,
   formulaResult: null, actualScore: null, actualResult: null, targetResult: null,
   calculationStatus: null, calculationError: null,
@@ -85,6 +98,8 @@ beforeEach(() => {
   (useCorporateKpiData as jest.Mock).mockReturnValue({
     tree: [aspect], fetchTree: mockFetchTree, createNode: mockCreateNode, updateNode: jest.fn(), isMutating: false,
   });
+  (corporateKpiStructuresApi.list as jest.Mock).mockResolvedValue([sampleStructure]);
+  (corporateKpiStructuresApi.getById as jest.Mock).mockResolvedValue(sampleStructure);
   (variablesApi.list as jest.Mock).mockResolvedValue([
     { id: 'v1', code: 'ROI', name: 'Return on Investment', unit: '%', aggregationMode: 'SUM' },
   ]);
@@ -116,6 +131,7 @@ describe('Add Corporate KPI page', () => {
     render(<AddCorporateKpiPage />);
     await screen.findByRole('heading', { name: 'Add Corporate KPI' });
 
+    fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     fireEvent.change(screen.getByPlaceholderText('e.g. FIN'), { target: { value: 'FIN' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Financial'), { target: { value: 'Financial' } });
     fireEvent.click(screen.getByText('Save'));
@@ -123,6 +139,7 @@ describe('Add Corporate KPI page', () => {
     await waitFor(() => expect(mockCreateNode).toHaveBeenCalledTimes(1));
     const payload = mockCreateNode.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.nodeType).toBe('ASPECT');
+    expect(payload.structureId).toBe('struct-2026');
     expect(payload.formula).toBeNull();
     expect(payload.assessmentRules).toBeNull();
     expect(mockPush).toHaveBeenCalledWith('/kpi/corporate');

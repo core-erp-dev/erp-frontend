@@ -12,7 +12,7 @@ describe('mapKpiError', () => {
   it('maps duplicate code error', () => {
     const err = new Error('Corporate KPI code already exists in this year');
     expect(mapKpiError(err, fallback)).toBe(
-      'A Corporate KPI with this code already exists for the selected year.',
+      'A Corporate KPI with this code already exists in the selected structure.',
     );
   });
 
@@ -23,17 +23,66 @@ describe('mapKpiError', () => {
     );
   });
 
-  it('maps parent-year mismatch error', () => {
-    const err = new Error('Parent and child must be in the same year');
+  it('maps parent-structure mismatch error', () => {
+    const err = new Error('Parent and child must belong to the same Corporate KPI structure');
     expect(mapKpiError(err, fallback)).toBe(
-      'The Indicator and its parent Aspect must belong to the same year.',
+      'The Indicator and its parent Aspect must belong to the same year structure.',
     );
   });
 
-  it('maps parent status restriction error', () => {
-    const err = new Error('An INDICATOR can only become ACTIVE when its parent ASPECT is ACTIVE');
+  it('maps structure-not-active error', () => {
+    const err = new Error('Corporate KPI structure must be ACTIVE');
     expect(mapKpiError(err, fallback)).toBe(
-      'An Indicator cannot be activated while its parent Aspect is inactive.',
+      'The Corporate KPI structure must be ACTIVE before Activities can reference its indicators.',
+    );
+  });
+
+  it('maps ACTIVE configuration lock error', () => {
+    const err = new Error('Corporate KPI structure is ACTIVE — deactivate it before changing its configuration');
+    expect(mapKpiError(err, fallback)).toBe(
+      'The structure is ACTIVE — deactivate it before changing the KPI configuration.',
+    );
+  });
+
+  it('maps duplicate structure year error', () => {
+    const err = new Error('A Corporate KPI structure already exists for this year');
+    expect(mapKpiError(err, fallback)).toBe(
+      'A Corporate KPI structure already exists for this year.',
+    );
+  });
+
+  it('maps structure-has-nodes delete error', () => {
+    const err = new Error('Cannot delete — Corporate KPI structure still has KPI nodes');
+    expect(mapKpiError(err, fallback)).toBe(
+      'This structure cannot be deleted — it still contains KPI nodes.',
+    );
+  });
+
+  it('maps empty-structure activation error', () => {
+    const err = new Error('Cannot activate — Corporate KPI structure has no indicators');
+    expect(mapKpiError(err, fallback)).toBe(
+      'This structure cannot be activated — it has no indicators yet.',
+    );
+  });
+
+  it('maps weight-not-full activation error', () => {
+    const err = new Error('Total weight must be exactly 100% before activating the structure');
+    expect(mapKpiError(err, fallback)).toBe(
+      'Total indicator weight must be exactly 100% before activating the structure.',
+    );
+  });
+
+  it('maps incomplete-indicator activation error (with code + reason passthrough)', () => {
+    const err = new Error('Cannot activate the Corporate KPI structure — indicator IND_01_01 is incomplete: Indicator cannot be activated — formula is required');
+    expect(mapKpiError(err, fallback)).toBe(
+      'The structure cannot be activated — one or more indicators are incomplete.',
+    );
+  });
+
+  it('maps structure-not-found error', () => {
+    const err = new Error('Corporate KPI structure not found');
+    expect(mapKpiError(err, fallback)).toBe(
+      'The Corporate KPI structure could not be found.',
     );
   });
 

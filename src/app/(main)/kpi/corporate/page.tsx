@@ -2,8 +2,19 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem } from '@heroui/react';
-import { Plus, House, ArrowsClockwise } from '@phosphor-icons/react';
+import {
+  Alert,
+  Button,
+  Chip,
+  Breadcrumbs,
+  BreadcrumbsItem,
+  FieldError,
+  Label,
+  ListBox,
+  Modal,
+  Select,
+} from '@heroui/react';
+import { Plus, House, ArrowsClockwise, Play, Pause } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
@@ -11,9 +22,24 @@ import { useCorporateKpiData } from '@/modules/kpi/corporate/use-corporate-kpi-d
 import { CorporateKpiFilters } from '@/modules/kpi/corporate/corporate-kpi-filters';
 import { CorporateKpiTable } from '@/modules/kpi/corporate/corporate-kpi-table';
 import { LifecycleDialog } from '@/modules/kpi/corporate/corporate-kpi-lifecycle-dialog';
-import type { CorporateKpiNode, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
+import type { CorporateKpiNode, CorporateKpiStructure, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 type PeriodMode = 'monthly' | 'annual';
+
+/* ── Create Structure dialog state ── */
+
+interface CreateStructureDialogState {
+  open: boolean;
+  year: number;
+  error: string | null;
+}
+
+function yearOptions(): number[] {
+  const current = new Date().getFullYear();
+  const years: number[] = [];
+  for (let y = current + 1; y >= 2000; y -= 1) years.push(y);
+  return years;
+}
 
 export default function KpiCorporatePage() {
   const router = useRouter();
@@ -22,38 +48,65 @@ export default function KpiCorporatePage() {
   // Manage implies read on the backend; all mutations + deleted-data views are manage-gated.
   const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
-  const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
   // ── Page-local UI state ──
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [periodMode, setPeriodMode] = useState<PeriodMode>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
   const [viewMode, setViewMode] = useState<'current' | 'deleted'>('current');
   const [searchQuery, setSearchQuery] = useState('');
   // null = AUTO mode: every expandable row is expanded by default on first load.
-  // The first user toggle materializes a real Set (see handleToggleExpand).
   const [expandedIds, setExpandedIds] = useState<Set<string> | null>(null);
 
-  // ── Lifecycle dialog state ──
+  // ── Lifecycle / create dialogs ──
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleActionType | null>(null);
-  const [lifecycleNode, setLifecycleNode] = useState<CorporateKpiNode | null>(null);
+  const [lifecycleTarget, setLifecycleTarget] = useState<
+    { kind: 'structure'; structure: CorporateKpiStructure } | { kind: 'node'; node: CorporateKpiNode } | null
+  >(null);
+  const [createDialog, setCreateDialog] = useState<CreateStructureDialogState>({ open: false, year: new Date().getFullYear(), error: null });
 
   // ── Server data ──
   const {
-    tree, deletedList, isLoadingTree, isLoadingDeleted,
-    treeError, deletedError, hasLoadedDeleted,
-    fetchTree, fetchDeleted,
-    pendingLifecycle, changeStatus, deleteKpi, restoreKpi,
+    tree, deletedList, structures, isLoadingTree, isLoadingDeleted, isLoadingStructures,
+    treeError, deletedError, structuresError, hasLoadedDeleted,
+    fetchTree, fetchDeleted, fetchStructures,
+    isStructureMutating, createStructure, changeStructureStatus,
+    pendingLifecycle, deleteKpi, restoreKpi,
   } = useCorporateKpiData();
 
-  // Fetch tree on mount and when the period (year/mode/month) changes.
-  // Monthly: year + month. Annual: year only — the month parameter is omitted.
+  // Fetch structures once on mount (read-gated).
   useEffect(() => {
-    if (canRead) {
+    if (canRead) void fetchStructures();
+  }, [canRead, fetchStructures]);
+
+  // Select the current year's structure by default once loaded.
+  useEffect(() => {
+    if (selectedStructureId == null && structures.length > 0) {
+      const current = new Date().getFullYear();
+      const preferred = structures.find((s) => s.year === current) ?? structures[0];
+      setSelectedStructureId(preferred.id);
+    }
+  }, [structures, selectedStructureId]);
+
+  const selectedStructure = structures.find((s) => s.id === selectedStructureId) ?? null;
+  const selectedYear = selectedStructure?.year ?? new Date().getFullYear();
+  const structureActive = selectedStructure?.status === 'ACTIVE';
+  const structureLocked = selectedStructure?.status === 'ACTIVE';
+
+  // Locked structure ids — used by the table to freeze configuration mutations.
+  const lockedStructureIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of structures) if (s.status === 'ACTIVE') ids.add(s.id);
+    return ids;
+  }, [structures]);
+
+  // Fetch tree when the period (structure/mode/month) changes.
+  useEffect(() => {
+    if (canRead && selectedStructure != null) {
       fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined);
     }
-  }, [canRead, selectedYear, periodMode, selectedMonth, fetchTree]);
+  }, [canRead, selectedStructure, selectedYear, periodMode, selectedMonth, fetchTree]);
 
   // Fetch deleted data when first switching to deleted view
   useEffect(() => {
@@ -64,7 +117,6 @@ export default function KpiCorporatePage() {
 
   // ── Tree expansion ──
 
-  // Every node with children is expandable.
   const expandableIds = useMemo(() => {
     const ids = new Set<string>();
     const collect = (nodes: typeof tree) => {
@@ -76,8 +128,6 @@ export default function KpiCorporatePage() {
     return ids;
   }, [tree]);
 
-  // Effective expansion: AUTO mode (null) expands every expandable row; once the
-  // user toggles, the materialized Set wins.
   const effectiveExpandedIds = expandedIds ?? expandableIds;
 
   const handleToggleExpand = useCallback((id: string) => {
@@ -98,63 +148,80 @@ export default function KpiCorporatePage() {
 
   // ── Generic handlers ──
 
-  const handleYearChange = useCallback((year: number) => setSelectedYear(year), []);
+  const handleStructureChange = useCallback((structureId: string) => setSelectedStructureId(structureId), []);
   const handleModeChange = useCallback((mode: PeriodMode) => {
     setPeriodMode(mode);
-    // Annual scope omits the month entirely; keep the month selection for the Month tab.
     if (mode === 'annual') setSelectedMonth(currentMonth);
   }, [currentMonth]);
   const handleMonthChange = useCallback((month: number) => setSelectedMonth(month), []);
   const handleViewModeChange = useCallback((mode: 'current' | 'deleted') => setViewMode(mode), []);
   const handleSearchChange = useCallback((query: string) => setSearchQuery(query), []);
 
+  // ── Create Structure ──
+
+  const openCreateDialog = useCallback(() => {
+    setCreateDialog({ open: true, year: new Date().getFullYear(), error: null });
+  }, []);
+
+  const closeCreateDialog = useCallback(() => {
+    setCreateDialog((prev) => ({ ...prev, open: false, error: null }));
+  }, []);
+
+  const confirmCreateStructure = useCallback(async () => {
+    const created = await createStructure({ year: createDialog.year });
+    if (created) {
+      setSelectedStructureId(created.id);
+      closeCreateDialog();
+    }
+  }, [createDialog.year, createStructure, closeCreateDialog]);
+
   // ── Lifecycle handlers ──
 
-  const openLifecycle = useCallback((action: LifecycleActionType, node: CorporateKpiNode) => {
+  const openNodeLifecycle = useCallback((action: LifecycleActionType, node: CorporateKpiNode) => {
     setLifecycleAction(action);
-    setLifecycleNode(node);
+    setLifecycleTarget({ kind: 'node', node });
+  }, []);
+
+  const openStructureLifecycle = useCallback((action: 'activate' | 'deactivate', structure: CorporateKpiStructure) => {
+    setLifecycleAction(action);
+    setLifecycleTarget({ kind: 'structure', structure });
   }, []);
 
   const closeLifecycle = useCallback(() => {
     setLifecycleAction(null);
-    setLifecycleNode(null);
+    setLifecycleTarget(null);
   }, []);
 
   const handleLifecycleConfirm = useCallback(async () => {
-    if (!lifecycleAction || !lifecycleNode) return;
+    if (!lifecycleAction || !lifecycleTarget) return;
     let ok = false;
-    switch (lifecycleAction) {
-      case 'activate':
-        ok = await changeStatus(lifecycleNode.id, 'ACTIVE');
-        break;
-      case 'deactivate':
-        ok = await changeStatus(lifecycleNode.id, 'INACTIVE');
-        break;
-      case 'delete':
-        ok = await deleteKpi(lifecycleNode.id);
-        break;
-      case 'restore':
-        ok = await restoreKpi(lifecycleNode.id);
-        break;
+    if (lifecycleTarget.kind === 'structure') {
+      if (lifecycleAction === 'activate') ok = await changeStructureStatus(lifecycleTarget.structure.id, 'ACTIVE');
+      if (lifecycleAction === 'deactivate') ok = await changeStructureStatus(lifecycleTarget.structure.id, 'INACTIVE');
+    } else {
+      if (lifecycleAction === 'delete') ok = await deleteKpi(lifecycleTarget.node.id);
+      if (lifecycleAction === 'restore') ok = await restoreKpi(lifecycleTarget.node.id);
     }
     if (ok) closeLifecycle();
-  }, [lifecycleAction, lifecycleNode, changeStatus, deleteKpi, restoreKpi, closeLifecycle]);
+  }, [lifecycleAction, lifecycleTarget, changeStructureStatus, deleteKpi, restoreKpi, closeLifecycle]);
 
-  // ── Create/Edit navigation (dedicated pages instead of the old modal) ──
+  // ── Create/Edit navigation ──
 
   const handleCreateAspect = useCallback(() => {
-    router.push(KPI_ROUTES.corporateAdd);
-  }, [router]);
+    if (!selectedStructure) return;
+    router.push(`${KPI_ROUTES.corporateAdd}?structureId=${selectedStructure.id}`);
+  }, [router, selectedStructure]);
 
   const handleCreateIndicator = useCallback((aspectId: string) => {
-    router.push(`${KPI_ROUTES.corporateAdd}?parentId=${aspectId}&type=INDICATOR`);
-  }, [router]);
+    if (!selectedStructure) return;
+    router.push(`${KPI_ROUTES.corporateAdd}?structureId=${selectedStructure.id}&parentId=${aspectId}&type=INDICATOR`);
+  }, [router, selectedStructure]);
 
   const handleEdit = useCallback((node: CorporateKpiNode) => {
     router.push(KPI_ROUTES.corporateEditRoute(node.id));
   }, [router]);
 
-  // Compute total count and all-expanded state
+  // Compute total count
   const totalCount = viewMode === 'current'
     ? (() => { let c = 0; const walk = (ns: typeof tree) => { for (const n of ns) { c++; if (n.children.length > 0) walk(n.children); } }; walk(tree); return c; })()
     : deletedList.length;
@@ -162,6 +229,44 @@ export default function KpiCorporatePage() {
   const allExpanded = (() => {
     if (tree.length === 0 || viewMode !== 'current') return false;
     return expandableIds.size > 0 && Array.from(expandableIds).every((id) => effectiveExpandedIds.has(id));
+  })();
+
+  // ── Lifecycle dialog content (structure vs node) ──
+
+  const lifecycleDialogProps = (() => {
+    if (!lifecycleAction || !lifecycleTarget) return null;
+    if (lifecycleTarget.kind === 'structure') {
+      const s = lifecycleTarget.structure;
+      if (lifecycleAction === 'activate') {
+        return {
+          title: 'Activate Corporate KPI Structure',
+          message: <>Are you sure you want to activate the yearly structure <strong className="text-foreground">{s.year}</strong>? The whole configuration will be validated and frozen.</>,
+          confirmLabel: 'Activate',
+          variant: 'primary' as const,
+        };
+      }
+      return {
+        title: 'Deactivate Corporate KPI Structure',
+        message: <>Are you sure you want to deactivate the yearly structure <strong className="text-foreground">{s.year}</strong>? Its configuration can then be edited.</>,
+        confirmLabel: 'Deactivate',
+        variant: 'primary' as const,
+      };
+    }
+    const n = lifecycleTarget.node;
+    if (lifecycleAction === 'delete') {
+      return {
+        title: 'Delete Corporate KPI',
+        message: <>Are you sure you want to delete <strong className="text-foreground">{n.code} — {n.name}</strong>?</>,
+        confirmLabel: 'Delete',
+        variant: 'danger' as const,
+      };
+    }
+    return {
+      title: 'Restore Corporate KPI',
+      message: <>Are you sure you want to restore <strong className="text-foreground">{n.code} — {n.name}</strong>?</>,
+      confirmLabel: 'Restore',
+      variant: 'primary' as const,
+    };
   })();
 
   // ── Permission guard ──
@@ -181,6 +286,58 @@ export default function KpiCorporatePage() {
     );
   }
 
+  // ── Empty state: no structure yet ──
+
+  if (!isLoadingStructures && structures.length === 0) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Breadcrumbs>
+          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
+        </Breadcrumbs>
+
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => void fetchStructures()}
+            isDisabled={isLoadingStructures}
+            aria-label="Refresh"
+          >
+            <ArrowsClockwise className={`h-4 w-4 ${isLoadingStructures ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
+        {structuresError ? (
+          <Alert status="danger">{structuresError}</Alert>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-300 py-16 text-muted-foreground">
+            <span className="text-sm">No Corporate KPI structure yet.</span>
+            {canManage && (
+              <Button variant="primary" onPress={openCreateDialog}>
+                <Plus className="h-4 w-4" />
+                Create Structure
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Create Structure dialog */}
+        <CreateStructureDialog
+          isOpen={createDialog.open}
+          year={createDialog.year}
+          error={createDialog.error}
+          isPending={isStructureMutating}
+          onYearChange={(year) => setCreateDialog((prev) => ({ ...prev, year }))}
+          onConfirm={confirmCreateStructure}
+          onCancel={closeCreateDialog}
+        />
+      </div>
+    );
+  }
+
   // ── Rendered page ──
 
   return (
@@ -191,19 +348,49 @@ export default function KpiCorporatePage() {
         <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
       </Breadcrumbs>
 
-      {/* Row 1: Title + Chip + Refresh + Add */}
+      {/* Row 1: Title + Structure status/lifecycle + Refresh + Add */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-          <Chip
-            size="md"
-            className="pointer-events-none"
-            aria-label={`Total ${totalCount} corporate kpi`}
-          >
-            {totalCount}
-          </Chip>
+          {selectedStructure && (
+            <>
+              <Chip
+                size="md"
+                variant="soft"
+                color={structureActive ? 'success' : selectedStructure.status === 'INACTIVE' ? 'warning' : 'default'}
+                className="pointer-events-none"
+                aria-label={`Structure status ${selectedStructure.status}`}
+              >
+                {selectedStructure.year} · {selectedStructure.status}
+              </Chip>
+              <Chip size="md" className="pointer-events-none" aria-label={`Total ${totalCount} corporate kpi`}>
+                {totalCount}
+              </Chip>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {canManage && selectedStructure && (
+            structureLocked ? (
+              <Button
+                variant="tertiary"
+                onPress={() => openStructureLifecycle('deactivate', selectedStructure)}
+                isDisabled={pendingLifecycle !== null}
+              >
+                <Pause className="h-4 w-4" />
+                Deactivate
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onPress={() => openStructureLifecycle('activate', selectedStructure)}
+                isDisabled={pendingLifecycle !== null}
+              >
+                <Play className="h-4 w-4" />
+                Activate
+              </Button>
+            )
+          )}
           <Button
             isIconOnly
             variant="tertiary"
@@ -214,7 +401,7 @@ export default function KpiCorporatePage() {
             <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
           </Button>
           {canManage && viewMode === 'current' && (
-            <Button variant="primary" onPress={handleCreateAspect}>
+            <Button variant="primary" onPress={handleCreateAspect} isDisabled={structureLocked}>
               <Plus className="h-4 w-4" />
               Add Corporate KPI
             </Button>
@@ -222,12 +409,13 @@ export default function KpiCorporatePage() {
         </div>
       </div>
 
-      {/* Row 2: Period tabs + Year/Month dropdowns + Expand + Deleted | Search */}
+      {/* Row 2: Period tabs + Structure year + Month + Expand + Deleted | Search */}
       <CorporateKpiFilters
         periodMode={periodMode}
         onPeriodModeChange={handleModeChange}
-        selectedYear={selectedYear}
-        onYearChange={handleYearChange}
+        structures={structures}
+        selectedStructureId={selectedStructureId}
+        onStructureChange={handleStructureChange}
         selectedMonth={selectedMonth}
         onMonthChange={handleMonthChange}
         viewMode={viewMode}
@@ -239,6 +427,12 @@ export default function KpiCorporatePage() {
         onCollapseAll={handleCollapseAll}
         allExpanded={allExpanded}
       />
+
+      {structureLocked && viewMode === 'current' && canManage && (
+        <Alert status="default">
+          The Corporate KPI structure is ACTIVE — deactivate it before editing its configuration.
+        </Alert>
+      )}
 
       <CorporateKpiTable
         tree={tree}
@@ -254,25 +448,118 @@ export default function KpiCorporatePage() {
         deletedError={deletedError}
         onRetryTree={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)}
         onRetryDeleted={fetchDeleted}
+        lockedStructureIds={lockedStructureIds}
         onCreateIndicator={canManage ? handleCreateIndicator : undefined}
         onEdit={canManage ? handleEdit : undefined}
-        onActivate={canManage ? (node) => openLifecycle('activate', node) : undefined}
-        onDeactivate={canManage ? (node) => openLifecycle('deactivate', node) : undefined}
-        onDelete={canManage ? (node) => openLifecycle('delete', node) : undefined}
-        onRestore={canManage ? (node) => openLifecycle('restore', node) : undefined}
+        onDelete={canManage ? (node) => openNodeLifecycle('delete', node) : undefined}
+        onRestore={canManage ? (node) => openNodeLifecycle('restore', node) : undefined}
       />
 
       {/* Lifecycle Confirmation Dialog */}
-      {lifecycleAction && lifecycleNode && (
+      {lifecycleDialogProps && lifecycleAction && (
         <LifecycleDialog
-          action={lifecycleAction}
-          node={lifecycleNode}
+          title={lifecycleDialogProps.title}
+          message={lifecycleDialogProps.message}
+          confirmLabel={lifecycleDialogProps.confirmLabel}
+          variant={lifecycleDialogProps.variant}
           isOpen={true}
           isPending={pendingLifecycle !== null}
           onConfirm={handleLifecycleConfirm}
           onCancel={closeLifecycle}
         />
       )}
+
+      {/* Create Structure dialog */}
+      <CreateStructureDialog
+        isOpen={createDialog.open}
+        year={createDialog.year}
+        error={createDialog.error}
+        isPending={isStructureMutating}
+        onYearChange={(year) => setCreateDialog((prev) => ({ ...prev, year }))}
+        onConfirm={confirmCreateStructure}
+        onCancel={closeCreateDialog}
+      />
     </div>
+  );
+}
+
+/* ── Create Structure modal ── */
+
+interface CreateStructureDialogProps {
+  isOpen: boolean;
+  year: number;
+  error: string | null;
+  isPending: boolean;
+  onYearChange: (year: number) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function CreateStructureDialog({
+  isOpen,
+  year,
+  error,
+  isPending,
+  onYearChange,
+  onConfirm,
+  onCancel,
+}: CreateStructureDialogProps) {
+  const years = yearOptions();
+
+  return (
+    <Modal>
+      <Modal.Backdrop
+        isOpen={isOpen}
+        isDismissable={!isPending}
+        onOpenChange={(open: boolean) => { if (!open) onCancel(); }}
+      >
+        <Modal.Container>
+          <Modal.Dialog className="sm:max-w-[400px]">
+            <Modal.Header>
+              <Modal.Heading>Create Corporate KPI Structure</Modal.Heading>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="flex flex-col gap-4">
+                {error && <Alert status="danger">{error}</Alert>}
+                <Select
+                  className="w-full"
+                  selectedKey={String(year)}
+                  onSelectionChange={(key) => onYearChange(Number(key))}
+                  isRequired
+                  aria-label="Year"
+                  placeholder="Select year"
+                >
+                  <Label>Year</Label>
+                  <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                  <Select.Popover>
+                    <ListBox>
+                      {years.map((y) => (
+                        <ListBox.Item key={String(y)} id={String(y)} textValue={String(y)}>
+                          {String(y)}
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                  <FieldError>Year is required.</FieldError>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  The structure starts as DRAFT. Configure its KPIs, then activate it as a whole.
+                </p>
+              </div>
+            </Modal.Body>
+            <Modal.Footer className="flex justify-end gap-2">
+              <Button variant="secondary" slot="close" onPress={onCancel} isDisabled={isPending}>
+                Cancel
+              </Button>
+              <Button variant="primary" onPress={onConfirm} isDisabled={isPending}>
+                {isPending ? 'Creating...' : 'Create Structure'}
+              </Button>
+            </Modal.Footer>
+            <Modal.CloseTrigger />
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
   );
 }

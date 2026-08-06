@@ -1,4 +1,4 @@
-/** Corporate KPI — DTOs matching the backend contract (variables CRUD refactor). */
+/** Corporate KPI — DTOs matching the backend contract (structure lifecycle refactor). */
 
 export interface AssessmentRule {
   lowerBound: number | null;
@@ -8,15 +8,28 @@ export interface AssessmentRule {
   score: number;
 }
 
+/** Yearly lifecycle aggregate — every node belongs to exactly one structure. */
+export interface CorporateKpiStructure {
+  id: string;
+  year: number;
+  status: KpiStatus;
+  activatedAt: string | null;
+  activatedBy: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CorporateKpiNode {
   id: string;
+  structureId: string;
   parentId: string | null;
   parentName: string | null;
   code: string;
   name: string;
   nodeType: KpiNodeType;
+  /** DERIVED from the owning structure — never stored on the node. */
   year: number;
-  status: KpiStatus;
   description: string | null;
   displayOrder: number;
   // Stored scoring fields (INDICATOR-only; null on ASPECT)
@@ -46,11 +59,20 @@ export type KpiStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE';
 
 /* ── Request DTOs ── */
 
+export interface CreateStructureRequest {
+  year: number;
+}
+
+export interface ChangeStructureStatusRequest {
+  status: KpiStatus;
+}
+
 export interface CreateKpiRequest {
   code: string;
   name: string;
   nodeType: KpiNodeType;
-  year: number;
+  /** The owning yearly structure — replaces the old independent year field. */
+  structureId: string;
   parentId: string | null;
   description: string | null;
   displayOrder: number;
@@ -72,13 +94,9 @@ export interface UpdateKpiRequest {
   assessmentRules: AssessmentRule[] | null;
   weight: number | null;
   targetScore: number | null;
-  // Note: nodeType and year are immutable — NOT sent in update.
+  // Note: nodeType, structureId and year are immutable — NOT sent in update.
 }
 
 /* ── Lifecycle ── */
-
-export interface ChangeStatusRequest {
-  status: KpiStatus;
-}
 
 export type LifecycleActionType = 'activate' | 'deactivate' | 'delete' | 'restore';

@@ -9,17 +9,20 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { CorporateKpiForm } from '../corporate-kpi-form';
 import { useCorporateKpiData } from '../../use-corporate-kpi-data';
 import { corporateKpiApi } from '../../corporate-kpi-api';
+import { corporateKpiStructuresApi } from '../../corporate-kpi-structures-api';
 import { variablesApi } from '../../variables/variables-api';
-import type { CorporateKpiNode } from '../../corporate-kpi.types';
+import type { CorporateKpiNode, CorporateKpiStructure } from '../../corporate-kpi.types';
 import type { AssessmentRule } from '../../corporate-kpi.types';
 
 jest.mock('../../use-corporate-kpi-data');
 jest.mock('../../corporate-kpi-api');
+jest.mock('../../corporate-kpi-structures-api');
 jest.mock('../../variables/variables-api');
 
 const mockCreateNode = jest.fn().mockResolvedValue(null);
 const mockUpdateNode = jest.fn().mockResolvedValue(null);
 const mockFetchTree = jest.fn().mockResolvedValue(undefined);
+const mockedStructuresApi = jest.mocked(corporateKpiStructuresApi);
 
 jest.mock('@/hooks/use-permission', () => ({
   usePermission: () => ({ hasPerm: () => true }),
@@ -202,14 +205,25 @@ jest.mock('@heroui/react', () => {
   };
 });
 
-let mockYearValue = '2026';
+let mockYearValue = 'struct-2026';
 let mockVariableCode = 'ROI';
 
 /* ── Sample data ── */
 
+const sampleStructure: CorporateKpiStructure = {
+  id: 'struct-2026',
+  year: 2026,
+  status: 'DRAFT',
+  activatedAt: null,
+  activatedBy: null,
+  deletedAt: null,
+  createdAt: '2026-01-01T00:00:00',
+  updatedAt: '2026-01-01T00:00:00',
+};
+
 const aspect: CorporateKpiNode = {
-  id: 'asp-1', parentId: null, parentName: null, code: 'FIN', name: 'Financial',
-  nodeType: 'ASPECT', year: 2026, status: 'DRAFT', description: null,
+  id: 'asp-1', structureId: 'struct-2026', parentId: null, parentName: null, code: 'FIN', name: 'Financial',
+  nodeType: 'ASPECT', year: 2026, description: null,
   displayOrder: 0, formula: null, assessmentRules: null, weight: null, targetScore: null,
   formulaResult: null, actualScore: null, actualResult: null, targetResult: null,
   calculationStatus: null, calculationError: null,
@@ -241,7 +255,7 @@ const indicator: CorporateKpiNode = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockYearValue = '2026';
+  mockYearValue = 'struct-2026';
   mockVariableCode = 'ROI';
   (useCorporateKpiData as jest.Mock).mockReturnValue({
     tree: [aspect], fetchTree: mockFetchTree, createNode: mockCreateNode,
@@ -250,6 +264,8 @@ beforeEach(() => {
   (corporateKpiApi.listBindings as jest.Mock).mockResolvedValue([]);
   (corporateKpiApi.createBinding as jest.Mock).mockResolvedValue({});
   (corporateKpiApi.deleteBinding as jest.Mock).mockResolvedValue(undefined);
+  mockedStructuresApi.list.mockResolvedValue([sampleStructure]);
+  mockedStructuresApi.getById.mockResolvedValue(sampleStructure);
   (variablesApi.list as jest.Mock).mockResolvedValue([
     { id: 'v1', code: 'ROI', name: 'Return on Investment', unit: '%', aggregationMode: 'SUM' },
     { id: 'v2', code: 'NPM', name: 'Net Profit Margin', unit: '%', aggregationMode: 'SUM' },
@@ -300,6 +316,7 @@ describe('Corporate KPI form — create', () => {
     render(<CorporateKpiForm mode="create" onSuccess={onSuccess} />);
 
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
+    fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     await fillBasicFields();
     fireEvent.click(screen.getByTestId('combobox-parent-aspect'));
 
@@ -324,7 +341,7 @@ describe('Corporate KPI form — create', () => {
     await waitFor(() => expect(mockCreateNode).toHaveBeenCalledTimes(1));
     const payload = mockCreateNode.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.nodeType).toBe('INDICATOR');
-    expect(payload.year).toBe(2026);
+    expect(payload.structureId).toBe('struct-2026');
     expect(payload.formula).toBe('ROI + PERIOD_MONTH_COUNT');
     expect(payload.assessmentRules).toEqual(higherRules);
     expect(payload.weight).toBe(0.25);
@@ -338,6 +355,7 @@ describe('Corporate KPI form — create', () => {
     render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
 
     fireEvent.click(screen.getByTestId('select-type'));
+    fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     await fillBasicFields();
     fireEvent.click(screen.getByTestId('combobox-parent-aspect'));
     fireEvent.click(screen.getByTestId('radio-lower'));
@@ -545,13 +563,12 @@ describe('refined formula/combobox UI', () => {
     expect(screen.getByText('Months in the period • PERIOD_MONTH_COUNT')).toBeInTheDocument();
   });
 
-  it('shows a visible Year validation error and blocks submission', async () => {
-    mockYearValue = '1900';
+  it('shows a visible Structure validation error and blocks submission', async () => {
     mockCreateNode.mockResolvedValue(aspect);
     render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
-    fireEvent.click(screen.getByTestId('select-year'));
+    // No structure selected → structureId is required
     fireEvent.click(screen.getByText('Save'));
-    expect(await screen.findByText(/2000/)).toBeInTheDocument();
+    expect(await screen.findByText('Structure is required')).toBeInTheDocument();
     await waitFor(() => expect(mockCreateNode).not.toHaveBeenCalled());
   });
 
@@ -692,6 +709,7 @@ describe('refined Score Configuration UI', () => {
     mockCreateNode.mockResolvedValue(indicator);
     render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
+    fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     await fillBasicFields();
     fireEvent.click(screen.getByTestId('combobox-parent-aspect'));
     await fillHigherThresholds();
@@ -851,6 +869,7 @@ describe('Corporate KPI form — variable bindings', () => {
     render(<CorporateKpiForm mode="create" onSuccess={onSuccess} />);
 
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
+    fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     await fillBasicFields();
     fireEvent.click(screen.getByTestId('combobox-parent-aspect'));
 
@@ -963,6 +982,7 @@ describe('Corporate KPI form — variable bindings', () => {
     mockCreateNode.mockResolvedValue(aspect);
     render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
 
+    fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     await fillBasicFields();
     fireEvent.click(screen.getByText('Save'));
 

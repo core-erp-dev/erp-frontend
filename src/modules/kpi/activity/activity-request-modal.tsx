@@ -8,6 +8,7 @@ import { X as XIcon } from '@phosphor-icons/react';
 import { activityV1Api } from './activity-v1-api';
 import { useActivityData } from './use-activity-data';
 import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { RecoverableConflict } from '@/modules/kpi/shared/domain-errors';
@@ -114,10 +115,16 @@ export function ActivityRequestModal({
     setIsLoadingCk(true);
     try {
       const tree = await corporateKpiApi.getTreeByYear(year);
+      // Lifecycle lives on the yearly structure: only ACTIVE structures'
+      // indicators are bindable for Activities.
+      const structures = await corporateKpiStructuresApi.list();
+      const activeStructureIds = new Set(
+        structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id),
+      );
       const indicators: CorporateKpiNode[] = [];
       const collect = (nodes: CorporateKpiNode[]) => {
         for (const node of nodes) {
-          if (node.nodeType === 'INDICATOR' && node.status === 'ACTIVE') {
+          if (node.nodeType === 'INDICATOR' && activeStructureIds.has(node.structureId)) {
             indicators.push(node);
           }
           if (node.children.length > 0) collect(node.children);

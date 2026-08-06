@@ -37,11 +37,13 @@ import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
 import { useCorporateKpiData } from '../use-corporate-kpi-data';
 import { corporateKpiApi } from '../corporate-kpi-api';
+import { corporateKpiStructuresApi } from '../corporate-kpi-structures-api';
 import { variablesApi } from '../variables/variables-api';
 import type { Variable } from '../variables/variables.types';
 import type {
   AssessmentRule,
   CorporateKpiNode,
+  CorporateKpiStructure,
   CreateKpiRequest,
   UpdateKpiRequest,
   KpiNodeType,
@@ -84,7 +86,8 @@ function buildSchema(isEdit: boolean) {
       name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
       description: z.string().optional(),
       nodeType: isEdit ? z.string().optional() : z.enum(['ASPECT', 'INDICATOR']),
-      year: z.coerce.number().int().min(2000).max(2100),
+      // Create only: the node belongs to an existing yearly structure (year is derived).
+      structureId: isEdit ? z.string().optional() : z.string().min(1, 'Structure is required'),
       displayOrder: z.coerce.number().int().min(0, 'Display order must be non-negative').optional(),
       parentId: z.string().optional(),
       weight: z.string().optional(),
@@ -122,6 +125,8 @@ export interface CorporateKpiFormProps {
   /** Create only — preset from the Structure page's row action. */
   preselectedType?: KpiNodeType;
   preselectedParentId?: string;
+  /** Create only — the yearly structure the node belongs to. */
+  preselectedStructureId?: string;
   onSuccess: () => void;
 }
 
@@ -188,6 +193,7 @@ export function CorporateKpiForm({
   initialData,
   preselectedType,
   preselectedParentId,
+  preselectedStructureId,
   onSuccess,
 }: CorporateKpiFormProps) {
   const router = useRouter();
@@ -200,6 +206,8 @@ export function CorporateKpiForm({
   // ── Reference data ──
   const [variables, setVariables] = useState<Variable[]>([]);
   const [variablesError, setVariablesError] = useState<string | null>(null);
+  const [structures, setStructures] = useState<CorporateKpiStructure[]>([]);
+  const [structuresError, setStructuresError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,6 +218,14 @@ export function CorporateKpiForm({
       })
       .catch(() => {
         if (!cancelled) setVariablesError('Failed to load variables for the formula builder.');
+      });
+    corporateKpiStructuresApi
+      .list()
+      .then((list) => {
+        if (!cancelled) setStructures(list);
+      })
+      .catch(() => {
+        if (!cancelled) setStructuresError('Failed to load Corporate KPI structures.');
       });
     return () => {
       cancelled = true;
@@ -224,7 +240,7 @@ export function CorporateKpiForm({
       name: initialData?.name ?? '',
       description: initialData?.description ?? '',
       nodeType: (initialData?.nodeType ?? preselectedType ?? 'ASPECT') as FormValues['nodeType'],
-      year: initialData?.year ?? new Date().getFullYear(),
+      structureId: initialData?.structureId ?? preselectedStructureId ?? '',
       displayOrder: initialData?.displayOrder ?? 0,
       parentId: initialData?.parentId ?? preselectedParentId ?? '',
       weight: initialData?.weight != null ? String(initialData.weight) : '',
@@ -233,20 +249,37 @@ export function CorporateKpiForm({
   });
 
   const nodeType = useWatch({ control: form.control, name: 'nodeType' });
-  const year = useWatch({ control: form.control, name: 'year' });
+  const structureId = useWatch({ control: form.control, name: 'structureId' });
   const isIndicator = nodeType === 'INDICATOR';
 
-  // Aspects for the parent selector come from the tree of the selected year.
+  const selectedStructure = useMemo(
+    () => structures.find((s) => s.id === (structureId ?? '')) ?? null,
+    [structures, structureId],
+  );
+
+  // Aspects for the parent selector come from the tree of the selected structure's year.
   useEffect(() => {
-    if (year != null && canManage) {
-      void fetchTree(Number(year));
+    if (selectedStructure != null && canManage) {
+      void fetchTree(selectedStructure.year);
     }
-  }, [year, canManage, fetchTree]);
+  }, [selectedStructure, canManage, fetchTree]);
 
   const aspectOptions = useMemo(
     () => tree.filter((node) => node.nodeType === 'ASPECT'),
     [tree],
   );
+
+  // Edit mode: the owning structure's status drives the configuration lock.
+  const [editLocked, setEditLocked] = useState(false);
+  useEffect(() => {
+    if (!isEditMode || !initialData?.structureId) return;
+    let cancelled = false;
+    corporateKpiStructuresApi
+      .getById(initialData.structureId)
+      .then((s) => { if (!cancelled) setEditLocked(s.status === 'ACTIVE'); })
+      .catch(() => { /* backend remains authoritative */ });
+    return () => { cancelled = true; };
+  }, [isEditMode, initialData?.structureId]);
 
   // ── Formula builder state ──
   const [formulaState, setFormulaState] = useState<FormulaState>(() => initFormula(initialData));
@@ -556,7 +589,7 @@ export function CorporateKpiForm({
         const created = await createNode({
           ...common,
           nodeType: (values.nodeType || 'ASPECT') as KpiNodeType,
-          year: Number(values.year),
+          structureId: values.structureId,
         } as CreateKpiRequest);
         ok = created != null;
         nodeSaved = ok;
@@ -725,41 +758,44 @@ export function CorporateKpiForm({
               <div className="flex items-center gap-2 py-1">
                 <Label className="text-sm text-muted-foreground">Year</Label>
                 <span className="text-sm font-medium text-foreground">
-                  {String(initialData?.year ?? (year != null ? Number(year) : ''))}
+                  {String(initialData?.year ?? (selectedStructure?.year ?? ''))}
                 </span>
               </div>
             ) : (
               <Controller
                 control={form.control}
-                name="year"
-                render={({ field, fieldState }) => {
-                  const currentYear = new Date().getFullYear();
-                  const years = Array.from({ length: 7 }, (_, i) => currentYear + i - 3);
-                  return (
-                    <Select
-                      className="w-full"
-                      selectedKey={field.value != null ? String(field.value) : String(currentYear)}
-                      onSelectionChange={(key) => field.onChange(Number(key))}
-                      isRequired
-                      isInvalid={fieldState.invalid}
-                      aria-label="Year"
-                    >
-                      <Label>Year</Label>
-                      <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                      <Select.Popover>
-                        <ListBox>
-                          {years.map((y) => (
-                            <ListBox.Item key={String(y)} id={String(y)} textValue={String(y)}>
-                              {String(y)}
-                              <ListBox.ItemIndicator />
-                            </ListBox.Item>
-                          ))}
-                        </ListBox>
-                      </Select.Popover>
-                      <FieldError>{fieldState.error?.message}</FieldError>
-                    </Select>
-                  );
-                }}
+                name="structureId"
+                render={({ field, fieldState }) => (
+                  <Select
+                    className="w-full"
+                    selectedKey={field.value || null}
+                    onSelectionChange={(key) => field.onChange(key ? String(key) : '')}
+                    isRequired
+                    isInvalid={fieldState.invalid}
+                    isDisabled={isMutating || !!preselectedStructureId}
+                    aria-label="Structure"
+                    placeholder="Select structure"
+                  >
+                    <Label>Structure (Year)</Label>
+                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {structures.length === 0 && (
+                          <ListBox.Item id="__empty" textValue="No structures available">
+                            {structuresError ? structuresError : 'No structures available'}
+                          </ListBox.Item>
+                        )}
+                        {structures.map((s) => (
+                          <ListBox.Item key={s.id} id={s.id} textValue={`${s.year} · ${s.status}`}>
+                            {`${s.year} · ${s.status}`}
+                            <ListBox.ItemIndicator />
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                    <FieldError>{fieldState.error?.message}</FieldError>
+                  </Select>
+                )}
               />
             )}
 
@@ -1286,11 +1322,18 @@ export function CorporateKpiForm({
 
         {submitError && <Alert status="danger">{submitError}</Alert>}
 
+        {isEditMode && editLocked && (
+          <Alert status="default">
+            This Corporate KPI belongs to an ACTIVE structure — its configuration is frozen.
+            Deactivate the structure before editing.
+          </Alert>
+        )}
+
         <div className="flex items-center justify-end gap-3">
           <Button variant="secondary" onPress={() => router.back()} isDisabled={isMutating}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" isDisabled={isMutating} isPending={isMutating}>
+          <Button type="submit" variant="primary" isDisabled={isMutating || editLocked} isPending={isMutating}>
             <FloppyDisk className="h-4 w-4" />
             {isEditMode ? 'Save Changes' : 'Save'}
           </Button>
