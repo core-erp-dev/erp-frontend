@@ -271,7 +271,9 @@ describe('empty structure state', () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     mockedStructuresApi.list.mockResolvedValue([]);
     render(<KpiCorporatePage />);
-    expect(await screen.findByText('No Corporate KPI structure yet.')).toBeInTheDocument();
+    // The toolbar (year/month) stays and the table renders its own empty state
+    expect(await screen.findByText(`No Corporate KPI structure yet for ${currentYear}.`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select year' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create Structure/i })).toBeInTheDocument();
   });
 
@@ -279,7 +281,7 @@ describe('empty structure state', () => {
     mockPermissions = { 'corporate_kpi:read': true };
     mockedStructuresApi.list.mockResolvedValue([]);
     render(<KpiCorporatePage />);
-    expect(await screen.findByText('No Corporate KPI structure yet.')).toBeInTheDocument();
+    expect(await screen.findByText(`No Corporate KPI structure yet for ${currentYear}.`)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Create Structure/i })).not.toBeInTheDocument();
   });
 

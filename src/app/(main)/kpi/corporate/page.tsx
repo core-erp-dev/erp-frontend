@@ -283,59 +283,6 @@ export default function KpiCorporatePage() {
     );
   }
 
-  // ── Empty state: no structure yet ──
-
-  if (!isLoadingStructures && structures.length === 0) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Breadcrumbs>
-          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
-          <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
-        </Breadcrumbs>
-
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-          <Button
-            isIconOnly
-            variant="tertiary"
-            onPress={() => void fetchStructures()}
-            isDisabled={isLoadingStructures}
-            aria-label="Refresh"
-          >
-            <ArrowsClockwise className={`h-4 w-4 ${isLoadingStructures ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {structuresError ? (
-          <Alert status="danger">{structuresError}</Alert>
-        ) : (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-300 py-16 text-muted-foreground">
-            <span className="text-sm">No Corporate KPI structure yet.</span>
-            {canManage && (
-              <Button variant="primary" onPress={() => openCreateDialog()}>
-                <Plus className="h-4 w-4" />
-                Create Structure
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Create Structure dialog */}
-        <CreateStructureDialog
-          isOpen={createDialog.open}
-          year={createDialog.year}
-          error={createDialog.error}
-          structures={structures}
-          isPending={isStructureMutating}
-          onYearChange={(year) => setCreateDialog((prev) => ({ ...prev, year }))}
-          onConfirm={confirmCreateStructure}
-          onCancel={closeCreateDialog}
-        />
-      </div>
-    );
-  }
-
   // ── Rendered page ──
 
   return (
@@ -414,6 +361,10 @@ export default function KpiCorporatePage() {
       </div>
 
       {/* Row 2: Period tabs + Structure year + Month + Expand + Deleted | Search */}
+      {structuresError && structures.length === 0 && (
+        <Alert status="danger">{structuresError}</Alert>
+      )}
+
       <CorporateKpiFilters
         periodMode={periodMode}
         onPeriodModeChange={handleModeChange}
