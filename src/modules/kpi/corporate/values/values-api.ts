@@ -45,6 +45,13 @@ export const valuesApi = {
       `/api/v1/corporate-kpis/variable-values/${variableId}/${year}/annual`,
     );
   },
+
+  /** Delete a monthly value by natural key — cleared cells are removed, not nulled. */
+  deleteMonthly: async (variableId: string, year: number, month: number): Promise<void> => {
+    await api.delete<ApiResponse<void>>(
+      `/api/v1/corporate-kpis/variable-values/${variableId}/${year}/${month}`,
+    );
+  },
 };
 
 /** Read-error wrapper. */

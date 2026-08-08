@@ -22,6 +22,8 @@ export interface UseVariableValuesDataReturn {
   saveBatch: (items: BatchVariableValueItem[]) => Promise<boolean>;
   /** Delete the explicit annual value (month = null) for a variable + year. */
   deleteAnnual: (variableId: string, year: number) => Promise<boolean>;
+  /** Delete a monthly value by natural key — cleared cells are removed, not nulled. */
+  deleteMonthly: (variableId: string, year: number, month: number) => Promise<boolean>;
 }
 
 function mergeRows(rows: VariableValueSheetRow[], variables: Array<{ id: string; name: string; unit: string | null; aggregationMode: string | null }>): VariableValueSheetRow[] {
@@ -136,10 +138,32 @@ export function useVariableValuesData(): UseVariableValuesDataReturn {
     }
   }, [refetchLoaded]);
 
+  const deleteMonthly = useCallback(async (variableId: string, year: number, month: number): Promise<boolean> => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await valuesApi.deleteMonthly(variableId, year, month);
+      try {
+        await refetchLoaded();
+      } catch {
+        // keep the sheet as-is if the refetch fails
+      }
+      toast.success('Value removed.');
+      return true;
+    } catch (err: unknown) {
+      const msg = extractErrorMessage(err, 'Something went wrong while deleting the value.');
+      if (mountedRef.current) setSaveError(msg);
+      toast.danger(msg);
+      return false;
+    } finally {
+      if (mountedRef.current) setIsSaving(false);
+    }
+  }, [refetchLoaded]);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  return { sheet, isLoading, error, isSaving, saveError, loadedKey, fetchSheet, saveBatch, deleteAnnual };
+  return { sheet, isLoading, error, isSaving, saveError, loadedKey, fetchSheet, saveBatch, deleteAnnual, deleteMonthly };
 }

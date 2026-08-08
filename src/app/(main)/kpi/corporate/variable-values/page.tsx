@@ -2,12 +2,13 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Alert, Button, Breadcrumbs, BreadcrumbsItem, Chip, Tabs, Dropdown, SearchField } from '@heroui/react';
-import { House, CaretDown } from '@phosphor-icons/react';
+import { House, CaretDown, FloppyDisk, PencilSimple } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
 import { useVariableValuesData } from '@/modules/kpi/corporate/values/use-variable-values-data';
-import { ValuesSheetTable } from '@/modules/kpi/corporate/values/values-sheet-table';
+import { ValuesSheetTable, isValidValueInput, valueToDraft } from '@/modules/kpi/corporate/values/values-sheet-table';
+import type { BatchVariableValueItem, ValueDraft } from '@/modules/kpi/corporate/values/values.types';
 import { MONTH_NAMES_EN } from '@/modules/kpi/corporate/period-label';
 
 type PeriodMode = 'monthly' | 'annual';
@@ -15,6 +16,7 @@ type PeriodMode = 'monthly' | 'annual';
 export default function KpiCorporateVariableValuesPage() {
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
+  const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -29,8 +31,12 @@ export default function KpiCorporateVariableValuesPage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ── Inline edit state ──
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<ValueDraft>({});
+
   // ── Server data ──
-  const { sheet, isLoading, error, fetchSheet } = useVariableValuesData();
+  const { sheet, isLoading, error, isSaving, fetchSheet, saveBatch, deleteAnnual, deleteMonthly } = useVariableValuesData();
 
   // Auto-fetch on mount and when the period changes.
   // Monthly: year + month. Annual: year only — the month parameter is omitted.
@@ -39,6 +45,12 @@ export default function KpiCorporateVariableValuesPage() {
       fetchSheet({ year: selectedYear, ...(periodMode === 'monthly' ? { month: selectedMonth } : {}) });
     }
   }, [canRead, selectedYear, periodMode, selectedMonth, fetchSheet]);
+
+  // Leave edit mode and drop drafts when the period changes (sheet identity changes).
+  useEffect(() => {
+    setIsEditing(false);
+    setDraft({});
+  }, [selectedYear, periodMode, selectedMonth]);
 
   // ── Handlers ──
 
@@ -53,6 +65,66 @@ export default function KpiCorporateVariableValuesPage() {
   const handleRetry = useCallback(() => {
     fetchSheet({ year: selectedYear, ...(periodMode === 'monthly' ? { month: selectedMonth } : {}) });
   }, [fetchSheet, selectedYear, periodMode, selectedMonth]);
+
+  const handleDraftChange = useCallback((variableId: string, value: string) => {
+    setDraft((prev) => ({ ...prev, [variableId]: value }));
+  }, []);
+
+  /** Prefill every row from the loaded sheet, then flip the value column into inputs. */
+  const startEditing = useCallback(() => {
+    setDraft(Object.fromEntries(sheet.map((row) => [row.variableId, valueToDraft(row.value)])));
+    setIsEditing(true);
+  }, [sheet]);
+
+  const cancelEditing = useCallback(() => {
+    setDraft({});
+    setIsEditing(false);
+  }, []);
+
+  /** Any draft cell that is not empty and not a finite number blocks Save. */
+  const hasInvalidDraft = useMemo(
+    () => Object.values(draft).some((v) => !isValidValueInput(v)),
+    [draft],
+  );
+
+  /**
+   * Save the sheet: upsert changed non-empty cells via the atomic batch, and
+   * DELETE the rows for cells the user cleared (backend stores "empty" as no
+   * row — a null value cannot be upserted).
+   */
+  const handleSave = useCallback(async () => {
+    const items: BatchVariableValueItem[] = [];
+    const clearings: { variableId: string; month: number | null }[] = [];
+
+    for (const row of sheet) {
+      const raw = draft[row.variableId] ?? valueToDraft(row.value);
+      if (!isValidValueInput(raw)) continue; // invalid cells are flagged in the table
+      if (raw === valueToDraft(row.value)) continue; // unchanged
+
+      const month = periodMode === 'monthly' ? selectedMonth : null;
+      if (raw.trim() === '') {
+        clearings.push({ variableId: row.variableId, month });
+      } else {
+        items.push({ variableId: row.variableId, year: selectedYear, month, value: Number(raw) });
+      }
+    }
+
+    let ok = true;
+    for (const c of clearings) {
+      if (c.month == null) {
+        ok = (await deleteAnnual(c.variableId, selectedYear)) && ok;
+      } else {
+        ok = (await deleteMonthly(c.variableId, selectedYear, c.month)) && ok;
+      }
+    }
+    if (ok && items.length > 0) {
+      ok = await saveBatch(items);
+    }
+    if (ok) {
+      setIsEditing(false);
+      setDraft({});
+    }
+  }, [sheet, draft, periodMode, selectedMonth, selectedYear, deleteAnnual, deleteMonthly, saveBatch]);
 
   // Client-side search over code/name — same pattern as the Corporate KPI list page.
   const filteredRows = useMemo(() => {
@@ -101,7 +173,7 @@ export default function KpiCorporateVariableValuesPage() {
         <BreadcrumbsItem>{KPI_LABELS.corporateVariableValues}</BreadcrumbsItem>
       </Breadcrumbs>
 
-      {/* Row 1: Title + Chip counter — no page-level action buttons */}
+      {/* Row 1: Title + Chip counter | Input / Save + Cancel */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariableValues}</h1>
@@ -113,6 +185,31 @@ export default function KpiCorporateVariableValuesPage() {
             {sheet.length}
           </Chip>
         </div>
+        {canManage && (
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <Button variant="secondary" onPress={cancelEditing} isDisabled={isSaving}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onPress={handleSave}
+                  isPending={isSaving}
+                  isDisabled={isSaving || hasInvalidDraft}
+                >
+                  <FloppyDisk className="h-4 w-4" />
+                  Save
+                </Button>
+              </>
+            ) : (
+              <Button variant="primary" onPress={startEditing} isDisabled={isLoading}>
+                <PencilSimple className="h-4 w-4" />
+                Input
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Row 2: Period tabs + Year/Month dropdowns | Search */}
@@ -178,13 +275,15 @@ export default function KpiCorporateVariableValuesPage() {
         </SearchField>
       </div>
 
-      {/* Read-only values table (values are entered on the Year/Month sheet views) */}
+      {/* Values sheet — value column becomes inputs in edit mode (manage only) */}
       <ValuesSheetTable
         sheet={filteredRows}
+        draft={draft}
+        onDraftChange={handleDraftChange}
         isLoading={isLoading}
         error={error}
         onRetry={handleRetry}
-        canEdit={false}
+        canEdit={isEditing && canManage}
         tableKey={`kpi-values-${periodMode}`}
         emptyLabel={emptyLabel}
       />
