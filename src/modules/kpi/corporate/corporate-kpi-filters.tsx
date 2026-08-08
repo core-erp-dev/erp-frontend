@@ -8,7 +8,7 @@ import { MONTH_NAMES_EN } from './period-label';
 export interface CorporateKpiFiltersProps {
   periodMode: 'monthly' | 'annual';
   onPeriodModeChange: (mode: 'monthly' | 'annual') => void;
-  /** All selectable years (2000..current+1) — independent of existing structures. */
+  /** All selectable years (5-year window + any year with an existing structure). */
   years: number[];
   selectedYear: number;
   onYearChange: (year: number) => void;

@@ -36,10 +36,9 @@ interface CreateStructureDialogState {
 }
 
 function yearOptions(): number[] {
+  // 5-year window (last year → +3 ahead), matching the activity modals.
   const current = new Date().getFullYear();
-  const years: number[] = [];
-  for (let y = current + 1; y >= 2000; y -= 1) years.push(y);
-  return years;
+  return Array.from({ length: 5 }, (_, i) => current - 1 + i);
 }
 
 export default function KpiCorporatePage() {
@@ -50,9 +49,6 @@ export default function KpiCorporatePage() {
   const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
   const currentMonth = new Date().getMonth() + 1;
-
-  // Full year range for the filter dropdown (2000..current+1) — independent of structures.
-  const years = useMemo(() => yearOptions(), []);
 
   // ── Page-local UI state ──
   const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
@@ -78,6 +74,13 @@ export default function KpiCorporatePage() {
     isStructureMutating, createStructure, changeStructureStatus,
     pendingLifecycle, deleteKpi, restoreKpi,
   } = useCorporateKpiData();
+
+  // 5-year window for the filter dropdown, plus any year that already has a
+  // structure (keeps older structures selectable).
+  const years = useMemo(
+    () => [...new Set([...yearOptions(), ...structures.map((s) => s.year)])].sort((a, b) => b - a),
+    [structures],
+  );
 
   // Fetch structures once on mount (read-gated).
   useEffect(() => {
