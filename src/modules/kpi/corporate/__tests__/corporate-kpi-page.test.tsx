@@ -131,7 +131,7 @@ describe('manage permissions', () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporatePage />);
     // Wait until the structure is loaded (the Add handler needs it for structureId)
-    await screen.findByText(`${currentYear} · DRAFT`);
+    await screen.findByText('DRAFT');
     fireEvent.click(screen.getByText('Add Corporate KPI'));
     expect(mockPush).toHaveBeenCalledWith(`/kpi/corporate/add?structureId=${sampleStructure.id}`);
   });
@@ -153,7 +153,7 @@ describe('structure-driven period selection', () => {
     mockPermissions = { 'corporate_kpi:read': true };
     mockedApi.getTreeByYear.mockResolvedValue([sampleNode]);
     render(<KpiCorporatePage />);
-    await screen.findByText(`${currentYear} · DRAFT`);
+    await screen.findByText('DRAFT');
 
     fireEvent.click(screen.getByText('Year', { selector: 'button' }));
     await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
@@ -166,7 +166,7 @@ describe('structure-driven period selection', () => {
     mockPermissions = { 'corporate_kpi:read': true };
     mockedApi.getTreeByYear.mockResolvedValue([sampleNode]);
     render(<KpiCorporatePage />);
-    await screen.findByText(`${currentYear} · DRAFT`);
+    await screen.findByText('DRAFT');
 
     fireEvent.click(screen.getByText('Year', { selector: 'button' }));
     await waitFor(() => expect(mockedApi.getTreeByYear).toHaveBeenLastCalledWith(
@@ -182,10 +182,12 @@ describe('structure-driven period selection', () => {
 /* ── Structure lifecycle (page level) ── */
 
 describe('structure lifecycle', () => {
-  it('shows the structure status chip (year · status)', async () => {
+  it('shows the structure status chip (status only)', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporatePage />);
-    expect(await screen.findByText(`${currentYear} · DRAFT`)).toBeInTheDocument();
+    expect(await screen.findByText('DRAFT')).toBeInTheDocument();
+    // The year lives in the filter dropdown, not the status chip.
+    expect(screen.getByRole('button', { name: 'Select year' })).toHaveTextContent(String(currentYear));
   });
 
   it('DRAFT structure shows the Activate action', async () => {
@@ -199,7 +201,7 @@ describe('structure lifecycle', () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     mockedStructuresApi.list.mockResolvedValue([{ ...sampleStructure, status: 'ACTIVE' }]);
     render(<KpiCorporatePage />);
-    expect(await screen.findByText(`${currentYear} · ACTIVE`)).toBeInTheDocument();
+    expect(await screen.findByText('ACTIVE')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Activate$/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Deactivate$/ })).toBeInTheDocument();
   });

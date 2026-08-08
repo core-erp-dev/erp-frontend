@@ -50,8 +50,11 @@ export default function KpiCorporatePage() {
 
   const currentMonth = new Date().getMonth() + 1;
 
+  // Full year range for the filter dropdown (2000..current+1) — independent of structures.
+  const years = useMemo(() => yearOptions(), []);
+
   // ── Page-local UI state ──
-  const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(() => new Date().getFullYear());
   const [periodMode, setPeriodMode] = useState<PeriodMode>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
   const [viewMode, setViewMode] = useState<'current' | 'deleted'>('current');
@@ -80,17 +83,9 @@ export default function KpiCorporatePage() {
     if (canRead) void fetchStructures();
   }, [canRead, fetchStructures]);
 
-  // Select the current year's structure by default once loaded.
-  useEffect(() => {
-    if (selectedStructureId == null && structures.length > 0) {
-      const current = new Date().getFullYear();
-      const preferred = structures.find((s) => s.year === current) ?? structures[0];
-      setSelectedStructureId(preferred.id);
-    }
-  }, [structures, selectedStructureId]);
-
-  const selectedStructure = structures.find((s) => s.id === selectedStructureId) ?? null;
-  const selectedYear = selectedStructure?.year ?? new Date().getFullYear();
+  // The structure for the selected year (null when the year has no structure yet —
+  // the page then shows the create-structure empty state for that year).
+  const selectedStructure = structures.find((s) => s.year === selectedYear) ?? null;
   const structureActive = selectedStructure?.status === 'ACTIVE';
   const structureLocked = selectedStructure?.status === 'ACTIVE';
 
@@ -148,7 +143,7 @@ export default function KpiCorporatePage() {
 
   // ── Generic handlers ──
 
-  const handleStructureChange = useCallback((structureId: string) => setSelectedStructureId(structureId), []);
+  const handleYearChange = useCallback((year: number) => setSelectedYear(year), []);
   const handleModeChange = useCallback((mode: PeriodMode) => {
     setPeriodMode(mode);
     if (mode === 'annual') setSelectedMonth(currentMonth);
@@ -159,8 +154,8 @@ export default function KpiCorporatePage() {
 
   // ── Create Structure ──
 
-  const openCreateDialog = useCallback(() => {
-    setCreateDialog({ open: true, year: new Date().getFullYear(), error: null });
+  const openCreateDialog = useCallback((year?: number) => {
+    setCreateDialog({ open: true, year: year ?? new Date().getFullYear(), error: null });
   }, []);
 
   const closeCreateDialog = useCallback(() => {
@@ -170,7 +165,7 @@ export default function KpiCorporatePage() {
   const confirmCreateStructure = useCallback(async () => {
     const created = await createStructure({ year: createDialog.year });
     if (created) {
-      setSelectedStructureId(created.id);
+      setSelectedYear(created.year);
       closeCreateDialog();
     }
   }, [createDialog.year, createStructure, closeCreateDialog]);
@@ -316,13 +311,80 @@ export default function KpiCorporatePage() {
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-300 py-16 text-muted-foreground">
             <span className="text-sm">No Corporate KPI structure yet.</span>
             {canManage && (
-              <Button variant="primary" onPress={openCreateDialog}>
+              <Button variant="primary" onPress={() => openCreateDialog()}>
                 <Plus className="h-4 w-4" />
                 Create Structure
               </Button>
             )}
           </div>
         )}
+
+        {/* Create Structure dialog */}
+        <CreateStructureDialog
+          isOpen={createDialog.open}
+          year={createDialog.year}
+          error={createDialog.error}
+          isPending={isStructureMutating}
+          onYearChange={(year) => setCreateDialog((prev) => ({ ...prev, year }))}
+          onConfirm={confirmCreateStructure}
+          onCancel={closeCreateDialog}
+        />
+      </div>
+    );
+  }
+
+  // ── Empty state: the selected year has no structure yet (create for that year) ──
+
+  if (!isLoadingStructures && structures.length > 0 && selectedStructure == null) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Breadcrumbs>
+          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
+        </Breadcrumbs>
+
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => void fetchStructures()}
+            isDisabled={isLoadingStructures}
+            aria-label="Refresh"
+          >
+            <ArrowsClockwise className={`h-4 w-4 ${isLoadingStructures ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
+        {/* Filters stay available so the user can switch to a year that has a structure */}
+        <CorporateKpiFilters
+          periodMode={periodMode}
+          onPeriodModeChange={handleModeChange}
+          years={years}
+          selectedYear={selectedYear}
+          onYearChange={handleYearChange}
+          selectedMonth={selectedMonth}
+          onMonthChange={handleMonthChange}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          canViewDeleted={canManage}
+          onExpandAll={handleExpandAll}
+          onCollapseAll={handleCollapseAll}
+          allExpanded={allExpanded}
+        />
+
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-300 py-16 text-muted-foreground">
+          <span className="text-sm">No Corporate KPI structure yet for {selectedYear}.</span>
+          {canManage && (
+            <Button variant="primary" onPress={() => openCreateDialog(selectedYear)}>
+              <Plus className="h-4 w-4" />
+              Create Structure
+            </Button>
+          )}
+        </div>
 
         {/* Create Structure dialog */}
         <CreateStructureDialog
@@ -361,7 +423,7 @@ export default function KpiCorporatePage() {
                 className="pointer-events-none"
                 aria-label={`Structure status ${selectedStructure.status}`}
               >
-                {selectedStructure.year} · {selectedStructure.status}
+                {selectedStructure.status}
               </Chip>
               <Chip size="md" className="pointer-events-none" aria-label={`Total ${totalCount} corporate kpi`}>
                 {totalCount}
@@ -370,6 +432,21 @@ export default function KpiCorporatePage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            isIconOnly
+            variant="tertiary"
+            onPress={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)}
+            isDisabled={isLoadingTree}
+            aria-label="Refresh"
+          >
+            <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
+          </Button>
+          {canManage && viewMode === 'current' && (
+            <Button variant="primary" onPress={handleCreateAspect} isDisabled={structureLocked}>
+              <Plus className="h-4 w-4" />
+              Add Corporate KPI
+            </Button>
+          )}
           {canManage && selectedStructure && (
             structureLocked ? (
               <Button
@@ -391,21 +468,6 @@ export default function KpiCorporatePage() {
               </Button>
             )
           )}
-          <Button
-            isIconOnly
-            variant="tertiary"
-            onPress={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)}
-            isDisabled={isLoadingTree}
-            aria-label="Refresh"
-          >
-            <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
-          </Button>
-          {canManage && viewMode === 'current' && (
-            <Button variant="primary" onPress={handleCreateAspect} isDisabled={structureLocked}>
-              <Plus className="h-4 w-4" />
-              Add Corporate KPI
-            </Button>
-          )}
         </div>
       </div>
 
@@ -413,9 +475,9 @@ export default function KpiCorporatePage() {
       <CorporateKpiFilters
         periodMode={periodMode}
         onPeriodModeChange={handleModeChange}
-        structures={structures}
-        selectedStructureId={selectedStructureId}
-        onStructureChange={handleStructureChange}
+        years={years}
+        selectedYear={selectedYear}
+        onYearChange={handleYearChange}
         selectedMonth={selectedMonth}
         onMonthChange={handleMonthChange}
         viewMode={viewMode}

@@ -4,15 +4,14 @@ import React from 'react';
 import { Button, Dropdown, SearchField, Tabs } from '@heroui/react';
 import { CaretDown, ArrowsOutSimple, ArrowsInSimple, Trash, CheckCircle } from '@phosphor-icons/react';
 import { MONTH_NAMES_EN } from './period-label';
-import type { CorporateKpiStructure } from './corporate-kpi.types';
 
 export interface CorporateKpiFiltersProps {
   periodMode: 'monthly' | 'annual';
   onPeriodModeChange: (mode: 'monthly' | 'annual') => void;
-  /** Yearly structures — the year selector is derived from them. */
-  structures: CorporateKpiStructure[];
-  selectedStructureId: string | null;
-  onStructureChange: (structureId: string) => void;
+  /** All selectable years (2000..current+1) — independent of existing structures. */
+  years: number[];
+  selectedYear: number;
+  onYearChange: (year: number) => void;
   selectedMonth: number;
   onMonthChange: (month: number) => void;
   viewMode: 'current' | 'deleted';
@@ -28,9 +27,9 @@ export interface CorporateKpiFiltersProps {
 export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
   periodMode,
   onPeriodModeChange,
-  structures,
-  selectedStructureId,
-  onStructureChange,
+  years,
+  selectedYear,
+  onYearChange,
   selectedMonth,
   onMonthChange,
   viewMode,
@@ -42,7 +41,6 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
   onCollapseAll,
   allExpanded,
 }) => {
-  const selectedStructure = structures.find((s) => s.id === selectedStructureId) ?? null;
   const selectedMonthName = MONTH_NAMES_EN[selectedMonth - 1] ?? String(selectedMonth);
 
   return (
@@ -61,17 +59,17 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
           </Tabs.ListContainer>
         </Tabs>
 
-        {/* Year — derived from available structures */}
+        {/* Year — full range, independent of existing structures */}
         <Dropdown>
-          <Button variant="tertiary" aria-label="Select year" isDisabled={structures.length === 0}>
-            {selectedStructure ? selectedStructure.year : 'Year'}
+          <Button variant="tertiary" aria-label="Select year">
+            {selectedYear}
             <CaretDown className="h-4 w-4" />
           </Button>
           <Dropdown.Popover>
-            <Dropdown.Menu onAction={(key) => onStructureChange(String(key))}>
-              {structures.map((s) => (
-                <Dropdown.Item key={s.id} id={s.id} textValue={String(s.year)}>
-                  {String(s.year)}
+            <Dropdown.Menu onAction={(key) => onYearChange(Number(key))}>
+              {years.map((y) => (
+                <Dropdown.Item key={y} id={String(y)} textValue={String(y)}>
+                  {String(y)}
                 </Dropdown.Item>
               ))}
             </Dropdown.Menu>
