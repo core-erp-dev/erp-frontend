@@ -70,12 +70,16 @@ export const ComboBox = Object.assign(mk('ComboBox'), {
 export const FieldError = mk('FieldError');
 
 /* ── TextField: forwards control props to the inner Input/TextArea and
-   normalizes onChange to the VALUE STRING (HeroUI v3 contract). ── */
+   normalizes onChange to the VALUE STRING (HeroUI v3 contract). The control
+   may be nested inside a layout row (e.g. BuilderControlRow), so the props
+   are forwarded to every Input/TextArea descendant, not just direct ones. ── */
 
 export const TextField = (props: MockProps) => {
   const { children, isDisabled, onChange, ...rest0 } = props;
   const rest = stripNonDomProps(rest0);
   if (isDisabled !== undefined) rest.disabled = isDisabled;
+  const extra: Record<string, unknown> = { 'data-mock': 'TextField' };
+  if (rest0.variant !== undefined) extra['data-variant'] = rest0.variant;
   const forwardedOnChange = onChange
     ? (e: unknown) => {
         if (e && typeof e === 'object' && 'target' in (e as { target?: unknown })) {
@@ -85,16 +89,24 @@ export const TextField = (props: MockProps) => {
         }
       }
     : undefined;
-  const wrapped = React.Children.map(children, (child) => {
-    if (React.isValidElement(child) && (child.type === Input || child.type === TextArea)) {
-      return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
-        ...rest,
-        onChange: forwardedOnChange,
-      });
-    }
-    return child;
-  });
-  return React.createElement('div', { 'data-mock': 'TextField' }, wrapped);
+  const forward = (node: React.ReactNode): React.ReactNode =>
+    React.Children.map(node, (child) => {
+      if (!React.isValidElement(child)) return child;
+      if (child.type === Input || child.type === TextArea) {
+        return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+          ...rest,
+          onChange: forwardedOnChange,
+        });
+      }
+      const grandChildren = (child.props as { children?: React.ReactNode })?.children;
+      if (grandChildren != null) {
+        return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+          children: forward(grandChildren),
+        });
+      }
+      return child;
+    });
+  return React.createElement('div', extra, forward(children));
 };
 
 /* ── Form: renders a real <form> so type="submit" buttons submit ── */

@@ -284,17 +284,23 @@ async function fillHigherThresholds() {
   fireEvent.change(screen.getByLabelText('Threshold for score 2'), { target: { value: '60' } });
 }
 
+/** Render the form and wait for the reference-data loading gate to clear. */
+async function renderForm(ui: React.ReactElement) {
+  render(ui);
+  await screen.findByPlaceholderText('e.g. FIN');
+}
+
 describe('Corporate KPI form — create', () => {
-  it('renders the Add heading with Basic Information only for an Aspect', () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+  it('renders the Add heading with Basic Information only for an Aspect', async () => {
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     expect(screen.getByText('Add Corporate KPI')).toBeInTheDocument();
     expect(screen.getByText('Basic Information')).toBeInTheDocument();
     expect(screen.queryByText('Formula Configuration')).not.toBeInTheDocument();
     expect(screen.queryByText('Score Configuration')).not.toBeInTheDocument();
   });
 
-  it('shows indicator-only sections after switching the Type to Indicator', () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+  it('shows indicator-only sections after switching the Type to Indicator', async () => {
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     expect(screen.getByText('Formula Configuration')).toBeInTheDocument();
     expect(screen.getByText('Score Configuration')).toBeInTheDocument();
@@ -303,7 +309,7 @@ describe('Corporate KPI form — create', () => {
 
   it('blocks submission until indicator prerequisites are valid', async () => {
     mockCreateNode.mockResolvedValue(aspect);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     await fillBasicFields();
     fireEvent.click(screen.getByText('Save'));
@@ -313,7 +319,7 @@ describe('Corporate KPI form — create', () => {
   it('serializes the guided formula and generates higher-is-better rules on create', async () => {
     mockCreateNode.mockResolvedValue(indicator);
     const onSuccess = jest.fn();
-    render(<CorporateKpiForm mode="create" onSuccess={onSuccess} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={onSuccess} />);
 
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
     fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
@@ -352,7 +358,7 @@ describe('Corporate KPI form — create', () => {
 
   it('generates lower-is-better ranges with inclusive upper bounds', async () => {
     mockCreateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
 
     fireEvent.click(screen.getByTestId('select-type'));
     fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
@@ -379,7 +385,7 @@ describe('Corporate KPI form — create', () => {
 
   it('blocks submission on gap/overlap thresholds (not strictly decreasing)', async () => {
     mockCreateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
 
     fireEvent.click(screen.getByTestId('select-type'));
     await fillBasicFields();
@@ -396,13 +402,13 @@ describe('Corporate KPI form — create', () => {
 });
 
 describe('guided formula builder interactions', () => {
-  function renderIndicatorCreate() {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+  async function renderIndicatorCreate() {
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
   }
 
   it('selecting a variable does not add it until Add is pressed', async () => {
-    renderIndicatorCreate();
+    await renderIndicatorCreate();
     fireEvent.click(screen.getByTestId('combobox-formula-variable'));
     expect(screen.queryByText('Return on Investment')).not.toBeInTheDocument();
     expect(
@@ -412,8 +418,8 @@ describe('guided formula builder interactions', () => {
     expect((await screen.findAllByText('Return on Investment')).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('Clear is disabled when empty and clears the whole formula', () => {
-    renderIndicatorCreate();
+  it('Clear is disabled when empty and clears the whole formula', async () => {
+    await renderIndicatorCreate();
     expect(screen.getByLabelText('Clear formula')).toBeDisabled();
     fireEvent.click(screen.getByTestId('combobox-formula-variable'));
     fireEvent.click(screen.getByLabelText('Add variable'));
@@ -425,8 +431,8 @@ describe('guided formula builder interactions', () => {
     expect(screen.getByLabelText('Clear formula')).toBeDisabled();
   });
 
-  it('adds a constant through the NumberField and Add button', () => {
-    renderIndicatorCreate();
+  it('adds a constant through the NumberField and Add button', async () => {
+    await renderIndicatorCreate();
     fireEvent.change(screen.getByLabelText('Formula constant'), { target: { value: '100' } });
     fireEvent.click(screen.getByLabelText('Add constant'));
     expect(screen.getAllByText('100').length).toBeGreaterThanOrEqual(1);
@@ -438,18 +444,18 @@ describe('guided formula builder interactions', () => {
   });
 
   it('adds parentheses from the operator row', async () => {
-    renderIndicatorCreate();
+    await renderIndicatorCreate();
     fireEvent.click(screen.getByLabelText('Add ('));
     fireEvent.click(screen.getByTestId('combobox-formula-variable'));
     fireEvent.click(screen.getByLabelText('Add variable'));
     fireEvent.click(screen.getByLabelText('Add )'));
-    expect((await screen.findAllByText('( ROI )')).length).toBeGreaterThanOrEqual(1);
+    expect((await screen.findAllByText('( Return on Investment )')).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Formula is valid')).not.toBeInTheDocument();
   });
 
   it('removes tokens via the Tag remove button and flags dangling operators', async () => {
     mockUpdateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     await screen.findByText('Return on Investment + Net Profit Margin');
 
     // Remove the operator → adjacent operands are invalid
@@ -468,7 +474,7 @@ describe('Corporate KPI form — edit', () => {
   it('populates fields, formula tokens, and score rows without data loss', async () => {
     mockUpdateNode.mockResolvedValue(indicator);
     const onSuccess = jest.fn();
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={onSuccess} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={onSuccess} />);
 
     expect(screen.getByText('Edit Corporate KPI')).toBeInTheDocument();
     expect(screen.getByDisplayValue('F01')).toBeInTheDocument();
@@ -493,7 +499,7 @@ describe('Corporate KPI form — edit', () => {
   it('opens a parenthesized formula in Guided mode and preserves it', async () => {
     const parenFormula = { ...indicator, formula: '(ROI + NPM) / 2' };
     mockUpdateNode.mockResolvedValue(parenFormula);
-    render(<CorporateKpiForm mode="edit" initialData={parenFormula} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={parenFormula} onSuccess={jest.fn()} />);
 
     // Guided mode is active; the readable formula renders the parenthesized tokens
     expect(await screen.findByText('( Return on Investment + Net Profit Margin ) ÷ 2')).toBeInTheDocument();
@@ -510,7 +516,7 @@ describe('Corporate KPI form — edit', () => {
     ];
     const node = { ...indicator, assessmentRules: nonRepresentable };
     mockUpdateNode.mockResolvedValue(node);
-    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
 
     // Opens in Advanced with the rules preserved exactly
     const jsonInput = screen.getByLabelText('Assessment rules JSON') as HTMLTextAreaElement;
@@ -529,7 +535,7 @@ describe('Corporate KPI form — edit', () => {
   });
 
   it('allows removing and adding score levels (dynamic rows)', async () => {
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     // Remove the first (score 5) level → 4 rows remain
     fireEvent.click(screen.getByLabelText('Remove score level 1'));
     expect(screen.queryByLabelText('Threshold for score 5')).not.toBeInTheDocument();
@@ -539,7 +545,7 @@ describe('Corporate KPI form — edit', () => {
   });
 
   it('lets the user switch to the Advanced JSON editor and back to Simple', async () => {
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     fireEvent.click(within(screen.getByLabelText('Score mode')).getByText('Advanced'));
     const jsonInput = screen.getByLabelText('Assessment rules JSON') as HTMLTextAreaElement;
     expect(JSON.parse(jsonInput.value)).toEqual(higherRules);
@@ -550,13 +556,13 @@ describe('Corporate KPI form — edit', () => {
 
 describe('refined formula/combobox UI', () => {
   it('renders Parent Aspect options as "Name • Code" (name first, no em dash)', async () => {
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     expect(await screen.findByText('Financial • FIN')).toBeInTheDocument();
     expect(screen.queryByText('FIN — Financial')).not.toBeInTheDocument();
   });
 
   it('renders Variable and Built-in Value options as "Name • CODE"', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
     expect(await screen.findByText('Return on Investment • ROI')).toBeInTheDocument();
     expect(screen.getByText('Net Profit Margin • NPM')).toBeInTheDocument();
@@ -565,15 +571,15 @@ describe('refined formula/combobox UI', () => {
 
   it('shows a visible Structure validation error and blocks submission', async () => {
     mockCreateNode.mockResolvedValue(aspect);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     // No structure selected → structureId is required
     fireEvent.click(screen.getByText('Save'));
     expect(await screen.findByText('Structure is required')).toBeInTheDocument();
     await waitFor(() => expect(mockCreateNode).not.toHaveBeenCalled());
   });
 
-  it('uses the tertiary variant for Add, Clear, and operator buttons', () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+  it('uses the tertiary variant for Add, Clear, and operator buttons', async () => {
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
     ['Add variable', 'Add constant', 'Add built-in value', 'Clear formula'].forEach((label) => {
       expect(screen.getByLabelText(label).getAttribute('data-variant')).toBe('tertiary');
@@ -584,7 +590,7 @@ describe('refined formula/combobox UI', () => {
   });
 
   it('renders the formula and readable surfaces with plain-text readable content', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
     fireEvent.click(screen.getByTestId('combobox-formula-variable'));
     fireEvent.click(screen.getByLabelText('Add variable'));
@@ -599,7 +605,7 @@ describe('refined formula/combobox UI', () => {
 
   it('shows a danger Alert for an invalid formula and none for a valid one', async () => {
     mockUpdateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     await screen.findByText('Return on Investment + Net Profit Margin');
     // Valid → no alert
     expect(document.querySelector('[data-mock="Alert"]')).toBeNull();
@@ -612,7 +618,7 @@ describe('refined formula/combobox UI', () => {
   it('round-trips invalid-but-representable formulas between Advanced and Guided losslessly', async () => {
     const node = { ...indicator, formula: 'ACTIVE_DOMESTIC_CUSTOMER_COUNT )' };
     mockUpdateNode.mockResolvedValue(node);
-    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
 
     // Opens in Guided mode with the same token sequence and a danger alert
     expect(await screen.findByText('ACTIVE_DOMESTIC_CUSTOMER_COUNT')).toBeInTheDocument();
@@ -639,7 +645,7 @@ describe('refined formula/combobox UI', () => {
   it('keeps genuinely unsupported syntax in Advanced mode with an explanation', async () => {
     const node = { ...indicator, formula: 'roi + npm' };
     mockUpdateNode.mockResolvedValue(node);
-    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
 
     // Advanced mode is active with the raw formula preserved
     expect((await screen.findByLabelText('Raw formula') as HTMLTextAreaElement).value).toBe('roi + npm');
@@ -652,7 +658,7 @@ describe('refined formula/combobox UI', () => {
 
 describe('refined Score Configuration UI', () => {
   it('renders the score levels in a table with the copied column structure', async () => {
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     expect(screen.getByLabelText('Score levels')).toBeInTheDocument();
     expect(screen.getAllByText('Score').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Minimum result')).toBeInTheDocument();
@@ -663,7 +669,7 @@ describe('refined Score Configuration UI', () => {
     expect(document.querySelector('[data-mock="Table.Body"]')).not.toBeNull();
 
     // All fields inside the score table use the secondary variant
-    const tableFields = [...document.querySelectorAll('[data-mock="NumberField"]')].filter((nf) =>
+    const tableFields = [...document.querySelectorAll('[data-mock="TextField"]')].filter((nf) =>
       nf.closest('[data-mock="Table"]') !== null,
     );
     expect(tableFields.length).toBeGreaterThanOrEqual(9);
@@ -671,12 +677,12 @@ describe('refined Score Configuration UI', () => {
       expect(field.getAttribute('data-variant')).toBe('secondary');
     }
     // The sample simulation field sits OUTSIDE the table and keeps the default variant
-    const sampleField = screen.getByLabelText('Sample result').closest('[data-mock="NumberField"]') as HTMLElement;
+    const sampleField = screen.getByLabelText('Sample result').closest('[data-mock="TextField"]') as HTMLElement;
     expect(sampleField.getAttribute('data-variant')).not.toBe('secondary');
   });
 
   it('switches the boundary column header for lower-is-better', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     expect(screen.getByText('Minimum result')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('radio-lower'));
@@ -685,7 +691,7 @@ describe('refined Score Configuration UI', () => {
   });
 
   it('clears thresholds when the scoring direction changes (never silently retains)', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     fireEvent.change(screen.getByLabelText('Threshold for score 5'), { target: { value: '90' } });
     expect(screen.getByDisplayValue('90')).toBeInTheDocument();
@@ -696,7 +702,7 @@ describe('refined Score Configuration UI', () => {
 
   it('shows a danger Alert for duplicate scores and blocks submission', async () => {
     mockCreateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     fireEvent.change(screen.getByLabelText('Score for level 2'), { target: { value: '5' } });
     expect(screen.getByText(/Scores must be unique/)).toBeInTheDocument();
@@ -707,7 +713,7 @@ describe('refined Score Configuration UI', () => {
 
   it('round-trips Simple → Advanced → Simple without changing rules or conditions', async () => {
     mockCreateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     await fillBasicFields();
@@ -734,7 +740,7 @@ describe('refined Score Configuration UI', () => {
 
   it('derives Simple rows after compatible Advanced edits', async () => {
     mockUpdateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     fireEvent.click(within(screen.getByLabelText('Score mode')).getByText('Advanced'));
     const jsonInput = screen.getByLabelText('Assessment rules JSON') as HTMLTextAreaElement;
     const threeLevels: AssessmentRule[] = [
@@ -762,7 +768,7 @@ describe('refined Score Configuration UI', () => {
     ];
     const node = { ...indicator, assessmentRules: incompatible };
     mockUpdateNode.mockResolvedValue(node);
-    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
     const jsonInput = screen.getByLabelText('Assessment rules JSON') as HTMLTextAreaElement;
     expect(JSON.parse(jsonInput.value)).toEqual(incompatible);
 
@@ -773,14 +779,14 @@ describe('refined Score Configuration UI', () => {
     expect(JSON.parse(jsonInput.value)).toEqual(incompatible);
   });
 
-  it('removes the technical Advanced description', () => {
-    render(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
+  it('removes the technical Advanced description', async () => {
+    await renderForm(<CorporateKpiForm mode="edit" initialData={indicator} onSuccess={jest.fn()} />);
     expect(screen.queryByText(/contiguous half-open ranges/)).not.toBeInTheDocument();
     expect(screen.queryByText(/first range is open below/)).not.toBeInTheDocument();
   });
 
   it('simulates the score at, below, and above thresholds', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     await fillHigherThresholds();
     const sample = screen.getByLabelText('Sample result');
@@ -795,7 +801,7 @@ describe('refined Score Configuration UI', () => {
   });
 
   it('uses the standard HeroUI RadioGroup with the label beside the indicator', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
 
     // Standard RadioGroup + Radio composition (no custom controls)
@@ -817,7 +823,7 @@ describe('refined Score Configuration UI', () => {
   });
 
   it('places the danger Alert immediately above the Add score level button', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     fireEvent.change(screen.getByLabelText('Score for level 2'), { target: { value: '5' } });
 
@@ -832,25 +838,25 @@ describe('refined Score Configuration UI', () => {
 
   it('does not reserve an Alert when there is no error', async () => {
     mockCreateNode.mockResolvedValue(indicator);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
     await fillHigherThresholds();
     expect(document.querySelector('[data-mock="Alert"]')).toBeNull();
   });
 
   it('keeps the simulation outside a Surface and aligns Resulting score with the control row', async () => {
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
     fireEvent.click(screen.getByTestId('select-type'));
 
     // The Sample Result NumberField is not wrapped in a Surface/card
     const sample = screen.getByLabelText('Sample result');
     expect(sample.closest('[data-mock="Surface"]')).toBeNull();
 
-    // Resulting score shares the dedicated control row with the NumberField
-    // control; the field label lives OUTSIDE that row
+    // Resulting score shares the dedicated control row with the field control;
+    // the field label lives OUTSIDE that row
     const scoreSpan = screen.getByText((content, el) => el?.tagName === 'SPAN' && content.startsWith('Resulting score'));
     const row = scoreSpan.parentElement as HTMLElement;
-    expect(row.querySelector('[data-mock="NumberField.Group"]')).not.toBeNull();
+    expect(row.querySelector('[data-mock="Input"]')).not.toBeNull();
     expect(within(row).queryByText('Sample result')).toBeNull();
 
     // Simulation still reflects the submitted rules (85 → 4)
@@ -866,7 +872,7 @@ describe('Corporate KPI form — variable bindings', () => {
   it('creates bindings for every formula variable on create (built-in excluded)', async () => {
     mockCreateNode.mockResolvedValue(indicator);
     const onSuccess = jest.fn();
-    render(<CorporateKpiForm mode="create" onSuccess={onSuccess} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={onSuccess} />);
 
     fireEvent.click(screen.getByTestId('select-type')); // INDICATOR
     fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
@@ -931,7 +937,7 @@ describe('Corporate KPI form — variable bindings', () => {
         return binding;
       },
     );
-    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
 
     // Wait for the variables list to load (tag labels switch from codes to names)
     await screen.findByLabelText('Remove Return on Investment');
@@ -966,7 +972,7 @@ describe('Corporate KPI form — variable bindings', () => {
       const index = bindingStore.findIndex((binding) => binding.id === id);
       if (index >= 0) bindingStore.splice(index, 1);
     });
-    render(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="edit" initialData={node} onSuccess={jest.fn()} />);
 
     // Remove NPM and its trailing operator from the canvas → formula becomes ROI
     fireEvent.click(await screen.findByLabelText('Remove Net Profit Margin'));
@@ -980,7 +986,7 @@ describe('Corporate KPI form — variable bindings', () => {
 
   it('never touches bindings when saving an Aspect', async () => {
     mockCreateNode.mockResolvedValue(aspect);
-    render(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
+    await renderForm(<CorporateKpiForm mode="create" onSuccess={jest.fn()} />);
 
     fireEvent.click(screen.getByTestId('select-structure')); // structure: struct-2026
     await fillBasicFields();

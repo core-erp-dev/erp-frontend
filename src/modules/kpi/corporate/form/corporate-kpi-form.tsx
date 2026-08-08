@@ -12,16 +12,17 @@ import {
   BreadcrumbsItem,
   Button,
   ComboBox,
+  EmptyState,
   FieldError,
   Form,
   Input,
   Label,
   ListBox,
-  NumberField,
   Radio,
   RadioGroup,
   Select,
   Separator,
+  Spinner,
   Surface,
   Table,
   Tabs,
@@ -208,25 +209,32 @@ export function CorporateKpiForm({
   const [variablesError, setVariablesError] = useState<string | null>(null);
   const [structures, setStructures] = useState<CorporateKpiStructure[]>([]);
   const [structuresError, setStructuresError] = useState<string | null>(null);
+  // The form depends on structures + variables — keep it behind a spinner until
+  // both reference fetches settle (same pattern as the Add Employee form).
+  const [isLoadingReference, setIsLoadingReference] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    variablesApi
-      .list()
-      .then((list) => {
-        if (!cancelled) setVariables(list);
-      })
-      .catch(() => {
-        if (!cancelled) setVariablesError('Failed to load variables for the formula builder.');
-      });
-    corporateKpiStructuresApi
-      .list()
-      .then((list) => {
-        if (!cancelled) setStructures(list);
-      })
-      .catch(() => {
-        if (!cancelled) setStructuresError('Failed to load Corporate KPI structures.');
-      });
+    void Promise.allSettled([
+      variablesApi
+        .list()
+        .then((list) => {
+          if (!cancelled) setVariables(list);
+        })
+        .catch(() => {
+          if (!cancelled) setVariablesError('Failed to load variables for the formula builder.');
+        }),
+      corporateKpiStructuresApi
+        .list()
+        .then((list) => {
+          if (!cancelled) setStructures(list);
+        })
+        .catch(() => {
+          if (!cancelled) setStructuresError('Failed to load Corporate KPI structures.');
+        }),
+    ]).then(() => {
+      if (!cancelled) setIsLoadingReference(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -614,6 +622,15 @@ export function CorporateKpiForm({
     form.handleSubmit(onSubmit, (errors) => console.log('FORM ERRORS', errors))(e);
   };
 
+  // Reference data not loaded yet — same spinner gate as the Add Employee form.
+  if (isLoadingReference) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Spinner size="md" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
@@ -723,6 +740,7 @@ export function CorporateKpiForm({
                   <ComboBox
                     className="w-full"
                     fullWidth
+                    allowsEmptyCollection
                     selectedKey={field.value || null}
                     onSelectionChange={(key) => form.setValue('parentId', (key ?? '') as string, { shouldValidate: true })}
                     isRequired
@@ -736,10 +754,7 @@ export function CorporateKpiForm({
                       <ComboBox.Trigger />
                     </ComboBox.InputGroup>
                     <ComboBox.Popover>
-                      <ListBox>
-                        {aspectOptions.length === 0 && (
-                          <ListBox.Item id="__empty" textValue="No aspects available">No aspects available</ListBox.Item>
-                        )}
+                      <ListBox renderEmptyState={() => <EmptyState>No aspects available</EmptyState>}>
                         {aspectOptions.map((a) => (
                           <ListBox.Item key={a.id} id={a.id} textValue={`${a.name} • ${a.code}`}>
                             {a.name} • {a.code}
@@ -779,12 +794,11 @@ export function CorporateKpiForm({
                     <Label>Structure (Year)</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
-                      <ListBox>
-                        {structures.length === 0 && (
-                          <ListBox.Item id="__empty" textValue="No structures available">
-                            {structuresError ? structuresError : 'No structures available'}
-                          </ListBox.Item>
+                      <ListBox
+                        renderEmptyState={() => (
+                          <EmptyState>{structuresError ? structuresError : 'No structures available'}</EmptyState>
                         )}
+                      >
                         {structures.map((s) => (
                           <ListBox.Item key={s.id} id={s.id} textValue={`${s.year} · ${s.status}`}>
                             {`${s.year} · ${s.status}`}
@@ -917,6 +931,7 @@ export function CorporateKpiForm({
                   {/* Variable — label from the HeroUI <Label>; Add button aligned with the input control */}
                   <ComboBox
                     className="w-full"
+                    allowsEmptyCollection
                     aria-label="Formula variable"
                     selectedKey={variableCode}
                     onSelectionChange={(key) => setVariableCode(key ? String(key) : null)}
@@ -941,12 +956,11 @@ export function CorporateKpiForm({
                       </Button>
                     </BuilderControlRow>
                     <ComboBox.Popover>
-                      <ListBox>
-                        {variables.length === 0 && (
-                          <ListBox.Item id="__empty" textValue={variablesError || 'No variables available'}>
-                            {variablesError || 'No variables available'}
-                          </ListBox.Item>
+                      <ListBox
+                        renderEmptyState={() => (
+                          <EmptyState>{variablesError || 'No variables available'}</EmptyState>
                         )}
+                      >
                         {variables.map((v) => (
                           <ListBox.Item key={v.code} id={v.code} textValue={`${v.name} • ${v.code}`}>
                             {v.name} • {v.code}
@@ -957,27 +971,31 @@ export function CorporateKpiForm({
                     </ComboBox.Popover>
                   </ComboBox>
 
-                  {/* Constant — same HeroUI label + control-row pattern as the other fields */}
-                  <NumberField
+                  {/* Constant — same HeroUI label + control-row pattern as the other fields.
+                      TextField instead of NumberField: RAC's NumberField commits via
+                      flushSync on blur/Enter, which React 19 rejects while the score
+                      table re-renders on each keystroke (flushSync lifecycle error). */}
+                  <TextField
                     className="w-full"
                     aria-label="Formula constant"
-                    value={constantInput === '' ? undefined : Number(constantInput)}
-                    onChange={(value) => setConstantInput(value == null ? '' : String(value))}
-                    minValue={0}
+                    value={constantInput}
+                    onChange={setConstantInput}
                     isDisabled={isMutating}
                   >
                     <Label>Constant</Label>
                     <BuilderControlRow>
-                      <NumberField.Group className="flex-1">
-                        {/* col-span-3: the group grid reserves 40px tracks for steppers;
-                            without them the input spans the full control width */}
-                        <NumberField.Input className="col-span-3" placeholder="Enter a number" />
-                      </NumberField.Group>
+                      <Input
+                        className="flex-1"
+                        type="number"
+                        min={0}
+                        step="any"
+                        placeholder="Enter a number"
+                      />
                       <Button
                         variant="tertiary"
                         // slot={null}: opt out of the RAC slotted ButtonContext so the
-                        // button stays standalone inside the field root (the NumberField
-                        // context only knows increment/decrement slots)
+                        // button stays standalone inside the field root (the field
+                        // context only knows its own slots)
                         slot={null}
                         aria-label="Add constant"
                         onPress={handleAddConstant}
@@ -986,7 +1004,7 @@ export function CorporateKpiForm({
                         Add
                       </Button>
                     </BuilderControlRow>
-                  </NumberField>
+                  </TextField>
 
                   {/* Built-in values — label from the HeroUI <Label>; Add button aligned with the input control */}
                   <ComboBox
@@ -1208,35 +1226,31 @@ export function CorporateKpiForm({
                             return (
                               <Table.Row key={row.id} id={row.id}>
                                 <Table.Cell>
-                                  <NumberField
+                                  <TextField
                                     aria-label={`Score for level ${index + 1}`}
-                                    value={row.score === '' ? undefined : Number(row.score)}
-                                    onChange={(value) => updateScoreRow(row.id, { score: value == null ? '' : String(value) })}
+                                    value={row.score}
+                                    onChange={(val) => updateScoreRow(row.id, { score: val })}
                                     isDisabled={isMutating}
                                     variant="secondary"
                                   >
                                     <Label className="sr-only">Score</Label>
-                                    <NumberField.Group>
-                                      <NumberField.Input className="col-span-3" placeholder="Score" />
-                                    </NumberField.Group>
-                                  </NumberField>
+                                    <Input type="number" step="any" placeholder="Score" />
+                                  </TextField>
                                 </Table.Cell>
                                 <Table.Cell>
                                   {isLast ? (
                                     <span className="text-muted-foreground">—</span>
                                   ) : (
-                                    <NumberField
+                                    <TextField
                                       aria-label={`Threshold for score ${row.score || index + 1}`}
-                                      value={row.threshold === '' ? undefined : Number(row.threshold)}
-                                      onChange={(value) => updateScoreRow(row.id, { threshold: value == null ? '' : String(value) })}
+                                      value={row.threshold}
+                                      onChange={(val) => updateScoreRow(row.id, { threshold: val })}
                                       isDisabled={isMutating}
                                       variant="secondary"
                                     >
                                       <Label className="sr-only">Threshold</Label>
-                                      <NumberField.Group>
-                                        <NumberField.Input className="col-span-3" placeholder="Threshold" />
-                                      </NumberField.Group>
-                                    </NumberField>
+                                      <Input type="number" step="any" placeholder="Threshold" />
+                                    </TextField>
                                   )}
                                 </Table.Cell>
                                 <Table.Cell className="text-muted-foreground">
@@ -1281,19 +1295,17 @@ export function CorporateKpiForm({
                   </div>
 
                   {/* Simulation — no Surface/card wrapper. The label lives in the
-                      NumberField root; the control and Resulting score share one
+                      field root; the control and Resulting score share one
                       control row so they stay aligned with the input control. */}
-                  <NumberField
+                  <TextField
                     aria-label="Sample result"
-                    value={sampleValue === '' ? undefined : Number(sampleValue)}
-                    onChange={(value) => setSampleValue(value == null ? '' : String(value))}
+                    value={sampleValue}
+                    onChange={setSampleValue}
                     isDisabled={isMutating}
                   >
                     <Label>Sample result</Label>
                     <BuilderControlRow>
-                      <NumberField.Group className="w-40">
-                        <NumberField.Input className="col-span-3" placeholder="e.g. 85" />
-                      </NumberField.Group>
+                      <Input type="number" step="any" className="w-40" placeholder="e.g. 85" />
                       <span className="text-sm text-muted-foreground">
                         Resulting score:{' '}
                         <span className="font-semibold text-foreground">
@@ -1301,7 +1313,7 @@ export function CorporateKpiForm({
                         </span>
                       </span>
                     </BuilderControlRow>
-                  </NumberField>
+                  </TextField>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
