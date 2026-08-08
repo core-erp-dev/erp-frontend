@@ -79,6 +79,8 @@ export interface CorporateKpiTableProps {
   onToggleExpand: (id: string) => void;
   searchQuery: string;
   selectedYear: number;
+  /** Overrides the default current-view empty-state text (e.g. "No structure yet for {year}"). */
+  emptyStateLabel?: string;
   isLoadingTree: boolean;
   isLoadingDeleted: boolean;
   treeError: string | null;
@@ -104,6 +106,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
   onToggleExpand,
   searchQuery,
   selectedYear,
+  emptyStateLabel,
   isLoadingTree,
   isLoadingDeleted,
   treeError,
@@ -203,7 +206,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                     <span className="text-sm">
                       {searchQuery.trim()
                         ? `No Corporate KPIs match "${searchQuery}".`
-                        : 'No Corporate KPIs found for the selected year.'}
+                        : emptyStateLabel ?? 'No Corporate KPIs found for the selected year.'}
                     </span>
                   </div>
                 );

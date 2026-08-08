@@ -27,6 +27,8 @@ jest.mock('next/navigation', () => ({
 }));
 
 let mockPermissions: Record<string, boolean> = {};
+let mockYearValue = '2026';
+let mockSourceYearValue = '2025';
 
 jest.mock('@/hooks/use-permission', () => ({
   usePermission: () => ({
@@ -36,8 +38,40 @@ jest.mock('@/hooks/use-permission', () => ({
 
 jest.mock('@heroui/react', () => {
   const actual = jest.requireActual('@heroui/react');
+  const React = jest.requireActual('react');
   return {
     ...actual,
+    // Select fires a fixed selection per aria-label (the shared mock is inert):
+    // the target-year Select ("Year") and the copy-mode "Source Year" Select.
+    Select: (() => {
+      const SelectImpl = (props: {
+        'aria-label'?: string;
+        onSelectionChange?: (key: string | number) => void;
+        children?: React.ReactNode;
+      }) => {
+        const label = props['aria-label'] ?? '';
+        const value = label === 'Source Year' ? mockSourceYearValue : mockYearValue;
+        return React.createElement(
+          'div',
+          { 'data-mock': 'Select' },
+          React.createElement(
+            'button',
+            {
+              'data-testid': `select-${label.toLowerCase().replace(/\s+/g, '-')}`,
+              type: 'button',
+              onClick: () => props.onSelectionChange?.(value),
+            },
+            label,
+          ),
+          props.children,
+        );
+      };
+      SelectImpl.Trigger = actual.Select.Trigger;
+      SelectImpl.Value = actual.Select.Value;
+      SelectImpl.Indicator = actual.Select.Indicator;
+      SelectImpl.Popover = actual.Select.Popover;
+      return SelectImpl;
+    })(),
     toast: { success: jest.fn(), danger: jest.fn(), warning: jest.fn(), info: jest.fn() },
   };
 });
@@ -72,6 +106,8 @@ const sampleNode: CorporateKpiNode = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPermissions = {};
+  mockYearValue = String(currentYear);
+  mockSourceYearValue = String(currentYear - 1);
   mockedApi.getTreeByYear.mockResolvedValue([]);
   mockedApi.getDeleted.mockResolvedValue([]);
   mockedApi.create.mockResolvedValue(sampleNode);
@@ -259,6 +295,40 @@ describe('empty structure state', () => {
     fireEvent.click(buttons[buttons.length - 1]);
 
     await waitFor(() => expect(mockedStructuresApi.create).toHaveBeenCalledWith({ year: currentYear }));
+  });
+
+  it('Copy from year mode creates the structure with copyFromYear', async () => {
+    mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
+    // The current year has no structure yet; the previous year does.
+    mockedStructuresApi.list.mockResolvedValue([{ ...sampleStructure, id: 'struct-prev', year: currentYear - 1 }]);
+    mockedStructuresApi.create.mockResolvedValue(sampleStructure);
+    render(<KpiCorporatePage />);
+
+    // Header Create Structure button (year without a structure) opens the modal
+    fireEvent.click(await screen.findByRole('button', { name: /Create Structure/i }));
+    expect(await screen.findByText('Create Corporate KPI Structure')).toBeInTheDocument();
+
+    // Switch to copy mode, pick the previous year as the source, confirm
+    fireEvent.click(screen.getByRole('button', { name: /Copy from year/i }));
+    fireEvent.click(screen.getByTestId('select-source-year'));
+
+    const buttons = screen.getAllByRole('button', { name: /Create Structure/i });
+    fireEvent.click(buttons[buttons.length - 1]);
+
+    await waitFor(() => expect(mockedStructuresApi.create).toHaveBeenCalledWith({
+      year: currentYear,
+      copyFromYear: currentYear - 1,
+    }));
+  });
+
+  it('table shows its own empty state when the selected year has no structure', async () => {
+    mockPermissions = { 'corporate_kpi:read': true };
+    mockedStructuresApi.list.mockResolvedValue([{ ...sampleStructure, id: 'struct-prev', year: currentYear - 1 }]);
+    render(<KpiCorporatePage />);
+    // No dashed panel — the table's empty state renders, and the toolbar stays.
+    expect(await screen.findByText(`No Corporate KPI structure yet for ${currentYear}.`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select year' })).toBeInTheDocument();
+    expect(screen.queryByText('No Corporate KPI structure yet.')).not.toBeInTheDocument();
   });
 });
 

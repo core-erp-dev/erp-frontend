@@ -32,6 +32,10 @@ export function mapKpiError(error: unknown, fallback: string): string {
       'This Corporate KPI structure is not deleted.',
     'Cannot restore — the year structure is deleted':
       'Restore the year structure before restoring its KPIs.',
+    'No Corporate KPI structure found for the source year':
+      'The source year has no Corporate KPI structure to copy from.',
+    'Source year must differ from the target year':
+      'The source year must be different from the target year.',
     'Corporate KPI code already exists in this year':
       'A Corporate KPI with this code already exists in the selected structure.',
     'Corporate KPI not found':

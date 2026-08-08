@@ -8,6 +8,7 @@ import {
   Chip,
   Breadcrumbs,
   BreadcrumbsItem,
+  EmptyState,
   FieldError,
   Label,
   ListBox,
@@ -96,12 +97,13 @@ export default function KpiCorporatePage() {
     return ids;
   }, [structures]);
 
-  // Fetch tree when the period (structure/mode/month) changes.
+  // Fetch the tree for the selected year — a year without a structure returns
+  // an empty tree (backend contract), so the table shows its own empty state.
   useEffect(() => {
-    if (canRead && selectedStructure != null) {
+    if (canRead) {
       fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined);
     }
-  }, [canRead, selectedStructure, selectedYear, periodMode, selectedMonth, fetchTree]);
+  }, [canRead, selectedYear, periodMode, selectedMonth, fetchTree]);
 
   // Fetch deleted data when first switching to deleted view
   useEffect(() => {
@@ -162,13 +164,13 @@ export default function KpiCorporatePage() {
     setCreateDialog((prev) => ({ ...prev, open: false, error: null }));
   }, []);
 
-  const confirmCreateStructure = useCallback(async () => {
-    const created = await createStructure({ year: createDialog.year });
+  const confirmCreateStructure = useCallback(async (payload: { year: number; copyFromYear?: number }) => {
+    const created = await createStructure(payload);
     if (created) {
       setSelectedYear(created.year);
       closeCreateDialog();
     }
-  }, [createDialog.year, createStructure, closeCreateDialog]);
+  }, [createStructure, closeCreateDialog]);
 
   // ── Lifecycle handlers ──
 
@@ -324,73 +326,7 @@ export default function KpiCorporatePage() {
           isOpen={createDialog.open}
           year={createDialog.year}
           error={createDialog.error}
-          isPending={isStructureMutating}
-          onYearChange={(year) => setCreateDialog((prev) => ({ ...prev, year }))}
-          onConfirm={confirmCreateStructure}
-          onCancel={closeCreateDialog}
-        />
-      </div>
-    );
-  }
-
-  // ── Empty state: the selected year has no structure yet (create for that year) ──
-
-  if (!isLoadingStructures && structures.length > 0 && selectedStructure == null) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Breadcrumbs>
-          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
-          <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
-        </Breadcrumbs>
-
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporate}</h1>
-          <Button
-            isIconOnly
-            variant="tertiary"
-            onPress={() => void fetchStructures()}
-            isDisabled={isLoadingStructures}
-            aria-label="Refresh"
-          >
-            <ArrowsClockwise className={`h-4 w-4 ${isLoadingStructures ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {/* Filters stay available so the user can switch to a year that has a structure */}
-        <CorporateKpiFilters
-          periodMode={periodMode}
-          onPeriodModeChange={handleModeChange}
-          years={years}
-          selectedYear={selectedYear}
-          onYearChange={handleYearChange}
-          selectedMonth={selectedMonth}
-          onMonthChange={handleMonthChange}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-          searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
-          canViewDeleted={canManage}
-          onExpandAll={handleExpandAll}
-          onCollapseAll={handleCollapseAll}
-          allExpanded={allExpanded}
-        />
-
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-gray-300 py-16 text-muted-foreground">
-          <span className="text-sm">No Corporate KPI structure yet for {selectedYear}.</span>
-          {canManage && (
-            <Button variant="primary" onPress={() => openCreateDialog(selectedYear)}>
-              <Plus className="h-4 w-4" />
-              Create Structure
-            </Button>
-          )}
-        </div>
-
-        {/* Create Structure dialog */}
-        <CreateStructureDialog
-          isOpen={createDialog.open}
-          year={createDialog.year}
-          error={createDialog.error}
+          structures={structures}
           isPending={isStructureMutating}
           onYearChange={(year) => setCreateDialog((prev) => ({ ...prev, year }))}
           onConfirm={confirmCreateStructure}
@@ -441,10 +377,16 @@ export default function KpiCorporatePage() {
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} />
           </Button>
-          {canManage && viewMode === 'current' && (
+          {canManage && viewMode === 'current' && selectedStructure && (
             <Button variant="primary" onPress={handleCreateAspect} isDisabled={structureLocked}>
               <Plus className="h-4 w-4" />
               Add Corporate KPI
+            </Button>
+          )}
+          {canManage && !isLoadingStructures && !selectedStructure && (
+            <Button variant="primary" onPress={() => openCreateDialog(selectedYear)}>
+              <Plus className="h-4 w-4" />
+              Create Structure
             </Button>
           )}
           {canManage && selectedStructure && (
@@ -504,6 +446,11 @@ export default function KpiCorporatePage() {
         onToggleExpand={handleToggleExpand}
         searchQuery={searchQuery}
         selectedYear={selectedYear}
+        emptyStateLabel={
+          selectedStructure == null
+            ? `No Corporate KPI structure yet for ${selectedYear}.`
+            : undefined
+        }
         isLoadingTree={isLoadingTree}
         isLoadingDeleted={isLoadingDeleted}
         treeError={treeError}
@@ -536,6 +483,7 @@ export default function KpiCorporatePage() {
         isOpen={createDialog.open}
         year={createDialog.year}
         error={createDialog.error}
+        structures={structures}
         isPending={isStructureMutating}
         onYearChange={(year) => setCreateDialog((prev) => ({ ...prev, year }))}
         onConfirm={confirmCreateStructure}
@@ -551,9 +499,11 @@ interface CreateStructureDialogProps {
   isOpen: boolean;
   year: number;
   error: string | null;
+  /** Existing structures — source-year options for the copy mode. */
+  structures: CorporateKpiStructure[];
   isPending: boolean;
   onYearChange: (year: number) => void;
-  onConfirm: () => void;
+  onConfirm: (payload: { year: number; copyFromYear?: number }) => void;
   onCancel: () => void;
 }
 
@@ -561,12 +511,25 @@ function CreateStructureDialog({
   isOpen,
   year,
   error,
+  structures,
   isPending,
   onYearChange,
   onConfirm,
   onCancel,
 }: CreateStructureDialogProps) {
   const years = yearOptions();
+  const [mode, setMode] = useState<'new' | 'copy'>('new');
+  const [copyFromYear, setCopyFromYear] = useState<number | null>(null);
+
+  // Reset the mode selection every time the dialog opens.
+  useEffect(() => {
+    if (isOpen) {
+      setMode('new');
+      setCopyFromYear(null);
+    }
+  }, [isOpen]);
+
+  const sourceOptions = structures.filter((s) => s.year !== year);
 
   return (
     <Modal>
@@ -605,8 +568,60 @@ function CreateStructureDialog({
                   </Select.Popover>
                   <FieldError>Year is required.</FieldError>
                 </Select>
+
+                {/* Mode: build the new structure empty, or copy the configuration of a previous year */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>Configuration</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={mode === 'new' ? 'primary' : 'tertiary'}
+                      onPress={() => setMode('new')}
+                      aria-label="Create new structure"
+                    >
+                      Create new (empty)
+                    </Button>
+                    <Button
+                      variant={mode === 'copy' ? 'primary' : 'tertiary'}
+                      onPress={() => setMode('copy')}
+                      aria-label="Copy from year"
+                    >
+                      Copy from year
+                    </Button>
+                  </div>
+                </div>
+
+                {mode === 'copy' && (
+                  <Select
+                    className="w-full"
+                    selectedKey={copyFromYear != null ? String(copyFromYear) : null}
+                    onSelectionChange={(key) => setCopyFromYear(key ? Number(key) : null)}
+                    isRequired
+                    isInvalid={copyFromYear == null}
+                    disabledKeys={[String(year)]}
+                    aria-label="Source Year"
+                    placeholder="Select source year"
+                  >
+                    <Label>Source Year</Label>
+                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                    <Select.Popover>
+                      <ListBox
+                        renderEmptyState={() => <EmptyState>No previous structures available</EmptyState>}
+                      >
+                        {sourceOptions.map((s) => (
+                          <ListBox.Item key={s.id} id={String(s.year)} textValue={String(s.year)}>
+                            {String(s.year)}
+                            <ListBox.ItemIndicator />
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                )}
+
                 <p className="text-xs text-muted-foreground">
-                  The structure starts as DRAFT. Configure its KPIs, then activate it as a whole.
+                  {mode === 'copy'
+                    ? 'The new structure starts as DRAFT with the previous year\'s aspects, indicators, and variable bindings copied over.'
+                    : 'The structure starts as DRAFT. Configure its KPIs, then activate it as a whole.'}
                 </p>
               </div>
             </Modal.Body>
@@ -614,7 +629,11 @@ function CreateStructureDialog({
               <Button variant="secondary" slot="close" onPress={onCancel} isDisabled={isPending}>
                 Cancel
               </Button>
-              <Button variant="primary" onPress={onConfirm} isDisabled={isPending}>
+              <Button
+                variant="primary"
+                onPress={() => onConfirm(mode === 'copy' ? { year, copyFromYear: copyFromYear ?? undefined } : { year })}
+                isDisabled={isPending || (mode === 'copy' && copyFromYear == null)}
+              >
                 {isPending ? 'Creating...' : 'Create Structure'}
               </Button>
             </Modal.Footer>

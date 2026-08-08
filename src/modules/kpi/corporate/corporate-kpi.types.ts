@@ -61,6 +61,11 @@ export type KpiStatus = 'DRAFT' | 'ACTIVE' | 'INACTIVE';
 
 export interface CreateStructureRequest {
   year: number;
+  /**
+   * Copy the source year's configuration (aspects, indicators, variable
+   * bindings) into the new DRAFT structure. Omit for an empty structure.
+   */
+  copyFromYear?: number;
 }
 
 export interface ChangeStructureStatusRequest {
