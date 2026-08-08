@@ -59,7 +59,7 @@ export function useRoleData(): UseRoleDataReturn {
         scope: currentFilters.scope,
         sortBy: currentFilters.sortBy,
         sortDirection: currentFilters.sortDirection,
-        page: currentFilters.page - 1, // Convert 1-based UI to 0-based BE
+        page: currentFilters.page,
         size: currentFilters.size,
       };
 

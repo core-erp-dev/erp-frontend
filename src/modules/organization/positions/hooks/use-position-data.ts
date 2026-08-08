@@ -68,7 +68,7 @@ export function usePositionData(): UsePositionDataReturn {
       const params: PositionFilterParams = {
         search: currentFilters.search || undefined,
         scope: currentFilters.scope,
-        page: currentFilters.page - 1, // 1-based UI → 0-based BE
+        page: currentFilters.page,
         size: currentFilters.size,
         sortBy: currentFilters.sortBy,
         sortDirection: currentFilters.sortDirection,

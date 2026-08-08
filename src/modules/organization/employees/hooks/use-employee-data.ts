@@ -66,7 +66,7 @@ export function useEmployeeData(): UseEmployeeDataReturn {
       const params: UserFilterParams = {
         search: currentFilters.search || undefined,
         scope: currentFilters.scope,
-        page: currentFilters.page - 1, // Convert 1-based UI to 0-based BE
+        page: currentFilters.page,
         size: currentFilters.size,
         sortBy: currentFilters.sortBy,
         sortDirection: currentFilters.sortDirection,
