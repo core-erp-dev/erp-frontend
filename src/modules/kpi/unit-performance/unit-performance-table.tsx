@@ -40,15 +40,17 @@ export const UnitPerformanceTable: React.FC<UnitPerformanceTableProps> = ({
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <Table aria-label="Unit Performance">
-        <Table.Header>
-          <Table.Column id="unit-code" isRowHeader>Unit Code</Table.Column>
-          <Table.Column id="unit-name">Unit Name</Table.Column>
-          <Table.Column id="weight">Weight</Table.Column>
-          <Table.Column id="realization">Realization</Table.Column>
-          <Table.Column id="performance">Performance</Table.Column>
-          {(onEdit || onDelete) && <Table.Column id="actions" className="text-center">{''}</Table.Column>}
-        </Table.Header>
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Unit Performance" className="min-w-[700px]">
+            <Table.Header>
+              <Table.Column id="unit-code" isRowHeader>Unit Code</Table.Column>
+              <Table.Column id="unit-name">Unit Name</Table.Column>
+              <Table.Column id="weight">Weight</Table.Column>
+              <Table.Column id="realization">Realization</Table.Column>
+              <Table.Column id="performance">Performance</Table.Column>
+              {(onEdit || onDelete) && <Table.Column id="actions" className="text-center">{''}</Table.Column>}
+            </Table.Header>
         <Table.Body
           renderEmptyState={() => {
             if (isLoading) {
@@ -119,8 +121,10 @@ export const UnitPerformanceTable: React.FC<UnitPerformanceTableProps> = ({
               )}
             </Table.Row>
           ))}
-        </Table.Body>
-      </Table>
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
+    </Table>
 
       {/* Total Weight summary — complete (100%) / incomplete (<100%) / defensive danger */}
       <div className="flex items-center gap-2 px-1">
