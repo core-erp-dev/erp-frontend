@@ -13,7 +13,7 @@ import KpiOverviewPage from '@/app/(main)/kpi/page';
 import KpiCorporatePage from '@/app/(main)/kpi/corporate/page';
 import KpiReportsPage from '@/app/(main)/kpi/reports/page';
 import KpiReportReviewsPage from '@/app/(main)/kpi/report-reviews/page';
-import { KPI_LABELS, KPI_DESCRIPTIONS } from '@/modules/kpi/constants';
+import { KPI_LABELS } from '@/modules/kpi/constants';
 
 // ── Mock usePermission — allow reading by default ──
 jest.mock('@/hooks/use-permission', () => {
@@ -52,6 +52,10 @@ jest.mock('@phosphor-icons/react', () => ({
   Warning: () => null,
   PencilSimple: () => null,
   Trash: () => null,
+  Briefcase: () => null,
+  Crown: () => null,
+  UploadSimple: () => null,
+  Wrench: () => null,
   FunnelSimple: () => null,
   SlidersHorizontal: () => null,
   CaretDown: () => null,
@@ -101,16 +105,14 @@ jest.mock('@/modules/kpi/corporate/use-corporate-kpi-data', () => ({
 // ── Mock P4 overview hook (page-shells renders KpiOverviewPage directly) ──
 jest.mock('@/modules/kpi/overview/use-overview-data', () => ({
   useOverviewData: () => ({
-    myActivities: [], myActivitiesError: null,
+    myPositions: [], myActivities: [], myActivitiesError: null,
     pendingRequests: [], pendingRequestsError: null,
     pendingReviews: [], pendingReviewsError: null,
     myReports: [], myReportsError: null,
-    corporateKpiTree: [], corporateKpiError: null,
-    activeIndicatorCount: 0,
+    corporateKpiYear: null, corporateKpiIndicatorCount: 0, corporateKpiError: null,
     isLoading: false,
   }),
   averageProgress: () => null,
-  targetReachedCount: () => 0,
 }));
 jest.mock('@/modules/kpi/report/report-table', () => ({ ReportTable: () => null }));
 jest.mock('@/modules/kpi/report/report-detail-modal', () => ({ ReportDetailModal: () => null }));
@@ -151,11 +153,11 @@ describe('KPI Overview page shell', () => {
   });
 
   it('renders canonical description', () => {
-    expect(screen.getByText(KPI_DESCRIPTIONS.overview)).toBeInTheDocument();
+    expect(allText()).toMatch(/Welcome back/);
   });
 
   it('renders overview sections rather than placeholder', () => {
-    expect(allText()).toMatch(/Activities|Pending Actions|Recent Reports|Corporate KPI/);
+    expect(allText()).toMatch(/My Activities|My Reports|Activity Approvals|Report Reviews|Corporate KPI|Quick Actions/);
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);
