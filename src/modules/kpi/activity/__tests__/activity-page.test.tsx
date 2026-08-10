@@ -13,16 +13,20 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ActivityWorkspace } from '@/modules/kpi/activity/activity-workspace';
+import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 
 type PermSet = Record<string, boolean>;
 
 let mockPermissions: PermSet = {};
 let mockPositions: { positionId: string; positionName: string; userPositionId: string; userId: string; isPrimary: boolean }[] = [];
 let mockPositionsError: string | null = null;
+let mockMyActivities: KpiActivityResponse[] = [];
+let mockSuperiorActivities: KpiActivityResponse[] = [];
 
 const fetchMy = jest.fn();
 const fetchAll = jest.fn();
 const fetchSubordinates = jest.fn();
+const fetchSuperior = jest.fn();
 const fetchRequests = jest.fn();
 
 jest.mock('@/hooks/use-permission', () => ({
@@ -40,10 +44,12 @@ jest.mock('@/hooks/use-permission', () => ({
 
 jest.mock('@/modules/kpi/activity/use-activity-data', () => ({
   useActivityData: () => ({
-    myActivities: [], isLoadingMy: false, myError: null, fetchMyActivities: fetchMy,
+    myActivities: mockMyActivities, isLoadingMy: false, myError: null, fetchMyActivities: fetchMy,
     allActivities: [], isLoadingAll: false, allError: null, fetchAllActivities: fetchAll,
     subordinatesActivities: [], isLoadingSubordinates: false, subordinatesError: null,
     subordinatesActingPositionId: null, fetchSubordinatesActivities: fetchSubordinates,
+    superiorActivities: mockSuperiorActivities, isLoadingSuperior: false, superiorError: null,
+    fetchSuperiorActivities: fetchSuperior,
     myRequests: [], isLoadingRequests: false, requestsError: null, fetchMyRequests: fetchRequests,
     fetchActivityDetail: jest.fn(), fetchRequestDetail: jest.fn(), isLoadingDetail: false,
     submitCreateRequest: jest.fn(), submitChangeRequest: jest.fn(),
@@ -99,11 +105,31 @@ jest.mock('@/modules/kpi/activity/request-table', () => ({ RequestTable: () => n
 jest.mock('@/modules/kpi/activity/kpi-activity-detail-modal', () => ({ KpiActivityDetailModal: () => null }));
 jest.mock('@/modules/kpi/admin/admin-create-activity-modal', () => ({ AdminCreateActivityModal: () => null }));
 jest.mock('@/modules/kpi/admin/admin-update-activity-modal', () => ({ AdminUpdateActivityModal: () => null }));
-jest.mock('@/modules/kpi/activity/activity-request-modal', () => ({ ActivityRequestModal: () => null }));
 jest.mock('@/modules/kpi/activity/activity-change-modal', () => ({ ActivityChangeModal: () => null }));
+
+/* Capturing ActivityRequestModal mock: asserts the child modal's parents and mode. */
+let requestModalProps: Record<string, unknown> = {};
+jest.mock('@/modules/kpi/activity/activity-request-modal', () => ({
+  ActivityRequestModal: (props: Record<string, unknown>) => {
+    requestModalProps = props;
+    return <div data-testid="activity-request-modal" />;
+  },
+}));
 
 function allText(): string {
   return document.body.textContent ?? '';
+}
+
+function activity(overrides: Partial<KpiActivityResponse> = {}): KpiActivityResponse {
+  return {
+    id: 'act-1', parentId: null, parentActivityName: null,
+    corporateKpiId: 'ck-1', corporateKpiName: 'CK', corporateKpiCode: 'C1',
+    assignedToUserPositionId: 'up-1', assignedToUserName: 'A', assignedToPositionName: 'P-A',
+    activityName: 'Activity', description: null, unit: '%', targetValue: 10,
+    periodYear: 2026, periodMonth: 1, status: 'ACTIVE', realizedValue: 0,
+    progressPercent: 0, version: 1, createdAt: '', updatedAt: '',
+    ...overrides,
+  };
 }
 
 describe('Activity workspace — My Activities view (scope=mine)', () => {
@@ -111,7 +137,10 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     mockPermissions = {};
     mockPositions = [];
     mockPositionsError = null;
+    mockMyActivities = [];
+    mockSuperiorActivities = [];
     tableProps = {};
+    requestModalProps = {};
     jest.clearAllMocks();
   });
 
@@ -201,6 +230,48 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     render(<ActivityWorkspace view="my-activities" />);
     expect(allText()).not.toMatch(/Access Denied/i);
   });
+
+  it('shows the self-child button disabled with an explanation without an acting position', () => {
+    render(<ActivityWorkspace view="my-activities" />);
+    const button = screen.getByRole('button', { name: /Request Child Activity/ });
+    expect(button).toBeDisabled();
+    expect(allText()).toMatch(/Select an acting position above/);
+  });
+
+  it('fetches scope=superior for the selected acting Position on My Activities', () => {
+    mockPositions = [
+      { positionId: 'pos-1', positionName: 'Manager', userPositionId: 'up-1', userId: 'u-1', isPrimary: true },
+    ];
+    render(<ActivityWorkspace view="my-activities" />);
+    fireEvent.click(screen.getByText('choose-pos-1'));
+    expect(fetchSuperior).toHaveBeenCalledWith('pos-1');
+  });
+
+  it('disables the self-child button with an explanation when the superior has no ACTIVE parent activities', () => {
+    mockPositions = [
+      { positionId: 'pos-1', positionName: 'Manager', userPositionId: 'up-1', userId: 'u-1', isPrimary: true },
+    ];
+    render(<ActivityWorkspace view="my-activities" />);
+    fireEvent.click(screen.getByText('choose-pos-1'));
+    const button = screen.getByRole('button', { name: /Request Child Activity/ });
+    expect(button).toBeDisabled();
+    expect(allText()).toMatch(/No eligible parent activities from your superior/);
+  });
+
+  it('enables the self-child button and opens the child modal with the superior ACTIVE parents', () => {
+    mockPositions = [
+      { positionId: 'pos-1', positionName: 'Manager', userPositionId: 'up-1', userId: 'u-1', isPrimary: true },
+    ];
+    mockSuperiorActivities = [activity({ id: 'boss-act', assignedToUserPositionId: 'up-boss', activityName: 'Boss Activity' })];
+    render(<ActivityWorkspace view="my-activities" />);
+    fireEvent.click(screen.getByText('choose-pos-1'));
+    const button = screen.getByRole('button', { name: /Request Child Activity/ });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(requestModalProps).toMatchObject({ isOpen: true, mode: 'child' });
+    expect(requestModalProps.parents).toEqual(mockSuperiorActivities);
+    expect(requestModalProps.initialParentId).toBeNull();
+  });
 });
 
 describe('Activity workspace — All Activities view (scope=all, read_all|manage)', () => {
@@ -236,12 +307,18 @@ describe('Activity workspace — Subordinate view (scope=subordinates + actingPo
   beforeEach(() => {
     mockPermissions = {};
     mockPositions = [];
+    mockPositionsError = null;
+    mockMyActivities = [];
+    mockSuperiorActivities = [];
+    tableProps = {};
+    requestModalProps = {};
     jest.clearAllMocks();
   });
 
   it('shows the acting-position prompt and does not fetch without a selection', () => {
     render(<ActivityWorkspace view="subordinates" />);
-    expect(screen.getByText(/Select an acting position above/i)).toBeInTheDocument();
+    // The empty-table prompt and the child-subordinate button explanation share the phrase.
+    expect(screen.getAllByText(/Select an acting position above/i).length).toBeGreaterThan(0);
     expect(fetchSubordinates).not.toHaveBeenCalled();
   });
 
@@ -252,6 +329,34 @@ describe('Activity workspace — Subordinate view (scope=subordinates + actingPo
     render(<ActivityWorkspace view="subordinates" />);
     fireEvent.click(screen.getByText('choose-pos-1'));
     expect(fetchSubordinates).toHaveBeenCalledWith('pos-9');
+  });
+
+  it('disables the child-subordinate button with an explanation when the acting Position has no ACTIVE parent activities', () => {
+    mockPositions = [
+      { positionId: 'pos-9', positionName: 'Manager', userPositionId: 'up-9', userId: 'u-1', isPrimary: true },
+    ];
+    render(<ActivityWorkspace view="subordinates" />);
+    fireEvent.click(screen.getByText('choose-pos-1'));
+    // ownActiveParents is fed by scope=mine — fetched together with subordinates.
+    expect(fetchMy).toHaveBeenCalled();
+    const button = screen.getByRole('button', { name: /Request Child Activity/ });
+    expect(button).toBeDisabled();
+    expect(allText()).toMatch(/No eligible parent activities from your position/);
+  });
+
+  it('enables the child-subordinate button and opens the child modal with the acting Position OWN ACTIVE parents', () => {
+    mockPositions = [
+      { positionId: 'pos-9', positionName: 'Manager', userPositionId: 'up-9', userId: 'u-1', isPrimary: true },
+    ];
+    mockMyActivities = [activity({ id: 'own-act', assignedToUserPositionId: 'up-9', activityName: 'Own Activity' })];
+    render(<ActivityWorkspace view="subordinates" />);
+    fireEvent.click(screen.getByText('choose-pos-1'));
+    const button = screen.getByRole('button', { name: /Request Child Activity/ });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(requestModalProps).toMatchObject({ isOpen: true, mode: 'child' });
+    expect(requestModalProps.parents).toEqual(mockMyActivities);
+    expect(requestModalProps.initialParentId).toBeNull();
   });
 });
 

@@ -80,6 +80,31 @@ describe('useActivityData — subordinates scope', () => {
   });
 });
 
+describe('useActivityData — superior scope (self-child parent source)', () => {
+  it('always sends scope=superior + actingPositionId and replaces data per Position', async () => {
+    mockedApi.get
+      .mockResolvedValueOnce({ data: wrap([activityA]) })
+      .mockResolvedValueOnce({ data: wrap([activityB]) });
+
+    const { result } = renderHook(() => useActivityData());
+
+    await act(async () => {
+      await result.current.fetchSuperiorActivities('pos-A');
+    });
+    expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/kpi-activities', {
+      params: { scope: 'superior', actingPositionId: 'pos-A' },
+    });
+    expect(result.current.superiorActivities.map((a) => a.id)).toEqual(['act-a']);
+
+    // Switching Position refetches and REPLACES the list — no mixing.
+    await act(async () => {
+      await result.current.fetchSuperiorActivities('pos-B');
+    });
+    expect(result.current.superiorActivities.map((a) => a.id)).toEqual(['act-b']);
+    expect(result.current.superiorActivities.some((a) => a.id === 'act-a')).toBe(false);
+  });
+});
+
 describe('useActivityData — mutation classification (T4/T5)', () => {
   it('submitCreateRequest success returns success without a conflict', async () => {
     mockedApi.post.mockResolvedValueOnce({ data: wrap(request) });

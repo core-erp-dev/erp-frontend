@@ -124,6 +124,10 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
     subordinatesError,
     fetchSubordinatesActivities,
 
+    superiorActivities,
+    isLoadingSuperior,
+    fetchSuperiorActivities,
+
     myRequests,
     isLoadingRequests,
     requestsError,
@@ -132,7 +136,12 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
 
   useEffect(() => {
     if (view === 'my-activities') void fetchMyActivities();
-  }, [view, fetchMyActivities]);
+    // My Activities self-child: ACTIVE activities of the acting Position's
+    // direct superior (scope=superior) feed the self-child parent selector.
+    if (view === 'my-activities' && selectedActingPosition) {
+      void fetchSuperiorActivities(selectedActingPosition.positionId);
+    }
+  }, [view, fetchMyActivities, selectedActingPosition, fetchSuperiorActivities]);
 
   useEffect(() => {
     if (view === 'all-activities') void fetchAllActivities();
@@ -142,12 +151,15 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
    * Subordinates: only after an explicit acting Position is selected, and the
    * call always sends `scope=subordinates&actingPositionId=<core_positions.id>`.
    * Switching Position refetches; the hook replaces the list (no mixing).
+   * `mine` is fetched too — the child-subordinate modal's parents are the
+   * acting Position's OWN ACTIVE activities (`ownActiveParents`).
    */
   useEffect(() => {
     if (view === 'subordinates' && selectedActingPosition) {
       void fetchSubordinatesActivities(selectedActingPosition.positionId);
+      void fetchMyActivities();
     }
-  }, [view, selectedActingPosition, fetchSubordinatesActivities]);
+  }, [view, selectedActingPosition, fetchSubordinatesActivities, fetchMyActivities]);
 
   useEffect(() => {
     if (view === 'my-requests') void fetchMyRequests();
@@ -193,7 +205,7 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
     }
   }, [view, myActivities, allActivities, subordinatesActivities, myRequests]);
 
-  const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingRequests;
+  const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingSuperior || isLoadingRequests;
 
   const handleRefresh = useCallback(() => {
     void Promise.allSettled([
@@ -203,8 +215,11 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
       selectedActingPosition
         ? fetchSubordinatesActivities(selectedActingPosition.positionId)
         : Promise.resolve(),
+      selectedActingPosition
+        ? fetchSuperiorActivities(selectedActingPosition.positionId)
+        : Promise.resolve(),
     ]);
-  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, selectedActingPosition]);
+  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities, selectedActingPosition]);
 
   /* ── Detail modal ── */
   const [detailModal, setDetailModal] = useState<{
@@ -232,8 +247,11 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
   const [requestModal, setRequestModal] = useState<{
     isOpen: boolean;
     mode: 'root' | 'child';
+    /** `own` = the acting Position's OWN ACTIVE activities; `superior` = the
+     *  direct superior's ACTIVE activities (self-child parent source). */
+    parentsSource: 'own' | 'superior';
     initialParentId?: string | null;
-  }>({ isOpen: false, mode: 'root', initialParentId: null });
+  }>({ isOpen: false, mode: 'root', parentsSource: 'own', initialParentId: null });
 
   /* ── T5 change modal (update | cancel) ── */
   const [changeModal, setChangeModal] = useState<{
@@ -266,8 +284,11 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
       selectedActingPosition
         ? fetchSubordinatesActivities(selectedActingPosition.positionId)
         : Promise.resolve(),
+      selectedActingPosition
+        ? fetchSuperiorActivities(selectedActingPosition.positionId)
+        : Promise.resolve(),
     ]);
-  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, selectedActingPosition]);
+  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities, selectedActingPosition]);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -311,12 +332,58 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
           {canRequestRoot && (
             <Button
               variant="primary"
-              onPress={() => setRequestModal({ isOpen: true, mode: 'root' })}
+              onPress={() => setRequestModal({ isOpen: true, mode: 'root', parentsSource: 'own' })}
               isDisabled={!selectedActingPosition}
             >
               <Plus className="h-4 w-4" />
               Request Activity
             </Button>
+          )}
+
+          {/* Self-child request (My Activities): parent = the direct superior's
+              ACTIVE activities (scope=superior); assignee = the actor (T3
+              self-child returns only the actor's own assignment). No permission. */}
+          {view === 'my-activities' && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onPress={() => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'superior', initialParentId: null })}
+                isDisabled={!selectedActingPosition || superiorActivities.length === 0}
+              >
+                <Plus className="h-4 w-4" />
+                Request Child Activity
+              </Button>
+              {(!selectedActingPosition || superiorActivities.length === 0) && (
+                <span className="max-w-44 text-xs text-muted-foreground">
+                  {selectedActingPosition
+                    ? 'No eligible parent activities from your superior.'
+                    : 'Select an acting position above.'}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Child-for-subordinate request (Subordinate): parent = the acting
+              Position's OWN ACTIVE activities; assignee = a direct subordinate
+              chosen from assignable-assignees. No permission. */}
+          {view === 'subordinates' && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onPress={() => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'own', initialParentId: null })}
+                isDisabled={!selectedActingPosition || ownActiveParents.length === 0}
+              >
+                <Plus className="h-4 w-4" />
+                Request Child Activity
+              </Button>
+              {(!selectedActingPosition || ownActiveParents.length === 0) && (
+                <span className="max-w-44 text-xs text-muted-foreground">
+                  {selectedActingPosition
+                    ? 'No eligible parent activities from your position.'
+                    : 'Select an acting position above.'}
+                </span>
+              )}
+            </div>
           )}
 
           {canAdminManage && (
@@ -373,7 +440,7 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
             onRetry={fetchMyActivities}
             ownAssignmentUserPositionId={selectedActingPosition?.userPositionId ?? null}
             onAddChild={selectedActingPosition
-              ? (item) => setRequestModal({ isOpen: true, mode: 'child', initialParentId: item.id })
+              ? (item) => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'own', initialParentId: item.id })
               : undefined}
             onRequestChange={selectedActingPosition
               ? (item, mode) => setChangeModal({ isOpen: true, mode, activity: item })
@@ -438,10 +505,10 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
       {selectedActingPosition && (
         <ActivityRequestModal
           isOpen={requestModal.isOpen}
-          onClose={() => setRequestModal({ isOpen: false, mode: 'root', initialParentId: null })}
+          onClose={() => setRequestModal({ isOpen: false, mode: 'root', parentsSource: 'own', initialParentId: null })}
           mode={requestModal.mode}
           actingPosition={selectedActingPosition}
-          parents={ownActiveParents}
+          parents={requestModal.parentsSource === 'superior' ? superiorActivities : ownActiveParents}
           initialParentId={requestModal.initialParentId}
           onSuccess={refetchAll}
           onConflict={refetchAll}

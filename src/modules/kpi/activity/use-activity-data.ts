@@ -61,6 +61,12 @@ export interface UseActivityDataReturn {
   subordinatesActingPositionId: string | null;
   fetchSubordinatesActivities: (actingPositionId: string) => Promise<void>;
 
+  /* Superior (scope=superior + actingPositionId) — self-child parent source */
+  superiorActivities: KpiActivityResponse[];
+  isLoadingSuperior: boolean;
+  superiorError: string | null;
+  fetchSuperiorActivities: (actingPositionId: string) => Promise<void>;
+
   /* My Requests (requests scope=mine) */
   myRequests: KpiActivityChangeRequestResponse[];
   isLoadingRequests: boolean;
@@ -90,6 +96,10 @@ export function useActivityData(): UseActivityDataReturn {
   const [isLoadingSubordinates, setIsLoadingSubordinates] = useState(false);
   const [subordinatesError, setSubordinatesError] = useState<string | null>(null);
   const [subordinatesActingPositionId, setSubordinatesActingPositionId] = useState<string | null>(null);
+
+  const [superiorActivities, setSuperiorActivities] = useState<KpiActivityResponse[]>([]);
+  const [isLoadingSuperior, setIsLoadingSuperior] = useState(false);
+  const [superiorError, setSuperiorError] = useState<string | null>(null);
 
   const [myRequests, setMyRequests] = useState<KpiActivityChangeRequestResponse[]>([]);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
@@ -157,6 +167,26 @@ export function useActivityData(): UseActivityDataReturn {
       toast.danger(msg);
     } finally {
       if (mountedRef.current) setIsLoadingSubordinates(false);
+    }
+  }, []);
+
+  /**
+   * Superior — ACTIVE activities of the acting Position's direct superior
+   * (self-child parent source). Always sends an explicit `scope=superior`
+   * plus the selected acting Position; switching Position replaces the list.
+   */
+  const fetchSuperiorActivities = useCallback(async (actingPositionId: string) => {
+    setIsLoadingSuperior(true);
+    setSuperiorError(null);
+    try {
+      const data = await activityV1Api.getActivities('superior', actingPositionId);
+      if (mountedRef.current) setSuperiorActivities(data);
+    } catch (err: unknown) {
+      const msg = extractActivityV1Error(err);
+      if (mountedRef.current) { setSuperiorError(msg); setSuperiorActivities([]); }
+      toast.danger(msg);
+    } finally {
+      if (mountedRef.current) setIsLoadingSuperior(false);
     }
   }, []);
 
@@ -235,6 +265,7 @@ export function useActivityData(): UseActivityDataReturn {
     allActivities, isLoadingAll, allError, fetchAllActivities,
     subordinatesActivities, isLoadingSubordinates, subordinatesError,
     subordinatesActingPositionId, fetchSubordinatesActivities,
+    superiorActivities, isLoadingSuperior, superiorError, fetchSuperiorActivities,
     myRequests, isLoadingRequests, requestsError, fetchMyRequests,
     fetchActivityDetail, fetchRequestDetail, isLoadingDetail,
     submitCreateRequest, submitChangeRequest,

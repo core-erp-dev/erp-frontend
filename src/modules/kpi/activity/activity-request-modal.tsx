@@ -105,7 +105,15 @@ export function ActivityRequestModal({
     setAssignees([]);
     activityV1Api
       .getAssignableAssignees(actingPosition.positionId, parentId)
-      .then(setAssignees)
+      .then((data) => {
+        setAssignees(data);
+        // Self-child context (parent = the actor's direct superior): T3 returns
+        // ONLY the actor's own assignment — preselect it so the request targets
+        // the actor without an explicit pick.
+        if (data.length === 1 && data[0].isSelf) {
+          setAssigneeId(data[0].userPositionId);
+        }
+      })
       .catch(() => setAssignees([]))
       .finally(() => setIsLoadingAssignees(false));
   }, [isOpen, mode, parentId, actingPosition.positionId]);
