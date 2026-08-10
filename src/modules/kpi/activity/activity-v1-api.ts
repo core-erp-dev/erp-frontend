@@ -26,8 +26,8 @@ import type {
 export const activityV1Api = {
   /**
    * T1 — scoped Activity list.
-   * `actingPositionId` is required only for `subordinates`; `mine`/`all` never
-   * send it and never guess a position.
+   * `actingPositionId` is required for `subordinates` and `superior`; `mine`/`all`
+   * never send it and never guess a position.
    */
   getActivities: async (
     scope: KpiActivityScope,
@@ -35,7 +35,7 @@ export const activityV1Api = {
   ): Promise<KpiActivityResponse[]> => {
     assertActivityScope(scope, 'GET /api/v1/kpi-activities');
     const response = await api.get<ApiResponse<KpiActivityResponse[]>>('/api/v1/kpi-activities', {
-      params: actingPositionId && scope === 'subordinates'
+      params: (scope === 'subordinates' || scope === 'superior') && actingPositionId
         ? { scope, actingPositionId }
         : { scope },
     });

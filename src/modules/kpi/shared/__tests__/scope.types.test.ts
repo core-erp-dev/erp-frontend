@@ -15,7 +15,7 @@ import {
 
 describe('scope model', () => {
   it('defines exactly the backend scopes', () => {
-    expect(ACTIVITY_SCOPES).toEqual(['mine', 'subordinates', 'all']);
+    expect(ACTIVITY_SCOPES).toEqual(['mine', 'subordinates', 'all', 'superior']);
     expect(REQUEST_SCOPES).toEqual(['mine', 'to-review']);
     expect(REPORT_SCOPES).toEqual(['mine', 'to-review']);
   });

@@ -6,11 +6,11 @@
  * missing/invalid scope). These types make a missing scope a compile error.
  */
 
-export type KpiActivityScope = 'mine' | 'subordinates' | 'all';
+export type KpiActivityScope = 'mine' | 'subordinates' | 'all' | 'superior';
 export type KpiRequestScope = 'mine' | 'to-review';
 export type KpiReportScope = 'mine' | 'to-review';
 
-export const ACTIVITY_SCOPES: readonly KpiActivityScope[] = ['mine', 'subordinates', 'all'] as const;
+export const ACTIVITY_SCOPES: readonly KpiActivityScope[] = ['mine', 'subordinates', 'all', 'superior'] as const;
 export const REQUEST_SCOPES: readonly KpiRequestScope[] = ['mine', 'to-review'] as const;
 export const REPORT_SCOPES: readonly KpiReportScope[] = ['mine', 'to-review'] as const;
 

@@ -50,6 +50,14 @@ describe('activityV1Api.getActivities (T1)', () => {
     });
   });
 
+  it('sends actingPositionId for scope=superior (self-child parent source)', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
+    await activityV1Api.getActivities('superior', 'pos-1');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', {
+      params: { scope: 'superior', actingPositionId: 'pos-1' },
+    });
+  });
+
   it('never sends actingPositionId for scope=all', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
     await activityV1Api.getActivities('all', 'pos-1');
