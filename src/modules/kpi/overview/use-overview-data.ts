@@ -5,6 +5,8 @@ import { activityV1Api } from '@/modules/kpi/activity/activity-v1-api';
 import { reportV1Api } from '@/modules/kpi/report/report-v1-api';
 import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
 import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
+import { getMyPositions } from '@/modules/kpi/shared/my-positions';
+import type { MyPositionResponse } from '@/modules/kpi/shared/my-positions';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
@@ -15,6 +17,9 @@ import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.typ
 /* ── Aggregate types returned by the hook ── */
 
 export interface OverviewData {
+  /* Identity — active position assignments (auth-only endpoint). */
+  myPositions: MyPositionResponse[];
+
   /* Activities group */
   myActivities: KpiActivityResponse[];
   myActivitiesError: string | null;
@@ -25,31 +30,18 @@ export interface OverviewData {
   pendingReviews: KpiReportResponse[];
   pendingReviewsError: string | null;
 
-  /* Recent Reports group */
+  /* Reports group */
   myReports: KpiReportResponse[];
   myReportsError: string | null;
 
-  /* Corporate KPI group */
-  corporateKpiTree: CorporateKpiNode[];
+  /* Corporate KPI group — the ACTIVE structure with the latest year.
+     `corporateKpiYear` is null when no ACTIVE structure exists. */
+  corporateKpiYear: number | null;
+  corporateKpiIndicatorCount: number;
   corporateKpiError: string | null;
-  /** Indicators belonging to ACTIVE yearly structures (node status no longer exists). */
-  activeIndicatorCount: number;
 
   /* Loading */
   isLoading: boolean;
-}
-
-function countActiveIndicators(nodes: CorporateKpiNode[], activeStructureIds: Set<string>): number {
-  let count = 0;
-  for (const node of nodes) {
-    if (node.nodeType === 'INDICATOR' && activeStructureIds.has(node.structureId)) {
-      count += 1;
-    }
-    if (node.children?.length) {
-      count += countActiveIndicators(node.children, activeStructureIds);
-    }
-  }
-  return count;
 }
 
 /**
@@ -62,11 +54,29 @@ export function averageProgress(activities: KpiActivityResponse[]): number | nul
   return Math.round(sum / activities.length);
 }
 
+/** Count INDICATOR nodes in a Corporate KPI tree (recursive). */
+export function countIndicatorNodes(nodes: CorporateKpiNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (node.nodeType === 'INDICATOR') {
+      count += 1;
+    }
+    if (node.children?.length) {
+      count += countIndicatorNodes(node.children);
+    }
+  }
+  return count;
+}
+
 /**
- * Target Reached count.
+ * Pick the ACTIVE structure with the latest year. A DRAFT/INACTIVE structure
+ * is never treated as an active KPI period — callers get null instead.
  */
-export function targetReachedCount(activities: KpiActivityResponse[]): number {
-  return activities.filter((a) => (a.progressPercent ?? 0) >= 100).length;
+export function pickActiveYear(structures: { year: number; status: string }[]): number | null {
+  const active = structures
+    .filter((s) => s.status === 'ACTIVE')
+    .sort((a, b) => b.year - a.year)[0];
+  return active ? active.year : null;
 }
 
 const EXTRACT_PATTERN = /^(\d{3})\s(.+)$/;
@@ -81,13 +91,14 @@ function extractOverviewError(error: unknown): string | null {
 
 /**
  * Dashboard data hook (V1 scopes, responsibility-based).
- *   - Activities  → GET /api/v1/kpi-activities?scope=mine
- *   - Pending     → GET /api/v1/kpi-activity-requests?scope=to-review (needs approve)
- *                 → GET /api/v1/kpi-reports?scope=to-review (stored reviewer)
- *   - Reports     → GET /api/v1/kpi-reports?scope=mine
- *   - Corporate KPI → unchanged (corporate_kpi:read)
- * No obsolete permission catalog gates any fetch; `to-review` requests are
- * gated on `kpi_activity:approve` (the scope itself requires it).
+ *   - Identity      → GET /api/v1/users/me/positions (auth-only)
+ *   - Activities    → GET /api/v1/kpi-activities?scope=mine
+ *   - Pending       → GET /api/v1/kpi-activity-requests?scope=to-review (needs approve)
+ *                   → GET /api/v1/kpi-reports?scope=to-review (stored reviewer)
+ *   - Reports       → GET /api/v1/kpi-reports?scope=mine
+ *   - Corporate KPI → GET /api/v1/corporate-kpi-structures, then
+ *                     GET /api/v1/corporate-kpis/tree?year=<ACTIVE latest year>
+ *                     (never assumes the current calendar year; DRAFT is not active)
  */
 export function useOverviewData(): OverviewData {
   const { hasPerm } = usePermission();
@@ -98,6 +109,7 @@ export function useOverviewData(): OverviewData {
 
   /* State */
   const [isLoading, setIsLoading] = useState(true);
+  const [myPositions, setMyPositions] = useState<MyPositionResponse[]>([]);
   const [myActivities, setMyActivities] = useState<KpiActivityResponse[]>([]);
   const [myActivitiesError, setMyActivitiesError] = useState<string | null>(null);
   const [pendingRequests, setPendingRequests] = useState<KpiActivityChangeRequestResponse[]>([]);
@@ -106,12 +118,21 @@ export function useOverviewData(): OverviewData {
   const [pendingReviewsError, setPendingReviewsError] = useState<string | null>(null);
   const [myReports, setMyReports] = useState<KpiReportResponse[]>([]);
   const [myReportsError, setMyReportsError] = useState<string | null>(null);
-  const [corporateKpiTree, setCorporateKpiTree] = useState<CorporateKpiNode[]>([]);
+  const [corporateKpiYear, setCorporateKpiYear] = useState<number | null>(null);
+  const [corporateKpiIndicatorCount, setCorporateKpiIndicatorCount] = useState(0);
   const [corporateKpiError, setCorporateKpiError] = useState<string | null>(null);
-  const [activeStructureIds, setActiveStructureIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const fetches: Promise<void>[] = [];
+
+    fetches.push((async () => {
+      try {
+        const positions = await getMyPositions();
+        if (mountedRef.current) { setMyPositions(positions); }
+      } catch {
+        if (mountedRef.current) { setMyPositions([]); }
+      }
+    })());
 
     fetches.push((async () => {
       try {
@@ -154,23 +175,30 @@ export function useOverviewData(): OverviewData {
     if (canReadCorporateKpi) {
       fetches.push((async () => {
         try {
-          const year = new Date().getFullYear();
-          const data = await corporateKpiApi.getTreeByYear(year);
-          if (mountedRef.current) { setCorporateKpiTree(data); setCorporateKpiError(null); }
-        } catch (err: unknown) {
-          if (mountedRef.current) { setCorporateKpiTree([]); setCorporateKpiError(extractOverviewError(err)); }
-        }
-      })());
-      fetches.push((async () => {
-        try {
+          // Resolve the ACTIVE structure first (latest year), then fetch its
+          // tree — the tree call depends on the resolved year.
           const structures = await corporateKpiStructuresApi.list();
-          if (mountedRef.current) {
-            setActiveStructureIds(new Set(
-              structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id),
-            ));
+          const activeYear = pickActiveYear(structures);
+          if (activeYear == null) {
+            if (mountedRef.current) {
+              setCorporateKpiYear(null);
+              setCorporateKpiIndicatorCount(0);
+              setCorporateKpiError(null);
+            }
+            return;
           }
-        } catch {
-          if (mountedRef.current) setActiveStructureIds(new Set());
+          const tree = await corporateKpiApi.getTreeByYear(activeYear);
+          if (mountedRef.current) {
+            setCorporateKpiYear(activeYear);
+            setCorporateKpiIndicatorCount(countIndicatorNodes(tree));
+            setCorporateKpiError(null);
+          }
+        } catch (err: unknown) {
+          if (mountedRef.current) {
+            setCorporateKpiYear(null);
+            setCorporateKpiIndicatorCount(0);
+            setCorporateKpiError(extractOverviewError(err));
+          }
         }
       })());
     }
@@ -193,14 +221,12 @@ export function useOverviewData(): OverviewData {
   }, []);
 
   return {
+    myPositions,
     myActivities, myActivitiesError,
     pendingRequests, pendingRequestsError,
     pendingReviews, pendingReviewsError,
     myReports, myReportsError,
-    corporateKpiTree, corporateKpiError,
-    activeIndicatorCount: countActiveIndicators(corporateKpiTree, activeStructureIds),
+    corporateKpiYear, corporateKpiIndicatorCount, corporateKpiError,
     isLoading,
   };
 }
-
-export { countActiveIndicators };
