@@ -95,8 +95,9 @@ export const KpiDashboardContent: React.FC = () => {
       ) : data == null || data.indicators.length === 0 ? (
         <Surface className="flex flex-col items-center gap-2 rounded-3xl p-12 text-center">
           <ChartBar className="h-10 w-10 text-muted-foreground" />
+          <h2 className="text-base font-semibold text-foreground">Belum ada data KPI</h2>
           <p className="text-sm text-muted-foreground">
-            Tidak ada data KPI untuk periode ini.
+            Data KPI untuk periode yang dipilih belum tersedia. Pilih tahun atau periode lain.
           </p>
         </Surface>
       ) : (

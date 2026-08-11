@@ -14,6 +14,20 @@ export function pickActiveYear(structures: { year: number; status: string }[]): 
   return active ? active.year : null;
 }
 
+/**
+ * Dynamic year options: the current year plus the four previous years
+ * (newest first). Never hardcoded — always derived from the running clock.
+ * With the current year 2026 the options are [2026, 2025, 2024, 2023, 2022].
+ */
+export function buildYearOptions(now: Date = new Date()): number[] {
+  const current = now.getFullYear();
+  return [current, current - 1, current - 2, current - 3, current - 4];
+}
+
+function isInYearRange(year: number, options: number[]): boolean {
+  return options.includes(year);
+}
+
 function parseMonthParam(value: string | null): number | null {
   if (value == null) return null;
   const n = Number(value);
@@ -47,37 +61,35 @@ export function useKpiDashboardData() {
   const fromParam = searchParams.get('fromMonth');
   const toParam = searchParams.get('toMonth');
 
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  // Dynamic five-year window (running year + four previous years) — never
+  // driven by the structures list.
+  const availableYears = useMemo(() => buildYearOptions(), []);
   const [activeYear, setActiveYear] = useState<number | null>(null);
   const [initialYearReady, setInitialYearReady] = useState(false);
   const [data, setData] = useState<KpiDashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const resolvedOnceRef = useRef(false);
+  const lastPeriodKeyRef = useRef<string | null>(null);
 
-  // Resolve the ACTIVE structure year once (for the year dropdown AND the
-  // no-URL default). The dashboard request waits for this resolution so the
-  // initial period never fetches twice (current-year guess + correction).
+  // Resolve the ACTIVE structure year once as the no-URL default. The year
+  // dropdown is always the dynamic five-year window; the structures list never
+  // drives it. Idempotent by nature (read + replace), so the StrictMode
+  // double-invoke in dev cannot deadlock `initialYearReady`.
   useEffect(() => {
-    if (resolvedOnceRef.current) return;
-    resolvedOnceRef.current = true;
     let cancelled = false;
     (async () => {
       try {
         const structures = await corporateKpiStructuresApi.list();
         if (cancelled) return;
-        setAvailableYears(
-          Array.from(new Set([new Date().getFullYear(), ...structures.map((s) => s.year)]))
-            .sort((a, b) => b - a),
-        );
         const active = pickActiveYear(structures);
         setActiveYear(active);
         if (yearParam == null && active != null) {
-          router.replace(`?year=${active}`);
+          // Preserve any month bounds already in the URL while normalizing the year.
+          const next = new URLSearchParams(searchParams.toString());
+          next.set('year', String(active));
+          router.replace(`?${next.toString()}`);
         }
-      } catch {
-        if (!cancelled) setAvailableYears([new Date().getFullYear()]);
       } finally {
         if (!cancelled) setInitialYearReady(true);
       }
@@ -87,9 +99,16 @@ export function useKpiDashboardData() {
   }, []);
 
   const period: DashboardPeriod = useMemo(() => {
-    const year = yearParam != null ? Number(yearParam) : activeYear ?? new Date().getFullYear();
+    const options = buildYearOptions();
+    const parsed = yearParam != null ? Number(yearParam) : NaN;
+    // The URL year is honored ONLY when it is an integer inside the dynamic
+    // five-year window; anything else falls back to the ACTIVE structure year
+    // (then the running year) and is normalized into the URL.
+    const year = Number.isInteger(parsed) && isInYearRange(parsed, options)
+      ? parsed
+      : activeYear ?? new Date().getFullYear();
     return {
-      year: Number.isInteger(year) ? year : new Date().getFullYear(),
+      year,
       fromMonth: parseMonthParam(fromParam),
       toMonth: parseMonthParam(toParam),
     };
@@ -121,16 +140,29 @@ export function useKpiDashboardData() {
     updateUrl({ year: period.year, fromMonth: null, toMonth: null });
   }, [period.year, updateUrl]);
 
+  // Same-period refresh: the URL does not change, so a tick forces the fetch
+  // effect to re-run while keeping the current data visible.
+  const [refreshTick, setRefreshTick] = useState(0);
   const refresh = useCallback(() => {
-    updateUrl({ ...period });
-  }, [period, updateUrl]);
+    setRefreshTick((tick) => tick + 1);
+  }, []);
 
-  // One dashboard request per VALID period change — the initial request waits
-  // for the ACTIVE-year resolution when the URL carries no year.
+  // One dashboard request per VALID period. The initial request waits for the
+  // ACTIVE-year resolution when the URL carries no year. When the PERIOD
+  // changes, the previous period's data is cleared immediately (never shown as
+  // if it belonged to the new period) and the loading state returns; a same-
+  // period refresh keeps the current data visible with the refetch indicator.
   useEffect(() => {
     if (!initialYearReady || validationError) return;
+    const periodKey = `${period.year}|${period.fromMonth ?? ''}|${period.toMonth ?? ''}`;
     let cancelled = false;
     const { year, fromMonth, toMonth } = period;
+    if (lastPeriodKeyRef.current != null && lastPeriodKeyRef.current !== periodKey) {
+      setData(null);
+      setError(null);
+      setIsLoading(true);
+    }
+    lastPeriodKeyRef.current = periodKey;
     setIsRefetching(true);
     kpiDashboardApi
       .getDashboard(year, fromMonth, toMonth)
@@ -150,7 +182,7 @@ export function useKpiDashboardData() {
         setIsRefetching(false);
       });
     return () => { cancelled = true; };
-  }, [period, validationError, initialYearReady]);
+  }, [period, validationError, initialYearReady, refreshTick]);
 
   return {
     period,

@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { useKpiDashboardData, pickActiveYear } from '../use-kpi-dashboard-data';
+import { useKpiDashboardData, pickActiveYear, buildYearOptions } from '../use-kpi-dashboard-data';
 import { kpiDashboardApi } from '../kpi-dashboard-api';
 import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import { buildDashboardResponse } from '../test-fixtures';
@@ -13,8 +13,18 @@ import { buildDashboardResponse } from '../test-fixtures';
 jest.mock('next/navigation', () => {
   let params = new URLSearchParams();
   let listener: (() => void) | null = null;
+  const notify = () => { listener?.(); };
   return {
-    useRouter: () => ({ replace: jest.fn(), push: jest.fn(), back: jest.fn(), refresh: jest.fn() }),
+    useRouter: () => ({
+      replace: (url: string) => {
+        const query = String(url).split('?')[1] ?? '';
+        params = new URLSearchParams(query);
+        notify();
+      },
+      push: jest.fn(),
+      back: jest.fn(),
+      refresh: jest.fn(),
+    }),
     useSearchParams: () => {
       React.useSyncExternalStore(
         (cb) => { listener = cb; return () => { if (listener === cb) listener = null; }; },
@@ -22,7 +32,7 @@ jest.mock('next/navigation', () => {
       );
       return params;
     },
-    __setParams: (next: URLSearchParams) => { params = next; listener?.(); },
+    __setParams: (next: URLSearchParams) => { params = next; notify(); },
   };
 });
 
@@ -110,6 +120,17 @@ describe('useKpiDashboardData', () => {
     expect(mockedDashboard.getDashboard).not.toHaveBeenCalled();
   });
 
+  it('ignores a URL year outside the five-year window and falls back to ACTIVE year', async () => {
+    nextNavigation.__setParams(new URLSearchParams('year=2020&fromMonth=1&toMonth=3'));
+    const { result } = renderHook(() => useKpiDashboardData());
+
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+
+    // 2020 is not inside the dynamic five-year window → the ACTIVE year 2025
+    // wins and the API is called with it.
+    expect(mockedDashboard.getDashboard).toHaveBeenCalledWith(2025, 1, 3);
+  });
+
   it('surfaces API errors as a friendly message', async () => {
     mockedDashboard.getDashboard.mockRejectedValueOnce({
       response: { status: 403, data: { message: 'Forbidden' } },
@@ -122,7 +143,7 @@ describe('useKpiDashboardData', () => {
     expect(result.current.data).toBeNull();
   });
 
-  it('keeps previous data while refetching after a period change (no hard reset)', async () => {
+  it('clears previous data and shows loading when the PERIOD changes (no stale UI)', async () => {
     nextNavigation.__setParams(new URLSearchParams('year=2026'));
     const { result } = renderHook(() => useKpiDashboardData());
     await waitFor(() => expect(result.current.data).not.toBeNull());
@@ -132,16 +153,63 @@ describe('useKpiDashboardData', () => {
     );
 
     act(() => {
-      nextNavigation.__setParams(new URLSearchParams('year=2026&fromMonth=1&toMonth=3'));
       result.current.setPeriod({ fromMonth: 1, toMonth: 3 });
     });
 
-    expect(result.current.isRefetching).toBe(true);
-    expect(result.current.data).not.toBeNull(); // stale data stays visible
+    // Old data must NOT be visible as if it belonged to the new period.
+    expect(result.current.data).toBeNull();
+    expect(result.current.isLoading).toBe(true);
 
-    await waitFor(() => expect(result.current.isRefetching).toBe(false));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.data?.summary.greenCount).toBe(9);
     expect(mockedDashboard.getDashboard).toHaveBeenCalledTimes(2);
+    expect(mockedDashboard.getDashboard).toHaveBeenLastCalledWith(2026, 1, 3);
+  });
+
+  it('keeps current data visible on a same-period refresh (refetch indicator only)', async () => {
+    nextNavigation.__setParams(new URLSearchParams('year=2026'));
+    const { result } = renderHook(() => useKpiDashboardData());
+    await waitFor(() => expect(result.current.data).not.toBeNull());
+
+    mockedDashboard.getDashboard.mockResolvedValueOnce(buildDashboardResponse());
+    act(() => {
+      result.current.refresh();
+    });
+
+    // Same period: the existing data stays, only the refetch indicator is on.
+    expect(result.current.data).not.toBeNull();
+    expect(result.current.isRefetching).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+
+    await waitFor(() => expect(result.current.isRefetching).toBe(false));
+    expect(mockedDashboard.getDashboard).toHaveBeenCalledTimes(2);
+  });
+
+  it('finishes an empty response as data, not endless loading', async () => {
+    mockedDashboard.getDashboard.mockResolvedValueOnce(buildDashboardResponse({ indicators: [] }));
+    nextNavigation.__setParams(new URLSearchParams('year=2020'));
+    const { result } = renderHook(() => useKpiDashboardData());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data).not.toBeNull();
+    expect(result.current.data?.indicators).toHaveLength(0);
+    expect(result.current.isRefetching).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+});
+
+describe('buildYearOptions', () => {
+  it('always contains the running year plus the four previous years, newest first', () => {
+    expect(buildYearOptions(new Date('2026-06-01T00:00:00'))).toEqual([2026, 2025, 2024, 2023, 2022]);
+    expect(buildYearOptions(new Date('2031-01-15T00:00:00'))).toEqual([2031, 2030, 2029, 2028, 2027]);
+  });
+
+  it('includes 2025 when the running year is 2026 (dynamic, not hardcoded)', () => {
+    const options = buildYearOptions(new Date('2026-06-01T00:00:00'));
+    expect(options).toContain(2025);
+    expect(options).toHaveLength(5);
+    expect(options[0]).toBeGreaterThan(options[4]);
   });
 });
 

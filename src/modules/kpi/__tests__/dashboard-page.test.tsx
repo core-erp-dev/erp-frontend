@@ -206,10 +206,37 @@ describe('DashboardPage content', () => {
     expect(screen.getByText('Coba Lagi')).toBeInTheDocument();
   });
 
-  it('shows an empty state when the period has no indicators', () => {
+  it('shows the empty state when the period has no indicators', () => {
     mockSuccess(buildDashboardResponse({ indicators: [] }));
     render(<DashboardPage />);
-    expect(screen.getByText('Tidak ada data KPI untuk periode ini.')).toBeInTheDocument();
+    expect(screen.getByText('Belum ada data KPI')).toBeInTheDocument();
+    expect(screen.getByText(/Data KPI untuk periode yang dipilih belum tersedia/)).toBeInTheDocument();
+    // No status cards / totals / unit chart / zero-filled list on the empty state.
+    expect(screen.queryByText('Ringkasan Nilai')).not.toBeInTheDocument();
+    expect(screen.queryByText('Performance per Unit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Daftar Indikator')).not.toBeInTheDocument();
+  });
+
+  it('recovers from data → empty → data without stale UI or reload', () => {
+    const { rerender } = render(<DashboardPage />);
+    expect(screen.getByText('ROE')).toBeInTheDocument();
+
+    // Switch to an empty period — previous data must disappear.
+    mockDashboard = {
+      ...mockDashboard,
+      data: buildDashboardResponse({ indicators: [] }),
+      period: { year: 2020, fromMonth: null, toMonth: null },
+      isLoading: false,
+    };
+    rerender(<DashboardPage />);
+    expect(screen.getByText('Belum ada data KPI')).toBeInTheDocument();
+    expect(screen.queryByText('ROE')).not.toBeInTheDocument();
+
+    // Back to a data period — the dashboard recovers normally.
+    mockSuccess(okDashboard);
+    rerender(<DashboardPage />);
+    expect(screen.queryByText('Belum ada data KPI')).not.toBeInTheDocument();
+    expect(screen.getByText('ROE')).toBeInTheDocument();
   });
 
   it('blocks a request when the period is invalid and explains why', () => {
