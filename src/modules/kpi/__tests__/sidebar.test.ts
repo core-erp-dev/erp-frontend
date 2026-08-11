@@ -128,6 +128,17 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     expect(kpiItems.some((i) => i.title === 'Dashboard')).toBe(false);
   });
 
+  it('Dashboard requires BOTH read permissions (compound capability)', () => {
+    const dashboard = navigationConfig.find((i) => i.title === 'Dashboard');
+    expect(dashboard?.capability).toBeDefined();
+    expect(dashboard?.capability?.(['corporate_kpi:read', 'unit_performance:read'])).toBe(true);
+    // A user with only ONE of the two permissions must NOT see the menu
+    // (the plain `permissions` filter is ANY-match, so a capability is used).
+    expect(dashboard?.capability?.(['corporate_kpi:read'])).toBe(false);
+    expect(dashboard?.capability?.(['unit_performance:read'])).toBe(false);
+    expect(dashboard?.capability?.(['corporate_kpi:manage'])).toBe(false);
+  });
+
   it('defines every canonical KPI route exactly once across parents and children', () => {
     const hrefs = kpiItems.flatMap((i) => [i.href, ...(i.children ?? []).map((c) => c.href)]);
     for (const route of [

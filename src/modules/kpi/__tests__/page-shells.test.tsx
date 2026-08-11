@@ -63,6 +63,12 @@ jest.mock('@phosphor-icons/react', () => ({
   ArrowsOutSimple: () => null,
   ArrowsInSimple: () => null,
   DownloadSimple: () => null,
+  ArrowLeft: () => null,
+  Info: () => null,
+  CircleNotch: () => null,
+  CheckCircle: () => null,
+  Prohibit: () => null,
+  CalendarBlank: () => null,
 }));
 
 jest.mock('@/lib/axios');
@@ -102,17 +108,30 @@ jest.mock('@/modules/kpi/corporate/use-corporate-kpi-data', () => ({
   }),
 }));
 
-// ── Mock P4 overview hook (page-shells renders KpiOverviewPage directly) ──
-jest.mock('@/modules/kpi/overview/use-overview-data', () => ({
-  useOverviewData: () => ({
-    myPositions: [], myActivities: [], myActivitiesError: null,
-    pendingRequests: [], pendingRequestsError: null,
-    pendingReviews: [], pendingReviewsError: null,
-    myReports: [], myReportsError: null,
-    corporateKpiYear: null, corporateKpiIndicatorCount: 0, corporateKpiError: null,
+// ── Mock dashboard hook (page-shells renders KpiOverviewPage directly) ──
+jest.mock('@/modules/kpi/dashboard/use-kpi-dashboard-data', () => ({
+  useKpiDashboardData: () => ({
+    period: { year: new Date().getFullYear(), fromMonth: null, toMonth: null },
+    setPeriod: jest.fn(),
+    resetToAnnual: jest.fn(),
+    refresh: jest.fn(),
+    data: {
+      indicators: [],
+      unitPerformance: [],
+      summary: {
+        redCount: 0, yellowCount: 0, greenCount: 0, notEvaluatedCount: 0,
+        totalIndicatorCount: 0, evaluatedIndicatorCount: 0,
+        totalActualScore: null, totalTargetScore: null,
+        totalActualResult: null, totalTargetResult: null,
+        status: 'NO_KPI_DATA',
+      },
+    },
     isLoading: false,
+    isRefetching: false,
+    error: null,
+    validationError: null,
+    availableYears: [new Date().getFullYear()],
   }),
-  averageProgress: () => null,
 }));
 jest.mock('@/modules/kpi/report/report-table', () => ({ ReportTable: () => null }));
 jest.mock('@/modules/kpi/report/report-detail-modal', () => ({ ReportDetailModal: () => null }));
@@ -149,15 +168,15 @@ describe('KPI Overview page shell', () => {
   });
 
   it('renders canonical title', () => {
-    expect(screen.getByRole('heading', { name: KPI_LABELS.overview })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Dashboard Kinerja' })).toBeInTheDocument();
   });
 
-  it('renders canonical description', () => {
-    expect(allText()).toMatch(/Welcome back/);
+  it('renders canonical description (period subtitle)', () => {
+    expect(allText()).toMatch(/Periode Tahun \d{4}/);
   });
 
-  it('renders overview sections rather than placeholder', () => {
-    expect(allText()).toMatch(/My Activities|My Reports|Activity Approvals|Report Reviews|Corporate KPI|Quick Actions/);
+  it('renders dashboard sections rather than placeholder', () => {
+    expect(allText()).toMatch(/Dashboard Kinerja|Periode Tahun|Tidak ada data KPI/);
   });
 
   it('does not use "Dashboard KPI"', assertNoDashboardKpi);

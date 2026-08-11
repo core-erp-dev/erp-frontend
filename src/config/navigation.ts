@@ -34,10 +34,16 @@ export interface SidebarItem {
  */
 export const navigationConfig: SidebarItem[] = [
   // ── DASHBOARD (outside the KPI group, at `/`) ──
+  // The dashboard payload combines Corporate KPI + Unit Performance data, so
+  // BOTH read permissions are required (backend hasAllAuthorities). The
+  // sidebar `permissions` filter is ANY-match, so a compound `capability`
+  // predicate is used instead.
   {
     title: 'Dashboard',
     href: '/',
     icon: ChartBar,
+    capability: (perms) =>
+      perms.includes(PERM.CORPORATE_KPI_READ) && perms.includes(PERM.UNIT_PERFORMANCE_READ),
   },
 
   // ── KPI ──
