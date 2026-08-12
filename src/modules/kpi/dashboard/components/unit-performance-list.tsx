@@ -20,11 +20,12 @@ function formatNumber(value: number | null): string {
 }
 
 /**
- * Performance per Unit — weighted CONTRIBUTIONS attributed from the corporate
- * evaluation (Σ indicator achievement × unit weight / 100), never per-unit
- * measurements. The bar width is a VISUAL clamp at 100% because the
- * contribution is uncapped; the label always shows the true value. Rows whose
- * weight matrix is incomplete show "—" (no fabricated numbers).
+ * Performance per Unit — weighted attribution of the corporate evaluation:
+ * performance = Σ weightedActual / Σ weightedTarget × 100 (the canonical
+ * actualResult/targetResult already carry the corporate indicator weight),
+ * realization = Σ weightedActual (the unit's weighted contribution). Never
+ * per-unit measurements; rows whose weight matrix is incomplete show "—"
+ * (no fabricated numbers).
  */
 export const UnitPerformanceList: React.FC<UnitPerformanceListProps> = ({ rows }) => {
   const sorted = [...rows].sort((a, b) => {
@@ -72,11 +73,11 @@ export const UnitPerformanceList: React.FC<UnitPerformanceListProps> = ({ rows }
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                   {row.status === 'MATRIX_INCOMPLETE' ? (
-                    <span className="text-danger">Matriks bobot belum lengkap</span>
+                    <span className="text-danger">Weight matrix incomplete</span>
                   ) : (
-                    <span>Kontribusi berbobot</span>
+                    <span>Unit performance</span>
                   )}
-                  <span>Realisasi berbobot {formatNumber(row.realization)}</span>
+                  <span>Weighted contribution {formatNumber(row.realization)}</span>
                 </div>
               </div>
             );
