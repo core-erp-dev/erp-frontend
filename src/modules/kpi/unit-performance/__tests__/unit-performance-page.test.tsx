@@ -1,15 +1,15 @@
 /**
- * Unit Performance page orchestration tests.
- * Covers permissions (read/manage), monthly/yearly fetch shape, row rendering
- * (NO_KPI_DATA renders "–" never 0), the total-weight line states
- * (100% complete / <100% incomplete), and Add Unit modal opening.
+ * Unit Performance page orchestration tests for the weight-matrix model:
+ * permission guards (read shows the matrix, manage adds Add Unit/delete),
+ * the matrix is fetched for the selected year, participant add/delete flows,
+ * and the full matrix save flow (dynamic columns, one atomic request).
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import UnitPerformancePage from '@/app/(main)/kpi/unit-performance/page';
 import { unitPerformanceApi } from '../unit-performance-api';
 import { organizationUnitApi } from '@/modules/organization/organization-units/services/organization-unit-api';
-import type { UnitPerformanceRow } from '../unit-performance.types';
+import type { UnitPerformanceWeightMatrix } from '../unit-performance.types';
 
 /* ── Mock dependencies ── */
 
@@ -37,26 +37,21 @@ jest.mock('@heroui/react', () => {
 
 /* ── Sample data ── */
 
-const okRow: UnitPerformanceRow = {
-  id: 'up-1',
-  organizationUnitId: 'ou-1',
-  unitCode: 'U1',
-  unitName: 'Umum & Administrasi',
-  weight: 30,
-  realization: 15,
-  performance: 50,
-  status: 'OK',
-};
-
-const noDataRow: UnitPerformanceRow = {
-  id: 'up-2',
-  organizationUnitId: 'ou-2',
-  unitCode: 'U2',
-  unitName: 'Hubungan Langganan',
-  weight: 70,
-  realization: null,
-  performance: null,
-  status: 'NO_KPI_DATA',
+const matrix: UnitPerformanceWeightMatrix = {
+  year: 2026,
+  units: [
+    { id: 'up-hub', organizationUnitId: 'ou-hub', unitCode: 'HUB', unitName: 'Hublang' },
+    { id: 'up-spi', organizationUnitId: 'ou-spi', unitCode: 'SPI', unitName: 'SPI' },
+  ],
+  indicators: [
+    { id: 'ind-1', code: 'IND_01', name: 'ROE', aspectName: 'ASP_01' },
+  ],
+  weights: [
+    { indicatorId: 'ind-1', unitPerformanceId: 'up-hub', weight: 60 },
+    { indicatorId: 'ind-1', unitPerformanceId: 'up-spi', weight: 40 },
+  ],
+  totals: { 'ind-1': 100 },
+  complete: true,
 };
 
 /* ── Setup ── */
@@ -64,109 +59,101 @@ const noDataRow: UnitPerformanceRow = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPermissions = {};
-  mockedApi.getPerformance.mockResolvedValue([]);
-  mockedOrgUnitApi.getUnitTree.mockResolvedValue({ tree: [] });
+  mockedApi.getWeightMatrix.mockResolvedValue(matrix);
+  mockedApi.saveWeightMatrix.mockResolvedValue(matrix);
+  mockedApi.create.mockResolvedValue({
+    id: 'up-new', organizationUnitId: 'ou-new', unitCode: 'NEW', unitName: 'New Unit',
+    weight: null, realization: null, performance: null, status: null,
+  });
+  mockedApi.delete.mockResolvedValue(undefined);
+  mockedOrgUnitApi.getUnitTree.mockResolvedValue([
+    { id: 'ou-new', parentId: null, parentName: null, unitCode: 'NEW', unitName: 'New Unit',
+      unitType: 'DEPARTMENT', children: [] },
+  ]);
 });
 
 describe('access control', () => {
   it('shows Access Denied without the read permission', async () => {
     render(<UnitPerformancePage />);
     expect(await screen.findByText('Access Denied')).toBeInTheDocument();
-    expect(mockedApi.getPerformance).not.toHaveBeenCalled();
+    expect(mockedApi.getWeightMatrix).not.toHaveBeenCalled();
   });
 
-  it('read-only user sees no Add Unit button', async () => {
+  it('read-only user sees the matrix but no Add Unit button', async () => {
     mockPermissions = { 'unit_performance:read': true };
     render(<UnitPerformancePage />);
-    await screen.findByText('Month');
+    expect(await screen.findByText('ROE')).toBeInTheDocument();
+    // unit name appears in the matrix header AND the participants list
+    expect(screen.getAllByText('Hublang').length).toBeGreaterThan(0);
     expect(screen.queryByText('Add Unit')).not.toBeInTheDocument();
   });
 
-  it('manage user sees the Add Unit button and it opens the modal', async () => {
+  it('manage user sees Add Unit and can open the org-unit-only modal', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
     fireEvent.click(await screen.findByText('Add Unit'));
-    expect(await screen.findByText('Weight (%)')).toBeInTheDocument();
+
+    expect(await screen.findByText('Organization Unit')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Select organization unit')).toBeInTheDocument();
+    // NO per-unit weight field anymore — weights live in the matrix
+    expect(screen.queryByText('Weight (%)')).not.toBeInTheDocument();
   });
 });
 
-describe('period selection', () => {
-  it('defaults to MONTHLY mode (year + current month)', () => {
+describe('matrix fetch', () => {
+  it('fetches the weight matrix for the current year by default', async () => {
     mockPermissions = { 'unit_performance:read': true };
     render(<UnitPerformancePage />);
-    expect(mockedApi.getPerformance).toHaveBeenCalledWith(
-      new Date().getFullYear(),
-      new Date().getMonth() + 1,
-    );
-  });
-
-  it('switching to Year refetches with year only (month omitted)', async () => {
-    mockPermissions = { 'unit_performance:read': true };
-    mockedApi.getPerformance.mockResolvedValue([okRow]);
-    render(<UnitPerformancePage />);
-    await screen.findByText('Month');
-
-    fireEvent.click(screen.getByText('Year', { selector: 'button' }));
-    await waitFor(() => expect(mockedApi.getPerformance).toHaveBeenLastCalledWith(
-      new Date().getFullYear(),
-      undefined,
-    ));
-  });
-
-  it('switching back to Month refetches with the month again', async () => {
-    mockPermissions = { 'unit_performance:read': true };
-    mockedApi.getPerformance.mockResolvedValue([okRow]);
-    render(<UnitPerformancePage />);
-    await screen.findByText('Month');
-
-    fireEvent.click(screen.getByText('Year', { selector: 'button' }));
-    await waitFor(() => expect(mockedApi.getPerformance).toHaveBeenLastCalledWith(
-      new Date().getFullYear(), undefined,
-    ));
-    fireEvent.click(screen.getByText('Month', { selector: 'button' }));
-    await waitFor(() => expect(mockedApi.getPerformance).toHaveBeenLastCalledWith(
-      new Date().getFullYear(), new Date().getMonth() + 1,
-    ));
+    await screen.findByText('ROE');
+    expect(mockedApi.getWeightMatrix).toHaveBeenCalledWith(new Date().getFullYear());
   });
 });
 
-describe('table rendering', () => {
-  it('renders weight/realization/performance and "–" for NO_KPI_DATA (never 0)', async () => {
-    mockPermissions = { 'unit_performance:read': true };
-    mockedApi.getPerformance.mockResolvedValue([okRow, noDataRow]);
+describe('matrix save', () => {
+  it('submits the whole matrix in one request from the page', async () => {
+    mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
+    await screen.findByText('ROE');
 
-    expect(await screen.findByText('Umum & Administrasi')).toBeInTheDocument();
-    expect(screen.getByText('30%')).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument();
-    expect(screen.getByText('50%')).toBeInTheDocument();
-    // NO_KPI_DATA row: realization and performance are "–" — never "0"
-    expect(screen.getAllByText('–').length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save Matrix' }));
+
+    await waitFor(() => expect(mockedApi.saveWeightMatrix).toHaveBeenCalledTimes(1));
+    expect(mockedApi.saveWeightMatrix).toHaveBeenCalledWith(new Date().getFullYear(), {
+      weights: [
+        { indicatorId: 'ind-1', unitPerformanceId: 'up-hub', weight: 60 },
+        { indicatorId: 'ind-1', unitPerformanceId: 'up-spi', weight: 40 },
+      ],
+    });
+  });
+});
+
+describe('participant registry', () => {
+  it('adds a unit through the org-unit-only modal (no weight field)', async () => {
+    mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
+    render(<UnitPerformancePage />);
+    fireEvent.click(await screen.findByText('Add Unit'));
+
+    // the modal is the org-unit picker only — the global weight field is gone
+    expect(await screen.findByPlaceholderText('Select organization unit')).toBeInTheDocument();
+    expect(screen.queryByText('Weight (%)')).not.toBeInTheDocument();
   });
 
-  it('shows the total line as complete at exactly 100%', async () => {
-    mockPermissions = { 'unit_performance:read': true };
-    mockedApi.getPerformance.mockResolvedValue([okRow, noDataRow]); // 30 + 70 = 100
+  it('removes a unit through the delete dialog', async () => {
+    mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
+    await screen.findByText('ROE');
 
-    // Wait for the rows to render — the total line computes from them.
-    expect(await screen.findByText('Umum & Administrasi')).toBeInTheDocument();
-    expect(screen.getByText('Total Weight:')).toBeInTheDocument();
-    expect(screen.getByText('complete')).toBeInTheDocument();
-  });
+    fireEvent.click(screen.getByLabelText('Remove Hublang'));
+    // getByText matches DIRECT text nodes only — the unit name lives in a
+    // nested span, so match on the full textContent of the dialog body
+    // (multiple ancestors share the text — presence is enough)
+    const dialogText = await screen.findAllByText((content, element) =>
+      element?.textContent?.includes('Remove') === true
+      && element?.textContent?.includes('HUB') === true
+      && element?.textContent?.includes('Hublang') === true);
+    expect(dialogText.length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
-  it('shows the total line as incomplete below 100%', async () => {
-    mockPermissions = { 'unit_performance:read': true };
-    mockedApi.getPerformance.mockResolvedValue([
-      { ...okRow, weight: 65 },
-      { ...noDataRow, weight: 30 },
-    ]); // 65 + 30 = 95
-    render(<UnitPerformancePage />);
-
-    expect(await screen.findByText('Umum & Administrasi')).toBeInTheDocument();
-    expect(await screen.findByText('incomplete — remaining 5%')).toBeInTheDocument();
-    expect(screen.queryByText('complete')).not.toBeInTheDocument();
+    await waitFor(() => expect(mockedApi.delete).toHaveBeenCalledWith('up-hub'));
   });
 });

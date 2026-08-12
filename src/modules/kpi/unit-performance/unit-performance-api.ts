@@ -4,10 +4,11 @@ import type { ApiResponse } from '@/types/api';
 import type {
   UnitPerformanceRow,
   CreateUnitPerformanceRequest,
-  UpdateUnitPerformanceRequest,
+  UnitPerformanceWeightMatrix,
+  UpdateUnitPerformanceWeightMatrixRequest,
 } from './unit-performance.types';
 
-/** Unit Performance API — computed list + weight CRUD. */
+/** Unit Performance API — computed contribution rows + participant registry + weight matrix. */
 export const unitPerformanceApi = {
   /**
    * @param month optional — omitted = yearly evaluation (mirrors the
@@ -29,16 +30,30 @@ export const unitPerformanceApi = {
     return response.data.data;
   },
 
-  update: async (id: string, payload: UpdateUnitPerformanceRequest): Promise<UnitPerformanceRow> => {
-    const response = await api.put<ApiResponse<UnitPerformanceRow>>(
-      `/api/v1/unit-performances/${id}`,
-      payload,
+  delete: async (id: string): Promise<void> => {
+    await api.patch(`/api/v1/unit-performances/${id}/delete`);
+  },
+
+  /** Central matrix contract — indicators, participating units, weights, totals, completeness. */
+  getWeightMatrix: async (year: number): Promise<UnitPerformanceWeightMatrix> => {
+    const response = await api.get<ApiResponse<UnitPerformanceWeightMatrix>>(
+      '/api/v1/unit-performances/weight-matrix',
+      { params: { year } },
     );
     return response.data.data;
   },
 
-  delete: async (id: string): Promise<void> => {
-    await api.patch(`/api/v1/unit-performances/${id}/delete`);
+  /** Atomically replaces the whole matrix for the year. */
+  saveWeightMatrix: async (
+    year: number,
+    payload: UpdateUnitPerformanceWeightMatrixRequest,
+  ): Promise<UnitPerformanceWeightMatrix> => {
+    const response = await api.put<ApiResponse<UnitPerformanceWeightMatrix>>(
+      '/api/v1/unit-performances/weight-matrix',
+      payload,
+      { params: { year } },
+    );
+    return response.data.data;
   },
 };
 

@@ -3,17 +3,17 @@
 import React from 'react';
 import { Modal, Button } from '@heroui/react';
 import { Trash } from '@phosphor-icons/react';
-import type { UnitPerformanceRow } from './unit-performance.types';
+import type { UnitPerformanceMatrixUnit } from './unit-performance.types';
 
 export interface UnitPerformanceDeleteDialogProps {
-  row: UnitPerformanceRow;
+  row: UnitPerformanceMatrixUnit;
   isOpen: boolean;
   isPending: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-/** Soft-delete confirmation for a unit performance configuration. */
+/** Soft-delete confirmation for a participating unit (registry removal). */
 export const UnitPerformanceDeleteDialog: React.FC<UnitPerformanceDeleteDialogProps> = ({
   row,
   isOpen,
@@ -38,9 +38,9 @@ export const UnitPerformanceDeleteDialog: React.FC<UnitPerformanceDeleteDialogPr
             <div className="flex items-start gap-3">
               <Trash className="mt-0.5 h-5 w-5 text-danger" />
               <p className="text-sm text-muted-foreground">
-                Remove <span className="font-medium text-foreground">{row.unitCode} — {row.unitName}</span>
-                {' '}(weight {row.weight}%) from Unit Performance? Its weight returns to the pool —
-                the total will drop below 100% until rebalanced.
+                Remove <span className="font-medium text-foreground">{row.unitCode} — {row.unitName}</span>{' '}
+                from Unit Performance? Its weights are removed from every indicator —
+                the matrix becomes incomplete until rebalanced.
               </p>
             </div>
           </Modal.Body>

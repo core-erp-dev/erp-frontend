@@ -1,30 +1,72 @@
 /**
  * Unit Performance module — shared types.
  *
- * Weight is stored/displayed in percentage points (30 = 30%). Realization and
- * Performance are computed backend-side from the existing Corporate KPI
- * calculation; null means NO_KPI_DATA (missing corporate data — never 0).
+ * Weight matrix model: `kpi_unit_performances` is the GLOBAL registry of
+ * participating units; the per-indicator weights live in the Indicator × Unit
+ * matrix. The legacy single `weight` field on a row is deprecated (nullable,
+ * never a calculation source). Realization and performance are weighted
+ * CONTRIBUTIONS attributed from the corporate KPI evaluation — null means
+ * NO_KPI_DATA (missing corporate data) or MATRIX_INCOMPLETE (config not ready);
+ * never a fabricated number.
  */
+
+export type UnitPerformanceRowStatus = 'OK' | 'NO_KPI_DATA' | 'MATRIX_INCOMPLETE' | null;
 
 export interface UnitPerformanceRow {
   id: string;
   organizationUnitId: string;
   unitCode: string;
   unitName: string;
-  weight: number;
-  /** (corporateActual / corporateTarget) × weight; null when NO_KPI_DATA. */
+  /** DEPRECATED legacy global weight — nullable, never used by the calculation. */
+  weight: number | null;
+  /** Weighted contribution of the corporate actual result: Σ actualResult × w / 100. */
   realization: number | null;
-  /** realization / weight × 100; null when NO_KPI_DATA. */
+  /** Weighted contribution percentage: Σ achievement × w / 100. */
   performance: number | null;
-  /** OK on computed rows; NO_KPI_DATA when corporate data is missing; null on mutation responses. */
-  status: 'OK' | 'NO_KPI_DATA' | null;
+  status: UnitPerformanceRowStatus;
 }
 
+/** Adding a participant only needs the org unit — no global weight anymore. */
 export interface CreateUnitPerformanceRequest {
   organizationUnitId: string;
+}
+
+// ── weight matrix (Indicator × Unit) ────────────────────────────────────
+
+export interface UnitPerformanceWeightEntry {
+  indicatorId: string;
+  unitPerformanceId: string;
+  /** Percentage points: 3 = 3%. */
   weight: number;
 }
 
-export interface UpdateUnitPerformanceRequest {
-  weight: number;
+export interface UnitPerformanceMatrixUnit {
+  /** The UnitPerformance configuration id. */
+  id: string;
+  organizationUnitId: string;
+  unitCode: string;
+  unitName: string;
+}
+
+export interface UnitPerformanceMatrixIndicator {
+  /** The CorporateKpi indicator id. */
+  id: string;
+  code: string;
+  name: string;
+  aspectName: string;
+}
+
+export interface UnitPerformanceWeightMatrix {
+  year: number;
+  units: UnitPerformanceMatrixUnit[];
+  indicators: UnitPerformanceMatrixIndicator[];
+  weights: UnitPerformanceWeightEntry[];
+  /** indicatorId → total of the unit weights. */
+  totals: Record<string, number>;
+  /** true only when every pair exists and every indicator totals exactly 100%. */
+  complete: boolean;
+}
+
+export interface UpdateUnitPerformanceWeightMatrixRequest {
+  weights: UnitPerformanceWeightEntry[];
 }

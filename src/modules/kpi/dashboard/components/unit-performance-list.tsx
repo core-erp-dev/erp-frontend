@@ -14,11 +14,17 @@ function formatPercent(value: number | null): string {
   return `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)}%`;
 }
 
+function formatNumber(value: number | null): string {
+  if (value == null) return '—';
+  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(value);
+}
+
 /**
- * Performance per Unit — ranked horizontal bars (descending performance,
- * nulls last). The bar width is a VISUAL clamp at 100% because the backend
- * performance is uncapped; the label always shows the true value. Values come
- * straight from `unitPerformance` — nothing is recomputed or invented here.
+ * Performance per Unit — weighted CONTRIBUTIONS attributed from the corporate
+ * evaluation (Σ indicator achievement × unit weight / 100), never per-unit
+ * measurements. The bar width is a VISUAL clamp at 100% because the
+ * contribution is uncapped; the label always shows the true value. Rows whose
+ * weight matrix is incomplete show "—" (no fabricated numbers).
  */
 export const UnitPerformanceList: React.FC<UnitPerformanceListProps> = ({ rows }) => {
   const sorted = [...rows].sort((a, b) => {
@@ -65,13 +71,12 @@ export const UnitPerformanceList: React.FC<UnitPerformanceListProps> = ({ rows }
                   />
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Bobot {row.weight}%</span>
-                  <span>
-                    Realisasi{' '}
-                    {row.realization != null
-                      ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(row.realization)
-                      : '—'}
-                  </span>
+                  {row.status === 'MATRIX_INCOMPLETE' ? (
+                    <span className="text-danger">Matriks bobot belum lengkap</span>
+                  ) : (
+                    <span>Kontribusi berbobot</span>
+                  )}
+                  <span>Realisasi berbobot {formatNumber(row.realization)}</span>
                 </div>
               </div>
             );
