@@ -121,7 +121,7 @@ export default function EmployeeDetailPage() {
             </Button>
             <Dropdown.Popover>
               <Dropdown.Menu onAction={(key) => {
-                if (key === 'edit') router.push(`/organization/employees/${id}/edit`);
+                if (key === 'edit') router.push(`/organization/employees/${id}/edit?from=detail`);
                 if (key === 'delete') setIsDeleteOpen(true);
               }}>
                 {hasPerm(PERM.USER_MANAGE) && (
@@ -206,10 +206,12 @@ export default function EmployeeDetailPage() {
 
       <Separator />
 
-      {/* Posisi — mirrors the Add/Update Employee position table */}
-      <div className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-foreground">Posisi</h2>
-        <Table>
+      {/* Posisi — mirrors the Add/Update Employee position table; hidden entirely
+          for positionless employees (no fake empty table) */}
+      {activePositions.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Posisi</h2>
+          <Table>
           <Table.ScrollContainer>
             <Table.Content aria-label="Posisi Pegawai" className="min-w-[500px]">
               <Table.Header>
@@ -257,7 +259,8 @@ export default function EmployeeDetailPage() {
             </Table.Content>
           </Table.ScrollContainer>
         </Table>
-      </div>
+        </div>
+      )}
 
       <DeleteConfirmDialog
         isOpen={isDeleteOpen}

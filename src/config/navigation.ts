@@ -124,7 +124,7 @@ export const navigationConfig: SidebarItem[] = [
     href: '/organization/employees',
     icon: Users,
     group: 'Organisasi',
-    permissions: ['user:read'],
+    permissions: ['user:read', 'user:manage'],
   },
   {
     title: 'Struktur Jabatan',

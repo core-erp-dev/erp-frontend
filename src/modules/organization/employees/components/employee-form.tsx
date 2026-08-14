@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { House, ArrowLeft, FloppyDisk, Trash, Tray } from '@phosphor-icons/react';
 import {
   Button,
@@ -23,15 +23,17 @@ import {
   Collection,
   EmptyState,
   Chip,
+  Checkbox,
   Table,
   Spinner,
 } from '@heroui/react';
 
+import { RoleMultiSelect } from '@/components/shared/role-multi-select';
 import { DateFieldPicker } from '@/components/shared/date-field-picker';
 import { GENDER, GENDER_LABEL } from '@/constants/gender';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
-import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption, UserPositionInput } from '../types';
+import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption } from '../types';
 import { useEmployeeFormData } from '../hooks/use-employee-form-data';
 import {
   addPendingPosition,
@@ -39,6 +41,12 @@ import {
   setPendingPrimary,
   type PendingPosition,
 } from '../utils/pending-position-utils';
+import {
+  buildPositionPayload,
+  buildRolesUpdate,
+  isPositionless as isPositionlessData,
+} from '../utils/employee-mode-utils';
+import { resolveEditReturn } from '../utils/employee-navigation-utils';
 
 const getFormSchema = (isEditMode: boolean) =>
   z.object({
@@ -69,32 +77,36 @@ interface EmployeeFormProps {
   onSuccess: (createdId?: string) => void;
 }
 
-/** A position in the pending assignment list (local until form submit). */
-
 export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEditMode = mode === 'edit';
-  const { hasPerm, hasAnyPerm } = usePermission();
-  // Correction #3: position fields appear only with user:manage AND
-  // (position:read OR position:manage). Omitted from the payload otherwise —
-  // backend leaves existing assignments untouched (update) / creates a
-  // positionless user (create).
-  const canAssignPositions = hasPerm(PERM.USER_MANAGE)
-    && hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE);
+  const { hasPerm } = usePermission();
+  // The whole position/role section renders under user:manage — backend now
+  // allows user:manage read-only lookups of positions and roles.
+  const canAssignPositions = hasPerm(PERM.USER_MANAGE);
 
   const {
     positions,
     isLoadingPositions,
+    roles,
+    isLoadingRoles,
     submitCreate,
     submitUpdate,
+    submitRoles,
   } = useEmployeeFormData();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // ── Mode: positioned (positions) vs positionless (direct roles) ──
+  // Lazy initial state — edit opens positionless when the employee has no
+  // active position.
+  const [isPositionless, setIsPositionless] = useState<boolean>(() =>
+    isEditMode ? isPositionlessData(initialData) : false,
+  );
+  const [roleError, setRoleError] = useState<string | null>(null);
+
   // ── Pending position assignments (local until submit) ──
-  // Lazy initial state: in edit mode the employee's active assignments are
-  // prefilled (initialData is available at mount — the edit page waits for the
-  // detail fetch before rendering the form). No setState-in-effect needed.
   const [pendingPositions, setPendingPositions] = useState<PendingPosition[]>(() => {
     if (isEditMode && initialData) {
       return (initialData.positions ?? [])
@@ -111,6 +123,14 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
   });
   const [assignSearch, setAssignSearch] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<PositionOption | null>(null);
+
+  // ── Selected direct roles (positionless mode) ──
+  const [selectedRoleIds, setSelectedRoleIds] = useState<number[]>(() => {
+    if (isEditMode && initialData) {
+      return (initialData.roles ?? []).map((r) => r.id);
+    }
+    return [];
+  });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(getFormSchema(isEditMode)),
@@ -136,9 +156,6 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       });
     }
   }, [initialData, form]);
-
-  // Prefill pending positions is handled by the lazy initializer above
-  // (edit mode) — no setState-in-effect.
 
   // ── Position selector helpers ──
   const flatPositionOptions = useMemo(() => {
@@ -170,7 +187,8 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
     [pendingPositions],
   );
 
-  // Add the selected position to the pending list (first added becomes primary)
+  // ── Role selector helpers (shared RoleMultiSelect) ──
+
   const handleAddPosition = useCallback(() => {
     if (!selectedPosition) return;
     setPendingPositions((prev) => addPendingPosition(prev, {
@@ -183,27 +201,41 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
     setAssignSearch('');
   }, [selectedPosition]);
 
-  // Remove a position from the pending list; promote the first remaining if the primary was removed
   const handleRemovePosition = useCallback((positionId: string) => {
     setPendingPositions((prev) => removePendingPosition(prev, positionId));
   }, []);
 
-  // Set a position as the new primary, replacing the previous primary selection
   const handleSetPrimary = useCallback((positionId: string) => {
     setPendingPositions((prev) => setPendingPrimary(prev, positionId));
   }, []);
 
-  // Back with explicit fallback for deep links / refresh (no valid internal history):
-  // edit mode falls back to the Detail page, create mode to the list.
+  // Deterministic back with explicit fallback for deep links / refresh:
+  // - edit opened from Detail (?from=detail) → back to the valid Detail entry;
+  // - deep link / unknown origin → replace to the related Detail (edit) or the
+  //   list (create) — never to Create or an arbitrary history entry.
   const goBack = useCallback(() => {
-    if (window.history.length <= 1) {
-      router.replace(initialData ? `/organization/employees/${initialData.id}` : '/organization/employees');
-    } else {
-      router.back();
+    if (isEditMode && initialData) {
+      const decision = resolveEditReturn(searchParams.get('from'), initialData.id);
+      if (decision === 'back') {
+        router.back();
+        return;
+      }
+      router.replace(decision.replace);
+      return;
     }
-  }, [router, initialData]);
+    router.replace('/organization/employees');
+  }, [router, initialData, isEditMode, searchParams]);
 
   const onSubmit = async (values: FormValues) => {
+    setRoleError(null);
+
+    // Positionless mode requires at least one direct role (backend rule for
+    // users without an active position).
+    if (isPositionless && selectedRoleIds.length === 0) {
+      setRoleError('Pegawai tanpa posisi wajib memiliki minimal satu Role');
+      return;
+    }
+
     setIsSubmitting(true);
     const base: UserUpdateRequest = {
       email: values.email, fullName: values.fullName,
@@ -213,29 +245,44 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       address: values.address || undefined,
     };
 
-    // Complete position-assignment set goes through the create/update contract.
-    // Omitted entirely when the user lacks position:assign_user (backend leaves positions untouched).
-    if (canAssignPositions) {
-      const positionInputs: UserPositionInput[] = pendingPositions.map((p) => ({
+    // Mutually exclusive payload: positioned → positions; positionless → [] + roles.
+    base.positions = buildPositionPayload(
+      isPositionless,
+      pendingPositions.map((p) => ({
         positionId: p.positionId,
         isPrimary: p.isPrimary,
         startDate: p.startDate,
-      }));
-      base.positions = positionInputs;
-    }
+      })),
+    );
+
+    const rolesUpdate = buildRolesUpdate(isPositionless, isEditMode, selectedRoleIds);
 
     if (isEditMode && initialData) {
       const ok = await submitUpdate(initialData.id, base);
+      if (!ok) { setIsSubmitting(false); return; }
+      // Apply the direct-role change (drop for positioned mode, replace for
+      // positionless mode). Backend resolves roles against the CURRENT active
+      // positions, so the positions update must land first.
+      if (rolesUpdate) {
+        const rolesOk = await submitRoles(initialData.id, rolesUpdate.roleIds);
+        if (!rolesOk) { setIsSubmitting(false); return; }
+      }
       setIsSubmitting(false);
-      if (ok) onSuccess();
+      onSuccess();
     } else {
       const created = await submitCreate({ ...base, password: values.password } as UserCreateRequest & { password: string });
+      if (!created) { setIsSubmitting(false); return; }
+      // Positionless create: assign direct roles right after creation.
+      if (rolesUpdate) {
+        const rolesOk = await submitRoles(created.id, rolesUpdate.roleIds);
+        if (!rolesOk) { setIsSubmitting(false); return; }
+      }
       setIsSubmitting(false);
-      if (created) onSuccess(created.id);
+      onSuccess(created.id);
     }
   };
 
-  if (isLoadingPositions) {
+  if (isLoadingPositions && !isPositionless) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Spinner size="md" />
@@ -350,138 +397,190 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           </div>
         </div>
 
-        {/* ── POSISI (penugasan massal) ── */}
+        {/* ── MODE: TANPA POSISI (checkbox) — separated from both sections ── */}
         {canAssignPositions && (
           <>
             <Separator />
-            <div className="flex flex-col gap-4">
-              <h2 className="text-sm font-semibold text-foreground">Posisi</h2>
-
-              {/* Pemilih posisi — HeroUI ComboBox + tombol Tambah inline */}
-              <div className="flex items-start gap-2">
-                <ComboBox
-                  aria-label="Cari posisi"
-                  className="flex-1"
-                  inputValue={assignSearch}
-                  onInputChange={setAssignSearch}
-                  onSelectionChange={(key) => {
-                    const pos = flatPositionOptions.find((p) => p.id === key);
-                    setSelectedPosition(pos ?? null);
-                  }}
-                  disabledKeys={[...selectedPositionIds]}
-                  isDisabled={isSubmitting}
-                  allowsEmptyCollection
-                  defaultFilter={(text, inputValue) => {
-                    if (!inputValue) return true;
-                    return text.toLowerCase().includes(inputValue.toLowerCase());
-                  }}
-                  menuTrigger="input"
-                >
-                  <ComboBox.InputGroup>
-                    <Input placeholder="Cari posisi" />
-                    <ComboBox.Trigger />
-                  </ComboBox.InputGroup>
-                  <ComboBox.Popover>
-                    <ListBox
-                      renderEmptyState={() => (
-                        <EmptyState>Posisi tidak ditemukan</EmptyState>
-                      )}
-                    >
-                      {/* NOTE: items must go through Collection/children — react-stately
-                          skips filtering entirely when items is passed to ComboBox
-                          ("No default filter if items are controlled"). */}
-                      <Collection items={flatPositionOptions}>
-                        {(pos: PositionOption) => (
-                          <ListBox.Item key={pos.id} id={pos.id} textValue={pos.positionName}>
-                            <div className="flex flex-col">
-                              <span className="font-medium text-foreground">{pos.positionName}</span>
-                              <span className="text-xs text-muted-foreground">{pos.positionCode}</span>
-                            </div>
-                            <ListBox.ItemIndicator />
-                          </ListBox.Item>
-                        )}
-                      </Collection>
-                    </ListBox>
-                  </ComboBox.Popover>
-                </ComboBox>
-                <Button
-                  variant="primary"
-                  onPress={handleAddPosition}
-                  isDisabled={!selectedPosition || isSubmitting}
-                >
-                  Tambah
-                </Button>
-              </div>
-
-              {/* Tabel posisi terpilih */}
-              <Table>
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Posisi Dipilih" className="min-w-[500px]">
-                    <Table.Header>
-                      <Table.Column id="name" isRowHeader>Nama Posisi</Table.Column>
-                      <Table.Column id="code">Kode</Table.Column>
-                      <Table.Column id="department">Departemen</Table.Column>
-                      <Table.Column id="primary">Utama</Table.Column>
-                      <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
-                    </Table.Header>
-                    <Table.Body
-                      renderEmptyState={() =>
-                        pendingPositions.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-                            <Tray className="h-8 w-8" />
-                            <span className="text-sm">Belum ada posisi ditambahkan</span>
-                          </div>
-                        ) : null
-                      }
-                    >
-                      {pendingPositions.map((p) => (
-                        <Table.Row key={p.positionId} id={p.positionId}>
-                          <Table.Cell className="font-medium text-foreground">
-                            {p.positionName}
-                          </Table.Cell>
-                          <Table.Cell className="text-muted-foreground">
-                            {p.positionCode}
-                          </Table.Cell>
-                          <Table.Cell className="text-muted-foreground">
-                            {departmentByPositionId.get(p.positionId) || '-'}
-                          </Table.Cell>
-                          <Table.Cell>
-                            {p.isPrimary ? (
-                              <Chip size="sm" variant="soft" color="accent">Utama</Chip>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                variant="tertiary"
-                                size="sm"
-                                isDisabled={p.isPrimary || isSubmitting}
-                                onPress={() => handleSetPrimary(p.positionId)}
-                              >
-                                Jadikan Utama
-                              </Button>
-                              <Button
-                                isIconOnly
-                                variant="danger-soft"
-                                size="sm"
-                                aria-label={`Hapus ${p.positionName}`}
-                                isDisabled={isSubmitting}
-                                onPress={() => handleRemovePosition(p.positionId)}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
-            </div>
+            <Checkbox
+              isSelected={isPositionless}
+              onChange={(selected) => {
+                setIsPositionless(selected);
+                setRoleError(null);
+              }}
+              isDisabled={isSubmitting}
+            >
+              {/* Default content slot is vertical (flex-col) — make the label
+                  sit on the same horizontal line, right of the checkbox. */}
+              <Checkbox.Content className="flex-row items-center gap-2">
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                Tanpa posisi
+              </Checkbox.Content>
+            </Checkbox>
+            <Separator />
           </>
+        )}
+
+        {/* ── POSISI (mode berposisi) ── */}
+        {canAssignPositions && !isPositionless && (
+          <div className="flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-foreground">Posisi</h2>
+
+            {/* Pemilih posisi — HeroUI ComboBox + tombol Tambah inline */}
+            <div className="flex items-start gap-2">
+              <ComboBox
+                aria-label="Cari posisi"
+                className="flex-1"
+                inputValue={assignSearch}
+                onInputChange={setAssignSearch}
+                onSelectionChange={(key) => {
+                  const pos = flatPositionOptions.find((p) => p.id === key);
+                  setSelectedPosition(pos ?? null);
+                }}
+                disabledKeys={[...selectedPositionIds]}
+                isDisabled={isSubmitting}
+                allowsEmptyCollection
+                defaultFilter={(text, inputValue) => {
+                  if (!inputValue) return true;
+                  return text.toLowerCase().includes(inputValue.toLowerCase());
+                }}
+                menuTrigger="input"
+              >
+                <ComboBox.InputGroup>
+                  <Input placeholder="Cari posisi" />
+                  <ComboBox.Trigger />
+                </ComboBox.InputGroup>
+                <ComboBox.Popover>
+                  <ListBox
+                    renderEmptyState={() => (
+                      <EmptyState>Posisi tidak ditemukan</EmptyState>
+                    )}
+                  >
+                    {/* NOTE: items must go through Collection/children — react-stately
+                        skips filtering entirely when items is passed to ComboBox
+                        ("No default filter if items are controlled"). */}
+                    <Collection items={flatPositionOptions}>
+                      {(pos: PositionOption) => (
+                        <ListBox.Item key={pos.id} id={pos.id} textValue={pos.positionName}>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">{pos.positionName}</span>
+                            <span className="text-xs text-muted-foreground">{pos.positionCode}</span>
+                          </div>
+                          <ListBox.ItemIndicator />
+                        </ListBox.Item>
+                      )}
+                    </Collection>
+                  </ListBox>
+                </ComboBox.Popover>
+              </ComboBox>
+              <Button
+                variant="primary"
+                onPress={handleAddPosition}
+                isDisabled={!selectedPosition || isSubmitting}
+              >
+                Tambah
+              </Button>
+            </div>
+
+            {/* Tabel posisi terpilih */}
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="Posisi Dipilih" className="min-w-[500px]">
+                  <Table.Header>
+                    <Table.Column id="name" isRowHeader>Nama Posisi</Table.Column>
+                    <Table.Column id="code">Kode</Table.Column>
+                    <Table.Column id="department">Departemen</Table.Column>
+                    <Table.Column id="primary">Utama</Table.Column>
+                    <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
+                  </Table.Header>
+                  <Table.Body
+                    renderEmptyState={() =>
+                      pendingPositions.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+                          <Tray className="h-8 w-8" />
+                          <span className="text-sm">Belum ada posisi ditambahkan</span>
+                        </div>
+                      ) : null
+                    }
+                  >
+                    {pendingPositions.map((p) => (
+                      <Table.Row key={p.positionId} id={p.positionId}>
+                        <Table.Cell className="font-medium text-foreground">
+                          {p.positionName}
+                        </Table.Cell>
+                        <Table.Cell className="text-muted-foreground">
+                          {p.positionCode}
+                        </Table.Cell>
+                        <Table.Cell className="text-muted-foreground">
+                          {departmentByPositionId.get(p.positionId) || '-'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {p.isPrimary ? (
+                            <Chip size="sm" variant="soft" color="accent">Utama</Chip>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="tertiary"
+                              size="sm"
+                              isDisabled={p.isPrimary || isSubmitting}
+                              onPress={() => handleSetPrimary(p.positionId)}
+                            >
+                              Jadikan Utama
+                            </Button>
+                            <Button
+                              isIconOnly
+                              variant="danger-soft"
+                              size="sm"
+                              aria-label={`Hapus ${p.positionName}`}
+                              isDisabled={isSubmitting}
+                              onPress={() => handleRemovePosition(p.positionId)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
+          </div>
+        )}
+
+        {/* ── ROLE (mode tanpa posisi) ── */}
+        {canAssignPositions && isPositionless && (
+          <div className="flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-foreground">Role</h2>
+
+            {isLoadingRoles ? (
+              <div className="flex h-16 items-center justify-center">
+                <Spinner size="sm" />
+              </div>
+            ) : (
+              /* Shared with Create/Edit Position (RoleMultiSelect) — Autocomplete
+                 multiselect + chips + search filter + empty state. */
+              <RoleMultiSelect
+                roles={roles}
+                value={selectedRoleIds}
+                onChange={(ids) => {
+                  setSelectedRoleIds(ids);
+                  setRoleError(null);
+                }}
+                label="Role"
+                placeholder="Cari Role"
+                isRequired
+                isInvalid={!!roleError}
+                isDisabled={isSubmitting}
+                errorMessage={roleError || undefined}
+              />
+            )}
+          </div>
         )}
 
         <div className="flex items-center justify-end gap-3">

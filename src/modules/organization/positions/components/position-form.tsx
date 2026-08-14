@@ -5,20 +5,19 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Key } from '@heroui/react';
 import { House, ArrowLeft, FloppyDisk } from '@phosphor-icons/react';
 import {
   Button, Form, TextField, Input, Label, FieldError,
   Breadcrumbs, BreadcrumbsItem, Separator,
   Select, ListBox, TextArea, Chip, ComboBox,
-  Autocomplete, EmptyState, SearchField, Tag, TagGroup, useFilter,
+  EmptyState, useFilter,
   Alert, Spinner,
 } from '@heroui/react';
 
+import { RoleMultiSelect } from '@/components/shared/role-multi-select';
 import { organizationApi } from '@/modules/organization/positions/services/organization-api';
 import { UNIT_TYPE_LABEL, UNIT_TYPE_CHIP_COLOR } from '@/modules/organization/organization-units/types';
 import type { PositionTree, PositionRequest, PositionUpdateRequest } from '@/modules/organization/positions/types';
-import type { RoleResponse } from '@/modules/organization/employees/types';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { usePositionFormData } from '../hooks/use-position-form-data';
@@ -115,16 +114,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
     return result;
   }, [allPositions, isEditMode, initialData]);
 
-  // Sort roles: selected first, then unselected
-  const roleIds = form.watch('roleIds');
-  const sortedRoles = useMemo(() => {
-    const selectedIds = new Set(roleIds);
-    return [...roles].sort((a, b) => {
-      const aSelected = selectedIds.has(a.id) ? 0 : 1;
-      const bSelected = selectedIds.has(b.id) ? 0 : 1;
-      return aSelected - bSelected;
-    });
-  }, [roles, roleIds]);
+  // Sort roles: selected first, then unselected (handled inside RoleMultiSelect)
 
   const handleSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
@@ -316,93 +306,25 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
               />
               </>
               )}
-              {/* Role — Autocomplete Multiselect + Search; requires role:manage */}
+              {/* Role — shared RoleMultiSelect (Autocomplete + chips); requires role:manage */}
               {canBindRoles && (
-              <>
               <Controller
                 control={form.control}
                 name="roleIds"
-                render={({ field, fieldState }) => {
-                  const selectedKeys = (field.value ?? []).map(String);
-                  const onRemoveTags = (keys: Set<Key>) => {
-                    const removeSet = new Set(Array.from(keys).map(Number));
-                    field.onChange((field.value ?? []).filter((id) => !removeSet.has(id)));
-                  };
-
-                  return (
-                    <Autocomplete
-                      className="w-full"
-                      placeholder="Select role"
-                      selectionMode="multiple"
-                      isRequired
-                      value={selectedKeys}
-                      onChange={(keys) => {
-                        const arr = Array.isArray(keys) ? keys : keys != null ? [keys] : [];
-                        field.onChange(arr.map(Number));
-                      }}
-                      isInvalid={!!fieldState.error}
-                      isDisabled={isSubmitting}
-                    >
-                      <Label>Role</Label>
-                      <Autocomplete.Trigger>
-                        <Autocomplete.Value>
-                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                          {({ defaultChildren, isPlaceholder, state }: any) => {
-                            if (isPlaceholder || state.selectedItems.length === 0) {
-                              return defaultChildren;
-                            }
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            const selectedItemsKeys = state.selectedItems.map((item: any) => item.key);
-                            return (
-                              <TagGroup size="sm" onRemove={onRemoveTags}>
-                                <TagGroup.List>
-                                  {selectedItemsKeys.map((key: Key) => {
-                                    const role = roles.find((r) => String(r.id) === String(key));
-                                    if (!role) return null;
-                                    return (
-                                      <Tag key={role.id} id={String(role.id)}>
-                                        {role.roleCode}
-                                      </Tag>
-                                    );
-                                  })}
-                                </TagGroup.List>
-                              </TagGroup>
-                            );
-                          }}
-                        </Autocomplete.Value>
-                        <Autocomplete.ClearButton />
-                        <Autocomplete.Indicator />
-                      </Autocomplete.Trigger>
-                      <FieldError>{fieldState.error?.message}</FieldError>
-                      <Autocomplete.Popover>
-                        <Autocomplete.Filter filter={contains}>
-                          <SearchField autoFocus name="search">
-                            <SearchField.Group>
-                              <SearchField.SearchIcon />
-                              <SearchField.Input placeholder="Search role..." />
-                              <SearchField.ClearButton />
-                            </SearchField.Group>
-                          </SearchField>
-                          <ListBox renderEmptyState={() => <EmptyState>No roles found</EmptyState>}>
-                            {sortedRoles.map((role) => (
-                              <ListBox.Item key={role.id} id={String(role.id)} textValue={role.roleCode}>
-                                <div className="flex flex-col">
-                                  <span>{role.roleCode}</span>
-                                  {role.description && (
-                                    <span className="text-xs text-muted-foreground">{role.description}</span>
-                                  )}
-                                </div>
-                                <ListBox.ItemIndicator />
-                              </ListBox.Item>
-                            ))}
-                          </ListBox>
-                        </Autocomplete.Filter>
-                      </Autocomplete.Popover>
-                    </Autocomplete>
-                  );
-                }}
+                render={({ field, fieldState }) => (
+                  <RoleMultiSelect
+                    roles={roles}
+                    value={field.value ?? []}
+                    onChange={field.onChange}
+                    label="Role"
+                    placeholder="Select role"
+                    isRequired
+                    isInvalid={!!fieldState.error}
+                    isDisabled={isSubmitting}
+                    errorMessage={fieldState.error?.message}
+                  />
+                )}
               />
-              </>
               )}
             </div>
           </div>

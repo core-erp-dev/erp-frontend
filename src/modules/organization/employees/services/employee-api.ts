@@ -76,8 +76,18 @@ export const employeeApi = {
   },
 
   getRoles: async (): Promise<RoleResponse[]> => {
-    const response = await api.get<ApiResponse<RoleResponse[]>>(
+    const response = await api.get<ApiResponse<{ content: RoleResponse[] }>>(
       '/api/v1/roles',
+      { params: { size: 100 } },
+    );
+    return response.data.data.content ?? [];
+  },
+
+  /** Replace a user's direct roles (user-scoped; requires user:manage or role:manage). */
+  updateUserRoles: async (id: string, roleIds: number[]): Promise<CoreUser> => {
+    const response = await api.put<ApiResponse<CoreUser>>(
+      `/api/v1/users/${id}/roles`,
+      { roleIds },
     );
     return response.data.data;
   },
