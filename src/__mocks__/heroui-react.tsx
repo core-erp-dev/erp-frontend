@@ -10,7 +10,7 @@ const NON_DOM_PROPS = new Set([
   'isPending', 'variant', 'size', 'isRequired', 'isInvalid', 'isReadOnly',
   'isDismissable', 'placement', 'slot', 'onOpenChange', 'allowsEmptyCollection',
   'defaultFilter', 'isLoading', 'validationBehavior', 'isHeaderSticky',
-  'classNames', 'isOpen', 'isDisabled',
+  'classNames', 'isOpen', 'isDisabled', 'isRowHeader', 'isActive',
 ]);
 
 function stripNonDomProps(props: Record<string, unknown>): Record<string, unknown> {
@@ -57,6 +57,27 @@ export const Label = mk('Label');
 export const Input = mk('Input');
 export const Separator = mk('Separator');
 export const Chip = mk('Chip');
+
+/* ── Tooltip compound ── */
+
+export const Tooltip = Object.assign(mk('Tooltip'), {
+  Trigger: mk('Tooltip.Trigger'),
+  Content: mk('Tooltip.Content'),
+  Arrow: mk('Tooltip.Arrow'),
+});
+
+/* ── Pagination compound ── */
+
+export const Pagination = Object.assign(mk('Pagination'), {
+  Summary: mk('Pagination.Summary'),
+  Content: mk('Pagination.Content'),
+  Item: mk('Pagination.Item'),
+  Previous: mk('Pagination.Previous'),
+  PreviousIcon: mk('Pagination.PreviousIcon'),
+  Next: mk('Pagination.Next'),
+  NextIcon: mk('Pagination.NextIcon'),
+  Link: mk('Pagination.Link'),
+});
 export const Checkbox = mk('Checkbox');
 export const TextArea = mk('TextArea');
 export const Breadcrumbs = mk('Breadcrumbs');

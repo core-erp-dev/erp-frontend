@@ -7,6 +7,8 @@ import {
   Table,
   Spinner,
   Button,
+  Chip,
+  Tooltip,
   Pagination,
 } from '@heroui/react';
 import { usePermission } from '@/hooks/use-permission';
@@ -16,15 +18,29 @@ import { CoreUser, PaginatedResponse } from '../types';
 interface DataTableProps {
   users: CoreUser[];
   isLoading?: boolean;
+  error?: string | null;
   pagination: PaginatedResponse<CoreUser> | null;
   onPageChange: (page: number) => void;
   onDelete: (user: CoreUser) => void;
   onRestore: (user: CoreUser) => void;
 }
 
+/** Active positions for a user, plus the primary/other split (driven by the
+ * `isPrimary` marker from the API — never by array order). */
+function splitPositions(emp: CoreUser) {
+  const activePositions = (emp.positions ?? []).filter((p) => p.isActive);
+  if (activePositions.length === 0) return { primary: null, others: [] };
+  const primary = activePositions.find((p) => p.isPrimary) ?? null;
+  return {
+    primary,
+    others: activePositions.filter((p) => !p.isPrimary),
+  };
+}
+
 export const DataTable: React.FC<DataTableProps> = ({
   users,
   isLoading = false,
+  error = null,
   pagination,
   onPageChange,
   onDelete,
@@ -50,30 +66,42 @@ export const DataTable: React.FC<DataTableProps> = ({
   return (
     <Table>
       <Table.ScrollContainer>
-        <Table.Content aria-label="Employee Data" className="min-w-[700px]">
+        <Table.Content aria-label="Data Pegawai" className="min-w-[700px]">
           <Table.Header>
             <Table.Column id="nip" isRowHeader>NIP</Table.Column>
-            <Table.Column id="nama">Name</Table.Column>
+            <Table.Column id="nama">Nama</Table.Column>
             <Table.Column id="email">Email</Table.Column>
-            <Table.Column id="jabatan">Position</Table.Column>
-            <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
+            <Table.Column id="jabatan">Jabatan</Table.Column>
+            <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
           </Table.Header>
           <Table.Body
-            renderEmptyState={() =>
-              isLoading ? (
-                <div className="flex h-24 items-center justify-center">
-                  <Spinner size="md" />
-                </div>
-              ) : (
+            renderEmptyState={() => {
+              if (isLoading) {
+                return (
+                  <div className="flex h-24 items-center justify-center">
+                    <Spinner size="md" />
+                  </div>
+                );
+              }
+              if (error) {
+                return (
+                  <div className="flex flex-col items-center justify-center gap-2 py-12 text-danger">
+                    <span className="text-sm">{error}</span>
+                  </div>
+                );
+              }
+              return (
                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                   <Tray className="h-8 w-8" />
-                  <span className="text-sm">No data available</span>
+                  <span className="text-sm">Tidak ada data</span>
                 </div>
-              )
-            }
+              );
+            }}
           >
-            {users.map((emp) => {
+            {isLoading ? [] : users.map((emp) => {
               const isDeleted = !!emp.deletedAt;
+              const { primary, others } = splitPositions(emp);
+              const primaryName = primary?.positionName ?? (emp.positions ?? []).find((p) => p.isActive)?.positionName ?? null;
               return (
                 <Table.Row
                   key={emp.id}
@@ -88,7 +116,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Copy NIP ${emp.nip}`}
+                          aria-label={`Salin NIP ${emp.nip}`}
                           onPress={() => handleCopyNip(emp.id, emp.nip!)}
                         >
                           {copiedId === emp.id ? (
@@ -118,32 +146,28 @@ export const DataTable: React.FC<DataTableProps> = ({
                     {emp.email}
                   </Table.Cell>
                   <Table.Cell className={isDeleted ? 'text-gray-400' : ''}>
-                    {(() => {
-                      const activePositions = (emp.positions ?? []).filter(p => p.isActive);
-                      if (activePositions.length === 0) return '-';
-                      const primary = activePositions.find(p => p.isPrimary);
-                      const others = activePositions.filter(p => !p.isPrimary);
-                      return (
-                        <div className="flex items-center gap-1.5">
-                          {primary && (
-                            <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                              {primary.positionName}
-                            </span>
-                          )}
-                          {!primary && activePositions.length > 0 && (
-                            <span className="text-sm text-foreground">{activePositions[0].positionName}</span>
-                          )}
-                          {others.length > 0 && (
-                            <span
-                              className="inline-flex cursor-help items-center rounded-full bg-surface-secondary px-1.5 py-0.5 text-xs text-muted-foreground"
-                              title={others.map(p => `${p.positionName} (Secondary)`).join('\n')}
-                            >
-                              +{others.length}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {primaryName === null ? (
+                      '-'
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        {/* Primary position — plain text, aligned with the cell content */}
+                        <span className="text-foreground">{primaryName}</span>
+                        {others.length > 0 && (
+                          <Tooltip delay={0}>
+                            <Tooltip.Trigger aria-label={`${others.length} posisi tambahan`}>
+                              <Chip size="sm" variant="soft">{`+${others.length}`}</Chip>
+                            </Tooltip.Trigger>
+                            <Tooltip.Content placement="right">
+                              <div className="flex flex-col gap-0.5 text-xs">
+                                {others.map((p) => (
+                                  <span key={p.id}>{p.positionName}</span>
+                                ))}
+                              </div>
+                            </Tooltip.Content>
+                          </Tooltip>
+                        )}
+                      </div>
+                    )}
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
@@ -154,7 +178,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                             isIconOnly
                             variant="tertiary"
                             size="sm"
-                            aria-label={`Restore ${emp.fullName}`}
+                            aria-label={`Pulihkan ${emp.fullName}`}
                             onPress={() => onRestore(emp)}
                           >
                             <ArrowCounterClockwise className="h-4 w-4" />
@@ -168,7 +192,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               isIconOnly
                               variant="tertiary"
                               size="sm"
-                              aria-label={`View ${emp.fullName}`}
+                              aria-label={`Lihat ${emp.fullName}`}
                               onPress={() => {}}
                             >
                               <Link href={`/organization/employees/${emp.id}`}>
@@ -194,7 +218,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                               isIconOnly
                               variant="danger-soft"
                               size="sm"
-                              aria-label={`Delete ${emp.fullName}`}
+                              aria-label={`Hapus ${emp.fullName}`}
                               onPress={() => onDelete(emp)}
                             >
                               <Trash className="h-4 w-4" />
@@ -215,7 +239,7 @@ export const DataTable: React.FC<DataTableProps> = ({
         <Table.Footer>
           <Pagination size="sm">
             <Pagination.Summary>
-              {startItem} to {endItem} of {totalItems} results
+              {startItem}–{endItem} dari {totalItems} data
             </Pagination.Summary>
             <Pagination.Content>
               <Pagination.Item>
@@ -224,7 +248,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   onPress={() => onPageChange(currentPage - 1)}
                 >
                   <Pagination.PreviousIcon />
-                  Previous
+                  Sebelumnya
                 </Pagination.Previous>
               </Pagination.Item>
               {pages.map((p) => (
@@ -242,7 +266,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   isDisabled={currentPage === totalPages}
                   onPress={() => onPageChange(currentPage + 1)}
                 >
-                  Next
+                  Berikutnya
                   <Pagination.NextIcon />
                 </Pagination.Next>
               </Pagination.Item>
