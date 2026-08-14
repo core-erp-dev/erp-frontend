@@ -8,6 +8,7 @@ import { Button, TextField, Input, Label, Chip, Breadcrumbs, BreadcrumbsItem, Sp
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 import { getGenderLabel } from '@/constants/gender';
 import { formatDate } from '@/components/shared/detail-field';
 import { useEmployeeDetail } from '@/modules/organization/employees/hooks/use-employee-detail';
@@ -15,7 +16,16 @@ import { employeeApi } from '@/modules/organization/employees/services/employee-
 import type { PositionOption } from '@/modules/organization/employees/types';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 
-export default function EmployeeDetailPage() {
+export default function EmployeeDetailRoute() {
+  const { hasAnyPerm } = usePermission();
+  // Guard BEFORE any data request: users without user:read|manage never fetch.
+  if (!hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE)) {
+    return <ForbiddenAccess />;
+  }
+  return <EmployeeDetailPage />;
+}
+
+function EmployeeDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;

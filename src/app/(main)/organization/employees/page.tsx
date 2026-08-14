@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useState, useCallback, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X, Trash, CheckCircle } from '@phosphor-icons/react';
 import {
   Alert,
@@ -18,6 +18,7 @@ import type { Selection } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 import { DataTable } from '@/modules/organization/employees/components/data-table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { useEmployeeData, type SortField, type SortDir, type ScopeFilter } from '@/modules/organization/employees/hooks/use-employee-data';
@@ -316,7 +317,25 @@ function EmployeeListPage() {
 export default function EmployeePage() {
   return (
     <Suspense fallback={null}>
-      <EmployeeListPage />
+      <EmployeeListGuard />
     </Suspense>
   );
+}
+
+/**
+ * Route guard: list/detail require user:read OR user:manage; the deleted-scope
+ * (Data Terhapus) mode additionally requires user:manage. Forbidden is shown
+ * BEFORE any data request — users without permission never trigger a fetch.
+ */
+function EmployeeListGuard() {
+  const { hasPerm, hasAnyPerm } = usePermission();
+  const searchParams = useSearchParams();
+  const canRead = hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE);
+  const scopeDeleted = searchParams.get('scope') === 'deleted';
+
+  if (!canRead || (scopeDeleted && !hasPerm(PERM.USER_MANAGE))) {
+    return <ForbiddenAccess />;
+  }
+
+  return <EmployeeListPage />;
 }

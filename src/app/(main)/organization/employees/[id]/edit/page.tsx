@@ -1,10 +1,10 @@
 'use client';
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Spinner, Alert, Button } from '@heroui/react';
-import { ArrowLeft } from '@phosphor-icons/react';
+import { Spinner, Alert } from '@heroui/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 import { useEmployeeDetail } from '@/modules/organization/employees/hooks/use-employee-detail';
 import { EmployeeForm } from '@/modules/organization/employees/components/employee-form';
 import { resolveEditReturn } from '@/modules/organization/employees/utils/employee-navigation-utils';
@@ -19,20 +19,7 @@ export default function EditEmployeePage() {
   const { employee, isLoading, error } = useEmployeeDetail(id);
 
   if (!hasPerm(PERM.USER_MANAGE)) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Akses Ditolak</Alert.Title>
-          </Alert.Content>
-        </Alert>
-        <Button variant="secondary" onPress={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-          Kembali
-        </Button>
-      </div>
-    );
+    return <ForbiddenAccess />;
   }
 
   if (isLoading) {
