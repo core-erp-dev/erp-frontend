@@ -45,7 +45,7 @@ export function DateFieldPicker({
         </DateField.Group>
         <FieldError>{errorMessage}</FieldError>
         <DatePicker.Popover>
-          <Calendar aria-label={`Select ${label.toLowerCase()}`}>
+          <Calendar aria-label={`Pilih ${label.toLowerCase()}`}>
             <Calendar.Header>
               <Calendar.YearPickerTrigger>
                 <Calendar.YearPickerTriggerHeading />

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Eye, Tray } from '@phosphor-icons/react';
+import Link from 'next/link';
+import { House, ArrowLeft, DotsThreeVertical, PencilSimple, Trash, Tray } from '@phosphor-icons/react';
 import { Button, TextField, Input, Label, Chip, Breadcrumbs, BreadcrumbsItem, Spinner, Dropdown, Alert, Separator, Table } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
@@ -49,11 +50,22 @@ export default function EmployeeDetailPage() {
     return () => { cancelled = true; };
   }, [hasAnyPerm]);
 
+  // Back with explicit fallback: deep link / refresh on Detail has no valid
+  // internal history — fall back to the employee list.
+  const goBack = useCallback(() => {
+    if (window.history.length <= 1) {
+      router.replace('/organization/employees');
+    } else {
+      router.back();
+    }
+  }, [router]);
+
   const handleDeleteConfirm = async () => {
     const success = await deleteEmployee();
     if (success) {
       setIsDeleteOpen(false);
-      router.push('/organization/employees');
+      // The deleted Detail page is no longer worth revisiting — replace it.
+      router.replace('/organization/employees');
     }
   };
 
@@ -71,16 +83,18 @@ export default function EmployeeDetailPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>{error || 'Employee not found'}</Alert.Title>
+            <Alert.Title>{error || 'Pegawai tidak ditemukan'}</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
     );
   }
 
-  const pos = employee.primaryPosition;
   const showDropdown = hasPerm(PERM.USER_MANAGE);
   const activePositions = (employee.positions ?? []).filter(p => p.isActive);
+  // When the employee holds one or more positions, roles are not shown
+  // (display-only change; role data stays untouched in the backend).
+  const showRoles = activePositions.length === 0;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -88,21 +102,21 @@ export default function EmployeeDetailPage() {
         <BreadcrumbsItem href="/">
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
-        <BreadcrumbsItem>Organization</BreadcrumbsItem>
-        <BreadcrumbsItem>Employees</BreadcrumbsItem>
+        <BreadcrumbsItem>Organisasi</BreadcrumbsItem>
+        <BreadcrumbsItem>Pegawai</BreadcrumbsItem>
         <BreadcrumbsItem>{employee.fullName}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
+          <Button isIconOnly variant="tertiary" onPress={goBack} aria-label="Kembali">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-semibold text-foreground">{employee.fullName}</h1>
         </div>
         {showDropdown && (
           <Dropdown>
-            <Button isIconOnly variant="tertiary" aria-label="Employee options">
+            <Button isIconOnly variant="tertiary" aria-label="Opsi pegawai">
               <DotsThreeVertical className="h-5 w-5" />
             </Button>
             <Dropdown.Popover>
@@ -119,10 +133,10 @@ export default function EmployeeDetailPage() {
                   </Dropdown.Item>
                 )}
                 {hasPerm(PERM.USER_MANAGE) && (
-                  <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+                  <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
                     <div className="flex items-center gap-2 text-danger">
                       <Trash className="h-4 w-4" />
-                      <span>Delete</span>
+                      <span>Hapus</span>
                     </div>
                   </Dropdown.Item>
                 )}
@@ -132,24 +146,24 @@ export default function EmployeeDetailPage() {
         )}
       </div>
 
-      {/* Personal Information */}
+      {/* Informasi Pribadi */}
       <div className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-foreground">Personal Information</h2>
+        <h2 className="text-sm font-semibold text-foreground">Informasi Pribadi</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Full Name</Label>
+            <Label>Nama Lengkap</Label>
             <Input value={employee.fullName} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Gender</Label>
+            <Label>Jenis Kelamin</Label>
             <Input value={getGenderLabel(employee.gender)} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Date of Birth</Label>
+            <Label>Tanggal Lahir</Label>
             <Input value={formatDate(employee.birthDate)} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Phone Number</Label>
+            <Label>Nomor Telepon</Label>
             <Input value={employee.phoneNumber || '-'} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
@@ -157,7 +171,7 @@ export default function EmployeeDetailPage() {
             <Input value={employee.email} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Address</Label>
+            <Label>Alamat</Label>
             <Input value={employee.address || '-'} readOnly />
           </TextField>
         </div>
@@ -165,58 +179,64 @@ export default function EmployeeDetailPage() {
 
       <Separator />
 
-      {/* Employment Data */}
+      {/* Data Kepegawaian */}
       <div className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-foreground">Employment Data</h2>
+        <h2 className="text-sm font-semibold text-foreground">Data Kepegawaian</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <TextField isReadOnly className="pointer-events-none w-full">
             <Label>NIP</Label>
             <Input value={employee.nip || '-'} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Position</Label>
-            <Input value={pos?.positionName || '-'} readOnly />
+            <Label>Jabatan</Label>
+            <Input value={employee.primaryPosition?.positionName || '-'} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Join Date</Label>
+            <Label>Tanggal Bergabung</Label>
             <Input value={formatDate(employee.joinDate || employee.createdAt)} readOnly />
           </TextField>
-          <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Role</Label>
-            <Input value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} readOnly />
-          </TextField>
+          {showRoles && (
+            <TextField isReadOnly className="pointer-events-none w-full">
+              <Label>Role</Label>
+              <Input value={employee.roles.map((r) => r.roleCode).join(', ') || '-'} readOnly />
+            </TextField>
+          )}
         </div>
       </div>
 
       <Separator />
 
-      {/* Positions — mirrors the Add/Update Employee position table */}
+      {/* Posisi — mirrors the Add/Update Employee position table */}
       <div className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-foreground">Positions</h2>
+        <h2 className="text-sm font-semibold text-foreground">Posisi</h2>
         <Table>
           <Table.ScrollContainer>
-            <Table.Content aria-label="Employee Positions" className="min-w-[500px]">
+            <Table.Content aria-label="Posisi Pegawai" className="min-w-[500px]">
               <Table.Header>
-                <Table.Column id="name" isRowHeader>Position Name</Table.Column>
-                <Table.Column id="code">Code</Table.Column>
-                <Table.Column id="department">Department</Table.Column>
-                <Table.Column id="primary">Primary</Table.Column>
-                <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
+                <Table.Column id="name" isRowHeader>Nama Posisi</Table.Column>
+                <Table.Column id="code">Kode</Table.Column>
+                <Table.Column id="department">Departemen</Table.Column>
+                <Table.Column id="primary">Utama</Table.Column>
               </Table.Header>
               <Table.Body
                 renderEmptyState={() =>
                   activePositions.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                       <Tray className="h-8 w-8" />
-                      <span className="text-sm">No positions assigned</span>
+                      <span className="text-sm">Belum ada posisi ditetapkan</span>
                     </div>
                   ) : null
                 }
               >
                 {activePositions.map((up) => (
                   <Table.Row key={up.id} id={up.id}>
-                    <Table.Cell className="font-medium text-foreground">
-                      {up.positionName}
+                    <Table.Cell>
+                      <Link
+                        href={`/organization/positions/${up.positionId}`}
+                        className="font-medium text-foreground hover:underline"
+                      >
+                        {up.positionName}
+                      </Link>
                     </Table.Cell>
                     <Table.Cell className="text-muted-foreground">
                       {up.positionCode}
@@ -226,25 +246,10 @@ export default function EmployeeDetailPage() {
                     </Table.Cell>
                     <Table.Cell>
                       {up.isPrimary ? (
-                        <Chip size="sm" variant="soft" color="accent">Primary</Chip>
+                        <Chip size="sm" variant="soft" color="accent">Utama</Chip>
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex items-center justify-end gap-1">
-                        {hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) && (
-                          <Button
-                            isIconOnly
-                            variant="tertiary"
-                            size="sm"
-                            aria-label={`View ${up.positionName}`}
-                            onPress={() => router.push(`/organization/positions/${up.positionId}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
                     </Table.Cell>
                   </Table.Row>
                 ))}
@@ -259,8 +264,8 @@ export default function EmployeeDetailPage() {
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDeleteConfirm}
         name={employee.fullName}
-        entityLabel="employee"
-        warning="Employee will no longer be able to access the system after deletion."
+        entityLabel="pegawai"
+        warning="Pegawai tidak dapat mengakses sistem setelah dihapus."
         isDeleting={isDeleting}
       />
     </div>

@@ -33,25 +33,31 @@ import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { CoreUser, UserCreateRequest, UserUpdateRequest, PositionOption, UserPositionInput } from '../types';
 import { useEmployeeFormData } from '../hooks/use-employee-form-data';
+import {
+  addPendingPosition,
+  removePendingPosition,
+  setPendingPrimary,
+  type PendingPosition,
+} from '../utils/pending-position-utils';
 
 const getFormSchema = (isEditMode: boolean) =>
   z.object({
-    fullName: z.string().min(1, 'Full name is required'),
+    fullName: z.string().min(1, 'Nama lengkap wajib diisi'),
     birthDate: z.string().optional(),
     gender: z.string().optional(),
     phoneNumber: z.string().optional().refine((val) => !val || /^[0-9+\-\s()]*$/.test(val), {
-      message: 'Phone number must only contain digits',
+      message: 'Nomor telepon hanya boleh berisi angka',
     }),
     email: z
       .string()
-      .min(1, 'Email is required')
-      .email('Invalid email format'),
+      .min(1, 'Email wajib diisi')
+      .email('Format email tidak valid'),
     address: z.string().optional(),
     nip: z.string().optional(),
-    joinDate: z.string().min(1, 'Join date is required'),
+    joinDate: z.string().min(1, 'Tanggal bergabung wajib diisi'),
     password: isEditMode
       ? z.string().optional().or(z.literal(''))
-      : z.string().min(6, 'Password must be at least 6 characters'),
+      : z.string().min(6, 'Password minimal 6 karakter'),
   });
 
 type FormValues = z.infer<ReturnType<typeof getFormSchema>>;
@@ -59,17 +65,11 @@ type FormValues = z.infer<ReturnType<typeof getFormSchema>>;
 interface EmployeeFormProps {
   mode: 'create' | 'edit';
   initialData?: CoreUser | null;
-  onSuccess: () => void;
+  /** Called after a successful submit; passes the created employee id in create mode. */
+  onSuccess: (createdId?: string) => void;
 }
 
 /** A position in the pending assignment list (local until form submit). */
-interface PendingPosition {
-  positionId: string;
-  positionName: string;
-  positionCode: string;
-  isPrimary: boolean;
-  startDate: string;
-}
 
 export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps) {
   const router = useRouter();
@@ -87,12 +87,28 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
     isLoadingPositions,
     submitCreate,
     submitUpdate,
-  } = useEmployeeFormData(isEditMode, initialData);
+  } = useEmployeeFormData();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── Pending position assignments (local until submit) ──
-  const [pendingPositions, setPendingPositions] = useState<PendingPosition[]>([]);
+  // Lazy initial state: in edit mode the employee's active assignments are
+  // prefilled (initialData is available at mount — the edit page waits for the
+  // detail fetch before rendering the form). No setState-in-effect needed.
+  const [pendingPositions, setPendingPositions] = useState<PendingPosition[]>(() => {
+    if (isEditMode && initialData) {
+      return (initialData.positions ?? [])
+        .filter((p) => p.isActive)
+        .map((up) => ({
+          positionId: up.positionId,
+          positionName: up.positionName,
+          positionCode: up.positionCode,
+          isPrimary: up.isPrimary,
+          startDate: up.startDate,
+        }));
+    }
+    return [];
+  });
   const [assignSearch, setAssignSearch] = useState('');
   const [selectedPosition, setSelectedPosition] = useState<PositionOption | null>(null);
 
@@ -121,19 +137,8 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
     }
   }, [initialData, form]);
 
-  // Prefill pending positions with the employee's current active assignments (edit mode)
-  useEffect(() => {
-    if (isEditMode && initialData) {
-      const active = (initialData.positions ?? []).filter((p) => p.isActive);
-      setPendingPositions(active.map((up) => ({
-        positionId: up.positionId,
-        positionName: up.positionName,
-        positionCode: up.positionCode,
-        isPrimary: up.isPrimary,
-        startDate: up.startDate,
-      })));
-    }
-  }, [isEditMode, initialData]);
+  // Prefill pending positions is handled by the lazy initializer above
+  // (edit mode) — no setState-in-effect.
 
   // ── Position selector helpers ──
   const flatPositionOptions = useMemo(() => {
@@ -168,37 +173,35 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
   // Add the selected position to the pending list (first added becomes primary)
   const handleAddPosition = useCallback(() => {
     if (!selectedPosition) return;
-    setPendingPositions((prev) => {
-      if (prev.some((p) => p.positionId === selectedPosition.id)) return prev;
-      return [...prev, {
-        positionId: selectedPosition.id,
-        positionName: selectedPosition.positionName,
-        positionCode: selectedPosition.positionCode,
-        isPrimary: prev.length === 0,
-        startDate: new Date().toISOString().split('T')[0],
-      }];
-    });
+    setPendingPositions((prev) => addPendingPosition(prev, {
+      positionId: selectedPosition.id,
+      positionName: selectedPosition.positionName,
+      positionCode: selectedPosition.positionCode,
+      startDate: new Date().toISOString().split('T')[0],
+    }));
     setSelectedPosition(null);
     setAssignSearch('');
   }, [selectedPosition]);
 
   // Remove a position from the pending list; promote the first remaining if the primary was removed
   const handleRemovePosition = useCallback((positionId: string) => {
-    setPendingPositions((prev) => {
-      const next = prev.filter((p) => p.positionId !== positionId);
-      if (next.length > 0 && !next.some((p) => p.isPrimary)) {
-        next[0] = { ...next[0], isPrimary: true };
-      }
-      return next;
-    });
+    setPendingPositions((prev) => removePendingPosition(prev, positionId));
   }, []);
 
   // Set a position as the new primary, replacing the previous primary selection
   const handleSetPrimary = useCallback((positionId: string) => {
-    setPendingPositions((prev) =>
-      prev.map((p) => ({ ...p, isPrimary: p.positionId === positionId })),
-    );
+    setPendingPositions((prev) => setPendingPrimary(prev, positionId));
   }, []);
+
+  // Back with explicit fallback for deep links / refresh (no valid internal history):
+  // edit mode falls back to the Detail page, create mode to the list.
+  const goBack = useCallback(() => {
+    if (window.history.length <= 1) {
+      router.replace(initialData ? `/organization/employees/${initialData.id}` : '/organization/employees');
+    } else {
+      router.back();
+    }
+  }, [router, initialData]);
 
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
@@ -221,14 +224,15 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
       base.positions = positionInputs;
     }
 
-    let ok: boolean;
     if (isEditMode && initialData) {
-      ok = await submitUpdate(initialData.id, base);
+      const ok = await submitUpdate(initialData.id, base);
+      setIsSubmitting(false);
+      if (ok) onSuccess();
     } else {
-      ok = await submitCreate({ ...base, password: values.password } as UserCreateRequest & { password: string });
+      const created = await submitCreate({ ...base, password: values.password } as UserCreateRequest & { password: string });
+      setIsSubmitting(false);
+      if (created) onSuccess(created.id);
     }
-    setIsSubmitting(false);
-    if (ok) onSuccess();
   };
 
   if (isLoadingPositions) {
@@ -243,17 +247,17 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
-        <BreadcrumbsItem>Organization</BreadcrumbsItem>
-        <BreadcrumbsItem href="/organization/employees">Employees</BreadcrumbsItem>
-        <BreadcrumbsItem>{isEditMode ? 'Edit' : 'Add'}</BreadcrumbsItem>
+        <BreadcrumbsItem>Organisasi</BreadcrumbsItem>
+        <BreadcrumbsItem href="/organization/employees">Pegawai</BreadcrumbsItem>
+        <BreadcrumbsItem>{isEditMode ? 'Edit Pegawai' : 'Tambah Pegawai'}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center gap-3">
-        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
+        <Button isIconOnly variant="tertiary" onPress={goBack} aria-label="Kembali">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-semibold text-foreground">
-          {isEditMode ? 'Edit Employee' : 'Add New Employee'}
+          {isEditMode ? 'Edit Pegawai' : 'Tambah Pegawai'}
         </h1>
       </div>
 
@@ -268,20 +272,20 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         className="flex flex-col gap-6"
       >
 
-        {/* ── PERSONAL INFORMATION ── */}
+        {/* ── INFORMASI PRIBADI ── */}
         <div className="flex flex-col gap-4">
-          <h2 className="text-sm font-semibold text-foreground">Personal Information</h2>
+          <h2 className="text-sm font-semibold text-foreground">Informasi Pribadi</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="fullName" render={({ field, fieldState }) => (
               <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                <Label>Full Name</Label>
-                <Input placeholder="Enter full name" />
+                <Label>Nama Lengkap</Label>
+                <Input placeholder="Masukkan nama lengkap" />
                 <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )} />
             <Controller control={form.control} name="gender" render={({ field }) => (
-              <Select className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Select gender">
-                <Label>Gender</Label>
+              <Select className="w-full" selectedKey={field.value || null} onSelectionChange={(k) => field.onChange(String(k || ''))} isDisabled={isSubmitting} placeholder="Pilih jenis kelamin">
+                <Label>Jenis Kelamin</Label>
                 <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover>
                   <ListBox>
@@ -292,12 +296,12 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
               </Select>
             )} />
             <Controller control={form.control} name="birthDate" render={({ field }) => (
-              <DateFieldPicker label="Date of Birth" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} />
+              <DateFieldPicker label="Tanggal Lahir" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} />
             )} />
             <Controller control={form.control} name="phoneNumber" render={({ field, fieldState }) => (
               <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                <Label>Phone Number</Label>
-                <Input placeholder="08xxxxxxxxxx" type="tel" />
+                <Label>Nomor Telepon</Label>
+                <Input placeholder="Masukkan nomor telepon" type="tel" />
                 <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )} />
@@ -305,14 +309,14 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           <Controller control={form.control} name="email" render={({ field, fieldState }) => (
             <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
               <Label>Email</Label>
-              <Input placeholder="example@company.com" type="email" />
+              <Input placeholder="Masukkan email" type="email" />
               <FieldError>{fieldState.error?.message}</FieldError>
             </TextField>
           )} />
           <Controller control={form.control} name="address" render={({ field, fieldState }) => (
             <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-              <Label>Address</Label>
-              <TextArea placeholder="Enter address" rows={3} />
+              <Label>Alamat</Label>
+              <TextArea placeholder="Masukkan alamat" rows={3} />
               <FieldError>{fieldState.error?.message}</FieldError>
             </TextField>
           )} />
@@ -320,25 +324,25 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
 
         <Separator />
 
-        {/* ── EMPLOYMENT DATA ── */}
+        {/* ── DATA KEPEGAWAIAN ── */}
         <div className="flex flex-col gap-4">
-          <h2 className="text-sm font-semibold text-foreground">Employment Data</h2>
+          <h2 className="text-sm font-semibold text-foreground">Data Kepegawaian</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller control={form.control} name="nip" render={({ field, fieldState }) => (
               <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                 <Label>NIP</Label>
-                <Input placeholder="Enter NIP" />
+                <Input placeholder="Masukkan NIP" />
                 <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )} />
             <Controller control={form.control} name="joinDate" render={({ field, fieldState }) => (
-              <DateFieldPicker label="Join Date" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired isInvalid={fieldState.invalid} errorMessage={fieldState.error?.message} />
+              <DateFieldPicker label="Tanggal Bergabung" value={field.value || ''} onChange={field.onChange} isDisabled={isSubmitting} isRequired isInvalid={fieldState.invalid} errorMessage={fieldState.error?.message} />
             )} />
             {!isEditMode && (
               <Controller control={form.control} name="password" render={({ field, fieldState }) => (
                 <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                   <Label>Password</Label>
-                  <Input placeholder="At least 6 characters" type="password" />
+                  <Input placeholder="Masukkan password" type="password" />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )} />
@@ -346,17 +350,17 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
           </div>
         </div>
 
-        {/* ── POSITIONS (bulk assignment) ── */}
+        {/* ── POSISI (penugasan massal) ── */}
         {canAssignPositions && (
           <>
             <Separator />
             <div className="flex flex-col gap-4">
-              <h2 className="text-sm font-semibold text-foreground">Positions</h2>
+              <h2 className="text-sm font-semibold text-foreground">Posisi</h2>
 
-              {/* Position selector — HeroUI ComboBox + inline Submit (Position Detail pattern) */}
+              {/* Pemilih posisi — HeroUI ComboBox + tombol Tambah inline */}
               <div className="flex items-start gap-2">
                 <ComboBox
-                  aria-label="Search position"
+                  aria-label="Cari posisi"
                   className="flex-1"
                   inputValue={assignSearch}
                   onInputChange={setAssignSearch}
@@ -367,21 +371,27 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                   disabledKeys={[...selectedPositionIds]}
                   isDisabled={isSubmitting}
                   allowsEmptyCollection
-                  defaultFilter={() => true}
+                  defaultFilter={(text, inputValue) => {
+                    if (!inputValue) return true;
+                    return text.toLowerCase().includes(inputValue.toLowerCase());
+                  }}
                   menuTrigger="input"
                 >
                   <ComboBox.InputGroup>
-                    <Input placeholder="Search position..." />
+                    <Input placeholder="Cari posisi" />
                     <ComboBox.Trigger />
                   </ComboBox.InputGroup>
                   <ComboBox.Popover>
                     <ListBox
                       renderEmptyState={() => (
-                        <EmptyState>No positions found</EmptyState>
+                        <EmptyState>Posisi tidak ditemukan</EmptyState>
                       )}
                     >
+                      {/* NOTE: items must go through Collection/children — react-stately
+                          skips filtering entirely when items is passed to ComboBox
+                          ("No default filter if items are controlled"). */}
                       <Collection items={flatPositionOptions}>
-                        {(pos) => (
+                        {(pos: PositionOption) => (
                           <ListBox.Item key={pos.id} id={pos.id} textValue={pos.positionName}>
                             <div className="flex flex-col">
                               <span className="font-medium text-foreground">{pos.positionName}</span>
@@ -399,27 +409,27 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                   onPress={handleAddPosition}
                   isDisabled={!selectedPosition || isSubmitting}
                 >
-                  Submit
+                  Tambah
                 </Button>
               </div>
 
-              {/* Selected positions table */}
+              {/* Tabel posisi terpilih */}
               <Table>
                 <Table.ScrollContainer>
-                  <Table.Content aria-label="Selected Positions" className="min-w-[500px]">
+                  <Table.Content aria-label="Posisi Dipilih" className="min-w-[500px]">
                     <Table.Header>
-                      <Table.Column id="name" isRowHeader>Position Name</Table.Column>
-                      <Table.Column id="code">Code</Table.Column>
-                      <Table.Column id="department">Department</Table.Column>
-                      <Table.Column id="primary">Primary</Table.Column>
-                      <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
+                      <Table.Column id="name" isRowHeader>Nama Posisi</Table.Column>
+                      <Table.Column id="code">Kode</Table.Column>
+                      <Table.Column id="department">Departemen</Table.Column>
+                      <Table.Column id="primary">Utama</Table.Column>
+                      <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
                     </Table.Header>
                     <Table.Body
                       renderEmptyState={() =>
                         pendingPositions.length === 0 ? (
                           <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                             <Tray className="h-8 w-8" />
-                            <span className="text-sm">No positions assigned</span>
+                            <span className="text-sm">Belum ada posisi ditambahkan</span>
                           </div>
                         ) : null
                       }
@@ -437,7 +447,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                           </Table.Cell>
                           <Table.Cell>
                             {p.isPrimary ? (
-                              <Chip size="sm" variant="soft" color="accent">Primary</Chip>
+                              <Chip size="sm" variant="soft" color="accent">Utama</Chip>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -450,13 +460,13 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                                 isDisabled={p.isPrimary || isSubmitting}
                                 onPress={() => handleSetPrimary(p.positionId)}
                               >
-                                Set Primary
+                                Jadikan Utama
                               </Button>
                               <Button
                                 isIconOnly
                                 variant="danger-soft"
                                 size="sm"
-                                aria-label={`Remove ${p.positionName}`}
+                                aria-label={`Hapus ${p.positionName}`}
                                 isDisabled={isSubmitting}
                                 onPress={() => handleRemovePosition(p.positionId)}
                               >
@@ -475,10 +485,10 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         )}
 
         <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onPress={() => router.back()} isDisabled={isSubmitting}>Cancel</Button>
+          <Button variant="secondary" onPress={goBack} isDisabled={isSubmitting}>Batal</Button>
           <Button type="submit" variant="primary" isDisabled={isSubmitting} isPending={isSubmitting}>
             <FloppyDisk className="h-4 w-4" />
-            {isEditMode ? 'Save Changes' : 'Save'}
+            {isEditMode ? 'Simpan Perubahan' : 'Simpan'}
           </Button>
         </div>
       </Form>

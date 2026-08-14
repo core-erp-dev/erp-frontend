@@ -17,12 +17,12 @@ export default function CreateEmployeePage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
+            <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
         <Button variant="secondary" onPress={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
-          Back
+          Kembali
         </Button>
       </div>
     );
@@ -32,8 +32,15 @@ export default function CreateEmployeePage() {
     <div className="mx-auto w-full max-w-4xl">
       <EmployeeForm
         mode="create"
-        onSuccess={() => {
-          router.push('/organization/employees');
+        onSuccess={(createdId) => {
+          // Create has no prior Detail page in history: replace the form with
+          // the new employee's Detail page (never push → no Daftar→Detail→Edit
+          // style stacks, and Back from Detail goes back to the list).
+          if (createdId) {
+            router.replace(`/organization/employees/${createdId}`);
+          } else {
+            router.replace('/organization/employees');
+          }
         }}
       />
     </div>

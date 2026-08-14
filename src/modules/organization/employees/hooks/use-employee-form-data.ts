@@ -11,11 +11,11 @@ import { extractErrorMessage } from '@/types/api';
 interface UseEmployeeFormDataReturn {
   positions: PositionOption[];
   isLoadingPositions: boolean;
-  submitCreate: (data: UserCreateRequest & { password: string }) => Promise<boolean>;
+  submitCreate: (data: UserCreateRequest & { password: string }) => Promise<CoreUser | null>;
   submitUpdate: (id: string, data: UserUpdateRequest) => Promise<boolean>;
 }
 
-export function useEmployeeFormData(isEditMode: boolean, initialData?: CoreUser | null): UseEmployeeFormDataReturn {
+export function useEmployeeFormData(): UseEmployeeFormDataReturn {
   const { hasPerm, hasAnyPerm } = usePermission();
   // Position lookup requires position:read|manage; the section itself only
   // renders under user:manage AND that same lookup permission (employee-form).
@@ -39,24 +39,28 @@ export function useEmployeeFormData(isEditMode: boolean, initialData?: CoreUser 
     })();
   }, [canFetchPositions]);
 
-  const submitCreate = useCallback(async (data: UserCreateRequest & { password: string }): Promise<boolean> => {
+  const submitCreate = useCallback(async (data: UserCreateRequest & { password: string }): Promise<CoreUser | null> => {
     try {
-      await employeeApi.createUser(data);
-      toast.success('Employee created successfully');
-      return true;
+      const created = await employeeApi.createUser(data);
+      toast.success('Pegawai berhasil dibuat', {
+        description: 'Data pegawai telah disimpan.',
+      });
+      return created;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Failed to create employee'));
-      return false;
+      toast.danger(extractErrorMessage(err, 'Gagal membuat pegawai'));
+      return null;
     }
   }, []);
 
   const submitUpdate = useCallback(async (id: string, data: UserUpdateRequest): Promise<boolean> => {
     try {
       await employeeApi.updateUser(id, data);
-      toast.success('Employee updated successfully');
+      toast.success('Perubahan berhasil disimpan', {
+        description: 'Data pegawai telah diperbarui.',
+      });
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Failed to update employee'));
+      toast.danger(extractErrorMessage(err, 'Gagal memperbarui pegawai'));
       return false;
     }
   }, []);

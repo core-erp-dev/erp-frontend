@@ -22,12 +22,12 @@ export default function EditEmployeePage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
+            <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
         <Button variant="secondary" onPress={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
-          Back
+          Kembali
         </Button>
       </div>
     );
@@ -47,12 +47,21 @@ export default function EditEmployeePage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>{error || 'Employee not found'}</Alert.Title>
+            <Alert.Title>{error || 'Pegawai tidak ditemukan'}</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
     );
   }
+
+  const goBackToDetail = () => {
+    if (window.history.length <= 1) {
+      // Deep link / refresh: no valid internal history — fall back to Detail.
+      router.replace(`/organization/employees/${id}`);
+    } else {
+      router.back();
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-4xl">
@@ -60,7 +69,9 @@ export default function EditEmployeePage() {
         mode="edit"
         initialData={employee}
         onSuccess={() => {
-          router.push(`/organization/employees/${id}`);
+          // Detail remounts on back and refetches the fresh data — no push to
+          // Detail (avoids Daftar→Detail→Edit→Detail stacks).
+          goBackToDetail();
         }}
       />
     </div>
