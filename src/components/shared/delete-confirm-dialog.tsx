@@ -43,17 +43,17 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
               <Modal.Icon className="bg-danger-soft text-danger-soft-foreground">
                 <Warning className="size-5" />
               </Modal.Icon>
-              <Modal.Heading>Confirm Delete</Modal.Heading>
+              <Modal.Heading>Konfirmasi Hapus</Modal.Heading>
             </Modal.Header>
 
             <Modal.Body>
               <p className="text-sm text-muted-foreground text-center">
-                Are you sure you want to delete this {entityLabel}{' '}
+                Yakin ingin menghapus {entityLabel}{' '}
                 <strong className="text-foreground">{name}</strong>?
                 {warning && (
                   <>
                     <br />
-                    <span className="text-xs">{warning}</span>
+                    <span className="text-sm">{warning}</span>
                   </>
                 )}
               </p>
@@ -67,16 +67,16 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
                 isDisabled={isDeleting}
                 isPending={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? 'Menghapus...' : 'Hapus'}
               </Button>
               <Button
                 className="w-full"
-                variant="secondary"
+                variant="tertiary"
                 slot="close"
                 onPress={onClose}
                 isDisabled={isDeleting}
               >
-                Cancel
+                Batal
               </Button>
             </Modal.Footer>
             <Modal.CloseTrigger />
