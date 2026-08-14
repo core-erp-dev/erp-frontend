@@ -27,14 +27,16 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   isDeleting = false,
 }) => {
   return (
-    <Modal>
-      <Modal.Backdrop
-        isOpen={isOpen}
-        isDismissable={false}
-        onOpenChange={(open) => {
-          if (!open) onClose();
-        }}
-      >
+    // NOTE: Modal.Backdrop is used as the root (controlled, without <Modal>) —
+    // HeroUI v3 <Modal> wraps children in a RAC DialogTrigger whose PressResponder
+    // has no pressable child, which logs a dev-only warning on every page mount.
+    <Modal.Backdrop
+      isOpen={isOpen}
+      isDismissable={false}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[360px]">
             <Modal.Header className="items-center text-center">
@@ -81,6 +83,5 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </Modal>
   );
 };
