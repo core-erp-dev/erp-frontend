@@ -23,7 +23,8 @@ export const organizationUnitApi = {
     const response = await api.get<ApiResponse<OrganizationUnitTreeResponse>>(
       '/api/v1/organization-units/tree',
     );
-    return response.data.data.tree;
+    const tree = response.data?.data?.tree;
+    return Array.isArray(tree) ? tree : [];
   },
 
   createUnit: async (data: CreateOrganizationUnitRequest): Promise<OrganizationUnitResponse> => {

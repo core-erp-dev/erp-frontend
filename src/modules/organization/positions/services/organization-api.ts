@@ -34,7 +34,8 @@ export const organizationApi = {
     const response = await api.get<ApiResponse<PositionTreeResponse>>(
       '/api/v1/positions/tree'
     );
-    return response.data.data.tree;
+    const tree = response.data?.data?.tree;
+    return Array.isArray(tree) ? tree : [];
   },
 
   /** Get a single position by ID */

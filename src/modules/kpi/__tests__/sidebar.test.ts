@@ -19,21 +19,21 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   });
 
   it('Activities is an expandable parent with exactly 5 submenus', () => {
-    const activities = kpiItems.find((i) => i.title === 'Activities');
+    const activities = kpiItems.find((i) => i.title === 'Aktivitas');
     expect(activities?.children?.map((c) => c.title)).toEqual([
-      'All Activities', 'My Activities', 'Subordinate', 'My Request', 'Approval',
+      'Semua Aktivitas', 'Aktivitas Saya', 'Aktivitas Bawahan', 'Pengajuan Saya', 'Persetujuan',
     ]);
   });
 
   it('Report is an expandable parent with exactly 2 submenus', () => {
-    const report = kpiItems.find((i) => i.title === 'Report');
-    expect(report?.children?.map((c) => c.title)).toEqual(['My Report', 'Approval']);
+    const report = kpiItems.find((i) => i.title === 'Laporan');
+    expect(report?.children?.map((c) => c.title)).toEqual(['Laporan Saya', 'Persetujuan Laporan']);
   });
 
   it('Corporate KPI keeps its 4 submenus (Unit Performance added)', () => {
-    const corporate = kpiItems.find((i) => i.title === 'Corporate KPI');
+    const corporate = kpiItems.find((i) => i.title === 'KPI Perusahaan');
     expect(corporate?.children?.map((c) => c.title)).toEqual([
-      'Structure', 'Variables', 'Values', 'Unit Performance',
+      'Struktur', 'Variabel', 'Nilai Variabel', 'Kinerja Unit',
     ]);
   });
 
@@ -45,7 +45,7 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   });
 
   it('every Activities submenu maps to its own route', () => {
-    const activities = kpiItems.find((i) => i.title === 'Activities');
+    const activities = kpiItems.find((i) => i.title === 'Aktivitas');
     const hrefs = activities?.children?.map((c) => c.href);
     expect(hrefs).toEqual([
       KPI_ROUTES.activitiesAll,
@@ -57,7 +57,7 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   });
 
   it('every Report submenu maps to its own route', () => {
-    const report = kpiItems.find((i) => i.title === 'Report');
+    const report = kpiItems.find((i) => i.title === 'Laporan');
     const hrefs = report?.children?.map((c) => c.href);
     expect(hrefs).toEqual([KPI_ROUTES.reports, KPI_ROUTES.reportReviews]);
   });
@@ -73,19 +73,19 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   });
 
   it('Activities > All Activities keeps the read_all|manage gate', () => {
-    const activities = kpiItems.find((i) => i.title === 'Activities');
+    const activities = kpiItems.find((i) => i.title === 'Aktivitas');
     const all = activities?.children?.find((c) => c.href === KPI_ROUTES.activitiesAll);
     expect(all?.permissions).toEqual([PERM.KPI_ACTIVITY_READ_ALL, PERM.KPI_ACTIVITY_MANAGE]);
   });
 
   it('Activities > Approval keeps the kpi_activity:approve gate', () => {
-    const activities = kpiItems.find((i) => i.title === 'Activities');
+    const activities = kpiItems.find((i) => i.title === 'Aktivitas');
     const approval = activities?.children?.find((c) => c.href === KPI_ROUTES.approvals);
     expect(approval?.permissions).toEqual([PERM.KPI_ACTIVITY_APPROVE]);
   });
 
   it('Activities > My Activities / Subordinate / My Request have no gate (responsibility-based)', () => {
-    const activities = kpiItems.find((i) => i.title === 'Activities');
+    const activities = kpiItems.find((i) => i.title === 'Aktivitas');
     for (const href of [KPI_ROUTES.activitiesMine, KPI_ROUTES.activitiesSubordinate, KPI_ROUTES.activitiesMyRequests]) {
       const child = activities?.children?.find((c) => c.href === href);
       expect(child?.permissions).toBeUndefined();
@@ -95,7 +95,7 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   });
 
   it('Report > Approval is NOT gated by kpi_report:root_review or manage', () => {
-    const report = kpiItems.find((i) => i.title === 'Report');
+    const report = kpiItems.find((i) => i.title === 'Laporan');
     const approval = report?.children?.find((c) => c.href === KPI_ROUTES.reportReviews);
     expect(approval?.permissions).toBeUndefined();
     expect(approval?.capability).toBeUndefined();
@@ -103,7 +103,7 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   });
 
   it('Report > My Report has no gate', () => {
-    const report = kpiItems.find((i) => i.title === 'Report');
+    const report = kpiItems.find((i) => i.title === 'Laporan');
     const mine = report?.children?.find((c) => c.href === KPI_ROUTES.reports);
     expect(mine?.permissions).toBeUndefined();
     expect(mine?.capability).toBeUndefined();
@@ -116,20 +116,20 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   });
 
   it('Corporate KPI > Unit Performance keeps the unit_performance:read gate', () => {
-    const corporate = kpiItems.find((i) => i.title === 'Corporate KPI');
+    const corporate = kpiItems.find((i) => i.title === 'KPI Perusahaan');
     const unitPerf = corporate?.children?.find((c) => c.href === KPI_ROUTES.unitPerformance);
     expect(unitPerf?.permissions).toEqual([PERM.UNIT_PERFORMANCE_READ]);
   });
 
   it('Dashboard points to / and sits outside the KPI group', () => {
-    const dashboard = navigationConfig.find((i) => i.title === 'Dashboard');
+    const dashboard = navigationConfig.find((i) => i.title === 'Dasbor');
     expect(dashboard?.href).toBe('/');
     expect(dashboard?.group).toBeUndefined();
-    expect(kpiItems.some((i) => i.title === 'Dashboard')).toBe(false);
+    expect(kpiItems.some((i) => i.title === 'Dasbor')).toBe(false);
   });
 
   it('Dashboard requires BOTH read permissions (compound capability)', () => {
-    const dashboard = navigationConfig.find((i) => i.title === 'Dashboard');
+    const dashboard = navigationConfig.find((i) => i.title === 'Dasbor');
     expect(dashboard?.capability).toBeDefined();
     expect(dashboard?.capability?.(['corporate_kpi:read', 'unit_performance:read'])).toBe(true);
     // A user with only ONE of the two permissions must NOT see the menu

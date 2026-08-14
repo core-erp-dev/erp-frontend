@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import { Bell, MagnifyingGlass } from "@phosphor-icons/react";
 import { SidebarSimpleIcon } from "@phosphor-icons/react/dist/icons/SidebarSimple";
 
 interface HeaderProps {
@@ -24,26 +23,6 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* Right: Search + Notification */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="tertiary"
-          size="md"
-          isIconOnly
-          aria-label="Search"
-        >
-          <MagnifyingGlass className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="tertiary"
-          size="md"
-          isIconOnly
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
-      </div>
     </header>
   );
 }

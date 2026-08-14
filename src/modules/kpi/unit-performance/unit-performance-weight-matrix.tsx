@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Button, TextField, Input, Label, Chip } from '@heroui/react';
+import { Button, TextField, Input, Chip } from '@heroui/react';
 import type {
   UnitPerformanceWeightEntry,
-  UnitPerformanceWeightMatrix,
+  UnitPerformanceWeightMatrix as UnitPerformanceWeightMatrixData,
 } from './unit-performance.types';
 
 interface UnitPerformanceWeightMatrixProps {
-  matrix: UnitPerformanceWeightMatrix;
+  matrix: UnitPerformanceWeightMatrixData;
   isMutating: boolean;
   onSave: (entries: UnitPerformanceWeightEntry[]) => Promise<boolean>;
 }

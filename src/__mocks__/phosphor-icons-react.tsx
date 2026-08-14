@@ -9,6 +9,7 @@ function createIcon(name: string) {
 
 export const ChartBar = createIcon('ChartBar');
 export const Buildings = createIcon('Buildings');
+export const BuildingOffice = createIcon('BuildingOffice');
 export const ClipboardText = createIcon('ClipboardText');
 export const Article = createIcon('Article');
 export const Checks = createIcon('Checks');
@@ -38,6 +39,7 @@ export const MagnifyingGlass = createIcon('MagnifyingGlass');
 export const ArrowsClockwise = createIcon('ArrowsClockwise');
 export const DownloadSimple = createIcon('DownloadSimple');
 export const Eye = createIcon('Eye');
+export const EyeSlash = createIcon('EyeSlash');
 export const PencilLine = createIcon('PencilLine');
 export const Prohibit = createIcon('Prohibit');
 export const Wrench = createIcon('Wrench');

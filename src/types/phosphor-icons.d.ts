@@ -49,6 +49,7 @@ declare module "@phosphor-icons/react" {
   export const Bell: FC<IconProps>;
   export const SignOut: FC<IconProps>;
   export const Eye: FC<IconProps>;
+  export const EyeSlash: FC<IconProps>;
   export const PencilLine: FC<IconProps>;
   export const Prohibit: FC<IconProps>;
   export const Wrench: FC<IconProps>;
@@ -66,6 +67,7 @@ declare module "@phosphor-icons/react" {
   export const Crown: FC<IconProps>;
   export const MedalMilitary: FC<IconProps>;
   export const Buildings: FC<IconProps>;
+  export const BuildingOffice: FC<IconProps>;
   export const Stack: FC<IconProps>;
   export const Article: FC<IconProps>;
 }

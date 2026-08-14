@@ -40,7 +40,7 @@ export const unitPerformanceApi = {
       '/api/v1/unit-performances/weight-matrix',
       { params: { year } },
     );
-    return response.data.data;
+    return normalizeWeightMatrix(response.data?.data, year);
   },
 
   /** Atomically replaces the whole matrix for the year. */
@@ -53,9 +53,30 @@ export const unitPerformanceApi = {
       payload,
       { params: { year } },
     );
-    return response.data.data;
+    return normalizeWeightMatrix(response.data?.data, year);
   },
 };
+
+/**
+ * Coerce a weight-matrix payload into the canonical contract shape so pages
+ * never see a matrix whose collections are `undefined`/`null` (e.g. an empty
+ * registry or a payload that omits a collection). A missing/absent payload
+ * becomes a well-formed EMPTY matrix — loading and error states stay distinct
+ * at the hook level (isLoading / error), this only guarantees shape.
+ */
+function normalizeWeightMatrix(
+  data: UnitPerformanceWeightMatrix | null | undefined,
+  year: number,
+): UnitPerformanceWeightMatrix {
+  return {
+    year: data?.year ?? year,
+    units: Array.isArray(data?.units) ? data.units : [],
+    indicators: Array.isArray(data?.indicators) ? data.indicators : [],
+    weights: Array.isArray(data?.weights) ? data.weights : [],
+    totals: data?.totals ?? {},
+    complete: data?.complete === true,
+  };
+}
 
 /** Read-error wrapper. */
 export function extractUnitPerformanceError(error: unknown): string {

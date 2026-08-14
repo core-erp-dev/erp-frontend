@@ -1,4 +1,4 @@
-import { ChartBar, Buildings, ClipboardText, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
+import { SquaresFour, BuildingOffice, ClipboardText, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
 import type React from 'react';
 import { KPI_ROUTES } from '@/modules/kpi/constants';
 import { PERM } from '@/constants/permissions';
@@ -39,41 +39,41 @@ export const navigationConfig: SidebarItem[] = [
   // sidebar `permissions` filter is ANY-match, so a compound `capability`
   // predicate is used instead.
   {
-    title: 'Dashboard',
+    title: 'Dasbor',
     href: '/',
-    icon: ChartBar,
+    icon: SquaresFour,
     capability: (perms) =>
       perms.includes(PERM.CORPORATE_KPI_READ) && perms.includes(PERM.UNIT_PERFORMANCE_READ),
   },
 
   // ── KPI ──
   {
-    title: 'Corporate KPI',
+    title: 'KPI Perusahaan',
     href: KPI_ROUTES.corporate,
-    icon: Buildings,
+    icon: BuildingOffice,
     group: 'KPI',
     permissions: [PERM.CORPORATE_KPI_READ],
     children: [
       {
-        title: 'Structure',
+        title: 'Struktur',
         href: KPI_ROUTES.corporate,
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
       {
-        title: 'Variables',
+        title: 'Variabel',
         href: KPI_ROUTES.corporateVariables,
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
       {
-        title: 'Values',
+        title: 'Nilai Variabel',
         href: KPI_ROUTES.corporateVariableValues,
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
       {
-        title: 'Unit Performance',
+        title: 'Kinerja Unit',
         href: KPI_ROUTES.unitPerformance,
         group: 'KPI',
         permissions: [PERM.UNIT_PERFORMANCE_READ],
@@ -81,7 +81,7 @@ export const navigationConfig: SidebarItem[] = [
     ],
   },
   {
-    title: 'Activities',
+    title: 'Aktivitas',
     href: KPI_ROUTES.activities,
     icon: ClipboardText,
     group: 'KPI',
@@ -90,22 +90,22 @@ export const navigationConfig: SidebarItem[] = [
     // keeps the kpi_activity:approve gate of the existing /kpi/approvals page.
     children: [
       {
-        title: 'All Activities',
+        title: 'Semua Aktivitas',
         href: KPI_ROUTES.activitiesAll,
         permissions: [PERM.KPI_ACTIVITY_READ_ALL, PERM.KPI_ACTIVITY_MANAGE],
       },
-      { title: 'My Activities', href: KPI_ROUTES.activitiesMine },
-      { title: 'Subordinate', href: KPI_ROUTES.activitiesSubordinate },
-      { title: 'My Request', href: KPI_ROUTES.activitiesMyRequests },
+      { title: 'Aktivitas Saya', href: KPI_ROUTES.activitiesMine },
+      { title: 'Aktivitas Bawahan', href: KPI_ROUTES.activitiesSubordinate },
+      { title: 'Pengajuan Saya', href: KPI_ROUTES.activitiesMyRequests },
       {
-        title: 'Approval',
+        title: 'Persetujuan',
         href: KPI_ROUTES.approvals,
         permissions: [PERM.KPI_ACTIVITY_APPROVE],
       },
     ],
   },
   {
-    title: 'Report',
+    title: 'Laporan',
     href: KPI_ROUTES.reports,
     icon: Article,
     group: 'KPI',
@@ -113,31 +113,31 @@ export const navigationConfig: SidebarItem[] = [
     // gated by kpi_report:root_review — hierarchy reviewers without it must
     // still open the queue; root_review only adds root queue contents.
     children: [
-      { title: 'My Report', href: KPI_ROUTES.reports },
-      { title: 'Approval', href: KPI_ROUTES.reportReviews },
+      { title: 'Laporan Saya', href: KPI_ROUTES.reports },
+      { title: 'Persetujuan Laporan', href: KPI_ROUTES.reportReviews },
     ],
   },
 
   // ── ORGANIZATION ──
   {
-    title: 'Employees',
+    title: 'Pegawai',
     href: '/organization/employees',
     icon: Users,
-    group: 'ORGANIZATION',
+    group: 'Organisasi',
     permissions: ['user:read'],
   },
   {
-    title: 'Position Structure',
+    title: 'Struktur Jabatan',
     href: '/organization/positions',
     icon: TreeStructure,
-    group: 'ORGANIZATION',
+    group: 'Organisasi',
     permissions: ['position:read'],
   },
   {
-    title: 'Organization Unit',
+    title: 'Unit Organisasi',
     href: '/organization/organization-units',
     icon: Stack,
-    group: 'ORGANIZATION',
+    group: 'Organisasi',
     permissions: ['organization_unit:read'],
   },
 
@@ -150,7 +150,7 @@ export const navigationConfig: SidebarItem[] = [
     permissions: ['role:read'],
   },
   {
-    title: 'Settings',
+    title: 'Pengaturan',
     href: '/settings',
     icon: Gear,
     group: 'SETTINGS',

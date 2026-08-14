@@ -54,8 +54,10 @@ function itemVisible(item: SidebarItem, userPerms: string[], userRoles: string[]
 }
 
 /**
- * Expandable parent menu. Auto-opens whenever the parent href or any child
- * href is the active route; the user can manually collapse/expand otherwise.
+ * Expandable parent menu. Auto-opens whenever any child href is the active
+ * route; the user can manually collapse/expand otherwise. The parent is
+ * marked ACTIVE only when the current route is one of its descendants —
+ * opening/collapsing the menu never marks it active by itself.
  */
 function ExpandableNavItem({
   item,
@@ -68,7 +70,7 @@ function ExpandableNavItem({
   userPerms: string[];
   userRoles: string[];
 }) {
-  // Default: collapsed. Auto-open whenever the parent/child route is active.
+  // Default: collapsed. Auto-open whenever a child route is active.
   const [collapsed, setCollapsed] = React.useState(true);
 
   const visibleChildren = (item.children ?? []).filter((child) =>
@@ -77,7 +79,7 @@ function ExpandableNavItem({
   if (visibleChildren.length === 0) return null;
 
   const isChildActive = visibleChildren.some((child) => pathname === child.href);
-  const isActive = pathname === item.href || isChildActive;
+  const isActive = isChildActive;
   const open = isChildActive ? true : !collapsed;
 
   return (
@@ -102,37 +104,45 @@ function ExpandableNavItem({
         )}
       </button>
 
-      {open && (
-        <div className="relative">
-          {/* VS Code-style vertical guide line beside the submenu group */}
-          <span
-            aria-hidden="true"
-            data-testid="submenu-guide"
-            className="pointer-events-none absolute bottom-1 left-7 top-1 w-px border-l border-border"
-          />
-          <ul className="space-y-0.5">
-            {visibleChildren.map((child) => {
-              const childActive = pathname === child.href;
-              return (
-                <li key={child.href}>
-                  <Link
-                    href={child.href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl py-2 pl-11 pr-3 text-sm transition-colors",
-                      childActive
-                        ? "font-semibold text-foreground hover:bg-[#EBEBEC] hover:text-foreground"
-                        : "font-normal text-muted-foreground hover:bg-[#EBEBEC] hover:text-foreground",
-                    )}
-                  >
-                    {getIcon(child.icon, childActive ? "text-foreground" : "text-gray-500")}
-                    {child.title}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+      <div
+        data-testid="submenu-collapse"
+        className={cn(
+          "grid transition-[grid-template-rows] duration-300 ease-in-out",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="relative">
+            {/* VS Code-style vertical guide line beside the submenu group */}
+            <span
+              aria-hidden="true"
+              data-testid="submenu-guide"
+              className="pointer-events-none absolute bottom-1 left-7 top-1 w-px border-l border-border"
+            />
+            <ul className="space-y-0.5">
+              {visibleChildren.map((child) => {
+                const childActive = pathname === child.href;
+                return (
+                  <li key={child.href}>
+                    <Link
+                      href={child.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl py-2 pl-11 pr-3 text-sm transition-colors",
+                        childActive
+                          ? "font-semibold text-foreground"
+                          : "font-normal text-muted-foreground hover:font-semibold",
+                      )}
+                    >
+                      {getIcon(child.icon, childActive ? "text-foreground" : "text-gray-500")}
+                      {child.title}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
-      )}
+      </div>
     </li>
   );
 }
@@ -250,11 +260,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
       <nav className="flex min-w-56 flex-1 flex-col overflow-y-auto p-4 pt-3">
         {/* Main groups */}
         <div className="flex-1">
-          {mainGroups.map(([label, items]) => renderGroup(label, items))}
-
+          {/* Dasbor (ungrouped) sits at the very top */}
           {defaultGroup.length > 0 && (
             <ul className="space-y-1">{defaultGroup.map(renderItem)}</ul>
           )}
+
+          {mainGroups.map(([label, items]) => renderGroup(label, items))}
         </div>
 
         {/* Bottom section: Settings + Sign Out */}
@@ -274,7 +285,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
               )}
             >
               <SignOut className="h-5 w-5 text-gray-500" />
-              Sign Out
+              Keluar
             </button>
           </li>
         </ul>
