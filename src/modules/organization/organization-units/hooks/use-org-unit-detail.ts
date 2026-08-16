@@ -12,6 +12,8 @@ interface UseOrgUnitDetailReturn {
   error: string | null;
   deleteUnit: () => Promise<boolean>;
   isDeleting: boolean;
+  restoreUnit: () => Promise<boolean>;
+  isRestoring: boolean;
 }
 
 export function useOrgUnitDetail(id: string): UseOrgUnitDetailReturn {
@@ -19,6 +21,17 @@ export function useOrgUnitDetail(id: string): UseOrgUnitDetailReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const loadUnit = useCallback(async () => {
+    try {
+      const data = await organizationUnitApi.getUnitById(id);
+      setUnit(data);
+      setError(null);
+    } catch {
+      setError('Gagal memuat data unit organisasi');
+    }
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +42,7 @@ export function useOrgUnitDetail(id: string): UseOrgUnitDetailReturn {
         const data = await organizationUnitApi.getUnitById(id);
         if (!cancelled) setUnit(data);
       } catch {
-        if (!cancelled) setError('Failed to load organization unit data');
+        if (!cancelled) setError('Gagal memuat data unit organisasi');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -41,15 +54,30 @@ export function useOrgUnitDetail(id: string): UseOrgUnitDetailReturn {
     setIsDeleting(true);
     try {
       await organizationUnitApi.deleteUnit(id);
-      toast.success('Organization unit deleted successfully');
+      toast.success('Unit organisasi berhasil dihapus');
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Failed to delete organization unit'));
+      toast.danger(extractErrorMessage(err, 'Gagal menghapus unit organisasi'));
       return false;
     } finally {
       setIsDeleting(false);
     }
   }, [id]);
 
-  return { unit, isLoading, error, deleteUnit: deleteFn, isDeleting };
+  const restoreFn = useCallback(async (): Promise<boolean> => {
+    setIsRestoring(true);
+    try {
+      await organizationUnitApi.restoreUnit(id);
+      toast.success('Unit organisasi berhasil dipulihkan');
+      await loadUnit();
+      return true;
+    } catch (err) {
+      toast.danger(extractErrorMessage(err, 'Gagal memulihkan unit organisasi'));
+      return false;
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [id, loadUnit]);
+
+  return { unit, isLoading, error, deleteUnit: deleteFn, isDeleting, restoreUnit: restoreFn, isRestoring };
 }

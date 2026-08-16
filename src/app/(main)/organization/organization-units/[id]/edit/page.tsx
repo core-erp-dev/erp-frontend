@@ -1,20 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Spinner, Alert, Button } from '@heroui/react';
-import { ArrowLeft } from '@phosphor-icons/react';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Spinner, Alert } from '@heroui/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 import { organizationUnitApi } from '@/modules/organization/organization-units/services/organization-unit-api';
 import type { OrganizationUnitResponse } from '@/modules/organization/organization-units/types';
 import { OrgUnitForm } from '@/modules/organization/organization-units/components/org-unit-form';
+import { resolveEditReturn } from '@/modules/organization/organization-units/utils/org-unit-navigation-utils';
 
 export default function EditOrganizationUnitPage() {
+  const { hasPerm } = usePermission();
+
+  // Guard BEFORE any data request: users without manage never fetch the unit.
+  if (!hasPerm(PERM.ORGANIZATION_UNIT_MANAGE)) {
+    return <ForbiddenAccess />;
+  }
+
+  return <EditOrganizationUnitContent />;
+}
+
+function EditOrganizationUnitContent() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
-  const { hasPerm } = usePermission();
+  const fromParam = searchParams.get('from');
 
   const [unit, setUnit] = useState<OrganizationUnitResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +42,7 @@ export default function EditOrganizationUnitPage() {
         const data = await organizationUnitApi.getUnitById(id);
         if (!cancelled) setUnit(data);
       } catch {
-        if (!cancelled) setError('Failed to load organization unit data');
+        if (!cancelled) setError('Gagal memuat data unit organisasi');
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -37,22 +50,13 @@ export default function EditOrganizationUnitPage() {
     return () => { cancelled = true; };
   }, [id]);
 
-  if (!hasPerm(PERM.ORGANIZATION_UNIT_MANAGE)) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
-          </Alert.Content>
-        </Alert>
-        <Button variant="secondary" onPress={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-      </div>
-    );
-  }
+  const handleSuccess = useCallback(() => {
+    // Deterministic: back only when Detail pushed this page (?from=detail);
+    // deep links / refresh fall back to the unit's Detail via replace.
+    const target = resolveEditReturn(fromParam, id);
+    if (target === 'back') router.back();
+    else router.replace(target.replace);
+  }, [fromParam, id, router]);
 
   if (isLoading) {
     return (
@@ -68,7 +72,7 @@ export default function EditOrganizationUnitPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>{error || 'Organization unit not found'}</Alert.Title>
+            <Alert.Title>{error || 'Unit organisasi tidak ditemukan'}</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
@@ -80,9 +84,7 @@ export default function EditOrganizationUnitPage() {
       <OrgUnitForm
         mode="edit"
         initialData={unit}
-        onSuccess={() => {
-          router.push('/organization/organization-units');
-        }}
+        onSuccess={handleSuccess}
       />
     </div>
   );

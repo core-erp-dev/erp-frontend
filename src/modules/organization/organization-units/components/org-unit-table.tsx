@@ -95,7 +95,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
       </Button>
       <Dropdown.Popover placement="top">
         <Dropdown.Menu onAction={(key) => {
-          if (key === 'add-child') router.push(`/organization/organization-units/create?parentId=${id}`);
+          if (key === 'add-child') router.push(`/organization/organization-units/create?parentId=${id}&from=list`);
           if (key === 'delete') {
             onDelete({ id, unitName: name } as unknown as OrganizationUnitResponse);
           }

@@ -33,10 +33,10 @@ export function useOrgUnitFormData(): UseOrgUnitFormDataReturn {
   const submitCreate = useCallback(async (payload: CreateOrganizationUnitRequest): Promise<string | null> => {
     try {
       const created = await organizationUnitApi.createUnit(payload);
-      toast.success('Organization unit created successfully');
+      toast.success('Unit organisasi berhasil ditambahkan');
       return created.id;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Failed to create organization unit'));
+      toast.danger(extractErrorMessage(err, 'Gagal menambah unit organisasi'));
       return null;
     }
   }, []);
@@ -44,10 +44,10 @@ export function useOrgUnitFormData(): UseOrgUnitFormDataReturn {
   const submitUpdate = useCallback(async (id: string, payload: UpdateOrganizationUnitRequest): Promise<boolean> => {
     try {
       await organizationUnitApi.updateUnit(id, payload);
-      toast.success('Organization unit updated successfully');
+      toast.success('Unit organisasi berhasil diperbarui');
       return true;
     } catch (err) {
-      toast.danger(extractErrorMessage(err, 'Failed to update organization unit'));
+      toast.danger(extractErrorMessage(err, 'Gagal memperbarui unit organisasi'));
       return false;
     }
   }, []);

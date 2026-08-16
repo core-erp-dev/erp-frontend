@@ -232,7 +232,7 @@ function OrganizationUnitsPage() {
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           {!isDeletedScope && hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
-            <Button variant="primary" onPress={() => router.push('/organization/organization-units/create')}>
+            <Button variant="primary" onPress={() => router.push('/organization/organization-units/create?from=list')}>
               <Plus className="h-4 w-4" />
               Tambah Unit
             </Button>
