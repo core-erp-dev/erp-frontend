@@ -126,8 +126,18 @@ function OrganizationUnitsPage() {
     setType(newType);
   }, [setType]);
 
-  const handleSortAction = useCallback((key: React.Key) => {
-    const opt = SORT_OPTIONS[Number(key)];
+  // Sort — single-select, selected state mirrors the Filter menu pattern
+  const sortSelectionKeys = useMemo(() => {
+    const idx = SORT_OPTIONS.findIndex(
+      (opt) => opt.field === filters.sortBy && opt.dir === filters.sortDirection,
+    );
+    return new Set([String(idx >= 0 ? idx : 0)]);
+  }, [filters.sortBy, filters.sortDirection]);
+
+  const handleSortSelectionChange = useCallback((selection: Selection) => {
+    const selected = selection instanceof Set ? selection : new Set<string>();
+    const first = Array.from(selected)[0];
+    const opt = SORT_OPTIONS[Number(first)];
     if (opt) setSort(opt.field, opt.dir);
   }, [setSort]);
 
@@ -309,9 +319,14 @@ function OrganizationUnitsPage() {
                   )}
                 </Button>
                 <Dropdown.Popover>
-                  <Dropdown.Menu onAction={handleSortAction}>
+                  <Dropdown.Menu
+                    selectedKeys={sortSelectionKeys}
+                    selectionMode="single"
+                    onSelectionChange={handleSortSelectionChange}
+                  >
                     {SORT_OPTIONS.map((opt, i) => (
                       <Dropdown.Item key={i} id={String(i)} textValue={opt.label}>
+                        <Dropdown.ItemIndicator />
                         <Label>{opt.label}</Label>
                       </Dropdown.Item>
                     ))}
@@ -346,10 +361,11 @@ function OrganizationUnitsPage() {
             value={searchInput}
             onChange={setSearchInput}
             className="w-72"
+            aria-label="Cari unit organisasi"
           >
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input aria-label="Cari unit organisasi" placeholder="Cari" />
+              <SearchField.Input placeholder="Cari" />
               <SearchField.ClearButton />
             </SearchField.Group>
           </SearchField>
