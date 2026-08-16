@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, House, ArrowsClockwise, FunnelSimple, Check, X, Trash, ArrowsOutSimple, ArrowsInSimple, CheckCircle } from '@phosphor-icons/react';
 import {
   Breadcrumbs,
@@ -17,55 +17,62 @@ import type { Selection } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 import { PositionTable } from '@/modules/organization/positions/components/position-table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { usePositionData, type SortField, type SortDir, type ScopeFilter } from '@/modules/organization/positions/hooks/use-position-data';
+import { usePositionData, type SortField, type SortDir, type ScopeFilter, type ViewMode } from '@/modules/organization/positions/hooks/use-position-data';
 import { useDebounce } from '@/hooks/use-debounce';
 
 const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
-  { field: 'positionName', label: 'Name (A-Z)', dir: 'asc' },
-  { field: 'positionName', label: 'Name (Z-A)', dir: 'desc' },
-  { field: 'positionCode', label: 'Code (A-Z)', dir: 'asc' },
-  { field: 'positionCode', label: 'Code (Z-A)', dir: 'desc' },
-  { field: 'positionLevel', label: 'Level (Lowest)', dir: 'asc' },
-  { field: 'positionLevel', label: 'Level (Highest)', dir: 'desc' },
+  { field: 'positionName', label: 'Nama (A-Z)', dir: 'asc' },
+  { field: 'positionName', label: 'Nama (Z-A)', dir: 'desc' },
+  { field: 'positionCode', label: 'Kode (A-Z)', dir: 'asc' },
+  { field: 'positionCode', label: 'Kode (Z-A)', dir: 'desc' },
+  { field: 'positionLevel', label: 'Level (Terendah)', dir: 'asc' },
+  { field: 'positionLevel', label: 'Level (Tertinggi)', dir: 'desc' },
 ];
 
-export default function PositionsPage() {
+function PositionsPage() {
   const router = useRouter();
   const { hasPerm } = usePermission();
 
   const {
     positions,
     isLoading,
+    error,
     pagination,
     filters,
     setSearch,
     setScope,
     setSort,
     setPage,
+    setView,
     resetFilters,
     refreshTable,
     deletePosition,
     restorePosition,
     treePositions,
     isLoadingTree,
+    treeError,
     refreshTree,
   } = usePositionData();
 
-  const [viewMode, setViewMode] = useState<'table' | 'tree'>('table');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const isDeletedScope = filters.scope === 'deleted';
+  const viewMode = filters.view;
+  const effectiveViewMode: ViewMode = isDeletedScope ? 'table' : viewMode;
 
-  // Local search input state
+  // Local search input state (debounced; URL is the source of truth)
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 400);
   const [lastSearched, setLastSearched] = useState('');
-  if (debouncedSearch !== lastSearched) {
-    setLastSearched(debouncedSearch);
-    setSearch(debouncedSearch);
-  }
+  useEffect(() => {
+    if (debouncedSearch !== lastSearched) {
+      setLastSearched(debouncedSearch);
+      setSearch(debouncedSearch);
+    }
+  }, [debouncedSearch, lastSearched, setSearch]);
 
   // Delete dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -91,26 +98,36 @@ export default function PositionsPage() {
     }
   }, [deleteTarget, deletePosition]);
 
-  const handleRestore = useCallback(async (id: string, name: string) => {
+  const handleRestore = useCallback(async (id: string) => {
     await restorePosition(id);
   }, [restorePosition]);
 
-  // Sort state
-  const isDefaultSort = filters.sortBy === 'positionName' && filters.sortDirection === 'asc';
-  const hasActiveFilters = !isDefaultSort;
+  // Sort — single-select, selected state mirrors the Filter menu pattern
+  const sortSelectionKeys = useMemo(() => {
+    const idx = SORT_OPTIONS.findIndex(
+      (opt) => opt.field === filters.sortBy && opt.dir === filters.sortDirection,
+    );
+    return new Set([String(idx >= 0 ? idx : 0)]);
+  }, [filters.sortBy, filters.sortDirection]);
 
-  const handleSortAction = useCallback((key: React.Key) => {
-    const opt = SORT_OPTIONS[Number(key)];
+  const handleSortSelectionChange = useCallback((selection: Selection) => {
+    const selected = selection instanceof Set ? selection : new Set<string>();
+    const first = Array.from(selected)[0];
+    const opt = SORT_OPTIONS[Number(first)];
     if (opt) setSort(opt.field, opt.dir);
   }, [setSort]);
+
+  const isDefaultSort = filters.sortBy === 'positionName' && filters.sortDirection === 'asc';
+  const hasActiveFilters = !isDefaultSort;
 
   // ── Tree expand/collapse ──
   const collectExpandableIds = useCallback((nodes: typeof treePositions): string[] => {
     const ids: string[] = [];
     for (const node of nodes) {
-      if (node.children && node.children.length > 0) {
+      const children = node.children ?? [];
+      if (children.length > 0) {
         ids.push(node.id);
-        ids.push(...collectExpandableIds(node.children));
+        ids.push(...collectExpandableIds(children));
       }
     }
     return ids;
@@ -142,25 +159,21 @@ export default function PositionsPage() {
 
   // Auto-expand roots when switching to tree view
   const handleViewModeChange = useCallback((mode: 'table' | 'tree') => {
-    setViewMode(mode);
+    setView(mode);
     if (mode === 'tree' && expandedIds.size === 0) {
       const rootIds = new Set(treePositions.map((p) => p.id));
       setExpandedIds(rootIds);
     }
-  }, [treePositions, expandedIds.size]);
+  }, [setView, treePositions, expandedIds.size]);
 
   // ── Scope toggle ──
   const handleScopeToggle = useCallback(() => {
     const newScope: ScopeFilter = isDeletedScope ? 'current' : 'deleted';
-    setScope(newScope);
-    // Deleted scope forces table view
-    if (newScope === 'deleted') {
-      setViewMode('table');
-    }
+    // Deleted scope forces table view — applied in the same URL update.
+    setScope(newScope, newScope === 'deleted' ? 'table' : undefined);
   }, [isDeletedScope, setScope]);
 
   const totalItems = pagination?.totalElements ?? 0;
-  const effectiveViewMode = isDeletedScope ? 'table' : viewMode;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -168,18 +181,18 @@ export default function PositionsPage() {
         <BreadcrumbsItem href="/">
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
-        <BreadcrumbsItem>Organization</BreadcrumbsItem>
-        <BreadcrumbsItem>Position Structure</BreadcrumbsItem>
+        <BreadcrumbsItem>Organisasi</BreadcrumbsItem>
+        <BreadcrumbsItem>Struktur Jabatan</BreadcrumbsItem>
       </Breadcrumbs>
 
       {/* Row 1: Title + Refresh + Add */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-foreground">Position Structure</h1>
+          <h1 className="text-xl font-semibold text-foreground">Struktur Jabatan</h1>
           <Chip
             size="md"
             className="pointer-events-none"
-            aria-label={`Total ${effectiveViewMode === 'table' ? totalItems : treePositions.length} positions`}
+            aria-label={`Total ${effectiveViewMode === 'table' ? totalItems : treePositions.length} jabatan`}
           >
             {effectiveViewMode === 'table' ? totalItems : treePositions.length}
           </Chip>
@@ -190,14 +203,14 @@ export default function PositionsPage() {
             variant="tertiary"
             onPress={() => { refreshTable(); refreshTree(); }}
             isDisabled={isLoading || isLoadingTree}
-            aria-label="Refresh position data"
+            aria-label="Muat ulang data jabatan"
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           {!isDeletedScope && hasPerm(PERM.POSITION_MANAGE) && (
-            <Button variant="primary" onPress={() => router.push('/organization/positions/create')}>
+            <Button variant="primary" onPress={() => router.push('/organization/positions/create?from=list')}>
               <Plus className="h-4 w-4" />
-              Add Position
+              Tambah Jabatan
             </Button>
           )}
         </div>
@@ -213,9 +226,9 @@ export default function PositionsPage() {
               onSelectionChange={(key) => handleViewModeChange(key as 'table' | 'tree')}
             >
               <Tabs.ListContainer>
-                <Tabs.List aria-label="View">
-                  <Tabs.Tab id="table">Table<Tabs.Indicator /></Tabs.Tab>
-                  <Tabs.Tab id="tree">Tree<Tabs.Indicator /></Tabs.Tab>
+                <Tabs.List aria-label="Tampilan">
+                  <Tabs.Tab id="table">Tabel<Tabs.Indicator /></Tabs.Tab>
+                  <Tabs.Tab id="tree">Hierarki<Tabs.Indicator /></Tabs.Tab>
                 </Tabs.List>
               </Tabs.ListContainer>
             </Tabs>
@@ -225,14 +238,14 @@ export default function PositionsPage() {
             <Button
               variant="tertiary"
               onPress={allExpanded ? handleCollapseAll : handleExpandAll}
-              aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
+              aria-label={allExpanded ? 'Ciutkan semua' : 'Perluas semua'}
             >
               {allExpanded ? (
                 <ArrowsInSimple className="h-4 w-4" />
               ) : (
                 <ArrowsOutSimple className="h-4 w-4" />
               )}
-              {allExpanded ? 'Collapse All' : 'Expand All'}
+              {allExpanded ? 'Ciutkan Semua' : 'Perluas Semua'}
             </Button>
           )}
 
@@ -240,9 +253,9 @@ export default function PositionsPage() {
             <>
               {/* Sort Dropdown */}
               <Dropdown>
-                <Button variant="tertiary" aria-label="Sort">
+                <Button variant="tertiary" aria-label="Urutkan">
                   <FunnelSimple className="h-4 w-4" />
-                  Sort
+                  Urutkan
                   {!isDefaultSort && (
                     <>
                       <span className="mx-0.5 h-4 w-px bg-border" />
@@ -251,9 +264,14 @@ export default function PositionsPage() {
                   )}
                 </Button>
                 <Dropdown.Popover>
-                  <Dropdown.Menu onAction={handleSortAction}>
+                  <Dropdown.Menu
+                    selectedKeys={sortSelectionKeys}
+                    selectionMode="single"
+                    onSelectionChange={handleSortSelectionChange}
+                  >
                     {SORT_OPTIONS.map((opt, i) => (
                       <Dropdown.Item key={i} id={String(i)} textValue={opt.label}>
+                        <Dropdown.ItemIndicator />
                         <Label>{opt.label}</Label>
                       </Dropdown.Item>
                     ))}
@@ -262,22 +280,22 @@ export default function PositionsPage() {
               </Dropdown>
 
               {hasActiveFilters && (
-                <Button isIconOnly variant="tertiary" aria-label="Reset filters" onPress={resetFilters}>
+                <Button isIconOnly variant="tertiary" aria-label="Atur ulang filter" onPress={resetFilters}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </>
           )}
 
-          {/* Scope Toggle: Deleted / Current — last in row order */}
+          {/* Scope Toggle: Data Terhapus / Data Aktif — last in row order */}
           {hasPerm(PERM.POSITION_MANAGE) && (
-            <Button variant="tertiary" aria-label={isDeletedScope ? 'Show current' : 'Show deleted'} onPress={handleScopeToggle}>
+            <Button variant="tertiary" aria-label={isDeletedScope ? 'Tampilkan data aktif' : 'Tampilkan data terhapus'} onPress={handleScopeToggle}>
               {isDeletedScope ? (
                 <CheckCircle className="h-4 w-4" />
               ) : (
                 <Trash className="h-4 w-4" />
               )}
-              {isDeletedScope ? 'Current' : 'Deleted'}
+              {isDeletedScope ? 'Data Aktif' : 'Data Terhapus'}
             </Button>
           )}
         </div>
@@ -288,10 +306,11 @@ export default function PositionsPage() {
             value={searchInput}
             onChange={setSearchInput}
             className="w-72"
+            aria-label="Cari jabatan"
           >
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input aria-label="Search positions" placeholder="Search code or name" />
+              <SearchField.Input placeholder="Cari" />
               <SearchField.ClearButton />
             </SearchField.Group>
           </SearchField>
@@ -303,6 +322,7 @@ export default function PositionsPage() {
         <PositionTable
           positions={positions}
           isLoading={effectiveViewMode === 'table' ? isLoading : isLoadingTree}
+          error={effectiveViewMode === 'table' ? error : treeError}
           pagination={pagination}
           onPageChange={setPage}
           onDelete={handleDeleteRequest}
@@ -320,10 +340,36 @@ export default function PositionsPage() {
         onClose={() => { setIsDeleteDialogOpen(false); setDeleteTarget(null); }}
         onConfirm={handleDeleteConfirm}
         name={deleteTarget?.name || ''}
-        entityLabel="position"
-        warning="A position with active subordinates or employees cannot be deleted."
+        entityLabel="jabatan"
+        warning="Jabatan yang masih memiliki bawahan atau pegawai aktif tidak dapat dihapus."
         isDeleting={isDeleting}
       />
     </div>
   );
+}
+
+export default function PositionsRoute() {
+  return (
+    <Suspense fallback={null}>
+      <PositionsGuard />
+    </Suspense>
+  );
+}
+
+/**
+ * Route guard: list requires position:read OR position:manage; the
+ * deleted-scope (Data Terhapus) mode additionally requires position:manage.
+ * Forbidden is shown BEFORE any data request.
+ */
+function PositionsGuard() {
+  const { hasPerm, hasAnyPerm } = usePermission();
+  const searchParams = useSearchParams();
+  const canRead = hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE);
+  const scopeDeleted = searchParams.get('scope') === 'deleted';
+
+  if (!canRead || (scopeDeleted && !hasPerm(PERM.POSITION_MANAGE))) {
+    return <ForbiddenAccess />;
+  }
+
+  return <PositionsPage />;
 }

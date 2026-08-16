@@ -131,7 +131,7 @@ export const navigationConfig: SidebarItem[] = [
     href: '/organization/positions',
     icon: TreeStructure,
     group: 'Organisasi',
-    permissions: ['position:read'],
+    permissions: ['position:read', 'position:manage'],
   },
   {
     title: 'Unit Organisasi',
