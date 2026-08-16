@@ -84,7 +84,11 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
   );
 
   // ── More menu (Add Subordinate + Delete) — shared by Table and Tree views ──
-  const renderMoreMenu = (id: string, name: string) => (
+  // Every action inside requires organization_unit:manage; hide the trigger
+  // entirely for read-only users instead of rendering an empty menu.
+  const renderMoreMenu = (id: string, name: string) => {
+    if (!hasPerm(PERM.ORGANIZATION_UNIT_MANAGE)) return null;
+    return (
     <Dropdown>
       <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi lainnya untuk ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
@@ -111,7 +115,8 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
         </Dropdown.Menu>
       </Dropdown.Popover>
     </Dropdown>
-  );
+    );
+  };
 
   // ── TREE VIEW ──
   if (viewMode === 'tree') {
