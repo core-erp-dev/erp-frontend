@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { User } from '@/types/auth';
-import { logout, getToken } from '@/lib/auth';
-import { refreshAccessToken } from '@/lib/token-service';
+import { getToken, handleSessionFailure } from '@/lib/auth';
+import { refreshSession, RefreshFailedError } from '@/lib/token-service';
 
 interface AuthState {
   accessToken: string | null;
@@ -26,6 +26,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   initAuth: async () => {
+    // Already authenticated in this tab (e.g. the login page just stored the
+    // login response): bootstrap is complete, no refresh round-trip needed.
+    if (useAuthStore.getState().accessToken) {
+      set({ isInitializing: false });
+      return;
+    }
+
     const refreshToken = getToken();
 
     if (!refreshToken) {
@@ -34,10 +41,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     try {
-      await refreshAccessToken();
+      await refreshSession();
       set({ isInitializing: false });
-    } catch {
-      logout();
+    } catch (error) {
+      if (error instanceof RefreshFailedError) {
+        // 401: session invalid for this context — clear memory + compare-and-remove.
+        handleSessionFailure(error.failedToken);
+      }
+      // Transient failure (network/5xx): keep the stored token so the next
+      // load can recover; just finish bootstrap (AuthGuard redirects to login).
+      set({ isInitializing: false });
     }
   },
 }));

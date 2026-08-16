@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Spinner } from '@heroui/react';
 import { useAuthStore } from '@/store/auth-store';
+import { registerAuthStorageSync } from '@/lib/auth-storage-sync';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -16,6 +17,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     initAuth();
   }, [initAuth]);
+
+  // Cross-tab session sync (storage event): logout propagation and safe
+  // bootstrap recovery when another tab rotates the refresh token.
+  useEffect(() => registerAuthStorageSync(), []);
 
   useEffect(() => {
     if (!isInitializing && !accessToken) {

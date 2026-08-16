@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { env } from './env';
-import { logout } from './auth';
+import { handleSessionFailure } from './auth';
 import { useAuthStore } from '@/store/auth-store';
-import { refreshAccessToken } from '@/lib/token-service';
+import { refreshSession, RefreshFailedError } from '@/lib/token-service';
 
 export const api = axios.create({
   baseURL: env.baseUrl,
@@ -40,10 +40,17 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        await refreshAccessToken();
+        // refreshSession is the single source of truth: single-flight per
+        // tab, cross-tab lock, and one-token recovery on 401. The retry below
+        // re-reads the store, so it always uses the freshest access token.
+        await refreshSession();
         return api(originalRequest);
       } catch (refreshError) {
-        logout();
+        if (refreshError instanceof RefreshFailedError) {
+          // Final refresh failure (401): clear this context's session with
+          // compare-and-remove — never wipe a token another tab stored.
+          handleSessionFailure(refreshError.failedToken);
+        }
         return Promise.reject(refreshError);
       }
     }
