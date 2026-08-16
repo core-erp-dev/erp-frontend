@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DotsThreeVertical, Eye, PencilSimple, Trash, Plus, Tray, CaretRight, CaretDown, ArrowCounterClockwise, Copy, Check } from '@phosphor-icons/react';
-import { Table, Spinner, Button, Pagination, Dropdown } from '@heroui/react';
+import { Table, Spinner, Button, Chip, Tooltip, Pagination, Dropdown } from '@heroui/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { Position, PositionTree } from '../types';
@@ -18,6 +18,7 @@ interface PositionTableProps {
   expandedIds?: Set<string>;
   onToggleExpand?: (id: string) => void;
   isLoading?: boolean;
+  error?: string | null;
   viewMode: 'table' | 'tree';
   onDelete: (id: string, name: string) => void;
   onRestore?: (id: string, name: string) => void;
@@ -31,6 +32,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   expandedIds = new Set(),
   onToggleExpand,
   isLoading = false,
+  error = null,
   viewMode,
   onDelete,
   onRestore,
@@ -53,6 +55,28 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     setTimeout(() => setCopiedId(null), 3000);
   }, []);
 
+  // ── Employees cell: single Chip `+N` + Tooltip (right) listing every name.
+  // Pattern reused from the employees page positions column; defensive on the
+  // assignedUsers collection (missing → []).
+  const renderEmployeesCell = (names: string[]) => {
+    const count = names.length;
+    if (count === 0) return <span className="text-muted-foreground">-</span>;
+    return (
+      <Tooltip delay={0}>
+        <Tooltip.Trigger aria-label={`${count} pegawai`}>
+          <Chip size="sm" variant="soft">{`+${count}`}</Chip>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right">
+          <div className="flex flex-col gap-0.5 text-xs">
+            {names.map((name, i) => (
+              <span key={`${name}-${i}`}>{name}</span>
+            ))}
+          </div>
+        </Tooltip.Content>
+      </Tooltip>
+    );
+  };
+
   // ── Inline action buttons (Detail + Edit) — shared by Table and Tree views ──
   const renderInlineActions = (id: string, name: string) => (
     <>
@@ -61,7 +85,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
           isIconOnly
           variant="tertiary"
           size="sm"
-          aria-label={`View ${name}`}
+          aria-label={`Lihat ${name}`}
           onPress={() => router.push(`/organization/positions/${id}`)}
         >
           <Eye className="h-4 w-4" />
@@ -82,32 +106,45 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   );
 
   // ── More menu (Add Subordinate + Delete) — shared by Table and Tree views ──
-  const renderMoreMenu = (id: string, name: string) => (
+  // Every action inside requires position:manage; hide the trigger entirely
+  // for read-only users instead of rendering an empty menu.
+  const renderMoreMenu = (id: string, name: string) => {
+    if (!hasPerm(PERM.POSITION_MANAGE)) return null;
+    return (
     <Dropdown>
-      <Button isIconOnly variant="tertiary" size="sm" aria-label={`More actions for ${name}`}>
+      <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi lainnya untuk ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
       </Button>
       <Dropdown.Popover placement="top">
         <Dropdown.Menu onAction={(key) => {
-          if (key === 'add-child') router.push(`/organization/positions/create?parentId=${id}`);
+          if (key === 'add-child') router.push(`/organization/positions/create?parentId=${id}&from=list`);
           if (key === 'delete') onDelete(id, name);
         }}>
-          {hasPerm(PERM.POSITION_MANAGE) && (
-            <Dropdown.Item id="add-child" textValue="Add Subordinate">
-              <Plus className="h-4 w-4 text-muted-foreground" />
-              <span>Add Subordinate</span>
-            </Dropdown.Item>
-          )}
-          {hasPerm(PERM.POSITION_MANAGE) && (
-            <Dropdown.Item id="delete" textValue="Delete" variant="danger">
-              <Trash className="h-4 w-4 text-danger" />
-              <span className="text-danger">Delete</span>
-            </Dropdown.Item>
-          )}
+          <Dropdown.Item id="add-child" textValue="Tambah Jabatan Bawahan">
+            <Plus className="h-4 w-4 text-muted-foreground" />
+            <span>Tambah Jabatan Bawahan</span>
+          </Dropdown.Item>
+          <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+            <Trash className="h-4 w-4 text-danger" />
+            <span className="text-danger">Hapus</span>
+          </Dropdown.Item>
         </Dropdown.Menu>
       </Dropdown.Popover>
     </Dropdown>
-  );
+    );
+  };
+
+  const renderEmptyState = () =>
+    isLoading ? (
+      <div className="flex h-24 items-center justify-center">
+        <Spinner size="md" />
+      </div>
+    ) : (
+      <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+        <Tray className="h-8 w-8" />
+        <span className="text-sm">{error || 'Tidak ada data'}</span>
+      </div>
+    );
 
   // ── TREE VIEW ──
   if (viewMode === 'tree') {
@@ -115,28 +152,18 @@ export const PositionTable: React.FC<PositionTableProps> = ({
     return (
       <Table key="tree">
         <Table.ScrollContainer>
-          <Table.Content aria-label="Position Structure" className="min-w-[700px]">
+          <Table.Content aria-label="Hierarki Jabatan" className="min-w-[700px]">
             <Table.Header>
-              <Table.Column id="tree-name" isRowHeader>Position Name</Table.Column>
-              <Table.Column id="tree-code">Code</Table.Column>
-              <Table.Column id="tree-users">Employees</Table.Column>
+              <Table.Column id="tree-name" isRowHeader>Nama Jabatan</Table.Column>
+              <Table.Column id="tree-code">Kode</Table.Column>
+              <Table.Column id="tree-users">Pegawai</Table.Column>
               <Table.Column id="tree-actions" className="text-center">{''}</Table.Column>
             </Table.Header>
-            <Table.Body
-              renderEmptyState={() =>
-                isLoading ? (
-                  <div className="flex h-24 items-center justify-center">
-                    <Spinner size="md" />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-                    <Tray className="h-8 w-8" />
-                    <span className="text-sm">No data available</span>
-                  </div>
-                )
-              }
-            >
-              {treeRows.map((row) => (
+            <Table.Body renderEmptyState={renderEmptyState}>
+              {/* While a request is in flight, do NOT keep showing stale rows —
+                  the empty-state spinner (initial-load pattern) takes over. */}
+              {!isLoading &&
+                treeRows.map((row) => (
                 <Table.Row key={row.id} id={row.id}>
                   <Table.Cell>
                     <div className="flex items-center" style={{ paddingLeft: row.depth * 24 }}>
@@ -145,7 +172,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={expandedIds.has(row.id) ? 'Collapse' : 'Expand'}
+                          aria-label={expandedIds.has(row.id) ? 'Ciutkan' : 'Perluas'}
                           onPress={() => onToggleExpand?.(row.id)}
                           className="mr-1 h-5 w-5 min-w-0"
                         >
@@ -174,7 +201,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Copy code ${row.positionCode}`}
+                          aria-label={`Salin kode ${row.positionCode}`}
                           onPress={() => handleCopyCode(row.id, row.positionCode)}
                         >
                           {copiedId === row.id ? (
@@ -187,13 +214,13 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     </div>
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">{row.userCount}</span>
+                    {renderEmployeesCell(row.userNames)}
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
                       {row.isDeleted ? (
                         hasPerm(PERM.POSITION_MANAGE) && (
-                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${row.positionName}`} onPress={() => onRestore?.(row.id, row.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>
                         )
@@ -218,30 +245,21 @@ export const PositionTable: React.FC<PositionTableProps> = ({
   return (
     <Table key="table">
       <Table.ScrollContainer>
-        <Table.Content aria-label="Position List" className="min-w-[700px]">
+        <Table.Content aria-label="Data Jabatan" className="min-w-[700px]">
           <Table.Header>
-            <Table.Column id="code" isRowHeader>Code</Table.Column>
-            <Table.Column id="name">Position Name</Table.Column>
-            <Table.Column id="parent">Reports To</Table.Column>
-            <Table.Column id="users">Employees</Table.Column>
-            <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
+            <Table.Column id="code" isRowHeader>Kode</Table.Column>
+            <Table.Column id="name">Nama Jabatan</Table.Column>
+            <Table.Column id="parent">Atasan</Table.Column>
+            <Table.Column id="users">Pegawai</Table.Column>
+            <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
           </Table.Header>
-          <Table.Body
-            renderEmptyState={() =>
-              isLoading ? (
-                <div className="flex h-24 items-center justify-center">
-                  <Spinner size="md" />
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-                  <Tray className="h-8 w-8" />
-                  <span className="text-sm">No data available</span>
-                </div>
-              )
-            }
-          >
-            {positions.map((pos) => {
+          <Table.Body renderEmptyState={renderEmptyState}>
+            {/* While a request is in flight, do NOT keep showing stale rows —
+                the empty-state spinner (initial-load pattern) takes over. */}
+            {!isLoading &&
+              positions.map((pos) => {
               const isDeleted = !!pos.deletedAt;
+              const userNames = (pos.assignedUsers ?? []).map((u) => u.fullName);
               return (
                 <Table.Row key={pos.id} id={pos.id}>
                   <Table.Cell className={`font-medium ${isDeleted ? 'text-gray-400 line-through' : 'text-foreground'}`}>
@@ -252,7 +270,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Copy code ${pos.positionCode}`}
+                          aria-label={`Salin kode ${pos.positionCode}`}
                           onPress={() => handleCopyCode(pos.id, pos.positionCode)}
                         >
                           {copiedId === pos.id ? (
@@ -269,7 +287,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                       {isDeleted ? (
                         <span>{pos.positionName}</span>
                       ) : (
-                        <Link href={`/organization/positions/${pos.id}`} className="text-foreground hover:underline font-medium">
+                        <Link href={`/organization/positions/${pos.id}`} className="font-medium text-foreground hover:underline">
                           {pos.positionName}
                         </Link>
                       )}
@@ -282,15 +300,13 @@ export const PositionTable: React.FC<PositionTableProps> = ({
                     {pos.parentName || '-'}
                   </Table.Cell>
                   <Table.Cell>
-                    <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                      {(pos.assignedUsers ?? []).length}
-                    </span>
+                    {renderEmployeesCell(userNames)}
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
                       {isDeleted ? (
                         hasPerm(PERM.POSITION_MANAGE) && (
-                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Restore ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
+                          <Button isIconOnly variant="tertiary" size="sm" aria-label={`Pulihkan ${pos.positionName}`} onPress={() => onRestore?.(pos.id, pos.positionName)}>
                             <ArrowCounterClockwise className="h-4 w-4" />
                           </Button>
                         )
@@ -312,11 +328,11 @@ export const PositionTable: React.FC<PositionTableProps> = ({
       {!isLoading && totalItems > 0 && (
         <Table.Footer>
           <Pagination size="sm">
-            <Pagination.Summary>{startItem} to {endItem} of {totalItems} results</Pagination.Summary>
+            <Pagination.Summary>{startItem} sampai {endItem} dari {totalItems} hasil</Pagination.Summary>
             <Pagination.Content>
               <Pagination.Item>
                 <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange?.(currentPage - 1)}>
-                  <Pagination.PreviousIcon /> Previous
+                  <Pagination.PreviousIcon /> Sebelumnya
                 </Pagination.Previous>
               </Pagination.Item>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
@@ -326,7 +342,7 @@ export const PositionTable: React.FC<PositionTableProps> = ({
               ))}
               <Pagination.Item>
                 <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange?.(currentPage + 1)}>
-                  Next <Pagination.NextIcon />
+                  Berikutnya <Pagination.NextIcon />
                 </Pagination.Next>
               </Pagination.Item>
             </Pagination.Content>
@@ -342,7 +358,7 @@ interface TreeRow {
   positionName: string;
   positionCode: string;
   unitName: string | null;
-  userCount: number;
+  userNames: string[];
   depth: number;
   hasChildren: boolean;
   isDeleted: boolean;
@@ -351,18 +367,19 @@ interface TreeRow {
 function buildTreeRows(nodes: PositionTree[], expandedIds: Set<string>, depth: number): TreeRow[] {
   const rows: TreeRow[] = [];
   for (const node of nodes) {
+    const children = node.children ?? [];
     rows.push({
       id: node.id,
       positionName: node.positionName,
       positionCode: node.positionCode,
       unitName: node.unitName ?? null,
-      userCount: (node.assignedUsers ?? []).length,
+      userNames: (node.assignedUsers ?? []).map((u) => u.fullName),
       depth,
-      hasChildren: node.children.length > 0,
+      hasChildren: children.length > 0,
       isDeleted: !!node.deletedAt,
     });
-    if (node.children.length > 0 && expandedIds.has(node.id)) {
-      rows.push(...buildTreeRows(node.children, expandedIds, depth + 1));
+    if (children.length > 0 && expandedIds.has(node.id)) {
+      rows.push(...buildTreeRows(children, expandedIds, depth + 1));
     }
   }
   return rows;

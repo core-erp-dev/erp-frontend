@@ -26,7 +26,17 @@ export const organizationApi = {
       '/api/v1/positions',
       { params }
     );
-    return response.data.data;
+    // Defensive normalization — the page renders with .map/.length, so the
+    // payload must never surface an undefined content array.
+    const data = response.data?.data;
+    return {
+      content: Array.isArray(data?.content) ? data.content : [],
+      page: data?.page ?? 1,
+      size: data?.size ?? 10,
+      totalElements: data?.totalElements ?? 0,
+      totalPages: data?.totalPages ?? 0,
+      last: data?.last ?? true,
+    };
   },
 
   /** Fetch the complete position hierarchy as a tree structure */
