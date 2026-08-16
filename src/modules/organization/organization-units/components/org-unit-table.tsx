@@ -8,12 +8,13 @@ import { Table, Spinner, Button, Chip, Pagination, Dropdown } from '@heroui/reac
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import type { OrganizationUnitResponse } from '../types';
-import { UNIT_TYPE_LABEL, UNIT_TYPE_CHIP_COLOR } from '../types';
+import { UNIT_TYPE_LABEL_ID, UNIT_TYPE_CHIP_COLOR } from '../types';
 import type { PaginatedResponse } from '@/types/api';
 
 interface OrgUnitTableProps {
   units: OrganizationUnitResponse[];
   isLoading?: boolean;
+  error?: string | null;
   pagination: PaginatedResponse<OrganizationUnitResponse> | null;
   onPageChange: (page: number) => void;
   onDelete: (unit: OrganizationUnitResponse) => void;
@@ -27,6 +28,7 @@ interface OrgUnitTableProps {
 export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
   units,
   isLoading = false,
+  error = null,
   pagination,
   onPageChange,
   onDelete,
@@ -61,7 +63,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
           isIconOnly
           variant="tertiary"
           size="sm"
-          aria-label={`View ${name}`}
+          aria-label={`Lihat ${name}`}
           onPress={() => router.push(`/organization/organization-units/${id}`)}
         >
           <Eye className="h-4 w-4" />
@@ -72,7 +74,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
           isIconOnly
           variant="tertiary"
           size="sm"
-          aria-label={`Edit ${name}`}
+          aria-label={`Ubah ${name}`}
           onPress={() => router.push(`/organization/organization-units/${id}/edit`)}
         >
           <PencilSimple className="h-4 w-4" />
@@ -84,7 +86,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
   // ── More menu (Add Subordinate + Delete) — shared by Table and Tree views ──
   const renderMoreMenu = (id: string, name: string) => (
     <Dropdown>
-      <Button isIconOnly variant="tertiary" size="sm" aria-label={`More actions for ${name}`}>
+      <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi lainnya untuk ${name}`}>
         <DotsThreeVertical className="h-4 w-4" />
       </Button>
       <Dropdown.Popover placement="top">
@@ -95,15 +97,15 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
           }
         }}>
           {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
-            <Dropdown.Item id="add-child" textValue="Add Subordinate">
+            <Dropdown.Item id="add-child" textValue="Tambah Unit Bawahan">
               <Plus className="h-4 w-4 text-muted-foreground" />
-              <span>Add Subordinate</span>
+              <span>Tambah Unit Bawahan</span>
             </Dropdown.Item>
           )}
           {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
-            <Dropdown.Item id="delete" textValue="Delete" variant="danger">
+            <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
               <Trash className="h-4 w-4 text-danger" />
-              <span className="text-danger">Delete</span>
+              <span className="text-danger">Hapus</span>
             </Dropdown.Item>
           )}
         </Dropdown.Menu>
@@ -117,11 +119,11 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
     return (
       <Table key="tree">
         <Table.ScrollContainer>
-          <Table.Content aria-label="Organization Unit Hierarchy" className="min-w-[700px]">
+          <Table.Content aria-label="Hierarki Unit Organisasi" className="min-w-[700px]">
             <Table.Header>
-              <Table.Column id="tree-name" isRowHeader>Unit Name</Table.Column>
-              <Table.Column id="tree-code">Code</Table.Column>
-              <Table.Column id="tree-type">Type</Table.Column>
+              <Table.Column id="tree-name" isRowHeader>Nama Unit</Table.Column>
+              <Table.Column id="tree-code">Kode</Table.Column>
+              <Table.Column id="tree-type">Jenis Unit</Table.Column>
               <Table.Column id="tree-actions" className="text-center">{''}</Table.Column>
             </Table.Header>
             <Table.Body
@@ -133,7 +135,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                     <Tray className="h-8 w-8" />
-                    <span className="text-sm">No data available</span>
+                    <span className="text-sm">{error || 'Tidak ada data'}</span>
                   </div>
                 )
               }
@@ -147,7 +149,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={expandedIds.has(row.id) ? 'Collapse' : 'Expand'}
+                          aria-label={expandedIds.has(row.id) ? 'Ciutkan' : 'Perluas'}
                           onPress={() => onToggleExpand?.(row.id)}
                           className="mr-1 h-5 w-5 min-w-0"
                         >
@@ -172,7 +174,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                         isIconOnly
                         variant="ghost"
                         size="sm"
-                        aria-label={`Copy code ${row.unitCode}`}
+                        aria-label={`Salin kode ${row.unitCode}`}
                         onPress={() => handleCopyCode(row.id, row.unitCode)}
                       >
                         {copiedId === row.id ? (
@@ -185,7 +187,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                   </Table.Cell>
                   <Table.Cell>
                     <Chip size="sm" color={UNIT_TYPE_CHIP_COLOR[row.unitType] ?? 'default'} variant="soft">
-                      {UNIT_TYPE_LABEL[row.unitType] ?? row.unitType}
+                      {UNIT_TYPE_LABEL_ID[row.unitType] ?? row.unitType}
                     </Chip>
                   </Table.Cell>
                   <Table.Cell>
@@ -207,13 +209,13 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
   return (
     <Table key="table">
       <Table.ScrollContainer>
-        <Table.Content aria-label="Organization Unit Data" className="min-w-[700px]">
+        <Table.Content aria-label="Data Unit Organisasi" className="min-w-[700px]">
           <Table.Header>
-            <Table.Column id="unitCode" isRowHeader>Unit Code</Table.Column>
-            <Table.Column id="unitName">Unit Name</Table.Column>
-            <Table.Column id="unitType">Type</Table.Column>
-            <Table.Column id="parentName">Parent Unit</Table.Column>
-            <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
+            <Table.Column id="unitCode" isRowHeader>Kode Unit</Table.Column>
+            <Table.Column id="unitName">Nama Unit</Table.Column>
+            <Table.Column id="unitType">Jenis Unit</Table.Column>
+            <Table.Column id="parentName">Unit Induk</Table.Column>
+            <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
           </Table.Header>
           <Table.Body
             renderEmptyState={() =>
@@ -224,7 +226,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
               ) : (
                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                   <Tray className="h-8 w-8" />
-                  <span className="text-sm">No data available</span>
+                  <span className="text-sm">{error || 'Tidak ada data'}</span>
                 </div>
               )
             }
@@ -245,7 +247,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                           isIconOnly
                           variant="ghost"
                           size="sm"
-                          aria-label={`Copy unit code ${unit.unitCode}`}
+                          aria-label={`Salin kode unit ${unit.unitCode}`}
                           onPress={() => handleCopyCode(unit.id, unit.unitCode)}
                         >
                           {copiedId === unit.id ? (
@@ -277,7 +279,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                       color={UNIT_TYPE_CHIP_COLOR[unit.unitType] ?? 'default'}
                       variant="soft"
                     >
-                      {UNIT_TYPE_LABEL[unit.unitType] ?? unit.unitType}
+                      {UNIT_TYPE_LABEL_ID[unit.unitType] ?? unit.unitType}
                     </Chip>
                   </Table.Cell>
                   <Table.Cell className={isDeleted ? 'text-gray-400' : 'text-muted-foreground'}>
@@ -291,7 +293,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                             isIconOnly
                             variant="tertiary"
                             size="sm"
-                            aria-label={`Restore ${unit.unitName}`}
+                            aria-label={`Pulihkan ${unit.unitName}`}
                             onPress={() => onRestore(unit)}
                           >
                             <ArrowCounterClockwise className="h-4 w-4" />
@@ -316,7 +318,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
         <Table.Footer>
           <Pagination size="sm">
             <Pagination.Summary>
-              {startItem} to {endItem} of {totalItems} results
+              {startItem} sampai {endItem} dari {totalItems} hasil
             </Pagination.Summary>
             <Pagination.Content>
               <Pagination.Item>
@@ -325,7 +327,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                   onPress={() => onPageChange(currentPage - 1)}
                 >
                   <Pagination.PreviousIcon />
-                  Previous
+                  Sebelumnya
                 </Pagination.Previous>
               </Pagination.Item>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
@@ -343,7 +345,7 @@ export const OrgUnitTable: React.FC<OrgUnitTableProps> = ({
                   isDisabled={currentPage === totalPages}
                   onPress={() => onPageChange(currentPage + 1)}
                 >
-                  Next
+                  Berikutnya
                   <Pagination.NextIcon />
                 </Pagination.Next>
               </Pagination.Item>
@@ -367,16 +369,17 @@ interface TreeRow {
 function buildTreeRows(nodes: OrganizationUnitResponse[], expandedIds: Set<string>, depth: number): TreeRow[] {
   const rows: TreeRow[] = [];
   for (const node of nodes) {
+    const children = node.children ?? [];
     rows.push({
       id: node.id,
       unitName: node.unitName,
       unitCode: node.unitCode,
       unitType: node.unitType,
       depth,
-      hasChildren: node.children.length > 0,
+      hasChildren: children.length > 0,
     });
-    if (node.children.length > 0 && expandedIds.has(node.id)) {
-      rows.push(...buildTreeRows(node.children, expandedIds, depth + 1));
+    if (children.length > 0 && expandedIds.has(node.id)) {
+      rows.push(...buildTreeRows(children, expandedIds, depth + 1));
     }
   }
   return rows;

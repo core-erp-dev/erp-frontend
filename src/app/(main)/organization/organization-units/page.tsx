@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, House, ArrowsClockwise, SlidersHorizontal, FunnelSimple, Check, X, Trash, ArrowsOutSimple, ArrowsInSimple, CheckCircle } from '@phosphor-icons/react';
 import {
   Breadcrumbs,
@@ -18,31 +18,33 @@ import type { Selection } from '@heroui/react';
 
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 import { OrgUnitTable } from '@/modules/organization/organization-units/components/org-unit-table';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { useOrganizationUnitData, type SortField, type SortDir, type ScopeFilter } from '@/modules/organization/organization-units/hooks/use-organization-unit-data';
+import { useOrganizationUnitData, type SortField, type SortDir, type ScopeFilter, type ViewMode } from '@/modules/organization/organization-units/hooks/use-organization-unit-data';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { OrganizationUnitResponse } from '@/modules/organization/organization-units/types';
-import { OrganizationUnitType, UNIT_TYPE_LABEL } from '@/modules/organization/organization-units/types';
+import { OrganizationUnitType, UNIT_TYPE_LABEL_ID } from '@/modules/organization/organization-units/types';
 
 const SORT_OPTIONS: { field: SortField; label: string; dir: SortDir }[] = [
-  { field: 'unitName', label: 'Name (A-Z)', dir: 'asc' },
-  { field: 'unitName', label: 'Name (Z-A)', dir: 'desc' },
-  { field: 'unitCode', label: 'Code (A-Z)', dir: 'asc' },
-  { field: 'unitCode', label: 'Code (Z-A)', dir: 'desc' },
-  { field: 'createdAt', label: 'Newest', dir: 'desc' },
-  { field: 'createdAt', label: 'Oldest', dir: 'asc' },
+  { field: 'unitName', label: 'Nama (A-Z)', dir: 'asc' },
+  { field: 'unitName', label: 'Nama (Z-A)', dir: 'desc' },
+  { field: 'unitCode', label: 'Kode (A-Z)', dir: 'asc' },
+  { field: 'unitCode', label: 'Kode (Z-A)', dir: 'desc' },
+  { field: 'createdAt', label: 'Terbaru', dir: 'desc' },
+  { field: 'createdAt', label: 'Terlama', dir: 'asc' },
 ];
 
 const TYPE_OPTIONS = Object.values(OrganizationUnitType);
 
-export default function OrganizationUnitsPage() {
+function OrganizationUnitsPage() {
   const router = useRouter();
   const { hasPerm } = usePermission();
 
   const {
     units,
     isLoading,
+    error,
     pagination,
     filters,
     setSearch,
@@ -50,6 +52,7 @@ export default function OrganizationUnitsPage() {
     setType,
     setSort,
     setPage,
+    setView,
     resetFilters,
     refresh,
     deleteUnit,
@@ -59,19 +62,22 @@ export default function OrganizationUnitsPage() {
     refreshTree,
   } = useOrganizationUnitData();
 
-  const [viewMode, setViewMode] = useState<'table' | 'tree'>('table');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const isDeletedScope = filters.scope === 'deleted';
+  const viewMode = filters.view;
+  const effectiveViewMode: ViewMode = isDeletedScope ? 'table' : viewMode;
 
   // Local search input state
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 400);
   const [lastSearched, setLastSearched] = useState('');
-  if (debouncedSearch !== lastSearched) {
-    setLastSearched(debouncedSearch);
-    setSearch(debouncedSearch);
-  }
+  useEffect(() => {
+    if (debouncedSearch !== lastSearched) {
+      setLastSearched(debouncedSearch);
+      setSearch(debouncedSearch);
+    }
+  }, [debouncedSearch, lastSearched, setSearch]);
 
   // Delete dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -132,9 +138,10 @@ export default function OrganizationUnitsPage() {
   const collectExpandableIds = useCallback((nodes: OrganizationUnitResponse[]): string[] => {
     const ids: string[] = [];
     for (const node of nodes) {
-      if (node.children && node.children.length > 0) {
+      const children = node.children ?? [];
+      if (children.length > 0) {
         ids.push(node.id);
-        ids.push(...collectExpandableIds(node.children));
+        ids.push(...collectExpandableIds(children));
       }
     }
     return ids;
@@ -166,25 +173,21 @@ export default function OrganizationUnitsPage() {
 
   // Auto-expand roots when switching to tree view
   const handleViewModeChange = useCallback((mode: 'table' | 'tree') => {
-    setViewMode(mode);
+    setView(mode);
     if (mode === 'tree' && expandedIds.size === 0) {
       const rootIds = new Set(treeUnits.map((p) => p.id));
       setExpandedIds(rootIds);
     }
-  }, [treeUnits, expandedIds.size]);
+  }, [setView, treeUnits, expandedIds.size]);
 
   // ── Scope toggle ──
   const handleScopeToggle = useCallback(() => {
     const newScope: ScopeFilter = isDeletedScope ? 'current' : 'deleted';
-    setScope(newScope);
-    // Deleted scope forces table view
-    if (newScope === 'deleted') {
-      setViewMode('table');
-    }
+    // Deleted scope forces table view — applied in the same URL update.
+    setScope(newScope, newScope === 'deleted' ? 'table' : undefined);
   }, [isDeletedScope, setScope]);
 
   const totalItems = pagination?.totalElements ?? 0;
-  const effectiveViewMode = isDeletedScope ? 'table' : viewMode;
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -192,18 +195,18 @@ export default function OrganizationUnitsPage() {
         <BreadcrumbsItem href="/">
           <House className="h-4 w-4" />
         </BreadcrumbsItem>
-        <BreadcrumbsItem>Organization</BreadcrumbsItem>
-        <BreadcrumbsItem>Organization Units</BreadcrumbsItem>
+        <BreadcrumbsItem>Organisasi</BreadcrumbsItem>
+        <BreadcrumbsItem>Unit Organisasi</BreadcrumbsItem>
       </Breadcrumbs>
 
       {/* Row 1: Title + Refresh + Add */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-foreground">Organization Units</h1>
+          <h1 className="text-xl font-semibold text-foreground">Unit Organisasi</h1>
           <Chip
             size="md"
             className="pointer-events-none"
-            aria-label={`Total ${effectiveViewMode === 'table' ? totalItems : treeUnits.length} units`}
+            aria-label={`Total ${effectiveViewMode === 'table' ? totalItems : treeUnits.length} unit`}
           >
             {effectiveViewMode === 'table' ? totalItems : treeUnits.length}
           </Chip>
@@ -214,14 +217,14 @@ export default function OrganizationUnitsPage() {
             variant="tertiary"
             onPress={() => { refresh(); refreshTree(); }}
             isDisabled={isLoading || isLoadingTree}
-            aria-label="Refresh organization unit data"
+            aria-label="Muat ulang data unit organisasi"
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           {!isDeletedScope && hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
             <Button variant="primary" onPress={() => router.push('/organization/organization-units/create')}>
               <Plus className="h-4 w-4" />
-              Add Unit
+              Tambah Unit
             </Button>
           )}
         </div>
@@ -237,9 +240,9 @@ export default function OrganizationUnitsPage() {
               onSelectionChange={(key) => handleViewModeChange(key as 'table' | 'tree')}
             >
               <Tabs.ListContainer>
-                <Tabs.List aria-label="View">
-                  <Tabs.Tab id="table">Table<Tabs.Indicator /></Tabs.Tab>
-                  <Tabs.Tab id="tree">Tree<Tabs.Indicator /></Tabs.Tab>
+                <Tabs.List aria-label="Tampilan">
+                  <Tabs.Tab id="table">Tabel<Tabs.Indicator /></Tabs.Tab>
+                  <Tabs.Tab id="tree">Hierarki<Tabs.Indicator /></Tabs.Tab>
                 </Tabs.List>
               </Tabs.ListContainer>
             </Tabs>
@@ -249,14 +252,14 @@ export default function OrganizationUnitsPage() {
             <Button
               variant="tertiary"
               onPress={allExpanded ? handleCollapseAll : handleExpandAll}
-              aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
+              aria-label={allExpanded ? 'Ciutkan semua' : 'Perluas semua'}
             >
               {allExpanded ? (
                 <ArrowsInSimple className="h-4 w-4" />
               ) : (
                 <ArrowsOutSimple className="h-4 w-4" />
               )}
-              {allExpanded ? 'Collapse All' : 'Expand All'}
+              {allExpanded ? 'Ciutkan Semua' : 'Perluas Semua'}
             </Button>
           )}
 
@@ -264,7 +267,7 @@ export default function OrganizationUnitsPage() {
             <>
               {/* Filter Dropdown */}
               <Dropdown>
-                <Button variant="tertiary" aria-label="Filter by type">
+                <Button variant="tertiary" aria-label="Filter menurut jenis unit">
                   <SlidersHorizontal className="h-4 w-4" />
                   Filter
                   {activeFilterCount > 0 && (
@@ -281,11 +284,11 @@ export default function OrganizationUnitsPage() {
                     onSelectionChange={handleFilterChange}
                   >
                     <Dropdown.Section>
-                      <Header>Unit Type</Header>
+                      <Header>Jenis Unit</Header>
                       {TYPE_OPTIONS.map((type) => (
-                        <Dropdown.Item key={type} id={`type:${type}`} textValue={UNIT_TYPE_LABEL[type]}>
+                        <Dropdown.Item key={type} id={`type:${type}`} textValue={UNIT_TYPE_LABEL_ID[type]}>
                           <Dropdown.ItemIndicator />
-                          <Label>{UNIT_TYPE_LABEL[type]}</Label>
+                          <Label>{UNIT_TYPE_LABEL_ID[type]}</Label>
                         </Dropdown.Item>
                       ))}
                     </Dropdown.Section>
@@ -295,9 +298,9 @@ export default function OrganizationUnitsPage() {
 
               {/* Sort Dropdown */}
               <Dropdown>
-                <Button variant="tertiary" aria-label="Sort">
+                <Button variant="tertiary" aria-label="Urutkan">
                   <FunnelSimple className="h-4 w-4" />
-                  Sort
+                  Urutkan
                   {!isDefaultSort && (
                     <>
                       <span className="mx-0.5 h-4 w-px bg-border" />
@@ -317,22 +320,22 @@ export default function OrganizationUnitsPage() {
               </Dropdown>
 
               {hasActiveFilters && (
-                <Button isIconOnly variant="tertiary" aria-label="Reset filters" onPress={resetFilters}>
+                <Button isIconOnly variant="tertiary" aria-label="Atur ulang filter" onPress={resetFilters}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </>
           )}
 
-          {/* Scope Toggle: Deleted / Current — last in row order */}
+          {/* Scope Toggle: Data Terhapus / Data Aktif — last in row order */}
           {hasPerm(PERM.ORGANIZATION_UNIT_MANAGE) && (
-            <Button variant="tertiary" aria-label={isDeletedScope ? 'Show current' : 'Show deleted'} onPress={handleScopeToggle}>
+            <Button variant="tertiary" aria-label={isDeletedScope ? 'Tampilkan data aktif' : 'Tampilkan data terhapus'} onPress={handleScopeToggle}>
               {isDeletedScope ? (
                 <CheckCircle className="h-4 w-4" />
               ) : (
                 <Trash className="h-4 w-4" />
               )}
-              {isDeletedScope ? 'Current' : 'Deleted'}
+              {isDeletedScope ? 'Data Aktif' : 'Data Terhapus'}
             </Button>
           )}
         </div>
@@ -346,7 +349,7 @@ export default function OrganizationUnitsPage() {
           >
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input aria-label="Search organization units" placeholder="Search code or name" />
+              <SearchField.Input aria-label="Cari unit organisasi" placeholder="Cari" />
               <SearchField.ClearButton />
             </SearchField.Group>
           </SearchField>
@@ -358,6 +361,7 @@ export default function OrganizationUnitsPage() {
         <OrgUnitTable
           units={units}
           isLoading={effectiveViewMode === 'table' ? isLoading : isLoadingTree}
+          error={effectiveViewMode === 'table' ? error : null}
           pagination={pagination}
           onPageChange={setPage}
           onDelete={handleDeleteUnit}
@@ -375,10 +379,36 @@ export default function OrganizationUnitsPage() {
         onClose={() => { setIsDeleteDialogOpen(false); setSelectedUnit(null); }}
         onConfirm={handleDeleteConfirm}
         name={selectedUnit?.unitName || ''}
-        entityLabel="organization unit"
-        warning="A unit with active child units or active positions cannot be deleted."
+        entityLabel="unit organisasi"
+        warning="Unit yang masih memiliki unit bawahan atau posisi aktif tidak dapat dihapus."
         isDeleting={isDeleting}
       />
     </div>
   );
+}
+
+export default function OrganizationUnitsRoute() {
+  return (
+    <Suspense fallback={null}>
+      <OrganizationUnitsGuard />
+    </Suspense>
+  );
+}
+
+/**
+ * Route guard: list requires organization_unit:read OR organization_unit:manage;
+ * the deleted-scope (Data Terhapus) mode additionally requires
+ * organization_unit:manage. Forbidden is shown BEFORE any data request.
+ */
+function OrganizationUnitsGuard() {
+  const { hasPerm, hasAnyPerm } = usePermission();
+  const searchParams = useSearchParams();
+  const canRead = hasAnyPerm(PERM.ORGANIZATION_UNIT_READ, PERM.ORGANIZATION_UNIT_MANAGE);
+  const scopeDeleted = searchParams.get('scope') === 'deleted';
+
+  if (!canRead || (scopeDeleted && !hasPerm(PERM.ORGANIZATION_UNIT_MANAGE))) {
+    return <ForbiddenAccess />;
+  }
+
+  return <OrganizationUnitsPage />;
 }

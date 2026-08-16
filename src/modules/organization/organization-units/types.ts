@@ -18,6 +18,17 @@ export const UNIT_TYPE_LABEL: Record<string, string> = {
   OTHER: 'Other',
 };
 
+/** Indonesian labels — used by the (localized) list views. */
+export const UNIT_TYPE_LABEL_ID: Record<string, string> = {
+  COMPANY: 'Perusahaan',
+  DIRECTORATE: 'Direktorat',
+  DIVISION: 'Divisi',
+  DEPARTMENT: 'Departemen',
+  SECTION: 'Seksi',
+  TEAM: 'Tim',
+  OTHER: 'Lainnya',
+};
+
 export const UNIT_TYPE_CHIP_COLOR: Record<string, 'default' | 'accent' | 'success' | 'warning' | 'danger'> = {
   COMPANY: 'accent',
   DIRECTORATE: 'accent',

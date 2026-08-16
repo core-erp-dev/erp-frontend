@@ -138,7 +138,7 @@ export const navigationConfig: SidebarItem[] = [
     href: '/organization/organization-units',
     icon: Stack,
     group: 'Organisasi',
-    permissions: ['organization_unit:read'],
+    permissions: ['organization_unit:read', 'organization_unit:manage'],
   },
 
   // ── SETTINGS ──
