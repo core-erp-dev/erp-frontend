@@ -16,13 +16,14 @@ interface UsePositionDetailReturn {
   refresh: () => Promise<void>;
 }
 
-export function usePositionDetail(id: string): UsePositionDetailReturn {
+export function usePositionDetail(id: string, enabled = true): UsePositionDetailReturn {
   const [position, setPosition] = useState<PositionTree | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     (async () => {
       setIsLoading(true);
@@ -41,7 +42,7 @@ export function usePositionDetail(id: string): UsePositionDetailReturn {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, enabled]);
 
   // Silent refetch (no full-page spinner) — used after assign/remove mutations
   const refresh = useCallback(async (): Promise<void> => {
