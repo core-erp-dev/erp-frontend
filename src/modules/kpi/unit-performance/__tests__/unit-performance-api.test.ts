@@ -7,7 +7,7 @@
 import { api } from '@/lib/axios';
 import { unitPerformanceApi } from '../unit-performance-api';
 import type { ApiResponse } from '@/types/api';
-import type { UnitPerformanceRow, UnitPerformanceWeightMatrix } from '../unit-performance.types';
+import type { UnitPerformanceDetail, UnitPerformanceRow, UnitPerformanceWeightMatrix } from '../unit-performance.types';
 
 jest.mock('@/lib/axios');
 const mockedApi = jest.mocked(api);
@@ -71,6 +71,29 @@ describe('create', () => {
       organizationUnitId: 'ou-1',
     });
     expect(result).toEqual(row);
+  });
+});
+
+describe('getPerformanceDetail', () => {
+  it('GETs one unit detail with the selected period', async () => {
+    const detail: UnitPerformanceDetail = {
+      id: 'up-1', organizationUnitId: 'ou-1', unitCode: 'U1', unitName: 'Umum',
+      year: 2026, month: 6, realization: 15, performance: 50, status: 'OK',
+      indicators: [{
+        id: 'ind-1', code: '1a', name: 'ROE', aspectName: 'Keuangan', unitWeight: 0,
+        actualValue: 4, targetValue: 5, contribution: 0, calculationStatus: 'OK',
+      }],
+    };
+    mockedApi.get.mockResolvedValueOnce({
+      data: { status: 200, message: 'OK', data: detail } satisfies ApiResponse<UnitPerformanceDetail>,
+    });
+
+    const result = await unitPerformanceApi.getPerformanceDetail('up-1', 2026, 6);
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/unit-performances/up-1', {
+      params: { year: 2026, month: 6 },
+    });
+    expect(result).toEqual(detail);
   });
 });
 

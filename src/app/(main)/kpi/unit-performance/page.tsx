@@ -140,6 +140,19 @@ export default function UnitPerformancePage() {
     void fetchPerformance(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined);
   }, [fetchPerformance, periodError, periodMode, refetchPeriods, selectedMonth, selectedYear]);
 
+  const getDetailHref = useCallback((id: string) => {
+    const query = new URLSearchParams();
+    query.set('year', String(selectedYear));
+    if (periodMode === 'annual') query.set('period', 'annual');
+    else query.set('month', String(selectedMonth));
+    for (const key of ['period', 'year', 'month', 'search', 'page']) {
+      const value = searchParams.get(key);
+      if (value !== null && !((periodMode === 'annual' && key === 'month') || key === 'year')) query.set(key, value);
+    }
+    query.set('from', 'unit-performance');
+    return KPI_ROUTES.unitPerformanceDetailRoute(id, query.toString());
+  }, [periodMode, searchParams, selectedMonth, selectedYear]);
+
   if (!canRead) return <ForbiddenAccess />;
 
   const tableError = periodError ?? error;
@@ -150,7 +163,7 @@ export default function UnitPerformancePage() {
       <Breadcrumbs><BreadcrumbsItem href="/" aria-label="Beranda"><House className="h-4 w-4" /></BreadcrumbsItem><BreadcrumbsItem>KPI</BreadcrumbsItem><BreadcrumbsItem>KPI Unit</BreadcrumbsItem><BreadcrumbsItem>{KPI_LABELS.unitPerformance}</BreadcrumbsItem></Breadcrumbs>
       <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.unitPerformance}</h1><Chip size="md" className="pointer-events-none" aria-label={`Total ${filteredRows.length} hasil`}>{filteredRows.length}</Chip></div><Button isIconOnly variant="tertiary" onPress={handleRetry} isDisabled={tableLoading} aria-label="Muat ulang Performa Unit"><ArrowsClockwise className={`h-4 w-4 ${tableLoading ? 'animate-spin' : ''}`} /></Button></div>
       <UnitPerformanceFilters periodMode={periodMode} selectedYear={selectedYear} years={availableYears ?? [selectedYear]} selectedMonth={selectedMonth} searchQuery={searchInput} onPeriodModeChange={handlePeriodChange} onYearChange={handleYearChange} onMonthChange={handleMonthChange} onSearchChange={handleSearchChange} />
-      <UnitPerformanceResultsTable rows={pageRows} isLoading={tableLoading} error={tableError} isTransitioning={isTransitioning || isSearchTransitioning} searchQuery={searchQuery} onRetry={handleRetry} currentPage={safePage} totalPages={totalPages} totalItems={filteredRows.length} pageSize={PAGE_SIZE} onPageChange={handlePageChange} />
+      <UnitPerformanceResultsTable rows={pageRows} isLoading={tableLoading} error={tableError} isTransitioning={isTransitioning || isSearchTransitioning} searchQuery={searchQuery} onRetry={handleRetry} currentPage={safePage} totalPages={totalPages} totalItems={filteredRows.length} pageSize={PAGE_SIZE} onPageChange={handlePageChange} getDetailHref={getDetailHref} />
     </div>
   );
 }

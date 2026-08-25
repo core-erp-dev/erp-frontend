@@ -46,6 +46,13 @@ it('fetches and renders the result contract without exposing matrix editing', as
   expect(screen.getByText('Bobot')).toBeInTheDocument();
   expect(screen.getByText('Kode')).toBeInTheDocument();
   expect(screen.getByText('Hasil')).toBeInTheDocument();
+  const detailLink = screen.getByRole('link', { name: 'Unit Satu' });
+  expect(detailLink).toHaveAttribute('href', expect.stringContaining('/kpi/unit-performance/up-1?'));
+  expect(detailLink.getAttribute('href')).toContain(`year=${new Date().getFullYear()}`);
+  expect(detailLink.getAttribute('href')).toContain(`month=${new Date().getMonth() + 1}`);
+  expect(detailLink.getAttribute('href')).toContain('from=unit-performance');
+  const detailButton = screen.getByRole('button', { name: 'Lihat detail Performa Unit Unit Satu' });
+  expect(detailButton).toBeInTheDocument();
   expect(screen.queryByText('Nilai')).not.toBeInTheDocument();
   expect(screen.queryByText('Target Nilai Renbis')).not.toBeInTheDocument();
   expect(screen.queryByText('Simpan Matriks Bobot')).not.toBeInTheDocument();

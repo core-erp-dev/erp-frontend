@@ -20,6 +20,7 @@ export const KPI_ROUTES = {
   reportReviews: '/kpi/report-reviews',
   approvals: '/kpi/approvals',
   unitPerformance: '/kpi/unit-performance',
+  unitPerformanceDetailRoute: (id: string, query?: string) => `/kpi/unit-performance/${id}${query ? `?${query}` : ''}`,
   unitPerformanceConfiguration: '/kpi/unit-performance/configuration',
 } as const;
 
@@ -57,3 +58,5 @@ export const KPI_DESCRIPTIONS = {
   unitPerformance: 'Hasil performa KPI Unit berdasarkan periode dan unit organisasi.',
   unitPerformanceConfiguration: 'Kelola unit peserta dan bobot kontribusi per indikator.',
 } as const;
+
+export const UNIT_PERFORMANCE_DETAIL_ORIGIN_KEY = 'unit-performance-detail-origin';

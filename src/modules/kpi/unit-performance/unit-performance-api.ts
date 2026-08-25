@@ -3,6 +3,7 @@ import { extractErrorMessage } from '@/types/api';
 import type { ApiResponse } from '@/types/api';
 import type {
   UnitPerformanceRow,
+  UnitPerformanceDetail,
   CreateUnitPerformanceRequest,
   UnitPerformanceWeightMatrix,
   UpdateUnitPerformanceWeightMatrixRequest,
@@ -17,6 +18,18 @@ export const unitPerformanceApi = {
   getPerformance: async (year: number, month?: number): Promise<UnitPerformanceRow[]> => {
     const response = await api.get<ApiResponse<UnitPerformanceRow[]>>(
       '/api/v1/unit-performances',
+      { params: month != null ? { year, month } : { year } },
+    );
+    return response.data.data;
+  },
+
+  getPerformanceDetail: async (
+    id: string,
+    year: number,
+    month?: number,
+  ): Promise<UnitPerformanceDetail> => {
+    const response = await api.get<ApiResponse<UnitPerformanceDetail>>(
+      `/api/v1/unit-performances/${id}`,
       { params: month != null ? { year, month } : { year } },
     );
     return response.data.data;

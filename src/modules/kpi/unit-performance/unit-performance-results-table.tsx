@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useCallback, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button, Pagination, Spinner, Table, Tooltip } from '@heroui/react';
-import { Check, Copy, Tray } from '@phosphor-icons/react';
+import { Check, Copy, Eye, Tray } from '@phosphor-icons/react';
+import { UNIT_PERFORMANCE_DETAIL_ORIGIN_KEY } from '@/modules/kpi/constants';
 import type { UnitPerformanceRow } from './unit-performance.types';
 
 interface UnitPerformanceResultsTableProps {
@@ -17,6 +20,7 @@ interface UnitPerformanceResultsTableProps {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  getDetailHref: (rowId: string) => string;
 }
 
 function formatNumber(value: number | null): string {
@@ -39,7 +43,16 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
   totalItems,
   pageSize,
   onPageChange,
+  getDetailHref,
 }) => {
+  const router = useRouter();
+  const markDetailOrigin = useCallback((rowId: string) => {
+    try {
+      sessionStorage.setItem(UNIT_PERFORMANCE_DETAIL_ORIGIN_KEY, rowId);
+    } catch {
+      // Navigation still works if storage is unavailable; detail will use fallback.
+    }
+  }, []);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const handleCopyCode = useCallback((rowId: string, code: string) => {
     navigator.clipboard.writeText(code);
@@ -49,12 +62,13 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
 
   return <Table>
     <Table.ScrollContainer>
-      <Table.Content aria-label="Hasil Performa Unit" className="min-w-[700px]">
+      <Table.Content aria-label="Hasil Performa Unit" className="min-w-[760px]">
         <Table.Header>
           <Table.Column id="unit" isRowHeader>Unit</Table.Column>
           <Table.Column id="code">Kode</Table.Column>
           <Table.Column id="weight">Bobot</Table.Column>
           <Table.Column id="result">Hasil</Table.Column>
+          <Table.Column id="action">Aksi</Table.Column>
         </Table.Header>
         <Table.Body
           renderEmptyState={() => {
@@ -65,7 +79,15 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
         >
           {!isLoading && !isTransitioning && !error && rows.map((row) => (
             <Table.Row key={row.id}>
-              <Table.Cell className="font-medium text-foreground">{row.unitName}</Table.Cell>
+              <Table.Cell className="font-medium text-foreground">
+                <Link
+                  href={getDetailHref(row.id)}
+                  onClick={() => markDetailOrigin(row.id)}
+                  className="rounded-sm text-foreground underline-offset-4 hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                  {row.unitName}
+                </Link>
+              </Table.Cell>
               <Table.Cell className="font-medium text-foreground">
                 <div className="flex items-center gap-1">
                   {row.unitCode || '-'}
@@ -89,6 +111,25 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
               </Table.Cell>
               <Table.Cell className="text-muted-foreground">{formatPercent(row.weight)}</Table.Cell>
               <Table.Cell className="text-muted-foreground">{formatNumber(row.realization)}</Table.Cell>
+              <Table.Cell className="text-right">
+                <Tooltip delay={0}>
+                  <Tooltip.Trigger>
+                    <Button
+                      isIconOnly
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Lihat detail Performa Unit ${row.unitName}`}
+                      onPress={() => {
+                        markDetailOrigin(row.id);
+                        router.push(getDetailHref(row.id));
+                      }}
+                    >
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content placement="top">Lihat detail</Tooltip.Content>
+                </Tooltip>
+              </Table.Cell>
             </Table.Row>
           ))}
         </Table.Body>

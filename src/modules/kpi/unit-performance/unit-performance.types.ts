@@ -26,6 +26,31 @@ export interface UnitPerformanceRow {
   status: UnitPerformanceRowStatus;
 }
 
+export interface UnitPerformanceIndicatorRow {
+  id: string;
+  code: string;
+  name: string;
+  aspectName: string | null;
+  unitWeight: number | null;
+  actualValue: number | null;
+  targetValue: number | null;
+  contribution: number | null;
+  calculationStatus: string | null;
+}
+
+export interface UnitPerformanceDetail {
+  id: string;
+  organizationUnitId: string;
+  unitCode: string;
+  unitName: string;
+  year: number;
+  month: number | null;
+  realization: number | null;
+  performance: number | null;
+  status: UnitPerformanceRowStatus;
+  indicators: UnitPerformanceIndicatorRow[];
+}
+
 /** Adding a participant only needs the org unit — no global weight anymore. */
 export interface CreateUnitPerformanceRequest {
   organizationUnitId: string;
