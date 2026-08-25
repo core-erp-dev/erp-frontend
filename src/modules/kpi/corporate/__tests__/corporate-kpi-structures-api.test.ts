@@ -65,6 +65,19 @@ describe('corporateKpiStructuresApi.create', () => {
     expect(result).toEqual(mockStructure);
   });
 
+  it('POSTs copyFromYear when copying a structure', async () => {
+    mockedApi.post.mockResolvedValueOnce({
+      data: { status: 201, message: 'OK', data: mockStructure } satisfies ApiResponse<CorporateKpiStructure>,
+    });
+
+    await corporateKpiStructuresApi.create({ year: 2026, copyFromYear: 2025 });
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/corporate-kpi-structures', {
+      year: 2026,
+      copyFromYear: 2025,
+    });
+  });
+
   it('propagates backend errors', async () => {
     mockedApi.post.mockRejectedValueOnce(new Error('A Corporate KPI structure already exists for this year'));
     await expect(corporateKpiStructuresApi.create({ year: 2026 }))

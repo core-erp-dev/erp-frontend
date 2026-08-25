@@ -12,6 +12,7 @@ import { useCorporateKpiData } from '@/modules/kpi/corporate/use-corporate-kpi-d
 import { CorporateKpiFilters } from '@/modules/kpi/corporate/corporate-kpi-filters';
 import { CorporateKpiTable } from '@/modules/kpi/corporate/corporate-kpi-table';
 import { LifecycleDialog } from '@/modules/kpi/corporate/corporate-kpi-lifecycle-dialog';
+import { CorporateKpiCreateDialog } from '@/modules/kpi/corporate/corporate-kpi-create-dialog';
 import { getCorporateKpiYearOptions } from '@/modules/kpi/corporate/corporate-kpi-year-options';
 import type { CorporateKpiNode, CorporateKpiStructure, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
 
@@ -42,11 +43,13 @@ export default function KpiCorporatePage() {
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lifecycleAction, setLifecycleAction] = useState<LifecycleActionType | null>(null);
   const [lifecycleTarget, setLifecycleTarget] = useState<{ kind: 'structure'; structure: CorporateKpiStructure } | { kind: 'node'; node: CorporateKpiNode } | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const {
     tree, deletedList, structures, isLoadingTree, isLoadingDeleted, isLoadingStructures,
     treeError, deletedError, structuresError, hasLoadedDeleted,
     fetchTree, fetchDeleted, fetchStructures, pendingLifecycle, deleteKpi, restoreKpi, changeStructureStatus,
+    createStructure, isStructureMutating,
   } = useCorporateKpiData();
 
   const years = useMemo(() => {
@@ -114,9 +117,20 @@ export default function KpiCorporatePage() {
   const handleSearchChange = useCallback((search: string) => { markTableTransition(); updateUrl({ search }); }, [markTableTransition, updateUrl]);
 
   const handleCreate = useCallback(() => {
-    const query = selectedStructure ? `?structureId=${selectedStructure.id}&type=ASPECT&from=structure` : `?year=${selectedYear}&type=ASPECT&from=structure`;
-    router.push(`${KPI_ROUTES.corporateAdd}${query}`);
-  }, [router, selectedStructure, selectedYear]);
+    if (selectedStructure) {
+      router.push(`${KPI_ROUTES.corporateAdd}?structureId=${selectedStructure.id}&type=ASPECT&from=structure`);
+      return;
+    }
+    setIsCreateDialogOpen(true);
+  }, [router, selectedStructure]);
+  const handleCreateNew = useCallback(() => {
+    setIsCreateDialogOpen(false);
+    router.push(`${KPI_ROUTES.corporateAdd}?year=${selectedYear}&type=ASPECT&from=structure`);
+  }, [router, selectedYear]);
+  const handleCopy = useCallback(async (sourceYear: number) => {
+    const created = await createStructure({ year: selectedYear, copyFromYear: sourceYear });
+    if (created) setIsCreateDialogOpen(false);
+  }, [createStructure, selectedYear]);
   const handleCreateIndicator = useCallback((aspectId: string) => {
     if (selectedStructure) router.push(`${KPI_ROUTES.corporateAdd}?structureId=${selectedStructure.id}&parentId=${aspectId}&type=INDICATOR&from=structure`);
   }, [router, selectedStructure]);
@@ -157,12 +171,13 @@ export default function KpiCorporatePage() {
         <div className="flex items-center gap-2">
           <Button isIconOnly variant="tertiary" onPress={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)} isDisabled={isLoadingTree} aria-label="Muat ulang struktur KPI"><ArrowsClockwise className={`h-4 w-4 ${isLoadingTree ? 'animate-spin' : ''}`} /></Button>
           {canManage && selectedStructure && (structureLocked ? <Button variant="secondary" onPress={() => openStructureLifecycle('deactivate', selectedStructure)} isDisabled={pendingLifecycle !== null}><Pause className="h-4 w-4" />Nonaktifkan</Button> : <Button variant="secondary" onPress={() => openStructureLifecycle('activate', selectedStructure)} isDisabled={pendingLifecycle !== null}><Play className="h-4 w-4" />Aktifkan</Button>)}
-          {canManage && viewMode === 'current' && <Button variant="primary" onPress={handleCreate} isDisabled={structureLocked}><Plus className="h-4 w-4" />{selectedStructure ? 'Tambah KPI' : 'Tambah KPI pertama'}</Button>}
+          {canManage && viewMode === 'current' && <Button variant="primary" onPress={handleCreate} isDisabled={structureLocked}><Plus className="h-4 w-4" />Tambah KPI</Button>}
         </div>
       </div>
       <CorporateKpiFilters periodMode={periodMode} onPeriodModeChange={handleModeChange} years={years} selectedYear={selectedYear} onYearChange={handleYearChange} selectedMonth={selectedMonth} onMonthChange={handleMonthChange} viewMode={viewMode} onViewModeChange={handleViewModeChange} searchQuery={searchQuery} onSearchChange={handleSearchChange} canViewDeleted={canManage} onExpandAll={() => setExpandedIds(new Set(expandableIds))} onCollapseAll={() => setExpandedIds(new Set())} allExpanded={allExpanded} />
       <CorporateKpiTable tree={tree} deletedList={deletedList} viewMode={viewMode} expandedIds={effectiveExpandedIds} onToggleExpand={(id) => setExpandedIds((prev) => { const next = new Set(prev ?? expandableIds); if (next.has(id)) next.delete(id); else next.add(id); return next; })} searchQuery={searchQuery} selectedYear={selectedYear} emptyStateLabel={`Belum ada struktur KPI untuk tahun ${selectedYear}.`} isLoadingTree={isLoadingTree} isLoadingStructures={isLoadingStructures} isTableTransitioning={isTableTransitioning} isLoadingDeleted={isLoadingDeleted} treeError={treeError} structuresError={structuresError} deletedError={deletedError} onRetryTree={() => fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined)} onRetryDeleted={fetchDeleted} lockedStructureIds={lockedStructureIds} onView={handleView} onCreateIndicator={canManage ? handleCreateIndicator : undefined} onEdit={canManage ? handleEdit : undefined} onDelete={canManage ? (node) => openNodeLifecycle('delete', node) : undefined} onRestore={canManage ? (node) => openNodeLifecycle('restore', node) : undefined} />
       {lifecycleDialogProps && <LifecycleDialog {...lifecycleDialogProps} isOpen={true} isPending={pendingLifecycle !== null} onConfirm={handleLifecycleConfirm} onCancel={closeLifecycle} />}
+      {canManage && isCreateDialogOpen && <CorporateKpiCreateDialog isOpen={true} targetYear={selectedYear} structures={structures} isPending={isStructureMutating} onClose={() => setIsCreateDialogOpen(false)} onCreateNew={handleCreateNew} onCopy={handleCopy} />}
     </div>
   );
 }
