@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem, SearchField, Dropdown, Label } from '@heroui/react';
+import type { Selection } from '@heroui/react';
 import { Plus, House, ArrowsClockwise, Trash, CheckCircle, FunnelSimple, Check, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -31,6 +32,11 @@ export default function KpiCorporateVariablesPage() {
   const searchQuery = searchParams.get('search') ?? '';
   const sortBy = searchParams.get('sortBy') === 'code' ? 'code' : 'name';
   const sortDirection = searchParams.get('sortDirection') === 'desc' ? 'desc' : 'asc';
+  const sortSelectionKeys = useMemo(() => {
+    const index = SORT_OPTIONS.findIndex((option) => option.field === sortBy && option.direction === sortDirection);
+    return new Set([String(index >= 0 ? index : 0)]);
+  }, [sortBy, sortDirection]);
+  const isDefaultSort = sortBy === 'name' && sortDirection === 'asc';
   const [searchInput, setSearchInput] = useState(searchQuery);
   const [modalMode, setModalMode] = useState<VariableFormMode | null>(null);
   const [editVariable, setEditVariable] = useState<Variable | undefined>(undefined);
@@ -72,6 +78,13 @@ export default function KpiCorporateVariablesPage() {
   useEffect(() => {
     if (canRead && canManage && viewMode === 'deleted') void fetchDeleted(sortBy, sortDirection);
   }, [canRead, canManage, fetchDeleted, sortBy, sortDirection, viewMode]);
+
+  const handleSortSelectionChange = useCallback((selection: Selection) => {
+    const selected = selection instanceof Set ? selection : new Set<string>();
+    const first = Array.from(selected)[0];
+    const option = SORT_OPTIONS[Number(first)];
+    if (option) updateUrl({ sortBy: option.field, sortDirection: option.direction });
+  }, [updateUrl]);
 
   const openCreate = useCallback(() => {
     setModalMode('CREATE');
@@ -167,28 +180,30 @@ export default function KpiCorporateVariablesPage() {
             <Button variant="tertiary" aria-label="Urutkan">
               <FunnelSimple className="h-4 w-4" />
               Urutkan
-              {!(sortBy === 'name' && sortDirection === 'asc') && <Check className="h-4 w-4" />}
+              {!isDefaultSort && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <Check className="h-4 w-4" />
+                </>
+              )}
             </Button>
             <Dropdown.Popover>
               <Dropdown.Menu
-                selectedKeys={new Set([`${sortBy}-${sortDirection}`])}
+                selectedKeys={sortSelectionKeys}
                 selectionMode="single"
-                onAction={(key) => {
-                  const selected = SORT_OPTIONS.find((option) => `${option.field}-${option.direction}` === String(key));
-                  if (selected) updateUrl({ sortBy: selected.field, sortDirection: selected.direction });
-                }}
+                onSelectionChange={handleSortSelectionChange}
               >
-                {SORT_OPTIONS.map((option) => (
-                  <Dropdown.Item key={`${option.field}-${option.direction}`} id={`${option.field}-${option.direction}`} textValue={option.label}>
-                    {sortBy === option.field && sortDirection === option.direction && <Check className="h-4 w-4" />}
+                {SORT_OPTIONS.map((option, index) => (
+                  <Dropdown.Item key={index} id={String(index)} textValue={option.label}>
+                    <Dropdown.ItemIndicator />
                     <Label>{option.label}</Label>
                   </Dropdown.Item>
                 ))}
               </Dropdown.Menu>
             </Dropdown.Popover>
           </Dropdown>
-          {!(sortBy === 'name' && sortDirection === 'asc') && (
-            <Button isIconOnly variant="tertiary" aria-label="Hapus pengurutan" onPress={() => updateUrl({ sortBy: 'name', sortDirection: 'asc' })}>
+          {!isDefaultSort && (
+            <Button isIconOnly variant="tertiary" aria-label="Reset pengurutan" onPress={() => updateUrl({ sortBy: 'name', sortDirection: 'asc' })}>
               <X className="h-4 w-4" />
             </Button>
           )}

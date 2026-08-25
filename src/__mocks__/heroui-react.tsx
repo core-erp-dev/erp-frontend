@@ -275,6 +275,7 @@ export const Dropdown = Object.assign(mk('Dropdown'), {
   Popover: mk('Dropdown.Popover'),
   Menu: mk('Dropdown.Menu'),
   Item: mk('Dropdown.Item'),
+  ItemIndicator: mk('Dropdown.ItemIndicator'),
   Section: mk('Dropdown.Section'),
 });
 
