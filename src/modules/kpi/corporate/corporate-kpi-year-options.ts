@@ -16,3 +16,8 @@ export function getCorporateKpiYearOptions(
   const latestYear = Math.max(...dataYears);
   return [...new Set([...dataYears, latestYear + 1])].sort((a, b) => b - a);
 }
+
+/** Selects the current year when it is an available option, otherwise the most relevant option. */
+export function getCorporateKpiDefaultYear(years: number[], currentYear: number): number {
+  return years.includes(currentYear) ? currentYear : years[0] ?? currentYear;
+}

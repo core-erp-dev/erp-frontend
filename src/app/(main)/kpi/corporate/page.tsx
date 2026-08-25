@@ -13,7 +13,7 @@ import { CorporateKpiFilters } from '@/modules/kpi/corporate/corporate-kpi-filte
 import { CorporateKpiTable } from '@/modules/kpi/corporate/corporate-kpi-table';
 import { LifecycleDialog } from '@/modules/kpi/corporate/corporate-kpi-lifecycle-dialog';
 import { CorporateKpiCreateDialog } from '@/modules/kpi/corporate/corporate-kpi-create-dialog';
-import { getCorporateKpiYearOptions } from '@/modules/kpi/corporate/corporate-kpi-year-options';
+import { getCorporateKpiDefaultYear, getCorporateKpiYearOptions } from '@/modules/kpi/corporate/corporate-kpi-year-options';
 import type { CorporateKpiNode, CorporateKpiStructure, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 type PeriodMode = 'monthly' | 'annual';
@@ -55,10 +55,11 @@ export default function KpiCorporatePage() {
   const years = useMemo(() => {
     return getCorporateKpiYearOptions(structures, currentYear);
   }, [currentYear, structures]);
+  const defaultYear = getCorporateKpiDefaultYear(years, currentYear);
   const selectedYear = useMemo(() => {
     if ((isLoadingStructures || structuresError) && urlYear != null) return urlYear;
-    return urlYear != null && years.includes(urlYear) ? urlYear : years[0] ?? currentYear;
-  }, [currentYear, isLoadingStructures, structuresError, urlYear, years]);
+    return urlYear != null && years.includes(urlYear) ? urlYear : defaultYear;
+  }, [defaultYear, isLoadingStructures, structuresError, urlYear, years]);
 
   const markTableTransition = useCallback(() => {
     setIsTableTransitioning(true);
@@ -88,7 +89,7 @@ export default function KpiCorporatePage() {
 
   useEffect(() => {
     if (!canRead || isLoadingStructures || structuresError) return;
-    const fallbackYear = years[0] ?? currentYear;
+    const fallbackYear = getCorporateKpiDefaultYear(years, currentYear);
     if (urlYear !== fallbackYear && (urlYear == null || !years.includes(urlYear))) {
       updateUrl({ year: fallbackYear });
     }

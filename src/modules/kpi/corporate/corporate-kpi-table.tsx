@@ -393,16 +393,18 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                   <Table.Cell className="text-muted-foreground">{node.parentName || '–'}</Table.Cell>
                   {canManage && onRestore && (
                     <Table.Cell>
-                      <Button
-                        isIconOnly
-                        variant="ghost"
-                        size="sm"
-                        aria-label={`Pulihkan ${node.code}`}
-                        isDisabled={locked}
-                        onPress={() => onRestore(node)}
-                      >
-                        <ArrowCounterClockwise className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          isIconOnly
+                          variant="tertiary"
+                          size="sm"
+                          aria-label={`Pulihkan ${node.code}`}
+                          isDisabled={locked}
+                          onPress={() => onRestore(node)}
+                        >
+                          <ArrowCounterClockwise className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </Table.Cell>
                   )}
                 </Table.Row>
