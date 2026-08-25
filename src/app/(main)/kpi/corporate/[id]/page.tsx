@@ -121,6 +121,10 @@ export default function CorporateKpiDetailPage() {
             <Label>Aspect Induk</Label>
             <Input value={node.parentName || '-'} readOnly />
           </TextField>
+          <TextField isReadOnly className="pointer-events-none w-full sm:col-span-2">
+            <Label>Deskripsi</Label>
+            <Input value={node.description || '-'} readOnly />
+          </TextField>
         </div>
       </div>
 
@@ -134,10 +138,6 @@ export default function CorporateKpiDetailPage() {
             <Input value={node.formula || '-'} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
-            <Label>Hasil</Label>
-            <Input value={node.formulaResult == null ? '-' : String(node.formulaResult)} readOnly />
-          </TextField>
-          <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Bobot</Label>
             <Input value={node.weight == null ? '-' : `${node.weight * 100}%`} readOnly />
           </TextField>
@@ -146,16 +146,6 @@ export default function CorporateKpiDetailPage() {
             <Input value={node.targetScore == null ? '-' : String(node.targetScore)} readOnly />
           </TextField>
         </div>
-      </div>
-
-      <Separator />
-
-      <div className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-foreground">Deskripsi</h2>
-        <TextField isReadOnly className="pointer-events-none w-full">
-          <Label>Deskripsi</Label>
-          <Input value={node.description || '-'} readOnly />
-        </TextField>
       </div>
 
       <LifecycleDialog
