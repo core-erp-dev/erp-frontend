@@ -90,13 +90,14 @@ describe('access control', () => {
     expect(await screen.findByText('ROE')).toBeInTheDocument();
     // unit name appears in the matrix header AND the participants list
     expect(screen.getAllByText('Hublang').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Add Unit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Kelola Unit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Atur Bobot')).not.toBeInTheDocument();
   });
 
   it('manage user sees Add Unit and can open the org-unit-only modal', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
-    fireEvent.click(await screen.findByText('Tambah Unit'));
+    fireEvent.click(await screen.findByText('Kelola Unit'));
 
     expect(await screen.findByText('Unit Organisasi')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Pilih unit organisasi')).toBeInTheDocument();
@@ -120,7 +121,8 @@ describe('matrix save', () => {
     render(<UnitPerformancePage />);
     await screen.findByText('ROE');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Matriks Bobot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Atur Bobot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 
     await waitFor(() => expect(mockedApi.saveWeightMatrix).toHaveBeenCalledTimes(1));
     expect(mockedApi.saveWeightMatrix).toHaveBeenCalledWith(new Date().getFullYear(), {
@@ -136,7 +138,7 @@ describe('participant registry', () => {
   it('adds a unit through the org-unit-only modal (no weight field)', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
-    fireEvent.click(await screen.findByText('Tambah Unit'));
+    fireEvent.click(await screen.findByText('Kelola Unit'));
 
     // the modal is the org-unit picker only — the global weight field is gone
     expect(await screen.findByPlaceholderText('Pilih unit organisasi')).toBeInTheDocument();

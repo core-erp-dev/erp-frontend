@@ -10,6 +10,8 @@ import type {
 interface UnitPerformanceWeightMatrixProps {
   matrix: UnitPerformanceWeightMatrixData;
   isMutating: boolean;
+  isEditing: boolean;
+  onCancel: () => void;
   onSave: (entries: UnitPerformanceWeightEntry[]) => Promise<boolean>;
 }
 
@@ -20,7 +22,7 @@ function toCents(value: string): number | null {
   const trimmed = value.trim();
   if (!WEIGHT_PATTERN.test(trimmed)) return null;
   const cents = Math.round(Number(trimmed) * 100);
-  if (cents <= 0 || cents > 10000) return null;
+  if (cents < 0 || cents > 10000) return null;
   return cents;
 }
 
@@ -31,13 +33,15 @@ function formatCents(cents: number): string {
 /**
  * The Indicator × Unit weight matrix editor. Rows = indicators of the year's
  * structure; columns = active participating units (dynamic — a new unit
- * automatically becomes a new column); every cell is a percentage input; the
- * Total column shows each indicator's sum live. Save is enabled only when
- * every indicator totals EXACTLY 100% with all cells filled (> 0).
+ * automatically becomes a new column); every cell is editable in edit mode;
+ * the Total column shows each indicator's sum live. Zero is valid when every
+ * indicator totals EXACTLY 100%.
  */
 export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixProps> = ({
   matrix,
   isMutating,
+  isEditing,
+  onCancel,
   onSave,
 }) => {
   // cell values keyed by indicatorId -> unitPerformanceId -> string
@@ -126,7 +130,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
                 </th>
               ))}
               <th className="min-w-[110px] border-b border-border bg-surface-secondary px-3 py-3 text-left font-semibold text-foreground">
-                Total Bobot
+                Total
               </th>
             </tr>
           </thead>
@@ -138,24 +142,29 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
               return (
                 <tr key={indicator.id}>
                   <td className="sticky left-0 z-10 border-b border-r border-border bg-surface-secondary px-4 py-2.5 align-top">
-                    <span className="block truncate font-medium text-foreground">{indicator.name}</span>
+                    <span className="block truncate font-medium text-foreground">{indicator.code}</span>
+                    <span className="block truncate text-sm text-foreground">{indicator.name}</span>
                     <span className="block text-xs text-muted-foreground">
-                      {indicator.code} · {indicator.aspectName}
+                      {indicator.aspectName || '-'}
                     </span>
                   </td>
                   {matrix.units.map((unit) => (
                     <td key={unit.id} className="border-b border-r border-border px-3 py-2 align-top">
-                      <TextField
-                        className="w-full"
-                        value={cells[indicator.id]?.[unit.id] ?? ''}
-                        onChange={(v) => setCell(indicator.id, unit.id, v)}
-                        isDisabled={isMutating}
-                        validationBehavior="aria"
-                        variant="secondary"
-                        aria-label={`${indicator.name} — ${unit.unitName} weight`}
-                      >
-                        <Input placeholder="0" inputMode="decimal" />
-                      </TextField>
+                      {isEditing ? (
+                        <TextField
+                          className="w-full"
+                          value={cells[indicator.id]?.[unit.id] ?? ''}
+                          onChange={(v) => setCell(indicator.id, unit.id, v)}
+                          isDisabled={isMutating}
+                          validationBehavior="aria"
+                          variant="secondary"
+                          aria-label={`${indicator.code} ${indicator.name} - ${unit.unitName} Bobot`}
+                        >
+                          <Input placeholder="0" inputMode="decimal" />
+                        </TextField>
+                      ) : (
+                        <span className="text-foreground">{cells[indicator.id]?.[unit.id] || '0'}%</span>
+                      )}
                     </td>
                   ))}
                   <td className="border-b border-border px-3 py-2 align-top">
@@ -169,11 +178,11 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
                         {formatCents(totalCents)}%
                       </Chip>
                     ) : (
-                      <Chip size="sm" variant="soft" color="warning" className="font-medium">—</Chip>
+                      <Chip size="sm" variant="soft" color="warning" className="font-medium">-</Chip>
                     )}
                     {!complete && (
                       <p className="mt-1 text-[11px] text-danger">
-                        {info?.allFilled ? 'Total harus tepat 100%' : 'Isi bobot setiap unit (> 0)'}
+                        {info?.allFilled ? 'Total harus tepat 100%' : 'Isi bobot setiap unit'}
                       </p>
                     )}
                   </td>
@@ -184,21 +193,17 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
         </table>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      {isEditing && <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           {allValid
-            ? 'Setiap indikator memiliki total bobot tepat 100% — konfigurasi siap disimpan.'
+            ? 'Setiap indikator memiliki total bobot tepat 100% - konfigurasi siap disimpan.'
             : 'Simpan tersedia setelah setiap indikator memiliki total bobot tepat 100%.'}
         </p>
-        <Button
-          variant="primary"
-          onPress={handleSave}
-          isDisabled={!allValid || isMutating}
-          isPending={isMutating}
-        >
-          Simpan Matriks Bobot
-        </Button>
-      </div>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onPress={onCancel} isDisabled={isMutating}>Batal</Button>
+          <Button variant="primary" onPress={handleSave} isDisabled={!allValid || isMutating} isPending={isMutating}>Simpan</Button>
+        </div>
+      </div>}
     </div>
   );
 };

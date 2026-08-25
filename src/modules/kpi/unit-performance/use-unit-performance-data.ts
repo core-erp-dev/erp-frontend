@@ -71,7 +71,8 @@ export function useUnitPerformanceData(): UseUnitPerformanceDataReturn {
       setIsMutating(true);
       try {
         const data = await unitPerformanceApi.saveWeightMatrix(year, payload);
-        if (mountedRef.current) setMatrix(data);
+        const refreshed = await unitPerformanceApi.getWeightMatrix(year);
+        if (mountedRef.current) setMatrix(refreshed ?? data);
         toast.success('Matriks bobot berhasil disimpan.');
         return true;
       } catch (err: unknown) {

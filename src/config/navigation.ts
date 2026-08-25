@@ -88,7 +88,7 @@ export const navigationConfig: SidebarItem[] = [
         permissions: [PERM.UNIT_PERFORMANCE_READ],
       },
       {
-        title: 'Konfigurasi Performa Unit',
+        title: 'Konfigurasi',
         href: KPI_ROUTES.unitPerformanceConfiguration,
         group: 'KPI',
         permissions: [PERM.UNIT_PERFORMANCE_READ],

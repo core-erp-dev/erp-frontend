@@ -34,35 +34,35 @@ beforeEach(() => {
 
 describe('dynamic columns', () => {
   it('renders one column per participating unit — nothing hardcoded', () => {
-    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} onSave={onSave} />);
+    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
 
     expect(screen.getByText('Hublang')).toBeInTheDocument();
     // unitCode "SPI" also appears under the header name — assert presence
     expect(screen.getAllByText('SPI').length).toBeGreaterThan(0);
-    // code + aspect share one span ("IND_01 · ASP_01") — substring match
+    // indicator code and name are both visible
     expect(screen.getByText(/IND_01/)).toBeInTheDocument();
     // per-cell inputs carry the indicator × unit pairing
-    expect(screen.getByLabelText('ROE — Hublang weight')).toBeInTheDocument();
-    expect(screen.getByLabelText('ROE — SPI weight')).toBeInTheDocument();
+    expect(screen.getByLabelText('IND_01 ROE - Hublang Bobot')).toBeInTheDocument();
+    expect(screen.getByLabelText('IND_01 ROE - SPI Bobot')).toBeInTheDocument();
   });
 
   it('pre-fills the matrix cells from the server weights', () => {
-    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} onSave={onSave} />);
+    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
 
-    expect(screen.getByLabelText('ROE — Hublang weight')).toHaveValue('60');
-    expect(screen.getByLabelText('ROE — SPI weight')).toHaveValue('40');
+    expect(screen.getByLabelText('IND_01 ROE - Hublang Bobot')).toHaveValue('60');
+    expect(screen.getByLabelText('IND_01 ROE - SPI Bobot')).toHaveValue('40');
   });
 });
 
 describe('validation & save gating', () => {
   it('keeps Save disabled when the total is not exactly 100%', () => {
-    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} onSave={onSave} />);
-    fireEvent.change(screen.getByLabelText('ROE — Hublang weight'), { target: { value: '55' } });
+    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('IND_01 ROE - Hublang Bobot'), { target: { value: '55' } });
 
     // 55 + 40 = 95 — not complete
     expect(screen.getByText('95%')).toBeInTheDocument();
     expect(screen.getByText('Total harus tepat 100%')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Simpan Matriks Bobot' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
   });
 
   it('keeps Save disabled when a cell is empty (unit without weight)', () => {
@@ -71,26 +71,26 @@ describe('validation & save gating', () => {
       weights: [{ indicatorId: 'ind-1', unitPerformanceId: 'up-hub', weight: 100 }],
       totals: { 'ind-1': 100 },
     };
-    render(<UnitPerformanceWeightMatrix matrix={emptyMatrix} isMutating={false} onSave={onSave} />);
+    render(<UnitPerformanceWeightMatrix matrix={emptyMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
 
-    expect(screen.getByText('Isi bobot setiap unit (> 0)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Simpan Matriks Bobot' })).toBeDisabled();
+    expect(screen.getByText('Isi bobot setiap unit')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
   });
 
   it('rejects non-numeric or out-of-range weights as missing', () => {
-    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} onSave={onSave} />);
-    fireEvent.change(screen.getByLabelText('ROE — Hublang weight'), { target: { value: 'abc' } });
+    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
+    fireEvent.change(screen.getByLabelText('IND_01 ROE - Hublang Bobot'), { target: { value: 'abc' } });
 
-    expect(screen.getByText('Isi bobot setiap unit (> 0)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Simpan Matriks Bobot' })).toBeDisabled();
+    expect(screen.getByText('Isi bobot setiap unit')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
   });
 
   it('enables Save and submits the full matrix in one request when every indicator totals 100%', async () => {
-    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} onSave={onSave} />);
+    render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
     // 60 + 40 = 100 already — save enabled
     expect(screen.getByText('100%')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Matriks Bobot' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onSave).toHaveBeenCalledWith([
@@ -108,12 +108,33 @@ describe('validation & save gating', () => {
       ],
       totals: { 'ind-1': 100 },
     };
-    render(<UnitPerformanceWeightMatrix matrix={smallMatrix} isMutating={false} onSave={onSave} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Matriks Bobot' }));
+    render(<UnitPerformanceWeightMatrix matrix={smallMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith([
       { indicatorId: 'ind-1', unitPerformanceId: 'up-hub', weight: 97 },
       { indicatorId: 'ind-1', unitPerformanceId: 'up-spi', weight: 3 },
+    ]));
+  });
+
+  it('accepts zero as a valid cell when the indicator total is 100%', async () => {
+    const zeroMatrix: Matrix = {
+      ...baseMatrix,
+      weights: [
+        { indicatorId: 'ind-1', unitPerformanceId: 'up-hub', weight: 0 },
+        { indicatorId: 'ind-1', unitPerformanceId: 'up-spi', weight: 100 },
+      ],
+      totals: { 'ind-1': 100 },
+    };
+    render(<UnitPerformanceWeightMatrix matrix={zeroMatrix} isMutating={false} isEditing onCancel={jest.fn()} onSave={onSave} />);
+
+    expect(screen.getByLabelText('IND_01 ROE - Hublang Bobot')).toHaveValue('0');
+    expect(screen.getByText('100%')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith([
+      { indicatorId: 'ind-1', unitPerformanceId: 'up-hub', weight: 0 },
+      { indicatorId: 'ind-1', unitPerformanceId: 'up-spi', weight: 100 },
     ]));
   });
 });
@@ -124,6 +145,8 @@ describe('empty states', () => {
       <UnitPerformanceWeightMatrix
         matrix={{ ...baseMatrix, units: [], weights: [], totals: {} }}
         isMutating={false}
+        isEditing={false}
+        onCancel={jest.fn()}
         onSave={onSave}
       />,
     );
@@ -135,6 +158,8 @@ describe('empty states', () => {
       <UnitPerformanceWeightMatrix
         matrix={{ ...baseMatrix, indicators: [], weights: [], totals: {} }}
         isMutating={false}
+        isEditing={false}
+        onCancel={jest.fn()}
         onSave={onSave}
       />,
     );

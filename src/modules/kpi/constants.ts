@@ -38,7 +38,7 @@ export const KPI_LABELS = {
   reportReviews: 'Report Reviews',
   approvals: 'Activity Approvals',
   unitPerformance: 'Performa Unit',
-  unitPerformanceConfiguration: 'Konfigurasi Performa Unit',
+  unitPerformanceConfiguration: 'Konfigurasi',
 } as const;
 
 export const KPI_DESCRIPTIONS = {
