@@ -4,7 +4,7 @@
  * and cancellation.
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { UnitPerformanceAddModal } from '../unit-performance-add-modal';
 import type { OrganizationUnitResponse } from '@/modules/organization/organization-units/types';
 
@@ -39,7 +39,7 @@ it('renders only the org-unit picker — no global weight field', () => {
     />,
   );
 
-  expect(screen.getByPlaceholderText('Select organization unit')).toBeInTheDocument();
+  expect(screen.getByPlaceholderText('Pilih unit organisasi')).toBeInTheDocument();
   expect(screen.queryByText('Weight (%)')).not.toBeInTheDocument();
 });
 
@@ -54,7 +54,7 @@ it('cancels without submitting', () => {
     />,
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
   expect(onClose).toHaveBeenCalled();
   expect(onSubmit).not.toHaveBeenCalled();
 });

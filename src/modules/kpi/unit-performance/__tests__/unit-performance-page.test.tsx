@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import UnitPerformancePage from '@/app/(main)/kpi/unit-performance/page';
+import UnitPerformancePage from '@/modules/kpi/unit-performance/unit-performance-configuration-page';
 import { unitPerformanceApi } from '../unit-performance-api';
 import { organizationUnitApi } from '@/modules/organization/organization-units/services/organization-unit-api';
 import type { UnitPerformanceWeightMatrix } from '../unit-performance.types';
@@ -25,6 +25,11 @@ jest.mock('@/hooks/use-permission', () => ({
   usePermission: () => ({
     hasPerm: (perm: string) => mockPermissions[perm] ?? false,
   }),
+}));
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: jest.fn(), back: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 jest.mock('@heroui/react', () => {
@@ -73,9 +78,9 @@ beforeEach(() => {
 });
 
 describe('access control', () => {
-  it('shows Access Denied without the read permission', async () => {
+  it('shows the permission guard without the read permission', async () => {
     render(<UnitPerformancePage />);
-    expect(await screen.findByText('Access Denied')).toBeInTheDocument();
+    expect(await screen.findByText('Akses Ditolak')).toBeInTheDocument();
     expect(mockedApi.getWeightMatrix).not.toHaveBeenCalled();
   });
 
@@ -91,10 +96,10 @@ describe('access control', () => {
   it('manage user sees Add Unit and can open the org-unit-only modal', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
-    fireEvent.click(await screen.findByText('Add Unit'));
+    fireEvent.click(await screen.findByText('Tambah Unit'));
 
-    expect(await screen.findByText('Organization Unit')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Select organization unit')).toBeInTheDocument();
+    expect(await screen.findByText('Unit Organisasi')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Pilih unit organisasi')).toBeInTheDocument();
     // NO per-unit weight field anymore — weights live in the matrix
     expect(screen.queryByText('Weight (%)')).not.toBeInTheDocument();
   });
@@ -115,7 +120,7 @@ describe('matrix save', () => {
     render(<UnitPerformancePage />);
     await screen.findByText('ROE');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Matrix' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Matriks Bobot' }));
 
     await waitFor(() => expect(mockedApi.saveWeightMatrix).toHaveBeenCalledTimes(1));
     expect(mockedApi.saveWeightMatrix).toHaveBeenCalledWith(new Date().getFullYear(), {
@@ -131,10 +136,10 @@ describe('participant registry', () => {
   it('adds a unit through the org-unit-only modal (no weight field)', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
-    fireEvent.click(await screen.findByText('Add Unit'));
+    fireEvent.click(await screen.findByText('Tambah Unit'));
 
     // the modal is the org-unit picker only — the global weight field is gone
-    expect(await screen.findByPlaceholderText('Select organization unit')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('Pilih unit organisasi')).toBeInTheDocument();
     expect(screen.queryByText('Weight (%)')).not.toBeInTheDocument();
   });
 
@@ -143,16 +148,16 @@ describe('participant registry', () => {
     render(<UnitPerformancePage />);
     await screen.findByText('ROE');
 
-    fireEvent.click(screen.getByLabelText('Remove Hublang'));
+    fireEvent.click(screen.getByLabelText('Hapus unit Hublang'));
     // getByText matches DIRECT text nodes only — the unit name lives in a
     // nested span, so match on the full textContent of the dialog body
     // (multiple ancestors share the text — presence is enough)
     const dialogText = await screen.findAllByText((content, element) =>
-      element?.textContent?.includes('Remove') === true
+      element?.textContent?.includes('Hapus') === true
       && element?.textContent?.includes('HUB') === true
       && element?.textContent?.includes('Hublang') === true);
     expect(dialogText.length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hapus' }));
 
     await waitFor(() => expect(mockedApi.delete).toHaveBeenCalledWith('up-hub'));
   });

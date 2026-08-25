@@ -1,4 +1,4 @@
-import { SquaresFour, BuildingOffice, ClipboardText, Article, Users, TreeStructure, Gear, Lock, Stack } from '@phosphor-icons/react';
+import { SquaresFour, BuildingOffice, ClipboardText, Article, Users, TreeStructure, Gear, Lock, Stack, Buildings } from '@phosphor-icons/react';
 import type React from 'react';
 import { KPI_ROUTES } from '@/modules/kpi/constants';
 import { PERM } from '@/constants/permissions';
@@ -72,9 +72,24 @@ export const navigationConfig: SidebarItem[] = [
         group: 'KPI',
         permissions: [PERM.CORPORATE_KPI_READ],
       },
+    ],
+  },
+  {
+    title: 'KPI Unit',
+    href: KPI_ROUTES.unitPerformance,
+    icon: Buildings,
+    group: 'KPI',
+    permissions: [PERM.UNIT_PERFORMANCE_READ],
+    children: [
       {
-        title: 'Kinerja Unit',
+        title: 'Performa Unit',
         href: KPI_ROUTES.unitPerformance,
+        group: 'KPI',
+        permissions: [PERM.UNIT_PERFORMANCE_READ],
+      },
+      {
+        title: 'Konfigurasi Performa Unit',
+        href: KPI_ROUTES.unitPerformanceConfiguration,
         group: 'KPI',
         permissions: [PERM.UNIT_PERFORMANCE_READ],
       },
@@ -86,8 +101,7 @@ export const navigationConfig: SidebarItem[] = [
     icon: ClipboardText,
     group: 'KPI',
     // Expandable parent (Corporate KPI pattern). Children map to the split
-    // /kpi/activities/* routes; `all` keeps its read_all|manage gate, Approval
-    // keeps the kpi_activity:approve gate of the existing /kpi/approvals page.
+    // /kpi/activities/* routes; `all` keeps its read_all|manage gate.
     children: [
       {
         title: 'Semua Aktivitas',
@@ -97,11 +111,6 @@ export const navigationConfig: SidebarItem[] = [
       { title: 'Aktivitas Saya', href: KPI_ROUTES.activitiesMine },
       { title: 'Aktivitas Bawahan', href: KPI_ROUTES.activitiesSubordinate },
       { title: 'Pengajuan Saya', href: KPI_ROUTES.activitiesMyRequests },
-      {
-        title: 'Persetujuan',
-        href: KPI_ROUTES.approvals,
-        permissions: [PERM.KPI_ACTIVITY_APPROVE],
-      },
     ],
   },
   {
@@ -116,6 +125,13 @@ export const navigationConfig: SidebarItem[] = [
       { title: 'Laporan Saya', href: KPI_ROUTES.reports },
       { title: 'Persetujuan Laporan', href: KPI_ROUTES.reportReviews },
     ],
+  },
+  {
+    title: 'Persetujuan',
+    href: KPI_ROUTES.approvals,
+    icon: ClipboardText,
+    group: 'KPI',
+    permissions: [PERM.KPI_ACTIVITY_APPROVE],
   },
 
   // ── ORGANIZATION ──

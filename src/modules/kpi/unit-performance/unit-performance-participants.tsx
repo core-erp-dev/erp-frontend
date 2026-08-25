@@ -25,7 +25,7 @@ export const UnitPerformanceParticipants: React.FC<UnitPerformanceParticipantsPr
 }) => (
   <div className="flex flex-wrap gap-2">
     {units.length === 0 ? (
-      <p className="text-sm text-muted-foreground">Belum ada unit peserta.</p>
+      <p className="text-sm text-muted-foreground">Belum ada unit yang berpartisipasi.</p>
     ) : (
       units.map((unit) => (
         <div
@@ -42,7 +42,7 @@ export const UnitPerformanceParticipants: React.FC<UnitPerformanceParticipantsPr
               className="h-6 w-6"
               isDisabled={isMutating}
               onPress={() => onDelete(unit)}
-              aria-label={`Remove ${unit.unitName}`}
+              aria-label={`Hapus unit ${unit.unitName}`}
             >
               <Trash className="h-3.5 w-3.5" />
             </Button>

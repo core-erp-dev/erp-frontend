@@ -30,7 +30,7 @@ export const UnitPerformanceDeleteDialog: React.FC<UnitPerformanceDeleteDialogPr
       <Modal.Container>
         <Modal.Dialog className="sm:max-w-[420px]">
           <Modal.Header className="flex items-center justify-between">
-            <Modal.Heading>Delete Unit</Modal.Heading>
+            <Modal.Heading>Hapus Unit Peserta</Modal.Heading>
             <Modal.CloseTrigger />
           </Modal.Header>
 
@@ -38,19 +38,19 @@ export const UnitPerformanceDeleteDialog: React.FC<UnitPerformanceDeleteDialogPr
             <div className="flex items-start gap-3">
               <Trash className="mt-0.5 h-5 w-5 text-danger" />
               <p className="text-sm text-muted-foreground">
-                Remove <span className="font-medium text-foreground">{row.unitCode} — {row.unitName}</span>{' '}
-                from Unit Performance? Its weights are removed from every indicator —
-                the matrix becomes incomplete until rebalanced.
+                Hapus <span className="font-medium text-foreground">{row.unitCode} — {row.unitName}</span>{' '}
+                dari Performa Unit? Bobotnya akan dihapus dari setiap indikator dan matriks
+                perlu dilengkapi kembali.
               </p>
             </div>
           </Modal.Body>
 
           <Modal.Footer className="flex justify-end gap-2">
             <Button variant="secondary" onPress={onCancel} isDisabled={isPending}>
-              Cancel
+              Batal
             </Button>
             <Button variant="danger" onPress={onConfirm} isPending={isPending} isDisabled={isPending}>
-              Delete
+              Hapus
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

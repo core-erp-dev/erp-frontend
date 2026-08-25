@@ -8,7 +8,6 @@ import {
   Modal,
   Button,
   Form,
-  TextField,
   Input,
   Label,
   FieldError,
@@ -34,7 +33,7 @@ interface UnitPerformanceAddFormValues {
 }
 
 const schema = z.object({
-  organizationUnitId: z.string().min(1, 'Organization unit is required'),
+  organizationUnitId: z.string().min(1, 'Unit organisasi wajib dipilih'),
 });
 
 /**
@@ -73,7 +72,7 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[480px]">
             <Modal.Header className="flex items-center justify-between">
-              <Modal.Heading>Add Unit</Modal.Heading>
+            <Modal.Heading>Tambah Unit Peserta</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
 
@@ -83,7 +82,7 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                 validationBehavior="aria"
                 onSubmit={handleSubmit(
                   onFormSubmit as (data: UnitPerformanceAddFormValues) => Promise<void>,
-                  (formErrors) => console.log('FORM ERRORS', formErrors),
+                  () => undefined,
                 )}
                 className="flex flex-col gap-4"
               >
@@ -101,15 +100,15 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                       allowsEmptyCollection
                       defaultFilter={contains}
                     >
-                      <Label>Organization Unit</Label>
+                      <Label>Unit Organisasi</Label>
                       <ComboBox.InputGroup>
-                        <Input placeholder="Select organization unit" />
+                        <Input placeholder="Pilih unit organisasi" />
                         <ComboBox.Trigger />
                       </ComboBox.InputGroup>
                       <ComboBox.Popover>
                         <ListBox renderEmptyState={() => <EmptyState>No available units</EmptyState>}>
                           {orgUnits.map((unit) => (
-                            <ListBox.Item
+                          <ListBox.Item
                               key={unit.id}
                               id={unit.id}
                               textValue={`${unit.unitCode} - ${unit.unitName}`}
@@ -126,15 +125,15 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                 />
 
                 <p className="text-xs text-muted-foreground">
-                  After adding, the unit appears as a new column in the weight matrix —
-                  every indicator must total exactly 100% before it can be saved.
+                  Setelah ditambahkan, unit muncul sebagai kolom baru pada matriks bobot.
+                  Total setiap indikator harus tepat 100% sebelum disimpan.
                 </p>
               </Form>
             </Modal.Body>
 
             <Modal.Footer className="flex justify-end gap-2">
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
-                Cancel
+                Batal
               </Button>
               <Button
                 variant="primary"
@@ -143,7 +142,7 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                 isDisabled={isSubmitting}
                 isPending={isSubmitting}
               >
-                Add
+                Tambah
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

@@ -27,21 +27,27 @@ export function useUnitPerformanceData(): UseUnitPerformanceDataReturn {
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
+  const currentRequestRef = useRef(0);
   const currentYearRef = useRef<number | null>(null);
 
   const fetchMatrix = useCallback(async (year: number) => {
+    const requestId = ++currentRequestRef.current;
     currentYearRef.current = year;
     setIsLoading(true);
     setError(null);
+    setMatrix(null);
     try {
       const data = await unitPerformanceApi.getWeightMatrix(year);
-      if (mountedRef.current) setMatrix(data);
+      if (mountedRef.current && requestId === currentRequestRef.current) setMatrix(data);
     } catch (err: unknown) {
       const msg = extractUnitPerformanceError(err);
-      if (mountedRef.current) { setError(msg); setMatrix(null); }
-      toast.danger(msg);
+      if (mountedRef.current && requestId === currentRequestRef.current) {
+        setError(msg);
+        setMatrix(null);
+        toast.danger(msg);
+      }
     } finally {
-      if (mountedRef.current) setIsLoading(false);
+      if (mountedRef.current && requestId === currentRequestRef.current) setIsLoading(false);
     }
   }, []);
 
@@ -49,11 +55,14 @@ export function useUnitPerformanceData(): UseUnitPerformanceDataReturn {
   const refreshSilent = useCallback(async () => {
     const year = currentYearRef.current;
     if (year == null) return;
+    const requestId = ++currentRequestRef.current;
     try {
       const data = await unitPerformanceApi.getWeightMatrix(year);
-      if (mountedRef.current) setMatrix(data);
-    } catch (err: unknown) {
-      toast.danger('Unit performance refresh failed. You may retry manually.');
+      if (mountedRef.current && requestId === currentRequestRef.current) setMatrix(data);
+    } catch {
+      if (mountedRef.current && requestId === currentRequestRef.current) {
+        toast.danger('Gagal memuat ulang konfigurasi Performa Unit. Coba lagi secara manual.');
+      }
     }
   }, []);
 
@@ -63,7 +72,7 @@ export function useUnitPerformanceData(): UseUnitPerformanceDataReturn {
       try {
         const data = await unitPerformanceApi.saveWeightMatrix(year, payload);
         if (mountedRef.current) setMatrix(data);
-        toast.success('Weight matrix saved successfully.');
+        toast.success('Matriks bobot berhasil disimpan.');
         return true;
       } catch (err: unknown) {
         toast.danger(extractUnitPerformanceError(err));
@@ -79,7 +88,7 @@ export function useUnitPerformanceData(): UseUnitPerformanceDataReturn {
     setIsMutating(true);
     try {
       await unitPerformanceApi.create(payload);
-      toast.success('Unit performance configured successfully.');
+      toast.success('Unit peserta berhasil dikonfigurasi.');
       await refreshSilent();
       return true;
     } catch (err: unknown) {
@@ -94,7 +103,7 @@ export function useUnitPerformanceData(): UseUnitPerformanceDataReturn {
     setIsMutating(true);
     try {
       await unitPerformanceApi.delete(id);
-      toast.success('Unit performance deleted successfully.');
+      toast.success('Unit peserta berhasil dihapus.');
       await refreshSilent();
       return true;
     } catch (err: unknown) {

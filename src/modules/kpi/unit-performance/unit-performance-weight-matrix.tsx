@@ -100,8 +100,8 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
       <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface-secondary px-4 py-10 text-center">
         <p className="text-sm text-muted-foreground">
           {matrix.units.length === 0
-            ? 'No participating units yet — add a unit to start configuring the weight matrix.'
-            : 'No indicators for this year — configure the Corporate KPI structure first.'}
+            ? 'Belum ada unit peserta — tambahkan unit untuk mulai mengatur matriks bobot.'
+            : 'Belum ada indikator untuk tahun ini — konfigurasi Struktur KPI Perusahaan terlebih dahulu.'}
         </p>
       </div>
     );
@@ -114,7 +114,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
           <thead>
             <tr>
               <th className="sticky left-0 z-10 border-b border-r border-border bg-surface-secondary px-4 py-3 text-left font-semibold text-foreground">
-                Indicator
+                Indikator
               </th>
               {matrix.units.map((unit) => (
                 <th
@@ -126,7 +126,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
                 </th>
               ))}
               <th className="min-w-[110px] border-b border-border bg-surface-secondary px-3 py-3 text-left font-semibold text-foreground">
-                Total
+                Total Bobot
               </th>
             </tr>
           </thead>
@@ -173,7 +173,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
                     )}
                     {!complete && (
                       <p className="mt-1 text-[11px] text-danger">
-                        {info?.allFilled ? 'Must total exactly 100%' : 'Fill every unit weight (> 0)'}
+                        {info?.allFilled ? 'Total harus tepat 100%' : 'Isi bobot setiap unit (> 0)'}
                       </p>
                     )}
                   </td>
@@ -187,8 +187,8 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           {allValid
-            ? 'Every indicator totals exactly 100% — the matrix is ready to save.'
-            : 'Save is disabled until every indicator totals exactly 100% with a weight for every unit.'}
+            ? 'Setiap indikator memiliki total bobot tepat 100% — konfigurasi siap disimpan.'
+            : 'Simpan tersedia setelah setiap indikator memiliki total bobot tepat 100%.'}
         </p>
         <Button
           variant="primary"
@@ -196,7 +196,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
           isDisabled={!allValid || isMutating}
           isPending={isMutating}
         >
-          Save Matrix
+          Simpan Matriks Bobot
         </Button>
       </div>
     </div>

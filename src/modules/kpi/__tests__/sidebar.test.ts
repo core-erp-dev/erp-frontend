@@ -14,14 +14,14 @@ const kpiItems = navigationConfig.filter((item) => item.group === 'KPI');
 const topLevelKpiTitles = kpiItems.map((i) => i.title);
 
 describe('KPI sidebar configuration (canonical navigationConfig)', () => {
-  it('contains exactly 3 KPI parents', () => {
-    expect(kpiItems).toHaveLength(3);
+  it('contains the requested KPI menu groups', () => {
+    expect(kpiItems.map((item) => item.title)).toEqual(['KPI Perusahaan', 'KPI Unit', 'Aktivitas', 'Laporan', 'Persetujuan']);
   });
 
-  it('Activities is an expandable parent with exactly 5 submenus', () => {
+  it('Activities is an expandable parent with four submenus', () => {
     const activities = kpiItems.find((i) => i.title === 'Aktivitas');
     expect(activities?.children?.map((c) => c.title)).toEqual([
-      'Semua Aktivitas', 'Aktivitas Saya', 'Aktivitas Bawahan', 'Pengajuan Saya', 'Persetujuan',
+      'Semua Aktivitas', 'Aktivitas Saya', 'Aktivitas Bawahan', 'Pengajuan Saya',
     ]);
   });
 
@@ -30,15 +30,15 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     expect(report?.children?.map((c) => c.title)).toEqual(['Laporan Saya', 'Persetujuan Laporan']);
   });
 
-  it('Corporate KPI keeps its 4 submenus (Unit Performance added)', () => {
+  it('Corporate KPI keeps only its three configuration submenus', () => {
     const corporate = kpiItems.find((i) => i.title === 'KPI Perusahaan');
     expect(corporate?.children?.map((c) => c.title)).toEqual([
-      'Struktur', 'Variabel', 'Nilai Variabel', 'Kinerja Unit',
+      'Struktur', 'Variabel', 'Nilai Variabel',
     ]);
   });
 
-  it('all three KPI parents use the SAME expandable mechanism (children array)', () => {
-    for (const item of kpiItems) {
+  it('KPI Perusahaan, KPI Unit, Aktivitas, and Laporan use the same expandable mechanism', () => {
+    for (const item of kpiItems.filter((item) => item.title !== 'Persetujuan')) {
       expect(Array.isArray(item.children) && item.children.length > 0)
         .toBe(true);
     }
@@ -47,13 +47,7 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
   it('every Activities submenu maps to its own route', () => {
     const activities = kpiItems.find((i) => i.title === 'Aktivitas');
     const hrefs = activities?.children?.map((c) => c.href);
-    expect(hrefs).toEqual([
-      KPI_ROUTES.activitiesAll,
-      KPI_ROUTES.activitiesMine,
-      KPI_ROUTES.activitiesSubordinate,
-      KPI_ROUTES.activitiesMyRequests,
-      KPI_ROUTES.approvals, // existing Activity Approval route kept as the child
-    ]);
+    expect(hrefs).toEqual([KPI_ROUTES.activitiesAll, KPI_ROUTES.activitiesMine, KPI_ROUTES.activitiesSubordinate, KPI_ROUTES.activitiesMyRequests]);
   });
 
   it('every Report submenu maps to its own route', () => {
@@ -78,9 +72,8 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     expect(all?.permissions).toEqual([PERM.KPI_ACTIVITY_READ_ALL, PERM.KPI_ACTIVITY_MANAGE]);
   });
 
-  it('Activities > Approval keeps the kpi_activity:approve gate', () => {
-    const activities = kpiItems.find((i) => i.title === 'Aktivitas');
-    const approval = activities?.children?.find((c) => c.href === KPI_ROUTES.approvals);
+  it('Persetujuan keeps the kpi_activity:approve gate', () => {
+    const approval = kpiItems.find((i) => i.href === KPI_ROUTES.approvals);
     expect(approval?.permissions).toEqual([PERM.KPI_ACTIVITY_APPROVE]);
   });
 
@@ -115,10 +108,11 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
     expect(corporate?.permissions).toEqual([PERM.CORPORATE_KPI_READ]);
   });
 
-  it('Corporate KPI > Unit Performance keeps the unit_performance:read gate', () => {
-    const corporate = kpiItems.find((i) => i.title === 'KPI Perusahaan');
-    const unitPerf = corporate?.children?.find((c) => c.href === KPI_ROUTES.unitPerformance);
+  it('KPI Unit exposes separate result and configuration routes', () => {
+    const unit = kpiItems.find((i) => i.title === 'KPI Unit');
+    const unitPerf = unit?.children?.find((c) => c.href === KPI_ROUTES.unitPerformance);
     expect(unitPerf?.permissions).toEqual([PERM.UNIT_PERFORMANCE_READ]);
+    expect(unit?.children?.map((c) => c.href)).toEqual([KPI_ROUTES.unitPerformance, KPI_ROUTES.unitPerformanceConfiguration]);
   });
 
   it('Dashboard points to / and sits outside the KPI group', () => {
@@ -145,13 +139,14 @@ describe('KPI sidebar configuration (canonical navigationConfig)', () => {
       KPI_ROUTES.corporate, // appears twice by design (parent header + first child)
       KPI_ROUTES.corporateVariables, KPI_ROUTES.corporateVariableValues,
       KPI_ROUTES.unitPerformance,
+      KPI_ROUTES.unitPerformanceConfiguration,
       KPI_ROUTES.activities, KPI_ROUTES.activitiesAll, KPI_ROUTES.activitiesMine,
       KPI_ROUTES.activitiesSubordinate, KPI_ROUTES.activitiesMyRequests,
       KPI_ROUTES.reports, // parent header + first child (same pattern as corporate)
       KPI_ROUTES.reportReviews,
       KPI_ROUTES.approvals,
     ]) {
-      if (route === KPI_ROUTES.corporate || route === KPI_ROUTES.reports) {
+      if (route === KPI_ROUTES.corporate || route === KPI_ROUTES.reports || route === KPI_ROUTES.unitPerformance) {
         expect(hrefs.filter((h) => h === route)).toHaveLength(2);
       } else {
         expect(hrefs.filter((h) => h === route)).toHaveLength(1);

@@ -20,6 +20,7 @@ export const KPI_ROUTES = {
   reportReviews: '/kpi/report-reviews',
   approvals: '/kpi/approvals',
   unitPerformance: '/kpi/unit-performance',
+  unitPerformanceConfiguration: '/kpi/unit-performance/configuration',
 } as const;
 
 // ── Labels ────────────────────────────────────────────────────────────────
@@ -36,7 +37,8 @@ export const KPI_LABELS = {
   reports: 'My Report',
   reportReviews: 'Report Reviews',
   approvals: 'Activity Approvals',
-  unitPerformance: 'Unit Performance',
+  unitPerformance: 'Performa Unit',
+  unitPerformanceConfiguration: 'Konfigurasi Performa Unit',
 } as const;
 
 export const KPI_DESCRIPTIONS = {
@@ -52,5 +54,6 @@ export const KPI_DESCRIPTIONS = {
   reports: 'Your submitted execution reports, evidence, and review status.',
   reportReviews: 'Execution reports assigned to you or waiting in the company review queue.',
   approvals: 'Approve or reject KPI activity change requests.',
-  unitPerformance: 'Unit performance against the corporate KPI target, by organization unit.',
+  unitPerformance: 'Hasil performa KPI Unit berdasarkan periode dan unit organisasi.',
+  unitPerformanceConfiguration: 'Kelola unit peserta dan bobot kontribusi per indikator.',
 } as const;

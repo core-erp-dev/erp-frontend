@@ -61,8 +61,8 @@ describe('validation & save gating', () => {
 
     // 55 + 40 = 95 — not complete
     expect(screen.getByText('95%')).toBeInTheDocument();
-    expect(screen.getByText('Must total exactly 100%')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save Matrix' })).toBeDisabled();
+    expect(screen.getByText('Total harus tepat 100%')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Simpan Matriks Bobot' })).toBeDisabled();
   });
 
   it('keeps Save disabled when a cell is empty (unit without weight)', () => {
@@ -73,16 +73,16 @@ describe('validation & save gating', () => {
     };
     render(<UnitPerformanceWeightMatrix matrix={emptyMatrix} isMutating={false} onSave={onSave} />);
 
-    expect(screen.getByText('Fill every unit weight (> 0)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save Matrix' })).toBeDisabled();
+    expect(screen.getByText('Isi bobot setiap unit (> 0)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Simpan Matriks Bobot' })).toBeDisabled();
   });
 
   it('rejects non-numeric or out-of-range weights as missing', () => {
     render(<UnitPerformanceWeightMatrix matrix={baseMatrix} isMutating={false} onSave={onSave} />);
     fireEvent.change(screen.getByLabelText('ROE — Hublang weight'), { target: { value: 'abc' } });
 
-    expect(screen.getByText('Fill every unit weight (> 0)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save Matrix' })).toBeDisabled();
+    expect(screen.getByText('Isi bobot setiap unit (> 0)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Simpan Matriks Bobot' })).toBeDisabled();
   });
 
   it('enables Save and submits the full matrix in one request when every indicator totals 100%', async () => {
@@ -90,7 +90,7 @@ describe('validation & save gating', () => {
     // 60 + 40 = 100 already — save enabled
     expect(screen.getByText('100%')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Matrix' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Matriks Bobot' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onSave).toHaveBeenCalledWith([
@@ -109,7 +109,7 @@ describe('validation & save gating', () => {
       totals: { 'ind-1': 100 },
     };
     render(<UnitPerformanceWeightMatrix matrix={smallMatrix} isMutating={false} onSave={onSave} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save Matrix' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Matriks Bobot' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledWith([
       { indicatorId: 'ind-1', unitPerformanceId: 'up-hub', weight: 97 },
@@ -127,7 +127,7 @@ describe('empty states', () => {
         onSave={onSave}
       />,
     );
-    expect(screen.getByText(/No participating units yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Belum ada unit peserta/)).toBeInTheDocument();
   });
 
   it('shows the no-indicators empty state', () => {
@@ -138,6 +138,6 @@ describe('empty states', () => {
         onSave={onSave}
       />,
     );
-    expect(screen.getByText(/No indicators for this year/)).toBeInTheDocument();
+    expect(screen.getByText(/Belum ada indikator untuk tahun ini/)).toBeInTheDocument();
   });
 });
