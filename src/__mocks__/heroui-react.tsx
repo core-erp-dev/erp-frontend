@@ -11,6 +11,7 @@ const NON_DOM_PROPS = new Set([
   'isDismissable', 'placement', 'slot', 'onOpenChange', 'allowsEmptyCollection',
   'defaultFilter', 'isLoading', 'validationBehavior', 'isHeaderSticky',
   'classNames', 'isOpen', 'isDisabled', 'isRowHeader', 'isActive',
+  'renderEmptyState',
 ]);
 
 function stripNonDomProps(props: Record<string, unknown>): Record<string, unknown> {

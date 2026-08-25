@@ -88,8 +88,8 @@ describe('access control', () => {
     mockPermissions = { 'unit_performance:read': true };
     render(<UnitPerformancePage />);
     expect(await screen.findByText('ROE')).toBeInTheDocument();
-    // unit name appears in the matrix header
-    expect(screen.getAllByText('Hublang').length).toBeGreaterThan(0);
+    // matrix headers use unit codes; the full name remains available as title
+    expect(screen.getAllByText('HUB').length).toBeGreaterThan(0);
     expect(screen.queryByText('Kelola Unit')).not.toBeInTheDocument();
     expect(screen.queryByText('Atur Bobot')).not.toBeInTheDocument();
   });

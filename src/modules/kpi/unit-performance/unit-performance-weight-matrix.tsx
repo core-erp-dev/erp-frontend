@@ -54,25 +54,21 @@ function cellValue(matrix: UnitPerformanceWeightMatrixData, draft: UnitPerforman
 }
 
 export function getMatrixValidation(matrix: UnitPerformanceWeightMatrixData, draft: UnitPerformanceMatrixDraft) {
-  const perIndicator = new Map<string, { totalCents: number; allFilled: boolean }>();
+  const perIndicator = new Map<string, { totalCents: number }>();
   for (const indicator of matrix.indicators) {
     let totalCents = 0;
-    let allFilled = true;
     for (const unit of matrix.units) {
       const cents = toWeightCents(cellValue(matrix, draft, indicator.id, unit.id));
-      if (cents == null) {
-        allFilled = false;
-        continue;
-      }
+      if (cents == null) continue;
       totalCents += cents;
     }
-    perIndicator.set(indicator.id, { totalCents, allFilled });
+    perIndicator.set(indicator.id, { totalCents });
   }
   const allValid = matrix.indicators.length > 0
     && matrix.units.length > 0
     && matrix.indicators.every((indicator) => {
       const result = perIndicator.get(indicator.id);
-      return result?.allFilled === true && result.totalCents === 10000;
+      return result?.totalCents === 10000;
     });
   return { perIndicator, allValid };
 }
@@ -134,11 +130,11 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
       <Table.ScrollContainer>
         <Table.Content aria-label="Matriks Konfigurasi Performa Unit" className="min-w-[720px]">
           <Table.Header>
-            <Table.Column id="indicator" isRowHeader>Indikator</Table.Column>
+            <Table.Column id="code" isRowHeader>Kode</Table.Column>
+            <Table.Column id="indicator">Indikator</Table.Column>
             {matrix.units.map((unit) => (
               <Table.Column key={unit.id} id={unit.id}>
-                <span className="block truncate">{unit.unitName}</span>
-                <span className="block text-xs font-normal text-muted-foreground">{unit.unitCode}</span>
+                <span className="block truncate" title={unit.unitName}>{unit.unitCode}</span>
               </Table.Column>
             ))}
             <Table.Column id="total">Total</Table.Column>
@@ -147,14 +143,11 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
             {(!isLoading && !error ? matrix.indicators : []).map((indicator) => {
               const result = perIndicator.get(indicator.id);
               const totalCents = result?.totalCents ?? 0;
-              const complete = result?.allFilled === true && totalCents === 10000;
+              const complete = totalCents === 10000;
               return (
                 <Table.Row key={indicator.id}>
-                  <Table.Cell className="text-foreground">
-                    <span className="block font-medium text-foreground">{indicator.code}</span>
-                    <span className="block text-sm text-foreground">{indicator.name}</span>
-                    <span className="block text-xs text-muted-foreground">{indicator.aspectName || '-'}</span>
-                  </Table.Cell>
+                  <Table.Cell className="whitespace-nowrap font-medium text-foreground">{indicator.code}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap text-foreground">{indicator.name}</Table.Cell>
                   {matrix.units.map((unit) => {
                     const value = cellValue(matrix, draft, indicator.id, unit.id);
                     const invalid = value.trim() !== '' && toWeightCents(value) == null;
@@ -182,18 +175,9 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
                     );
                   })}
                   <Table.Cell>
-                    {result?.allFilled ? (
-                      <Chip size="sm" variant="soft" color={complete ? 'success' : 'danger'} className="font-medium">
-                        {formatCents(totalCents)}%
-                      </Chip>
-                    ) : (
-                      <Chip size="sm" variant="soft" color="warning" className="font-medium">-</Chip>
-                    )}
-                    {!complete && (
-                      <span className="mt-1 block text-[11px] text-danger">
-                        {result?.allFilled ? 'Total harus tepat 100%' : 'Isi bobot setiap unit'}
-                      </span>
-                    )}
+                    <Chip size="sm" variant="soft" color={complete ? 'success' : 'danger'} className="font-medium">
+                      {formatCents(totalCents)}%
+                    </Chip>
                   </Table.Cell>
                 </Table.Row>
               );
