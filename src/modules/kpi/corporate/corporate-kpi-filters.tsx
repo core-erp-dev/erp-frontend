@@ -8,7 +8,7 @@ import { MONTH_NAMES_ID } from './period-label';
 export interface CorporateKpiFiltersProps {
   periodMode: 'monthly' | 'annual';
   onPeriodModeChange: (mode: 'monthly' | 'annual') => void;
-  /** All selectable years (5-year window + any year with an existing structure). */
+  /** All selectable years with existing structures plus the next available year. */
   years: number[];
   selectedYear: number;
   onYearChange: (year: number) => void;
@@ -59,7 +59,7 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
           </Tabs.ListContainer>
         </Tabs>
 
-        {/* Year — full range, independent of existing structures */}
+        {/* Year — existing structures plus the next available year */}
         <Dropdown>
           <Button variant="tertiary" aria-label="Pilih tahun">
             {selectedYear}

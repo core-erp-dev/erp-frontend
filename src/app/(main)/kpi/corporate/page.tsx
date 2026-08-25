@@ -12,19 +12,15 @@ import { useCorporateKpiData } from '@/modules/kpi/corporate/use-corporate-kpi-d
 import { CorporateKpiFilters } from '@/modules/kpi/corporate/corporate-kpi-filters';
 import { CorporateKpiTable } from '@/modules/kpi/corporate/corporate-kpi-table';
 import { LifecycleDialog } from '@/modules/kpi/corporate/corporate-kpi-lifecycle-dialog';
+import { getCorporateKpiYearOptions } from '@/modules/kpi/corporate/corporate-kpi-year-options';
 import type { CorporateKpiNode, CorporateKpiStructure, LifecycleActionType } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 type PeriodMode = 'monthly' | 'annual';
 type ViewMode = 'current' | 'deleted';
 
-function yearOptions(): number[] {
-  const current = new Date().getFullYear();
-  return Array.from({ length: 5 }, (_, i) => current - 1 + i);
-}
-
-function validYear(value: string | null): number {
+function parseYear(value: string | null): number | null {
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100 ? parsed : new Date().getFullYear();
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 export default function KpiCorporatePage() {
@@ -33,8 +29,9 @@ export default function KpiCorporatePage() {
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
   const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
+  const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const selectedYear = validYear(searchParams.get('year'));
+  const urlYear = parseYear(searchParams.get('year'));
   const periodMode: PeriodMode = searchParams.get('period') === 'annual' ? 'annual' : 'monthly';
   const selectedMonth = Math.min(12, Math.max(1, Number(searchParams.get('month')) || currentMonth));
   const viewMode: ViewMode = searchParams.get('view') === 'deleted' || searchParams.get('scope') === 'deleted' ? 'deleted' : 'current';
@@ -51,6 +48,14 @@ export default function KpiCorporatePage() {
     treeError, deletedError, structuresError, hasLoadedDeleted,
     fetchTree, fetchDeleted, fetchStructures, pendingLifecycle, deleteKpi, restoreKpi, changeStructureStatus,
   } = useCorporateKpiData();
+
+  const years = useMemo(() => {
+    return getCorporateKpiYearOptions(structures, currentYear);
+  }, [currentYear, structures]);
+  const selectedYear = useMemo(() => {
+    if ((isLoadingStructures || structuresError) && urlYear != null) return urlYear;
+    return urlYear != null && years.includes(urlYear) ? urlYear : years[0] ?? currentYear;
+  }, [currentYear, isLoadingStructures, structuresError, urlYear, years]);
 
   const markTableTransition = useCallback(() => {
     setIsTableTransitioning(true);
@@ -71,10 +76,20 @@ export default function KpiCorporatePage() {
   }, [currentMonth, periodMode, searchQuery, selectedMonth, selectedYear, viewMode, router]);
 
   useEffect(() => { if (canRead) void fetchStructures(); }, [canRead, fetchStructures]);
-  useEffect(() => { if (canRead) void fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined); }, [canRead, fetchTree, periodMode, selectedMonth, selectedYear]);
+  useEffect(() => {
+    if (canRead && !isLoadingStructures && !structuresError) {
+      void fetchTree(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined);
+    }
+  }, [canRead, fetchTree, isLoadingStructures, periodMode, selectedMonth, selectedYear, structuresError]);
   useEffect(() => { if (viewMode === 'deleted' && canManage && !hasLoadedDeleted) void fetchDeleted(); }, [canManage, fetchDeleted, hasLoadedDeleted, viewMode]);
 
-  const years = useMemo(() => [...new Set([...yearOptions(), ...structures.map((s) => s.year)])].sort((a, b) => b - a), [structures]);
+  useEffect(() => {
+    if (!canRead || isLoadingStructures || structuresError) return;
+    const fallbackYear = years[0] ?? currentYear;
+    if (urlYear !== fallbackYear && (urlYear == null || !years.includes(urlYear))) {
+      updateUrl({ year: fallbackYear });
+    }
+  }, [canRead, currentYear, isLoadingStructures, structuresError, updateUrl, urlYear, years]);
   const selectedStructure = structures.find((s) => s.year === selectedYear) ?? null;
   const structureLocked = selectedStructure?.status === 'ACTIVE';
   const lockedStructureIds = useMemo(() => new Set(structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id)), [structures]);
