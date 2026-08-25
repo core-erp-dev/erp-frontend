@@ -220,10 +220,11 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
             >
               {treeRows.map((row, index) => {
                 const locked = lockedStructureIds.has(row.structureId);
+                const indent = Math.max(row.depth, row.nodeType === 'INDICATOR' ? 1 : 0) * 24;
                 return (
                   <Table.Row key={`${row.id}-${index}`}>
                     <Table.Cell>
-                      <div className="flex items-center gap-1" style={{ paddingLeft: row.depth * 24 }}>
+                      <div className="flex items-center gap-1" style={{ paddingLeft: indent }}>
                         {row.hasChildren && (
                           <Button
                             isIconOnly
@@ -244,7 +245,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                       </div>
                     </Table.Cell>
                     <Table.Cell>
-                      <div style={{ paddingLeft: row.depth * 24 }}>
+                      <div style={{ paddingLeft: indent }}>
                         <Link href={`/kpi/corporate/${row.id}`} className="font-medium text-foreground hover:underline">
                           {row.name}
                         </Link>
@@ -270,7 +271,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                         <div className="flex items-center justify-end">
                           {/* ACTIVE structures freeze configuration — no mutation actions */}
                           <Dropdown>
-                            <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${row.code}`} isDisabled={canManage && locked}>
+                            <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${row.code}`}>
                               <DotsThreeVertical className="h-4 w-4" />
                             </Button>
                             <Dropdown.Popover placement="top">
@@ -278,6 +279,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                                 const full = findNodeById(tree, row.id);
                                 if (!full) return;
                                 if (key === 'view') onView?.(full);
+                                if (locked) return;
                                 if (key === 'edit') onEdit?.(full);
                                 if (key === 'add-indicator') onCreateIndicator?.(full.id);
                                 if (key === 'delete') onDelete?.(full);
@@ -291,17 +293,17 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                                   </Dropdown.Item>
                                 )}
                                 {onEdit && (
-                                  <Dropdown.Item id="edit" textValue="Ubah">
+                                  <Dropdown.Item id="edit" textValue="Ubah" isDisabled={locked}>
                                     <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Ubah</span></div>
                                   </Dropdown.Item>
                                 )}
                                 {row.nodeType === 'ASPECT' && onCreateIndicator && (
-                                  <Dropdown.Item id="add-indicator" textValue="Tambah indikator">
+                                  <Dropdown.Item id="add-indicator" textValue="Tambah indikator" isDisabled={locked}>
                                     <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Tambah indikator</span></div>
                                   </Dropdown.Item>
                                 )}
                                 {onDelete && (
-                                  <Dropdown.Item id="delete" textValue="Hapus" variant="danger">
+                                  <Dropdown.Item id="delete" textValue="Hapus" variant="danger" isDisabled={locked}>
                                     <div className="flex items-center gap-2 text-danger"><Trash className="h-4 w-4" /><span>Hapus</span></div>
                                   </Dropdown.Item>
                                 )}

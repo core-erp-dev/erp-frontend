@@ -224,7 +224,7 @@ describe('Current KPIs view', () => {
     expect(screen.queryByText('F01')).not.toBeInTheDocument();
   });
 
-  it('disables the More menu for rows of an ACTIVE (locked) structure', () => {
+  it('keeps the More menu available for detail on an ACTIVE (locked) structure', () => {
     render(
       <CorporateKpiTable
         {...defaultProps}
@@ -234,8 +234,8 @@ describe('Current KPIs view', () => {
         onDelete={jest.fn()}
       />,
     );
-    // Configuration is frozen — the trigger must not offer mutations
-    expect(screen.getByLabelText('Aksi FIN')).toBeDisabled();
+    // Configuration is frozen — detail remains available while mutations are disabled in the menu.
+    expect(screen.getByLabelText('Aksi FIN')).not.toBeDisabled();
   });
 
   it('shows empty state when no KPIs', () => {
