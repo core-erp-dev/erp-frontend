@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import { Button, Chip, FieldError, Input, Label, Spinner, Table, TextField } from '@heroui/react';
-import { Tray } from '@phosphor-icons/react';
+import { Trash, Tray } from '@phosphor-icons/react';
 import type {
   UnitPerformanceWeightEntry,
   UnitPerformanceWeightMatrix as UnitPerformanceWeightMatrixData,
@@ -18,6 +18,8 @@ interface UnitPerformanceWeightMatrixProps {
   error: string | null;
   onRetry: () => void;
   onDraftChange: (indicatorId: string, unitId: string, value: string) => void;
+  onDeleteUnit?: (unit: UnitPerformanceWeightMatrixData['units'][number]) => void;
+  isUnitActionDisabled?: boolean;
 }
 
 const WEIGHT_PATTERN = /^\d{1,3}(\.\d{1,2})?$/;
@@ -97,6 +99,8 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
   error,
   onRetry,
   onDraftChange,
+  onDeleteUnit,
+  isUnitActionDisabled = false,
 }) => {
   const { perIndicator } = useMemo(() => getMatrixValidation(matrix, draft), [draft, matrix]);
 
@@ -113,7 +117,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
       );
     }
     const emptyLabel = matrix.units.length === 0
-      ? 'Belum ada unit peserta. Gunakan Kelola Unit untuk memilih unit.'
+      ? 'Belum ada unit peserta. Gunakan Tambah Unit untuk memilih unit.'
       : matrix.indicators.length === 0
         ? 'Belum ada indikator KPI Perusahaan untuk tahun ini.'
         : 'Belum ada konfigurasi bobot pada periode yang dipilih.';
@@ -134,7 +138,22 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
             <Table.Column id="indicator">Indikator</Table.Column>
             {matrix.units.map((unit) => (
               <Table.Column key={unit.id} id={unit.id}>
-                <span className="block truncate" title={unit.unitName}>{unit.unitCode}</span>
+                <span className="flex items-center justify-center gap-1">
+                  <span className="truncate" title={unit.unitName}>{unit.unitCode}</span>
+                  {onDeleteUnit && (
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      variant="tertiary"
+                      className="h-6 w-6 shrink-0"
+                      aria-label={`Hapus unit ${unit.unitCode}`}
+                      onPress={() => onDeleteUnit(unit)}
+                      isDisabled={isUnitActionDisabled}
+                    >
+                      <Trash className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </span>
               </Table.Column>
             ))}
             <Table.Column id="total">Total</Table.Column>
@@ -146,13 +165,13 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
               const complete = totalCents === 10000;
               return (
                 <Table.Row key={indicator.id}>
-                  <Table.Cell className="whitespace-nowrap font-medium text-foreground">{indicator.code}</Table.Cell>
-                  <Table.Cell className="whitespace-nowrap text-foreground">{indicator.name}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap py-3 font-medium text-foreground">{indicator.code}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap py-3 text-foreground">{indicator.name}</Table.Cell>
                   {matrix.units.map((unit) => {
                     const value = cellValue(matrix, draft, indicator.id, unit.id);
                     const invalid = value.trim() !== '' && toWeightCents(value) == null;
                     return (
-                      <Table.Cell key={unit.id}>
+                      <Table.Cell key={unit.id} className="py-3">
                         {canEdit ? (
                           <TextField
                             aria-label={`${indicator.code} ${indicator.name} - ${unit.unitName} Bobot`}
@@ -174,7 +193,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
                       </Table.Cell>
                     );
                   })}
-                  <Table.Cell>
+                  <Table.Cell className="py-3">
                     <Chip size="sm" variant="soft" color={complete ? 'success' : 'danger'} className="font-medium">
                       {formatCents(totalCents)}%
                     </Chip>

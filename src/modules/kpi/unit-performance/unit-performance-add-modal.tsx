@@ -17,8 +17,7 @@ import {
   useFilter,
 } from '@heroui/react';
 import type { OrganizationUnitResponse } from '@/modules/organization/organization-units/types';
-import type { CreateUnitPerformanceRequest, UnitPerformanceMatrixUnit } from './unit-performance.types';
-import { UnitPerformanceParticipants } from './unit-performance-participants';
+import type { CreateUnitPerformanceRequest } from './unit-performance.types';
 
 export interface UnitPerformanceAddModalProps {
   isOpen: boolean;
@@ -26,8 +25,6 @@ export interface UnitPerformanceAddModalProps {
   onSubmit: (payload: CreateUnitPerformanceRequest) => Promise<boolean>;
   /** Flattened active org units — already excluding configured ones by the page. */
   orgUnits: OrganizationUnitResponse[];
-  configuredUnits?: UnitPerformanceMatrixUnit[];
-  onRemove?: (unit: UnitPerformanceMatrixUnit) => void;
   isSubmitting: boolean;
 }
 
@@ -39,18 +36,12 @@ const schema = z.object({
   organizationUnitId: z.string().min(1, 'Unit organisasi wajib dipilih'),
 });
 
-/**
- * Add a participating unit. NO weight field — the Indicator × Unit weights
- * are configured in the weight matrix, where the per-indicator totals are
- * visible across all units at once.
- */
+/** Add an existing organization unit to the performance matrix. */
 export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
   orgUnits,
-  configuredUnits = [],
-  onRemove,
   isSubmitting,
 }) => {
   const { contains } = useFilter({ sensitivity: 'base' });
@@ -77,7 +68,7 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[480px]">
             <Modal.Header className="flex items-center justify-between">
-            <Modal.Heading>Kelola Unit</Modal.Heading>
+              <Modal.Heading>Tambah Unit</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
 
@@ -111,14 +102,14 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                         <ComboBox.Trigger />
                       </ComboBox.InputGroup>
                       <ComboBox.Popover>
-                        <ListBox renderEmptyState={() => <EmptyState>No available units</EmptyState>}>
+                        <ListBox renderEmptyState={() => <EmptyState>Tidak ada unit tersedia</EmptyState>}>
                           {orgUnits.map((unit) => (
-                          <ListBox.Item
+                            <ListBox.Item
                               key={unit.id}
                               id={unit.id}
                               textValue={`${unit.unitCode} - ${unit.unitName}`}
                             >
-                              <span>{unit.unitCode} — {unit.unitName}</span>
+                              <span>{unit.unitCode} - {unit.unitName}</span>
                               <ListBox.ItemIndicator />
                             </ListBox.Item>
                           ))}
@@ -129,21 +120,6 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                   )}
                 />
 
-                <p className="text-xs text-muted-foreground">
-                  Setelah ditambahkan, unit muncul sebagai kolom baru pada matriks bobot.
-                  Total setiap indikator harus tepat 100% sebelum disimpan.
-                </p>
-                {configuredUnits.length > 0 && (
-                  <div className="flex flex-col gap-2 border-t border-border pt-4">
-                    <p className="text-sm font-medium text-foreground">Unit yang dipilih</p>
-                    <UnitPerformanceParticipants
-                      units={configuredUnits}
-                      canManage={onRemove != null}
-                      isMutating={isSubmitting}
-                      onDelete={(unit) => onRemove?.(unit)}
-                    />
-                  </div>
-                )}
               </Form>
             </Modal.Body>
 

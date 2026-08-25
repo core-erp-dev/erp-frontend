@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { Modal, Button } from '@heroui/react';
-import { Trash } from '@phosphor-icons/react';
 import type { UnitPerformanceMatrixUnit } from './unit-performance.types';
 
 export interface UnitPerformanceDeleteDialogProps {
@@ -30,19 +29,14 @@ export const UnitPerformanceDeleteDialog: React.FC<UnitPerformanceDeleteDialogPr
       <Modal.Container>
         <Modal.Dialog className="sm:max-w-[420px]">
           <Modal.Header className="flex items-center justify-between">
-            <Modal.Heading>Hapus Unit Peserta</Modal.Heading>
+            <Modal.Heading>Hapus Unit</Modal.Heading>
             <Modal.CloseTrigger />
           </Modal.Header>
 
           <Modal.Body className="p-6">
-            <div className="flex items-start gap-3">
-              <Trash className="mt-0.5 h-5 w-5 text-danger" />
-              <p className="text-sm text-muted-foreground">
-                Hapus <span className="font-medium text-foreground">{row.unitCode} — {row.unitName}</span>{' '}
-                dari Performa Unit? Bobotnya akan dihapus dari setiap indikator dan matriks
-                perlu dilengkapi kembali.
-              </p>
-            </div>
+            <p className="text-sm text-foreground">
+              Hapus <span className="font-medium">{row.unitCode} - {row.unitName}</span>?
+            </p>
           </Modal.Body>
 
           <Modal.Footer className="flex justify-end gap-2">

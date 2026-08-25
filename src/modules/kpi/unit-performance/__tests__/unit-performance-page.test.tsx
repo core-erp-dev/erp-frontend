@@ -90,14 +90,14 @@ describe('access control', () => {
     expect(await screen.findByText('ROE')).toBeInTheDocument();
     // matrix headers use unit codes; the full name remains available as title
     expect(screen.getAllByText('HUB').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Kelola Unit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tambah Unit')).not.toBeInTheDocument();
     expect(screen.queryByText('Atur Bobot')).not.toBeInTheDocument();
   });
 
   it('manage user sees Add Unit and can open the org-unit-only modal', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
-    fireEvent.click(await screen.findByText('Kelola Unit'));
+    fireEvent.click(await screen.findByText('Tambah Unit'));
 
     expect(await screen.findByText('Unit Organisasi')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Pilih unit organisasi')).toBeInTheDocument();
@@ -138,23 +138,20 @@ describe('participant registry', () => {
   it('adds a unit through the org-unit-only modal (no weight field)', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
-    fireEvent.click(await screen.findByText('Kelola Unit'));
+    fireEvent.click(await screen.findByText('Tambah Unit'));
 
     // the modal is the org-unit picker only — the global weight field is gone
     expect(await screen.findByPlaceholderText('Pilih unit organisasi')).toBeInTheDocument();
     expect(screen.queryByText('Weight (%)')).not.toBeInTheDocument();
   });
 
-  it('removes a unit through the Kelola Unit modal', async () => {
+  it('removes a unit from the matrix header confirmation', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
     await screen.findByText('ROE');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Kelola Unit' }));
-    fireEvent.click(screen.getByLabelText('Hapus unit Hublang'));
-    // getByText matches DIRECT text nodes only — the unit name lives in a
-    // nested span, so match on the full textContent of the dialog body
-    // (multiple ancestors share the text — presence is enough)
+    fireEvent.click(screen.getByRole('button', { name: 'Hapus unit HUB' }));
+    // The unit code and name are shown in the minimal confirmation dialog.
     const dialogText = await screen.findAllByText((content, element) =>
       element?.textContent?.includes('Hapus') === true
       && element?.textContent?.includes('HUB') === true

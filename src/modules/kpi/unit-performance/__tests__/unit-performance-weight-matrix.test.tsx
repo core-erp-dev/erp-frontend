@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import {
   createMatrixDraft,
   getMatrixValidation,
@@ -54,6 +54,15 @@ it('renders read-only values without inputs', () => {
   expect(screen.getByText('60%')).toBeInTheDocument();
   expect(screen.getByText('40%')).toBeInTheDocument();
   expect(screen.queryByLabelText('IND_01 ROE - Hublang Bobot')).not.toBeInTheDocument();
+});
+
+it('exposes a delete action beside each unit code', () => {
+  const onDeleteUnit = jest.fn();
+  render(<UnitPerformanceWeightMatrix matrix={baseMatrix} {...tableProps} onDeleteUnit={onDeleteUnit} />);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Hapus unit HUB' }));
+
+  expect(onDeleteUnit).toHaveBeenCalledWith(baseMatrix.units[0]);
 });
 
 it('accepts zero when the indicator total remains 100%', () => {
