@@ -137,6 +137,7 @@ describe('Current KPIs view', () => {
     render(<CorporateKpiTable {...defaultProps} tree={[aspect]} />);
     expect(screen.getByText('FIN')).toBeInTheDocument();
     expect(screen.getByText('Financial')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Financial' })).toHaveAttribute('href', '/kpi/corporate/asp-1');
   });
 
   it('has NO node-level status UI (no status column, no per-row chips)', () => {
@@ -179,6 +180,7 @@ describe('Current KPIs view', () => {
   });
 
   it('fires Edit and Add Indicator from the More menu', () => {
+    const onView = jest.fn();
     const onEdit = jest.fn();
     const onCreateIndicator = jest.fn();
     render(
@@ -186,10 +188,13 @@ describe('Current KPIs view', () => {
         {...defaultProps}
         tree={[aspectWithChildren]}
         expandedIds={new Set(['asp-1'])}
+        onView={onView}
         onEdit={onEdit}
         onCreateIndicator={onCreateIndicator}
       />,
     );
+    fireEvent.click(screen.getAllByText('Lihat detail')[0]);
+    expect(onView).toHaveBeenCalledWith(aspectWithChildren);
     fireEvent.click(screen.getAllByText('Ubah')[0]);
     expect(onEdit).toHaveBeenCalledWith(aspectWithChildren);
     fireEvent.click(screen.getByText('Tambah indikator'));

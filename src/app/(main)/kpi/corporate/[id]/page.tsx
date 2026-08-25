@@ -45,7 +45,7 @@ export default function CorporateKpiDetailPage() {
         <div><dt className="text-sm text-muted-foreground">Tipe</dt><dd>{node.nodeType}</dd></div>
         <div><dt className="text-sm text-muted-foreground">Tahun</dt><dd>{node.year}</dd></div>
         <div><dt className="text-sm text-muted-foreground">Bobot</dt><dd>{node.weight == null ? '–' : `${node.weight * 100}%`}</dd></div>
-        <div><dt className="text-sm text-muted-foreground">Target Nilai Renbis</dt><dd>{node.targetScore ?? '–'}</dd></div>
+        <div><dt className="text-sm text-muted-foreground">Target Nilai</dt><dd>{node.targetScore ?? '–'}</dd></div>
         <div className="sm:col-span-2"><dt className="text-sm text-muted-foreground">Deskripsi</dt><dd>{node.description || '–'}</dd></div>
       </dl>
     </div>

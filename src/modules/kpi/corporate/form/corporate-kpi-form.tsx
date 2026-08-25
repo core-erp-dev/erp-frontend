@@ -113,7 +113,7 @@ function buildSchema(isEdit: boolean) {
       if (data.targetScore != null && data.targetScore !== '') {
         const t = Number(data.targetScore);
         if (!Number.isFinite(t) || t <= 0) {
-          ctx.addIssue({ code: 'custom', path: ['targetScore'], message: 'Target Nilai Renbis harus lebih besar dari 0' });
+          ctx.addIssue({ code: 'custom', path: ['targetScore'], message: 'Target Nilai harus lebih besar dari 0' });
         }
       }
     });
@@ -925,7 +925,7 @@ export function CorporateKpiForm({
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating}
                   >
-                    <Label>Target Nilai Renbis</Label>
+                    <Label>Target Nilai</Label>
                     <Input type="number" step="any" placeholder="mis. 80" />
                     <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import Link from 'next/link';
 import { Table, Spinner, Chip, Button, Dropdown } from '@heroui/react';
 import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, DotsThreeVertical, Trash, Eye } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
@@ -182,9 +183,9 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
               <Table.Column id="weight">Bobot</Table.Column>
               <Table.Column id="score">Nilai</Table.Column>
               <Table.Column id="actual">Hasil</Table.Column>
-              <Table.Column id="target-score">Target Nilai Renbis</Table.Column>
+              <Table.Column id="target-score">Target Nilai</Table.Column>
               <Table.Column id="target-result">Target Hasil</Table.Column>
-              {canManage && <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>}
+              {(onView || canManage) && <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>}
             </Table.Header>
             <Table.Body
               renderEmptyState={() => {
@@ -222,27 +223,8 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                 return (
                   <Table.Row key={`${row.id}-${index}`}>
                     <Table.Cell>
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-foreground">{row.code}</span>
-                        {onView && (
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Lihat ${row.code}`}
-                            onPress={() => {
-                              const full = findNodeById(tree, row.id);
-                              if (full) onView(full);
-                            }}
-                          >
-                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                        )}
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
                       <div className="flex items-center gap-1" style={{ paddingLeft: row.depth * 24 }}>
-                        {row.hasChildren ? (
+                        {row.hasChildren && (
                           <Button
                             isIconOnly
                             variant="ghost"
@@ -257,10 +239,15 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                               <CaretRight className="h-3.5 w-3.5 text-gray-500" />
                             )}
                           </Button>
-                        ) : (
-                          <span className="mr-1 w-5" />
                         )}
-                        <span className="font-medium text-foreground">{row.name}</span>
+                        <span className="font-medium text-foreground">{row.code}</span>
+                      </div>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <div style={{ paddingLeft: row.depth * 24 }}>
+                        <Link href={`/kpi/corporate/${row.id}`} className="font-medium text-foreground hover:underline">
+                          {row.name}
+                        </Link>
                       </div>
                     </Table.Cell>
                     <Table.Cell className="text-muted-foreground">
@@ -278,22 +265,31 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                     <Table.Cell className="text-muted-foreground">
                       {scoreValue(row.nodeType === 'INDICATOR', row.targetResult)}
                     </Table.Cell>
-                    {canManage && (
+                    {(onView || canManage) && (
                       <Table.Cell>
                         <div className="flex items-center justify-end">
                           {/* ACTIVE structures freeze configuration — no mutation actions */}
                           <Dropdown>
-                            <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${row.code}`} isDisabled={locked}>
+                            <Button isIconOnly variant="tertiary" size="sm" aria-label={`Aksi ${row.code}`} isDisabled={canManage && locked}>
                               <DotsThreeVertical className="h-4 w-4" />
                             </Button>
                             <Dropdown.Popover placement="top">
                               <Dropdown.Menu onAction={(key) => {
                                 const full = findNodeById(tree, row.id);
                                 if (!full) return;
+                                if (key === 'view') onView?.(full);
                                 if (key === 'edit') onEdit?.(full);
                                 if (key === 'add-indicator') onCreateIndicator?.(full.id);
                                 if (key === 'delete') onDelete?.(full);
                               }}>
+                                {onView && (
+                                  <Dropdown.Item id="view" textValue="Lihat detail">
+                                    <div className="flex items-center gap-2">
+                                      <Eye className="h-4 w-4 text-muted-foreground" />
+                                      <span>Lihat detail</span>
+                                    </div>
+                                  </Dropdown.Item>
+                                )}
                                 {onEdit && (
                                   <Dropdown.Item id="edit" textValue="Ubah">
                                     <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Ubah</span></div>
