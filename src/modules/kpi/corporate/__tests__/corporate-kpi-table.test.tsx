@@ -137,7 +137,7 @@ describe('Current KPIs view', () => {
     render(<CorporateKpiTable {...defaultProps} tree={[aspect]} />);
     expect(screen.getByText('FIN')).toBeInTheDocument();
     expect(screen.getByText('Financial')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Financial' })).toHaveAttribute('href', '/kpi/corporate/asp-1');
+    expect(screen.getByRole('link', { name: 'Financial' })).toHaveAttribute('href', '/kpi/corporate/asp-1?from=structure');
   });
 
   it('has NO node-level status UI (no status column, no per-row chips)', () => {

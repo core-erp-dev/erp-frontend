@@ -27,6 +27,7 @@ const mockUpdateNode = jest.fn().mockResolvedValue(null);
 const mockFetchTree = jest.fn().mockResolvedValue(undefined);
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 
 jest.mock('@/hooks/use-permission', () => ({
   usePermission: () => ({ hasPerm: () => mockHasManage }),
@@ -35,8 +36,9 @@ jest.mock('@/hooks/use-permission', () => ({
 let mockHasManage = true;
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn(), refresh: jest.fn(), prefetch: jest.fn() }),
+  useRouter: () => ({ push: mockPush, back: jest.fn(), replace: mockReplace, refresh: jest.fn(), prefetch: jest.fn() }),
   useParams: () => ({ id: 'ind-1' }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 jest.mock('@heroui/react', () => {
@@ -130,6 +132,6 @@ describe('Edit Corporate KPI page', () => {
     expect(mockUpdateNode.mock.calls[0][0]).toBe('ind-1');
     const payload = mockUpdateNode.mock.calls[0][1] as Record<string, unknown>;
     expect(payload.formula).toBe('ROI + NPM');
-    expect(mockPush).toHaveBeenCalledWith('/kpi/corporate');
+    expect(mockReplace).toHaveBeenCalledWith('/kpi/corporate/ind-1');
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Spinner } from '@heroui/react';
 import { ArrowLeft, PencilSimple, House } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
@@ -13,6 +13,7 @@ import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.typ
 
 export default function CorporateKpiDetailPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams();
   const id = String(params.id);
   const { hasPerm } = usePermission();
@@ -31,6 +32,18 @@ export default function CorporateKpiDetailPage() {
   }, [id]);
 
   useEffect(() => { if (canRead) void load(); }, [canRead, load]);
+  const handleBack = useCallback(() => {
+    if (searchParams.get('from') === 'structure') {
+      router.back();
+    } else {
+      router.replace(KPI_ROUTES.corporate);
+    }
+  }, [router, searchParams]);
+  const handleEdit = useCallback(() => {
+    const query = new URLSearchParams({ from: 'detail' });
+    if (searchParams.get('from') === 'structure') query.set('return', 'structure');
+    router.push(KPI_ROUTES.corporateEditRoute(id, query.toString()));
+  }, [id, router, searchParams]);
   if (!canRead) return <ForbiddenAccess />;
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>;
   if (!node) return <div className="flex w-full flex-col gap-4"><Alert status="danger">{error ?? 'KPI Perusahaan tidak ditemukan.'}</Alert><Button variant="secondary" onPress={load}>Coba Lagi</Button></div>;
@@ -38,7 +51,7 @@ export default function CorporateKpiDetailPage() {
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs><BreadcrumbsItem href="/" aria-label="Beranda"><House className="h-4 w-4" /></BreadcrumbsItem><BreadcrumbsItem>KPI</BreadcrumbsItem><BreadcrumbsItem href={KPI_ROUTES.corporate}>{KPI_LABELS.corporate}</BreadcrumbsItem><BreadcrumbsItem>Detail</BreadcrumbsItem></Breadcrumbs>
-      <div className="flex items-center justify-between"><div className="flex items-center gap-3"><Button isIconOnly variant="tertiary" onPress={() => router.push(KPI_ROUTES.corporate)} aria-label="Kembali ke Struktur"><ArrowLeft className="h-5 w-5" /></Button><h1 className="text-xl font-semibold text-foreground">Detail KPI Perusahaan</h1></div>{canManage && <Button variant="primary" onPress={() => router.push(KPI_ROUTES.corporateEditRoute(node.id))}><PencilSimple className="h-4 w-4" />Ubah</Button>}</div>
+      <div className="flex items-center justify-between"><div className="flex items-center gap-3"><Button isIconOnly variant="tertiary" onPress={handleBack} aria-label="Kembali ke Struktur"><ArrowLeft className="h-5 w-5" /></Button><h1 className="text-xl font-semibold text-foreground">Detail KPI Perusahaan</h1></div>{canManage && <Button variant="primary" onPress={handleEdit}><PencilSimple className="h-4 w-4" />Ubah</Button>}</div>
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div><dt className="text-sm text-muted-foreground">Kode</dt><dd className="font-medium">{node.code}</dd></div>
         <div><dt className="text-sm text-muted-foreground">Nama KPI</dt><dd className="font-medium">{node.name}</dd></div>

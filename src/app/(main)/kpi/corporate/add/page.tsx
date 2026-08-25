@@ -20,10 +20,11 @@ function AddCorporateKpiPageInner() {
   const preselectedStructureId = searchParams.get('structureId') ?? undefined;
   const parsedYear = Number(searchParams.get('year'));
   const preselectedYear = !preselectedStructureId && Number.isInteger(parsedYear) ? parsedYear : undefined;
+  const fromStructure = searchParams.get('from') === 'structure';
 
   const handleSuccess = useCallback((node: CorporateKpiNode) => {
-    router.replace(KPI_ROUTES.corporateDetailRoute(node.id));
-  }, [router]);
+    router.replace(KPI_ROUTES.corporateDetailRoute(node.id, fromStructure ? 'from=structure' : undefined));
+  }, [fromStructure, router]);
 
   if (!hasPerm(PERM.CORPORATE_KPI_MANAGE)) {
     return (
@@ -34,7 +35,7 @@ function AddCorporateKpiPageInner() {
             <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
-        <Button variant="secondary" onPress={() => router.back()}>
+        <Button variant="secondary" onPress={() => router.replace(KPI_ROUTES.corporate)}>
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Button>

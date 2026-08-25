@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Spinner, Alert, Button } from '@heroui/react';
 import { ArrowLeft } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
@@ -14,6 +14,7 @@ import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.typ
 
 export default function EditCorporateKpiPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams();
   const id = params.id as string;
   const { hasPerm } = usePermission();
@@ -43,8 +44,11 @@ export default function EditCorporateKpiPage() {
   }, [canManage, id]);
 
   const handleSuccess = useCallback(() => {
-    router.replace(KPI_ROUTES.corporateDetailRoute(id));
-  }, [id, router]);
+    const query = searchParams.get('return') === 'structure' || searchParams.get('from') === 'structure'
+      ? 'from=structure'
+      : undefined;
+    router.replace(KPI_ROUTES.corporateDetailRoute(id, query));
+  }, [id, router, searchParams]);
 
   if (!hasPerm(PERM.CORPORATE_KPI_MANAGE)) {
     return (
@@ -55,7 +59,7 @@ export default function EditCorporateKpiPage() {
             <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
-        <Button variant="secondary" onPress={() => router.back()}>
+        <Button variant="secondary" onPress={() => router.replace(KPI_ROUTES.corporate)}>
           <ArrowLeft className="h-4 w-4" />
           Kembali
         </Button>
@@ -80,7 +84,7 @@ export default function EditCorporateKpiPage() {
             <Alert.Title>{error || 'KPI Perusahaan tidak ditemukan'}</Alert.Title>
           </Alert.Content>
         </Alert>
-        <Button variant="secondary" onPress={() => router.push(KPI_ROUTES.corporateDetailRoute(id))}>Lihat Detail</Button>
+        <Button variant="secondary" onPress={() => router.replace(KPI_ROUTES.corporateDetailRoute(id))}>Lihat Detail</Button>
       </div>
     );
   }

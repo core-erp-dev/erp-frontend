@@ -99,14 +99,14 @@ export default function KpiCorporatePage() {
   const handleSearchChange = useCallback((search: string) => { markTableTransition(); updateUrl({ search }); }, [markTableTransition, updateUrl]);
 
   const handleCreate = useCallback(() => {
-    const query = selectedStructure ? `?structureId=${selectedStructure.id}&type=ASPECT` : `?year=${selectedYear}&type=ASPECT`;
+    const query = selectedStructure ? `?structureId=${selectedStructure.id}&type=ASPECT&from=structure` : `?year=${selectedYear}&type=ASPECT&from=structure`;
     router.push(`${KPI_ROUTES.corporateAdd}${query}`);
   }, [router, selectedStructure, selectedYear]);
   const handleCreateIndicator = useCallback((aspectId: string) => {
-    if (selectedStructure) router.push(`${KPI_ROUTES.corporateAdd}?structureId=${selectedStructure.id}&parentId=${aspectId}&type=INDICATOR`);
+    if (selectedStructure) router.push(`${KPI_ROUTES.corporateAdd}?structureId=${selectedStructure.id}&parentId=${aspectId}&type=INDICATOR&from=structure`);
   }, [router, selectedStructure]);
-  const handleView = useCallback((node: CorporateKpiNode) => router.push(KPI_ROUTES.corporateDetailRoute(node.id)), [router]);
-  const handleEdit = useCallback((node: CorporateKpiNode) => router.push(KPI_ROUTES.corporateEditRoute(node.id)), [router]);
+  const handleView = useCallback((node: CorporateKpiNode) => router.push(KPI_ROUTES.corporateDetailRoute(node.id, 'from=structure')), [router]);
+  const handleEdit = useCallback((node: CorporateKpiNode) => router.push(KPI_ROUTES.corporateEditRoute(node.id, 'from=structure')), [router]);
 
   const openNodeLifecycle = useCallback((action: LifecycleActionType, node: CorporateKpiNode) => { setLifecycleAction(action); setLifecycleTarget({ kind: 'node', node }); }, []);
   const openStructureLifecycle = useCallback((action: 'activate' | 'deactivate', structure: CorporateKpiStructure) => { setLifecycleAction(action); setLifecycleTarget({ kind: 'structure', structure }); }, []);

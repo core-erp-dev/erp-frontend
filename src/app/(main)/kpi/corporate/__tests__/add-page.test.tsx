@@ -18,6 +18,7 @@ const mockCreateNode = jest.fn().mockResolvedValue(null);
 const mockFetchTree = jest.fn().mockResolvedValue(undefined);
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 
 jest.mock('@/hooks/use-permission', () => ({
   usePermission: () => ({ hasPerm: () => mockHasManage }),
@@ -27,7 +28,7 @@ let mockHasManage = true;
 
 let mockSearchParams = new URLSearchParams();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn(), refresh: jest.fn(), prefetch: jest.fn() }),
+  useRouter: () => ({ push: mockPush, back: jest.fn(), replace: mockReplace, refresh: jest.fn(), prefetch: jest.fn() }),
   useSearchParams: () => mockSearchParams,
 }));
 
@@ -142,6 +143,6 @@ describe('Add Corporate KPI page', () => {
     expect(payload.structureId).toBe('struct-2026');
     expect(payload.formula).toBeNull();
     expect(payload.assessmentRules).toBeNull();
-    expect(mockPush).toHaveBeenCalledWith('/kpi/corporate');
+    expect(mockReplace).toHaveBeenCalledWith('/kpi/corporate/asp-1');
   });
 });

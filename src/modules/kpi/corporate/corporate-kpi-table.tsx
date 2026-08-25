@@ -6,6 +6,7 @@ import { Table, Spinner, Chip, Button, Dropdown } from '@heroui/react';
 import { CaretDown, CaretRight, Tray, PencilSimple, Plus, ArrowCounterClockwise, DotsThreeVertical, Trash, Eye } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { KPI_ROUTES } from '@/modules/kpi/constants';
 import type { CorporateKpiNode } from './corporate-kpi.types';
 
 /* ── Tree-row shape ── */
@@ -248,7 +249,7 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                     </Table.Cell>
                     <Table.Cell>
                       <div style={{ paddingLeft: indent }}>
-                        <Link href={`/kpi/corporate/${row.id}`} className="font-medium text-foreground hover:underline">
+                        <Link href={KPI_ROUTES.corporateDetailRoute(row.id, 'from=structure')} className="font-medium text-foreground hover:underline">
                           {row.name}
                         </Link>
                       </div>

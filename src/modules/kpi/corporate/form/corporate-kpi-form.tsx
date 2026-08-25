@@ -4,7 +4,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useForm, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { House, ArrowLeft, FloppyDisk, Plus, Trash, Tray } from '@phosphor-icons/react';
 import {
   Alert,
@@ -204,6 +204,7 @@ export function CorporateKpiForm({
   onSuccess,
 }: CorporateKpiFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isEditMode = mode === 'edit';
   const { hasPerm } = usePermission();
   const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
@@ -637,8 +638,21 @@ export function CorporateKpiForm({
   };
 
   const handleCancel = useCallback(() => {
-    router.push(isEditMode && initialData ? KPI_ROUTES.corporateDetailRoute(initialData.id) : KPI_ROUTES.corporate);
-  }, [initialData, isEditMode, router]);
+    const from = searchParams.get('from');
+    if (isEditMode && initialData) {
+      if (from === 'detail' || from === 'structure') {
+        router.back();
+      } else {
+        router.replace(KPI_ROUTES.corporateDetailRoute(initialData.id));
+      }
+      return;
+    }
+    if (from === 'structure') {
+      router.back();
+    } else {
+      router.replace(KPI_ROUTES.corporate);
+    }
+  }, [initialData, isEditMode, router, searchParams]);
 
   // Reference data not loaded yet — same spinner gate as the Add Employee form.
   if (isLoadingReference) {

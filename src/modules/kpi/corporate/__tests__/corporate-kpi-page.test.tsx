@@ -24,6 +24,7 @@ const mockPush = jest.fn();
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, back: jest.fn(), replace: jest.fn(), refresh: jest.fn(), prefetch: jest.fn() }),
   usePathname: () => '/kpi/corporate',
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 let mockPermissions: Record<string, boolean> = {};
@@ -169,7 +170,7 @@ describe('manage permissions', () => {
     // Wait until the structure is loaded (the Add handler needs it for structureId)
     await screen.findByText('DRAFT');
     fireEvent.click(screen.getByText('Add Corporate KPI'));
-    expect(mockPush).toHaveBeenCalledWith(`/kpi/corporate/add?structureId=${sampleStructure.id}`);
+    expect(mockPush).toHaveBeenCalledWith(`/kpi/corporate/add?structureId=${sampleStructure.id}&type=ASPECT&from=structure`);
   });
 });
 
