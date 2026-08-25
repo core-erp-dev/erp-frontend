@@ -51,7 +51,7 @@ it('fetches and renders the result contract without exposing matrix editing', as
   expect(detailLink.getAttribute('href')).toContain(`year=${new Date().getFullYear()}`);
   expect(detailLink.getAttribute('href')).toContain(`month=${new Date().getMonth() + 1}`);
   expect(detailLink.getAttribute('href')).toContain('from=unit-performance');
-  const detailButton = screen.getByRole('button', { name: 'Lihat detail Performa Unit Unit Satu' });
+  const detailButton = screen.getByRole('button', { name: 'Lihat Unit Satu' });
   expect(detailButton).toBeInTheDocument();
   expect(screen.queryByText('Nilai')).not.toBeInTheDocument();
   expect(screen.queryByText('Target Nilai Renbis')).not.toBeInTheDocument();

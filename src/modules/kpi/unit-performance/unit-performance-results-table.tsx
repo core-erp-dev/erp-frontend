@@ -68,7 +68,7 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
           <Table.Column id="code">Kode</Table.Column>
           <Table.Column id="weight">Bobot</Table.Column>
           <Table.Column id="result">Hasil</Table.Column>
-          <Table.Column id="action">Aksi</Table.Column>
+          <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
         </Table.Header>
         <Table.Body
           renderEmptyState={() => {
@@ -111,24 +111,21 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
               </Table.Cell>
               <Table.Cell className="text-muted-foreground">{formatPercent(row.weight)}</Table.Cell>
               <Table.Cell className="text-muted-foreground">{formatNumber(row.realization)}</Table.Cell>
-              <Table.Cell className="text-right">
-                <Tooltip delay={0}>
-                  <Tooltip.Trigger>
-                    <Button
-                      isIconOnly
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`Lihat detail Performa Unit ${row.unitName}`}
-                      onPress={() => {
-                        markDetailOrigin(row.id);
-                        router.push(getDetailHref(row.id));
-                      }}
-                    >
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </Tooltip.Trigger>
-                  <Tooltip.Content placement="top">Lihat detail</Tooltip.Content>
-                </Tooltip>
+              <Table.Cell>
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    isIconOnly
+                    variant="tertiary"
+                    size="sm"
+                    aria-label={`Lihat ${row.unitName}`}
+                    onPress={() => {
+                      markDetailOrigin(row.id);
+                      router.push(getDetailHref(row.id));
+                    }}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </div>
               </Table.Cell>
             </Table.Row>
           ))}
