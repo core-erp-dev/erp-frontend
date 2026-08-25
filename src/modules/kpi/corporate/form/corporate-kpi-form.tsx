@@ -702,14 +702,14 @@ export function CorporateKpiForm({
                     isRequired
                     isInvalid={fieldState.invalid}
                     aria-label="Tipe"
-                    placeholder="Pilih tipe"
+                    placeholder="Pilih Tipe"
                   >
                     <Label>Tipe</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox>
-                         <ListBox.Item id="ASPECT" textValue="Aspect">Aspect<ListBox.ItemIndicator /></ListBox.Item>
-                         <ListBox.Item id="INDICATOR" textValue="Indicator">Indicator<ListBox.ItemIndicator /></ListBox.Item>
+                         <ListBox.Item id="ASPECT" textValue="Aspek">Aspek<ListBox.ItemIndicator /></ListBox.Item>
+                         <ListBox.Item id="INDICATOR" textValue="Indikator">Indikator<ListBox.ItemIndicator /></ListBox.Item>
                       </ListBox>
                     </Select.Popover>
                     <FieldError>{fieldState.error?.message}</FieldError>
@@ -735,7 +735,7 @@ export function CorporateKpiForm({
                   isDisabled={isMutating}
                 >
                   <Label>Kode</Label>
-                  <Input placeholder="mis. I" />
+                  <Input placeholder="Masukkan Kode" />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
@@ -758,7 +758,7 @@ export function CorporateKpiForm({
                   isDisabled={isMutating}
                 >
                   <Label>Nama</Label>
-                  <Input placeholder="mis. Keuangan" />
+                  <Input placeholder="Masukkan Nama KPI" />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
@@ -778,7 +778,7 @@ export function CorporateKpiForm({
                     isRequired
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating || (!isEditMode && !!preselectedParentId)}
-                    aria-label="Aspect induk"
+                    aria-label="Aspek induk"
                     menuTrigger="input"
                     defaultFilter={(text, inputValue) => {
                       if (!inputValue) return true;
@@ -786,9 +786,9 @@ export function CorporateKpiForm({
                       return (option ? `${option.name} ${option.code}` : text).toLowerCase().includes(inputValue.toLowerCase());
                     }}
                   >
-                    <Label>Aspect induk</Label>
+                    <Label>Aspek induk</Label>
                     <ComboBox.InputGroup>
-                       <Input placeholder="Cari Aspect..." />
+                       <Input placeholder="Cari Aspek" />
                       <ComboBox.Trigger />
                     </ComboBox.InputGroup>
                     <ComboBox.Popover>
@@ -807,18 +807,11 @@ export function CorporateKpiForm({
               />
             )}
 
-            {isEditMode ? (
-              <div className="flex items-center gap-2 py-1">
-                <Label className="text-sm text-muted-foreground">Tahun</Label>
-                <span className="text-sm font-medium text-foreground">
-                  {String(initialData?.year ?? (selectedStructure?.year ?? ''))}
-                </span>
-              </div>
-            ) : creatingWithoutStructure ? (
-              <div className="flex items-center gap-2 py-1">
-                <Label className="text-sm text-muted-foreground">Tahun</Label>
-                <span className="text-sm font-medium text-foreground">{preselectedYear}</span>
-              </div>
+            {isEditMode || creatingWithoutStructure || !!preselectedStructureId ? (
+              <TextField isDisabled className="w-full" aria-label="Tahun">
+                <Label>Tahun</Label>
+                <Input value={String(initialData?.year ?? preselectedYear ?? selectedStructure?.year ?? '-')} readOnly />
+              </TextField>
             ) : (
               <Controller
                 control={form.control}
@@ -831,10 +824,10 @@ export function CorporateKpiForm({
                     isRequired
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating || !!preselectedStructureId}
-                    aria-label="Struktur"
-                    placeholder="Pilih struktur"
+                    aria-label="Tahun"
+                    placeholder="Pilih Tahun"
                   >
-                    <Label>Struktur (Tahun)</Label>
+                    <Label>Tahun</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox
@@ -843,8 +836,8 @@ export function CorporateKpiForm({
                         )}
                       >
                         {structures.map((s) => (
-                          <ListBox.Item key={s.id} id={s.id} textValue={`${s.year} · ${s.status}`}>
-                            {`${s.year} · ${s.status}`}
+                          <ListBox.Item key={s.id} id={s.id} textValue={String(s.year)}>
+                            {s.year}
                             <ListBox.ItemIndicator />
                           </ListBox.Item>
                         ))}
@@ -872,7 +865,7 @@ export function CorporateKpiForm({
                   isDisabled={isMutating}
                 >
                   <Label>Urutan Tampil</Label>
-                  <Input type="number" min={0} step={1} placeholder="mis. 1" />
+                  <Input type="number" min={0} step={1} placeholder="Masukkan Urutan Tampil" />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
@@ -895,7 +888,7 @@ export function CorporateKpiForm({
                 isDisabled={isMutating}
               >
                 <Label>Deskripsi</Label>
-                <TextArea placeholder="Deskripsi opsional" rows={3} />
+                <TextArea placeholder="Masukkan Deskripsi (opsional)" rows={3} />
                 <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )}
@@ -919,7 +912,7 @@ export function CorporateKpiForm({
                     isDisabled={isMutating}
                   >
                     <Label>Bobot</Label>
-                    <Input type="number" step="any" placeholder="mis. 0.25 (25%)" />
+                    <Input type="number" step="any" placeholder="Masukkan Bobot" />
                     <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>
                 )}
@@ -940,7 +933,7 @@ export function CorporateKpiForm({
                     isDisabled={isMutating}
                   >
                     <Label>Target Nilai</Label>
-                    <Input type="number" step="any" placeholder="mis. 80" />
+                    <Input type="number" step="any" placeholder="Masukkan Target Nilai" />
                     <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>
                 )}
@@ -987,7 +980,7 @@ export function CorporateKpiForm({
                     <Label>Variabel</Label>
                     <BuilderControlRow>
                       <ComboBox.InputGroup className="flex-1">
-                        <Input placeholder="Cari dan pilih variabel" />
+                        <Input placeholder="Cari Variabel" />
                         <ComboBox.Trigger />
                       </ComboBox.InputGroup>
                       <Button
@@ -1036,7 +1029,7 @@ export function CorporateKpiForm({
                         type="number"
                         min={0}
                         step="any"
-                        placeholder="Masukkan angka"
+                        placeholder="Masukkan Angka"
                       />
                       <Button
                         variant="tertiary"
@@ -1064,7 +1057,7 @@ export function CorporateKpiForm({
                     <Label>Nilai bawaan</Label>
                     <BuilderControlRow>
                       <ComboBox.InputGroup className="flex-1">
-                        <Input placeholder="Cari nilai bawaan" />
+                        <Input placeholder="Cari Nilai Bawaan" />
                         <ComboBox.Trigger />
                       </ComboBox.InputGroup>
                       <Button
@@ -1161,7 +1154,7 @@ export function CorporateKpiForm({
                       <span className="text-sm font-medium text-foreground">Formula terbaca</span>
                     <Surface className="rounded-xl p-3">
                       <p className="text-sm text-foreground">
-                        {formulaState.tokens.length > 0 ? readableFormula(formulaState.tokens, variableNameByCode) : '—'}
+                        {formulaState.tokens.length > 0 ? readableFormula(formulaState.tokens, variableNameByCode) : '-'}
                       </p>
                     </Surface>
                   </div>
@@ -1174,7 +1167,7 @@ export function CorporateKpiForm({
                     value={formulaState.raw}
                     onChange={(e) => setFormulaState((prev) => ({ ...prev, raw: e.target.value }))}
                     disabled={isMutating}
-                    placeholder="e.g. NET_PROFIT_AFTER_TAX / TOTAL_EQUITY"
+                    placeholder="Masukkan Rumus"
                     rows={3}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -1281,12 +1274,12 @@ export function CorporateKpiForm({
                                     variant="secondary"
                                   >
                                     <Label className="sr-only">Nilai</Label>
-                                    <Input type="number" step="any" placeholder="Nilai" />
+                                    <Input type="number" step="any" placeholder="Masukkan Nilai" />
                                   </TextField>
                                 </Table.Cell>
                                 <Table.Cell>
                                   {isLast ? (
-                                    <span className="text-muted-foreground">—</span>
+                                    <span className="text-muted-foreground">-</span>
                                   ) : (
                                     <TextField
                                       aria-label={`Batas untuk nilai ${row.score || index + 1}`}
@@ -1296,7 +1289,7 @@ export function CorporateKpiForm({
                                       variant="secondary"
                                     >
                                       <Label className="sr-only">Batas</Label>
-                                      <Input type="number" step="any" placeholder="Batas" />
+                                      <Input type="number" step="any" placeholder="Masukkan Batas" />
                                     </TextField>
                                   )}
                                 </Table.Cell>
@@ -1352,11 +1345,11 @@ export function CorporateKpiForm({
                   >
                     <Label>Contoh hasil</Label>
                     <BuilderControlRow>
-                      <Input type="number" step="any" className="w-40" placeholder="mis. 85" />
+                      <Input type="number" step="any" className="w-40" placeholder="Masukkan Contoh Hasil" />
                       <span className="text-sm text-muted-foreground">
                         Nilai hasil:{' '}
                         <span className="font-semibold text-foreground">
-                          {simulatedScore != null ? simulatedScore : '—'}
+                          {simulatedScore != null ? simulatedScore : '-'}
                         </span>
                       </span>
                     </BuilderControlRow>
@@ -1370,7 +1363,7 @@ export function CorporateKpiForm({
                     value={scoreState.json}
                     onChange={(e) => setScoreState((prev) => ({ ...prev, json: e.target.value }))}
                     disabled={isMutating}
-                    placeholder='[{"lowerBound":null,"lowerInclusive":true,"upperBound":60,"upperInclusive":false,"score":1}]'
+                    placeholder="Masukkan JSON Aturan Penilaian"
                     rows={5}
                   />
                 </div>
