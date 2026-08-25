@@ -10,13 +10,10 @@ export interface UnitPerformanceFiltersProps {
   selectedYear: number;
   years: number[];
   selectedMonth: number;
-  selectedUnit: string;
-  units: Array<{ id: string; label: string }>;
   searchQuery: string;
   onPeriodModeChange: (mode: 'monthly' | 'annual') => void;
   onYearChange: (year: number) => void;
   onMonthChange: (month: number) => void;
-  onUnitChange: (unitId: string) => void;
   onSearchChange: (value: string) => void;
 }
 
@@ -25,13 +22,10 @@ export const UnitPerformanceFilters: React.FC<UnitPerformanceFiltersProps> = ({
   selectedYear,
   years,
   selectedMonth,
-  selectedUnit,
-  units,
   searchQuery,
   onPeriodModeChange,
   onYearChange,
   onMonthChange,
-  onUnitChange,
   onSearchChange,
 }) => (
   <div className="flex items-center justify-between gap-3">
@@ -69,21 +63,6 @@ export const UnitPerformanceFilters: React.FC<UnitPerformanceFiltersProps> = ({
         </Dropdown>
       )}
 
-      <Dropdown>
-        <Button variant="tertiary" aria-label="Pilih unit">
-          {selectedUnit ? units.find((unit) => unit.id === selectedUnit)?.label ?? 'Unit' : 'Semua Unit'}
-          <CaretDown className="h-4 w-4" />
-        </Button>
-        <Dropdown.Popover>
-          <Dropdown.Menu selectedKeys={new Set([selectedUnit || 'all'])} selectionMode="single" onSelectionChange={(keys) => {
-            const key = Array.from(keys)[0];
-            onUnitChange(key === 'all' || key == null ? '' : String(key));
-          }}>
-            <Dropdown.Item id="all" textValue="Semua Unit">Semua Unit</Dropdown.Item>
-            {units.map((unit) => <Dropdown.Item key={unit.id} id={unit.id} textValue={unit.label}>{unit.label}</Dropdown.Item>)}
-          </Dropdown.Menu>
-        </Dropdown.Popover>
-      </Dropdown>
     </div>
 
     <SearchField aria-label="Cari Performa Unit" value={searchQuery} onChange={onSearchChange} className="w-72">

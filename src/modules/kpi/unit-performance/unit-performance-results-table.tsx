@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
-import { Button, Chip, Spinner, Table } from '@heroui/react';
-import { Buildings, Tray } from '@phosphor-icons/react';
+import React, { useCallback, useState } from 'react';
+import { Button, Pagination, Spinner, Table, Tooltip } from '@heroui/react';
+import { Check, Copy, Tray } from '@phosphor-icons/react';
 import type { UnitPerformanceRow } from './unit-performance.types';
 
 interface UnitPerformanceResultsTableProps {
@@ -12,6 +12,11 @@ interface UnitPerformanceResultsTableProps {
   isTransitioning: boolean;
   searchQuery: string;
   onRetry: () => void;
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
 }
 
 function formatNumber(value: number | null): string {
@@ -22,13 +27,6 @@ function formatPercent(value: number | null): string {
   return value == null ? '—' : `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)}%`;
 }
 
-function statusLabel(status: UnitPerformanceRow['status']): string {
-  if (status === 'OK') return 'Siap';
-  if (status === 'MATRIX_INCOMPLETE') return 'Bobot belum lengkap';
-  if (status === 'NO_KPI_DATA') return 'Belum ada data KPI';
-  return '—';
-}
-
 export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTableProps> = ({
   rows,
   isLoading,
@@ -36,17 +34,27 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
   isTransitioning,
   searchQuery,
   onRetry,
-}) => (
-  <Table>
+  currentPage,
+  totalPages,
+  totalItems,
+  pageSize,
+  onPageChange,
+}) => {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const handleCopyCode = useCallback((rowId: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(rowId);
+    setTimeout(() => setCopiedId(null), 3000);
+  }, []);
+
+  return <Table>
     <Table.ScrollContainer>
-      <Table.Content aria-label="Hasil Performa Unit" className="min-w-[920px]">
+      <Table.Content aria-label="Hasil Performa Unit" className="min-w-[700px]">
         <Table.Header>
           <Table.Column id="unit" isRowHeader>Unit</Table.Column>
+          <Table.Column id="code">Kode</Table.Column>
           <Table.Column id="weight">Bobot</Table.Column>
-          <Table.Column id="score">Nilai</Table.Column>
           <Table.Column id="result">Hasil</Table.Column>
-          <Table.Column id="target-score">Target Nilai Renbis</Table.Column>
-          <Table.Column id="status">Status</Table.Column>
         </Table.Header>
         <Table.Body
           renderEmptyState={() => {
@@ -57,16 +65,62 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
         >
           {!isLoading && !isTransitioning && !error && rows.map((row) => (
             <Table.Row key={row.id}>
-              <Table.Cell><div className="flex items-center gap-3"><Buildings className="h-5 w-5 text-muted-foreground" /><div><div className="font-medium text-foreground">{row.unitName}</div><div className="text-xs text-muted-foreground">{row.unitCode}</div></div></div></Table.Cell>
-              <Table.Cell className="text-muted-foreground">{row.weight == null ? '—' : formatPercent(row.weight)}</Table.Cell>
-              <Table.Cell className="font-medium text-foreground">{formatPercent(row.performance)}</Table.Cell>
+              <Table.Cell className="font-medium text-foreground">{row.unitName}</Table.Cell>
+              <Table.Cell className="font-medium text-foreground">
+                <div className="flex items-center gap-1">
+                  {row.unitCode || '-'}
+                  {row.unitCode && (
+                    <Tooltip delay={0}>
+                      <Tooltip.Trigger aria-label={`Salin kode unit ${row.unitCode}`}>
+                        <Button
+                          isIconOnly
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Salin kode unit ${row.unitCode}`}
+                          onPress={() => handleCopyCode(row.id, row.unitCode)}
+                        >
+                          {copiedId === row.id ? <Check className="h-3.5 w-3.5 text-muted-foreground" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </Button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content placement="top">{copiedId === row.id ? 'Kode disalin' : 'Salin kode'}</Tooltip.Content>
+                    </Tooltip>
+                  )}
+                </div>
+              </Table.Cell>
+              <Table.Cell className="text-muted-foreground">{formatPercent(row.weight)}</Table.Cell>
               <Table.Cell className="text-muted-foreground">{formatNumber(row.realization)}</Table.Cell>
-              <Table.Cell className="text-muted-foreground">—</Table.Cell>
-              <Table.Cell><Chip size="sm" variant="soft" color={row.status === 'OK' ? 'success' : row.status ? 'warning' : 'default'}>{statusLabel(row.status)}</Chip></Table.Cell>
             </Table.Row>
           ))}
         </Table.Body>
       </Table.Content>
     </Table.ScrollContainer>
-  </Table>
-);
+    {!isLoading && !isTransitioning && !error && totalItems > 0 && (
+      <Table.Footer>
+        <Pagination size="sm">
+          <Pagination.Summary>
+            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalItems)} dari {totalItems} data
+          </Pagination.Summary>
+          <Pagination.Content>
+            <Pagination.Item>
+              <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange(currentPage - 1)}>
+                <Pagination.PreviousIcon />
+                Sebelumnya
+              </Pagination.Previous>
+            </Pagination.Item>
+            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+              <Pagination.Item key={page}>
+                <Pagination.Link isActive={page === currentPage} onPress={() => onPageChange(page)}>{page}</Pagination.Link>
+              </Pagination.Item>
+            ))}
+            <Pagination.Item>
+              <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange(currentPage + 1)}>
+                Berikutnya
+                <Pagination.NextIcon />
+              </Pagination.Next>
+            </Pagination.Item>
+          </Pagination.Content>
+        </Pagination>
+      </Table.Footer>
+    )}
+  </Table>;
+};

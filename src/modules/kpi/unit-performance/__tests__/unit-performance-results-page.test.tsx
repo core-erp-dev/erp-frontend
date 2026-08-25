@@ -44,8 +44,9 @@ it('fetches and renders the result contract without exposing matrix editing', as
   expect(await screen.findByText('Unit Satu')).toBeInTheDocument();
   expect(mockedApi.getPerformance).toHaveBeenCalledWith(new Date().getFullYear(), new Date().getMonth() + 1);
   expect(screen.getByText('Bobot')).toBeInTheDocument();
-  expect(screen.getByText('Nilai')).toBeInTheDocument();
+  expect(screen.getByText('Kode')).toBeInTheDocument();
   expect(screen.getByText('Hasil')).toBeInTheDocument();
-  expect(screen.getByText('Target Nilai Renbis')).toBeInTheDocument();
+  expect(screen.queryByText('Nilai')).not.toBeInTheDocument();
+  expect(screen.queryByText('Target Nilai Renbis')).not.toBeInTheDocument();
   expect(screen.queryByText('Simpan Matriks Bobot')).not.toBeInTheDocument();
 });
