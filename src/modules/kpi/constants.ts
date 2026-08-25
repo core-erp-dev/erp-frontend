@@ -7,6 +7,7 @@ export const KPI_ROUTES = {
   overview: '/kpi',
   corporate: '/kpi/corporate',
   corporateAdd: '/kpi/corporate/add',
+  corporateDetailRoute: (id: string) => `/kpi/corporate/${id}`,
   corporateEditRoute: (id: string) => `/kpi/corporate/${id}/edit`,
   corporateVariables: '/kpi/corporate/variables',
   corporateVariableValues: '/kpi/corporate/variable-values',
@@ -24,9 +25,9 @@ export const KPI_ROUTES = {
 // ── Labels ────────────────────────────────────────────────────────────────
 export const KPI_LABELS = {
   overview: 'Dashboard',
-  corporate: 'Corporate KPI Structure',
-  corporateVariables: 'KPI Variables',
-  corporateVariableValues: 'KPI Values',
+  corporate: 'Struktur KPI Perusahaan',
+  corporateVariables: 'Variabel KPI',
+  corporateVariableValues: 'Nilai Variabel KPI',
   activities: 'Activities',
   activitiesAll: 'All Activities',
   activitiesMine: 'My Activities',

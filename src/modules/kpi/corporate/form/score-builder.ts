@@ -45,24 +45,24 @@ export function validateScoreRows(direction: ScoreDirection, rows: ScoreRow[]): 
   const scores = new Set<string>();
   for (const row of rows) {
     const score = row.score.trim();
-    if (!score) return 'Score is required for every level.';
-    if (!DECIMAL_RE.test(score)) return 'Scores must be numbers.';
-    if (scores.has(score)) return 'Scores must be unique — remove the duplicate score level.';
+    if (!score) return 'Nilai wajib diisi untuk setiap tingkat.';
+    if (!DECIMAL_RE.test(score)) return 'Nilai harus berupa angka.';
+    if (scores.has(score)) return 'Nilai tidak boleh duplikat — hapus tingkat nilai yang sama.';
     scores.add(score);
   }
   const thresholds: number[] = [];
   for (let i = 0; i < rows.length - 1; i++) {
     const raw = rows[i].threshold.trim();
-    if (!raw) return `Threshold is required for score ${rows[i].score.trim()}.`;
-    if (!DECIMAL_RE.test(raw)) return `Threshold for score ${rows[i].score.trim()} must be a number.`;
+    if (!raw) return `Batas wajib diisi untuk nilai ${rows[i].score.trim()}.`;
+    if (!DECIMAL_RE.test(raw)) return `Batas untuk nilai ${rows[i].score.trim()} harus berupa angka.`;
     thresholds.push(Number(raw));
   }
   for (let i = 1; i < thresholds.length; i++) {
     if (direction === 'higher' && thresholds[i] >= thresholds[i - 1]) {
-      return 'Thresholds must be strictly decreasing — each better score needs a higher boundary (no gaps or overlaps).';
+      return 'Batas harus menurun secara ketat — nilai yang lebih baik membutuhkan batas lebih tinggi (tanpa celah atau tumpang tindih).';
     }
     if (direction === 'lower' && thresholds[i] <= thresholds[i - 1]) {
-      return 'Thresholds must be strictly increasing — each better score needs a lower boundary (no gaps or overlaps).';
+      return 'Batas harus meningkat secara ketat — nilai yang lebih baik membutuhkan batas lebih rendah (tanpa celah atau tumpang tindih).';
     }
   }
   return null;

@@ -17,12 +17,14 @@ export default function EditCorporateKpiPage() {
   const params = useParams();
   const id = params.id as string;
   const { hasPerm } = usePermission();
+  const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
   const [node, setNode] = useState<CorporateKpiNode | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!canManage) return;
     let cancelled = false;
     corporateKpiApi
       .getById(id)
@@ -38,11 +40,11 @@ export default function EditCorporateKpiPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [canManage, id]);
 
   const handleSuccess = useCallback(() => {
-    router.push(KPI_ROUTES.corporate);
-  }, [router]);
+    router.replace(KPI_ROUTES.corporateDetailRoute(id));
+  }, [id, router]);
 
   if (!hasPerm(PERM.CORPORATE_KPI_MANAGE)) {
     return (
@@ -50,12 +52,12 @@ export default function EditCorporateKpiPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
+            <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
         <Button variant="secondary" onPress={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
-          Back
+          Kembali
         </Button>
       </div>
     );
@@ -75,9 +77,10 @@ export default function EditCorporateKpiPage() {
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>{error || 'Corporate KPI not found'}</Alert.Title>
+            <Alert.Title>{error || 'KPI Perusahaan tidak ditemukan'}</Alert.Title>
           </Alert.Content>
         </Alert>
+        <Button variant="secondary" onPress={() => router.push(KPI_ROUTES.corporateDetailRoute(id))}>Lihat Detail</Button>
       </div>
     );
   }

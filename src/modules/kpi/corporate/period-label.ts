@@ -3,7 +3,10 @@
  * month dropdown). The Indonesian period-label helpers were removed with the
  * legacy variable-values UI.
  */
-export const MONTH_NAMES_EN = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+export const MONTH_NAMES_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ] as const;
+
+/** @deprecated Use MONTH_NAMES_ID for user-facing labels. */
+export const MONTH_NAMES_EN = MONTH_NAMES_ID;

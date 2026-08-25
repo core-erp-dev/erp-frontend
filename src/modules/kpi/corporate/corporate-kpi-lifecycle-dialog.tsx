@@ -28,7 +28,7 @@ export const LifecycleDialog: React.FC<LifecycleDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  const verb = isPending ? 'Processing...' : confirmLabel;
+  const verb = isPending ? 'Memproses…' : confirmLabel;
 
   return (
     <Modal>
@@ -52,7 +52,7 @@ export const LifecycleDialog: React.FC<LifecycleDialogProps> = ({
                 onPress={onCancel}
                 isDisabled={isPending}
               >
-                Cancel
+                Batal
               </Button>
               <Button
                 variant={variant}

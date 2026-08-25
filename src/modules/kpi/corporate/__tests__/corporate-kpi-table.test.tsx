@@ -175,7 +175,7 @@ describe('Current KPIs view', () => {
     // Inline icon buttons are gone — only the More menu trigger remains
     expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Add Indicator')).not.toBeInTheDocument();
-    expect(screen.getAllByLabelText('More actions').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByLabelText(/Aksi /).length).toBeGreaterThanOrEqual(1);
   });
 
   it('fires Edit and Add Indicator from the More menu', () => {
@@ -190,9 +190,9 @@ describe('Current KPIs view', () => {
         onCreateIndicator={onCreateIndicator}
       />,
     );
-    fireEvent.click(screen.getAllByText('Edit')[0]);
+    fireEvent.click(screen.getAllByText('Ubah')[0]);
     expect(onEdit).toHaveBeenCalledWith(aspectWithChildren);
-    fireEvent.click(screen.getByText('Add Indicator'));
+    fireEvent.click(screen.getByText('Tambah indikator'));
     expect(onCreateIndicator).toHaveBeenCalledWith('asp-1');
   });
 
@@ -230,12 +230,12 @@ describe('Current KPIs view', () => {
       />,
     );
     // Configuration is frozen — the trigger must not offer mutations
-    expect(screen.getByLabelText('More actions')).toBeDisabled();
+    expect(screen.getByLabelText('Aksi FIN')).toBeDisabled();
   });
 
   it('shows empty state when no KPIs', () => {
     render(<CorporateKpiTable {...defaultProps} tree={[]} />);
-    expect(screen.getByText('No Corporate KPIs found for the selected year.')).toBeInTheDocument();
+    expect(screen.getByText('Belum ada KPI Perusahaan untuk tahun yang dipilih.')).toBeInTheDocument();
   });
 
   it('shows loading spinner while loading tree', () => {
@@ -247,7 +247,7 @@ describe('Current KPIs view', () => {
   it('shows error state with retry button', () => {
     render(<CorporateKpiTable {...defaultProps} treeError="Failed to load" />);
     expect(screen.getByText('Failed to load')).toBeInTheDocument();
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText('Coba Lagi')).toBeInTheDocument();
   });
 
   it('renders no em dash placeholders in ASPECT scoring columns', () => {
@@ -285,7 +285,7 @@ describe('Current KPIs view', () => {
         searchQuery="zzz_nonexistent"
       />,
     );
-    expect(screen.getByText(/No Corporate KPIs match/)).toBeInTheDocument();
+    expect(screen.getByText(/Tidak ada KPI yang cocok/)).toBeInTheDocument();
   });
 });
 
@@ -356,7 +356,7 @@ describe('Deleted KPIs view', () => {
       />,
     );
     expect(
-      screen.getByText('No deleted Corporate KPIs found for the selected year.'),
+      screen.getByText('Tidak ada KPI terhapus untuk tahun yang dipilih.'),
     ).toBeInTheDocument();
   });
 
@@ -370,7 +370,7 @@ describe('Deleted KPIs view', () => {
     );
     // While loading: no empty-state text and no rows — the body shows the spinner.
     expect(
-      screen.queryByText('No deleted Corporate KPIs found for the selected year.'),
+      screen.queryByText('Tidak ada KPI terhapus untuk tahun yang dipilih.'),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('F01')).not.toBeInTheDocument();
     expect(screen.queryByTestId('icon-Tray')).not.toBeInTheDocument(); // empty-state icon not rendered
@@ -386,6 +386,6 @@ describe('Deleted KPIs view', () => {
       />,
     );
     expect(screen.getByText('Failed to load deleted')).toBeInTheDocument();
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText('Coba Lagi')).toBeInTheDocument();
   });
 });

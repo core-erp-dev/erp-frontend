@@ -77,7 +77,9 @@ export interface CreateKpiRequest {
   name: string;
   nodeType: KpiNodeType;
   /** The owning yearly structure — replaces the old independent year field. */
-  structureId: string;
+  structureId?: string;
+  /** First-node creation may identify the yearly structure by year. */
+  year?: number;
   parentId: string | null;
   description: string | null;
   displayOrder: number;

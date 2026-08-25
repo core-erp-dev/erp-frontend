@@ -104,5 +104,5 @@ export const corporateKpiApi = {
 
 /** Read-error wrapper. */
 export function extractKpiError(error: unknown): string {
-  return extractErrorMessage(error, 'Failed to load Corporate KPIs.');
+  return extractErrorMessage(error, 'Gagal memuat KPI Perusahaan.');
 }

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Button, Dropdown, SearchField, Tabs } from '@heroui/react';
 import { CaretDown, ArrowsOutSimple, ArrowsInSimple, Trash, CheckCircle } from '@phosphor-icons/react';
-import { MONTH_NAMES_EN } from './period-label';
+import { MONTH_NAMES_ID } from './period-label';
 
 export interface CorporateKpiFiltersProps {
   periodMode: 'monthly' | 'annual';
@@ -41,7 +41,7 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
   onCollapseAll,
   allExpanded,
 }) => {
-  const selectedMonthName = MONTH_NAMES_EN[selectedMonth - 1] ?? String(selectedMonth);
+  const selectedMonthName = MONTH_NAMES_ID[selectedMonth - 1] ?? String(selectedMonth);
 
   return (
     <div className="flex items-center justify-between">
@@ -52,16 +52,16 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
           onSelectionChange={(key) => onPeriodModeChange(key as 'monthly' | 'annual')}
         >
           <Tabs.ListContainer>
-            <Tabs.List aria-label="Period">
-              <Tabs.Tab id="monthly">Month<Tabs.Indicator /></Tabs.Tab>
-              <Tabs.Tab id="annual">Year<Tabs.Indicator /></Tabs.Tab>
+            <Tabs.List aria-label="Periode">
+              <Tabs.Tab id="monthly">Bulan<Tabs.Indicator /></Tabs.Tab>
+              <Tabs.Tab id="annual">Tahun<Tabs.Indicator /></Tabs.Tab>
             </Tabs.List>
           </Tabs.ListContainer>
         </Tabs>
 
         {/* Year — full range, independent of existing structures */}
         <Dropdown>
-          <Button variant="tertiary" aria-label="Select year">
+          <Button variant="tertiary" aria-label="Pilih tahun">
             {selectedYear}
             <CaretDown className="h-4 w-4" />
           </Button>
@@ -79,13 +79,13 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
         {/* Month — relevant only to the Month tab */}
         {periodMode === 'monthly' && (
           <Dropdown>
-            <Button variant="tertiary" aria-label="Select month">
+            <Button variant="tertiary" aria-label="Pilih bulan">
               {selectedMonthName}
               <CaretDown className="h-4 w-4" />
             </Button>
             <Dropdown.Popover>
               <Dropdown.Menu onAction={(key) => onMonthChange(Number(key))}>
-                {MONTH_NAMES_EN.map((name, i) => (
+                {MONTH_NAMES_ID.map((name, i) => (
                   <Dropdown.Item key={name} id={String(i + 1)} textValue={name}>
                     {name}
                   </Dropdown.Item>
@@ -100,14 +100,14 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
           <Button
             variant="tertiary"
             onPress={allExpanded ? onCollapseAll : onExpandAll}
-            aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
+            aria-label={allExpanded ? 'Tutup semua' : 'Buka semua'}
           >
             {allExpanded ? (
               <ArrowsInSimple className="h-4 w-4" />
             ) : (
               <ArrowsOutSimple className="h-4 w-4" />
             )}
-            {allExpanded ? 'Collapse All' : 'Expand All'}
+            {allExpanded ? 'Tutup Semua' : 'Buka Semua'}
           </Button>
         )}
 
@@ -115,7 +115,7 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
         {canViewDeleted && (
           <Button
             variant="tertiary"
-            aria-label={viewMode === 'deleted' ? 'Show current' : 'Show deleted'}
+            aria-label={viewMode === 'deleted' ? 'Tampilkan data aktif' : 'Tampilkan data terhapus'}
             onPress={() => onViewModeChange(viewMode === 'deleted' ? 'current' : 'deleted')}
           >
             {viewMode === 'deleted' ? (
@@ -123,17 +123,17 @@ export const CorporateKpiFilters: React.FC<CorporateKpiFiltersProps> = ({
             ) : (
               <Trash className="h-4 w-4" />
             )}
-            {viewMode === 'deleted' ? 'Current' : 'Deleted'}
+            {viewMode === 'deleted' ? 'Aktif' : 'Data Terhapus'}
           </Button>
         )}
       </div>
 
       {/* Search — right side */}
-      <SearchField aria-label="Search Corporate KPIs" value={searchQuery} onChange={onSearchChange} className="w-72">
+      <SearchField aria-label="Cari KPI Perusahaan" value={searchQuery} onChange={onSearchChange} className="w-72">
         <SearchField.Group>
           <SearchField.SearchIcon />
-          <SearchField.Input placeholder="Search" />
-          <SearchField.ClearButton aria-label="Clear search" />
+          <SearchField.Input placeholder="Cari" />
+          <SearchField.ClearButton aria-label="Hapus pencarian" />
         </SearchField.Group>
       </SearchField>
     </div>

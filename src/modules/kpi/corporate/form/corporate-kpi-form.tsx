@@ -83,33 +83,37 @@ import {
 function buildSchema(isEdit: boolean) {
   return z
     .object({
-      code: z.string().min(1, 'Code is required').max(50, 'Code must be at most 50 characters'),
-      name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
+      code: z.string().min(1, 'Kode wajib diisi').max(50, 'Kode maksimal 50 karakter'),
+      name: z.string().min(1, 'Nama wajib diisi').max(255, 'Nama maksimal 255 karakter'),
       description: z.string().optional(),
       nodeType: isEdit ? z.string().optional() : z.enum(['ASPECT', 'INDICATOR']),
       // Create only: the node belongs to an existing yearly structure (year is derived).
-      structureId: isEdit ? z.string().optional() : z.string().min(1, 'Structure is required'),
-      displayOrder: z.coerce.number().int().min(0, 'Display order must be non-negative').optional(),
+      structureId: z.string().optional(),
+      year: z.coerce.number().int().min(2000, 'Tahun minimal 2000').max(2100, 'Tahun maksimal 2100').optional(),
+      displayOrder: z.coerce.number().int().min(0, 'Urutan tampil tidak boleh negatif').optional(),
       parentId: z.string().optional(),
       weight: z.string().optional(),
       targetScore: z.string().optional(),
     })
     .superRefine((data, ctx) => {
       if (data.nodeType === 'INDICATOR' && !data.parentId) {
-        ctx.addIssue({ code: 'custom', path: ['parentId'], message: 'Parent Aspect is required' });
+          ctx.addIssue({ code: 'custom', path: ['parentId'], message: 'Aspect induk wajib dipilih' });
+      }
+      if (!isEdit && !data.structureId && !data.year) {
+        ctx.addIssue({ code: 'custom', path: ['year'], message: 'Tahun wajib diisi' });
       }
       if (data.weight != null && data.weight !== '') {
         const w = Number(data.weight);
         if (!Number.isFinite(w) || w <= 0) {
-          ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Weight must be greater than 0' });
+          ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Bobot harus lebih besar dari 0' });
         } else if (w > 1) {
-          ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Weight must not exceed 100%' });
+          ctx.addIssue({ code: 'custom', path: ['weight'], message: 'Bobot tidak boleh lebih dari 100%' });
         }
       }
       if (data.targetScore != null && data.targetScore !== '') {
         const t = Number(data.targetScore);
         if (!Number.isFinite(t) || t <= 0) {
-          ctx.addIssue({ code: 'custom', path: ['targetScore'], message: 'Target score must be greater than zero' });
+          ctx.addIssue({ code: 'custom', path: ['targetScore'], message: 'Target Nilai Renbis harus lebih besar dari 0' });
         }
       }
     });
@@ -128,7 +132,8 @@ export interface CorporateKpiFormProps {
   preselectedParentId?: string;
   /** Create only — the yearly structure the node belongs to. */
   preselectedStructureId?: string;
-  onSuccess: () => void;
+  preselectedYear?: number;
+  onSuccess: (node: CorporateKpiNode) => void;
 }
 
 interface FormulaState {
@@ -195,6 +200,7 @@ export function CorporateKpiForm({
   preselectedType,
   preselectedParentId,
   preselectedStructureId,
+  preselectedYear,
   onSuccess,
 }: CorporateKpiFormProps) {
   const router = useRouter();
@@ -222,7 +228,7 @@ export function CorporateKpiForm({
           if (!cancelled) setVariables(list);
         })
         .catch(() => {
-          if (!cancelled) setVariablesError('Failed to load variables for the formula builder.');
+           if (!cancelled) setVariablesError('Gagal memuat variabel untuk penyusun formula.');
         }),
       corporateKpiStructuresApi
         .list()
@@ -230,7 +236,7 @@ export function CorporateKpiForm({
           if (!cancelled) setStructures(list);
         })
         .catch(() => {
-          if (!cancelled) setStructuresError('Failed to load Corporate KPI structures.');
+           if (!cancelled) setStructuresError('Gagal memuat struktur KPI Perusahaan.');
         }),
     ]).then(() => {
       if (!cancelled) setIsLoadingReference(false);
@@ -249,6 +255,7 @@ export function CorporateKpiForm({
       description: initialData?.description ?? '',
       nodeType: (initialData?.nodeType ?? preselectedType ?? 'ASPECT') as FormValues['nodeType'],
       structureId: initialData?.structureId ?? preselectedStructureId ?? '',
+      year: preselectedYear,
       displayOrder: initialData?.displayOrder ?? 0,
       parentId: initialData?.parentId ?? preselectedParentId ?? '',
       weight: initialData?.weight != null ? String(initialData.weight) : '',
@@ -259,6 +266,7 @@ export function CorporateKpiForm({
   const nodeType = useWatch({ control: form.control, name: 'nodeType' });
   const structureId = useWatch({ control: form.control, name: 'structureId' });
   const isIndicator = nodeType === 'INDICATOR';
+  const creatingWithoutStructure = !isEditMode && !preselectedStructureId && preselectedYear != null;
 
   const selectedStructure = useMemo(
     () => structures.find((s) => s.id === (structureId ?? '')) ?? null,
@@ -365,7 +373,7 @@ export function CorporateKpiForm({
       const parsed = tokenizeGuidedFormula(prev.raw);
       if (parsed === null) {
         setFormulaNotice(
-          'This formula uses syntax that cannot be represented in Guided mode (lowercase codes or unsupported characters). Edit it in Advanced mode.',
+          'Formula ini memiliki sintaks yang tidak dapat ditampilkan dalam mode Terpandu (kode huruf kecil atau karakter yang tidak didukung). Ubah di mode Lanjutan.',
         );
         return prev;
       }
@@ -387,7 +395,7 @@ export function CorporateKpiForm({
         // Never silently retain thresholds with a different meaning — clear them
         // so they are re-entered for the new direction.
         setScoreNotice(
-          'Scoring direction changed — thresholds were cleared. Enter thresholds for the new direction.',
+          'Arah penilaian berubah — batas dikosongkan. Masukkan batas untuk arah baru.',
         );
       }
       setScoreState((prev) => ({
@@ -429,7 +437,7 @@ export function CorporateKpiForm({
           // Compatibility is decided from the actual rule semantics, not UI state.
           const simple = rulesToSimple(parsed);
           if (!simple) {
-            setScoreNotice('These assessment rules cannot be edited in simple mode.');
+            setScoreNotice('Aturan penilaian ini tidak dapat diubah dalam mode sederhana.');
             return prev;
           }
           return { ...prev, mode: 'simple', direction: simple.direction, rows: simple.rows };
@@ -438,7 +446,7 @@ export function CorporateKpiForm({
         // table exactly as it was.
         return { ...prev, mode: 'simple' };
       } catch {
-        setScoreNotice('The assessment rules JSON is invalid.');
+        setScoreNotice('JSON aturan penilaian tidak valid.');
         return prev;
       }
     });
@@ -558,7 +566,7 @@ export function CorporateKpiForm({
         try {
           rules = parseAssessmentRules(scoreState.json);
         } catch {
-          setSubmitError('Assessment rules JSON is invalid.');
+          setSubmitError('JSON aturan penilaian tidak valid.');
           return;
         }
       }
@@ -580,6 +588,7 @@ export function CorporateKpiForm({
 
     let ok = false;
     let nodeSaved = false;
+    let savedNode: CorporateKpiNode | null = null;
     try {
       if (isEditMode && initialData) {
         if (isIndicator) {
@@ -587,7 +596,8 @@ export function CorporateKpiForm({
           // unbound-variable check passes.
           await syncBindings(initialData.id, codes, false);
         }
-        ok = (await updateNode(initialData.id, common as UpdateKpiRequest)) != null;
+        savedNode = await updateNode(initialData.id, common as UpdateKpiRequest);
+        ok = savedNode != null;
         nodeSaved = ok;
         if (ok && isIndicator) {
           // Stored formula is now the new one — unlink variables that left it.
@@ -595,11 +605,13 @@ export function CorporateKpiForm({
         }
       } else {
         const created = await createNode({
-          ...common,
-          nodeType: (values.nodeType || 'ASPECT') as KpiNodeType,
-          structureId: values.structureId,
-        } as CreateKpiRequest);
+           ...common,
+           nodeType: (values.nodeType || 'ASPECT') as KpiNodeType,
+           structureId: values.structureId || undefined,
+           year: values.structureId ? undefined : Number(values.year),
+         } as CreateKpiRequest);
         ok = created != null;
+        savedNode = created;
         nodeSaved = ok;
         if (ok && isIndicator && created) {
           await syncBindings(created.id, codes, true);
@@ -608,19 +620,25 @@ export function CorporateKpiForm({
     } catch {
       setSubmitError(
         nodeSaved
-          ? 'The indicator was saved, but its variable bindings could not be synchronized. Reopen the indicator and save again to retry.'
-          : 'The indicator could not be saved — its variable bindings could not be updated.',
+           ? 'Indikator tersimpan, tetapi pengikatan variabel gagal. Buka kembali indikator dan simpan lagi untuk mencoba ulang.'
+           : 'Indikator tidak dapat disimpan karena pengikatan variabel gagal.',
       );
       return;
     }
-    if (ok) onSuccess();
+    if (ok) {
+      if (savedNode) onSuccess(savedNode);
+    }
   };
 
   /* ── Render ── */
 
   const handleSubmit = (e: React.FormEvent) => {
-    form.handleSubmit(onSubmit, (errors) => console.log('FORM ERRORS', errors))(e);
+    void form.handleSubmit(onSubmit)(e);
   };
+
+  const handleCancel = useCallback(() => {
+    router.push(isEditMode && initialData ? KPI_ROUTES.corporateDetailRoute(initialData.id) : KPI_ROUTES.corporate);
+  }, [initialData, isEditMode, router]);
 
   // Reference data not loaded yet — same spinner gate as the Add Employee form.
   if (isLoadingReference) {
@@ -637,15 +655,15 @@ export function CorporateKpiForm({
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
         <BreadcrumbsItem href={KPI_ROUTES.corporate}>{KPI_LABELS.corporate}</BreadcrumbsItem>
-        <BreadcrumbsItem>{isEditMode ? 'Edit' : 'Add'}</BreadcrumbsItem>
+        <BreadcrumbsItem>{isEditMode ? 'Ubah' : 'Tambah'}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center gap-3">
-        <Button isIconOnly variant="tertiary" onPress={() => router.back()} aria-label="Back">
+        <Button isIconOnly variant="tertiary" onPress={handleCancel} aria-label="Kembali">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-xl font-semibold text-foreground">
-          {isEditMode ? 'Edit Corporate KPI' : 'Add Corporate KPI'}
+            {isEditMode ? 'Ubah KPI Perusahaan' : 'Tambah KPI Perusahaan'}
         </h1>
       </div>
 
@@ -655,8 +673,8 @@ export function CorporateKpiForm({
         className="flex flex-col gap-6"
       >
         {/* ── 1. BASIC INFORMATION ── */}
-        <div className="flex flex-col gap-4">
-          <h2 className="text-sm font-semibold text-foreground">Basic Information</h2>
+          <div className="flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-foreground">Informasi Dasar</h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {!isEditMode && (
               <Controller
@@ -669,15 +687,15 @@ export function CorporateKpiForm({
                     onSelectionChange={(key) => field.onChange(key === 'INDICATOR' ? 'INDICATOR' : 'ASPECT')}
                     isRequired
                     isInvalid={fieldState.invalid}
-                    aria-label="Type"
-                    placeholder="Select type"
+                    aria-label="Tipe"
+                    placeholder="Pilih tipe"
                   >
-                    <Label>Type</Label>
+                    <Label>Tipe</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox>
-                        <ListBox.Item id="ASPECT" textValue="Aspect">Aspect<ListBox.ItemIndicator /></ListBox.Item>
-                        <ListBox.Item id="INDICATOR" textValue="Indicator">Indicator<ListBox.ItemIndicator /></ListBox.Item>
+                         <ListBox.Item id="ASPECT" textValue="Aspect">Aspect<ListBox.ItemIndicator /></ListBox.Item>
+                         <ListBox.Item id="INDICATOR" textValue="Indicator">Indicator<ListBox.ItemIndicator /></ListBox.Item>
                       </ListBox>
                     </Select.Popover>
                     <FieldError>{fieldState.error?.message}</FieldError>
@@ -702,8 +720,8 @@ export function CorporateKpiForm({
                   isInvalid={fieldState.invalid}
                   isDisabled={isMutating}
                 >
-                  <Label>Code</Label>
-                  <Input placeholder="e.g. FIN" />
+                  <Label>Kode</Label>
+                  <Input placeholder="mis. I" />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
@@ -725,8 +743,8 @@ export function CorporateKpiForm({
                   isInvalid={fieldState.invalid}
                   isDisabled={isMutating}
                 >
-                  <Label>Name</Label>
-                  <Input placeholder="e.g. Financial" />
+                  <Label>Nama</Label>
+                  <Input placeholder="mis. Keuangan" />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
@@ -742,21 +760,27 @@ export function CorporateKpiForm({
                     fullWidth
                     allowsEmptyCollection
                     selectedKey={field.value || null}
-                    onSelectionChange={(key) => form.setValue('parentId', (key ?? '') as string, { shouldValidate: true })}
+                    onSelectionChange={(key) => form.setValue('parentId', key ? String(key) : '', { shouldValidate: true })}
                     isRequired
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating || (!isEditMode && !!preselectedParentId)}
-                    aria-label="Parent Aspect"
+                    aria-label="Aspect induk"
+                    menuTrigger="input"
+                    defaultFilter={(text, inputValue) => {
+                      if (!inputValue) return true;
+                      const option = aspectOptions.find((aspect) => `${aspect.name} • ${aspect.code}` === text);
+                      return (option ? `${option.name} ${option.code}` : text).toLowerCase().includes(inputValue.toLowerCase());
+                    }}
                   >
-                    <Label>Parent Aspect</Label>
+                    <Label>Aspect induk</Label>
                     <ComboBox.InputGroup>
-                      <Input placeholder="Search aspects..." />
+                       <Input placeholder="Cari Aspect..." />
                       <ComboBox.Trigger />
                     </ComboBox.InputGroup>
                     <ComboBox.Popover>
-                      <ListBox renderEmptyState={() => <EmptyState>No aspects available</EmptyState>}>
-                        {aspectOptions.map((a) => (
-                          <ListBox.Item key={a.id} id={a.id} textValue={`${a.name} • ${a.code}`}>
+                       <ListBox renderEmptyState={() => <EmptyState>Aspect tidak ditemukan</EmptyState>}>
+                         {aspectOptions.map((a) => (
+                           <ListBox.Item key={a.id} id={a.id} textValue={`${a.name} • ${a.code}`}>
                             {a.name} • {a.code}
                             <ListBox.ItemIndicator />
                           </ListBox.Item>
@@ -771,10 +795,15 @@ export function CorporateKpiForm({
 
             {isEditMode ? (
               <div className="flex items-center gap-2 py-1">
-                <Label className="text-sm text-muted-foreground">Year</Label>
+                <Label className="text-sm text-muted-foreground">Tahun</Label>
                 <span className="text-sm font-medium text-foreground">
                   {String(initialData?.year ?? (selectedStructure?.year ?? ''))}
                 </span>
+              </div>
+            ) : creatingWithoutStructure ? (
+              <div className="flex items-center gap-2 py-1">
+                <Label className="text-sm text-muted-foreground">Tahun</Label>
+                <span className="text-sm font-medium text-foreground">{preselectedYear}</span>
               </div>
             ) : (
               <Controller
@@ -788,15 +817,15 @@ export function CorporateKpiForm({
                     isRequired
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating || !!preselectedStructureId}
-                    aria-label="Structure"
-                    placeholder="Select structure"
+                    aria-label="Struktur"
+                    placeholder="Pilih struktur"
                   >
-                    <Label>Structure (Year)</Label>
+                    <Label>Struktur (Tahun)</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox
                         renderEmptyState={() => (
-                          <EmptyState>{structuresError ? structuresError : 'No structures available'}</EmptyState>
+                          <EmptyState>{structuresError ? structuresError : 'Belum ada struktur'}</EmptyState>
                         )}
                       >
                         {structures.map((s) => (
@@ -828,8 +857,8 @@ export function CorporateKpiForm({
                   isInvalid={fieldState.invalid}
                   isDisabled={isMutating}
                 >
-                  <Label>Display Order</Label>
-                  <Input type="number" min={0} step={1} placeholder="e.g. 1" />
+                  <Label>Urutan Tampil</Label>
+                  <Input type="number" min={0} step={1} placeholder="mis. 1" />
                   <FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
@@ -851,8 +880,8 @@ export function CorporateKpiForm({
                 isInvalid={fieldState.invalid}
                 isDisabled={isMutating}
               >
-                <Label>Description</Label>
-                <TextArea placeholder="Optional description" rows={3} />
+                <Label>Deskripsi</Label>
+                <TextArea placeholder="Deskripsi opsional" rows={3} />
                 <FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )}
@@ -875,8 +904,8 @@ export function CorporateKpiForm({
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating}
                   >
-                    <Label>Weight (ratio)</Label>
-                    <Input type="number" step="any" placeholder="e.g. 0.25 (25%)" />
+                    <Label>Bobot</Label>
+                    <Input type="number" step="any" placeholder="mis. 0.25 (25%)" />
                     <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>
                 )}
@@ -896,8 +925,8 @@ export function CorporateKpiForm({
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating}
                   >
-                    <Label>Target Score</Label>
-                    <Input type="number" step="any" placeholder="e.g. 80" />
+                    <Label>Target Nilai Renbis</Label>
+                    <Input type="number" step="any" placeholder="mis. 80" />
                     <FieldError>{fieldState.error?.message}</FieldError>
                   </TextField>
                 )}
@@ -912,16 +941,16 @@ export function CorporateKpiForm({
 
             {/* ── 2. FORMULA CONFIGURATION ── */}
             <div className="flex flex-col gap-4">
-              <h2 className="text-sm font-semibold text-foreground">Formula Configuration</h2>
+              <h2 className="text-sm font-semibold text-foreground">Konfigurasi Formula</h2>
 
               <Tabs
                 selectedKey={formulaState.mode}
                 onSelectionChange={(key) => handleFormulaModeChange(String(key) as 'guided' | 'advanced')}
               >
                 <Tabs.ListContainer>
-                  <Tabs.List aria-label="Formula mode">
-                    <Tabs.Tab id="guided">Guided<Tabs.Indicator /></Tabs.Tab>
-                    <Tabs.Tab id="advanced">Advanced<Tabs.Indicator /></Tabs.Tab>
+                  <Tabs.List aria-label="Mode formula">
+                    <Tabs.Tab id="guided">Terpandu<Tabs.Indicator /></Tabs.Tab>
+                    <Tabs.Tab id="advanced">Lanjutan<Tabs.Indicator /></Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
               </Tabs>
@@ -932,15 +961,19 @@ export function CorporateKpiForm({
                   <ComboBox
                     className="w-full"
                     allowsEmptyCollection
-                    aria-label="Formula variable"
+                    aria-label="Variabel formula"
                     selectedKey={variableCode}
                     onSelectionChange={(key) => setVariableCode(key ? String(key) : null)}
                     isDisabled={isMutating}
+                    defaultFilter={(text, inputValue) => {
+                      if (!inputValue) return true;
+                      return text.toLowerCase().includes(inputValue.toLowerCase());
+                    }}
                   >
-                    <Label>Variable</Label>
+                    <Label>Variabel</Label>
                     <BuilderControlRow>
                       <ComboBox.InputGroup className="flex-1">
-                        <Input placeholder="Search and select variable" />
+                        <Input placeholder="Cari dan pilih variabel" />
                         <ComboBox.Trigger />
                       </ComboBox.InputGroup>
                       <Button
@@ -948,17 +981,17 @@ export function CorporateKpiForm({
                         // slot={null}: opt out of the RAC slotted ButtonContext (the
                         // ComboBox trigger context would merge its own handlers)
                         slot={null}
-                        aria-label="Add variable"
+                        aria-label="Tambah variabel"
                         onPress={handleAddVariable}
                         isDisabled={!variableCode || !canAppend(formulaState.tokens, 'variable') || isMutating}
                       >
-                        Add
+                        Tambah
                       </Button>
                     </BuilderControlRow>
                     <ComboBox.Popover>
                       <ListBox
                         renderEmptyState={() => (
-                          <EmptyState>{variablesError || 'No variables available'}</EmptyState>
+                          <EmptyState>{variablesError || 'Belum ada variabel'}</EmptyState>
                         )}
                       >
                         {variables.map((v) => (
@@ -977,19 +1010,19 @@ export function CorporateKpiForm({
                       table re-renders on each keystroke (flushSync lifecycle error). */}
                   <TextField
                     className="w-full"
-                    aria-label="Formula constant"
+                    aria-label="Konstanta formula"
                     value={constantInput}
                     onChange={setConstantInput}
                     isDisabled={isMutating}
                   >
-                    <Label>Constant</Label>
+                    <Label>Konstanta</Label>
                     <BuilderControlRow>
                       <Input
                         className="flex-1"
                         type="number"
                         min={0}
                         step="any"
-                        placeholder="Enter a number"
+                        placeholder="Masukkan angka"
                       />
                       <Button
                         variant="tertiary"
@@ -997,11 +1030,11 @@ export function CorporateKpiForm({
                         // button stays standalone inside the field root (the field
                         // context only knows its own slots)
                         slot={null}
-                        aria-label="Add constant"
+                         aria-label="Tambah konstanta"
                         onPress={handleAddConstant}
                         isDisabled={!isDecimalNumber(constantInput) || !canAppend(formulaState.tokens, 'number') || isMutating}
                       >
-                        Add
+                         Tambah
                       </Button>
                     </BuilderControlRow>
                   </TextField>
@@ -1009,15 +1042,15 @@ export function CorporateKpiForm({
                   {/* Built-in values — label from the HeroUI <Label>; Add button aligned with the input control */}
                   <ComboBox
                     className="w-full"
-                    aria-label="Built-in values"
+                    aria-label="Nilai bawaan"
                     selectedKey={builtInCode}
                     onSelectionChange={(key) => setBuiltInCode(key ? String(key) : null)}
                     isDisabled={isMutating}
                   >
-                    <Label>Built-in values</Label>
+                    <Label>Nilai bawaan</Label>
                     <BuilderControlRow>
                       <ComboBox.InputGroup className="flex-1">
-                        <Input placeholder="Search built-in values" />
+                        <Input placeholder="Cari nilai bawaan" />
                         <ComboBox.Trigger />
                       </ComboBox.InputGroup>
                       <Button
@@ -1025,17 +1058,17 @@ export function CorporateKpiForm({
                         // slot={null}: opt out of the RAC slotted ButtonContext (the
                         // ComboBox trigger context would merge its own handlers)
                         slot={null}
-                        aria-label="Add built-in value"
+                        aria-label="Tambah nilai bawaan"
                         onPress={handleAddBuiltIn}
                         isDisabled={!builtInCode || !canAppend(formulaState.tokens, 'symbol') || isMutating}
                       >
-                        Add
+                        Tambah
                       </Button>
                     </BuilderControlRow>
                     <ComboBox.Popover>
                       <ListBox>
-                        <ListBox.Item id={PERIOD_MONTH_COUNT} textValue={`Months in the period • ${PERIOD_MONTH_COUNT}`}>
-                          Months in the period • {PERIOD_MONTH_COUNT}
+                        <ListBox.Item id={PERIOD_MONTH_COUNT} textValue={`Jumlah bulan dalam periode • ${PERIOD_MONTH_COUNT}`}>
+                          Jumlah bulan dalam periode • {PERIOD_MONTH_COUNT}
                           <ListBox.ItemIndicator />
                         </ListBox.Item>
                       </ListBox>
@@ -1044,7 +1077,7 @@ export function CorporateKpiForm({
 
                   {/* Operators */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium text-foreground">Operators</span>
+                    <span className="text-sm font-medium text-foreground">Operator</span>
                     <div className="flex flex-wrap gap-2">
                       {(['+', '-', '*', '/', '(', ')'] as const).map((op) => {
                         const kind = op === '(' || op === ')' ? 'paren' : 'operator';
@@ -1053,7 +1086,7 @@ export function CorporateKpiForm({
                             key={op}
                             variant="tertiary"
                             className="flex-1"
-                            aria-label={`Add ${OPERATOR_LABELS[op] ?? op}`}
+                            aria-label={`Tambah ${OPERATOR_LABELS[op] ?? op}`}
                             onPress={() => appendToken(kind, op)}
                             isDisabled={!canAppend(formulaState.tokens, kind, op) || isMutating}
                           >
@@ -1071,21 +1104,21 @@ export function CorporateKpiForm({
                       <Button
                         variant="tertiary"
                         size="sm"
-                        aria-label="Clear formula"
+                        aria-label="Hapus formula"
                         onPress={clearTokens}
                         isDisabled={formulaState.tokens.length === 0 || isMutating}
                       >
-                        Clear
+                        Hapus
                       </Button>
                     </div>
                     <Surface className="rounded-xl p-3">
                       {formulaState.tokens.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                          Add a variable, constant, built-in value, or operator to build the formula.
+                          Tambahkan variabel, konstanta, nilai bawaan, atau operator untuk membuat formula.
                         </p>
                       ) : (
                         <TagGroup
-                          aria-label="Formula tokens"
+                          aria-label="Token formula"
                           size="sm"
                           onRemove={handleRemoveTokens}
                         >
@@ -1111,7 +1144,7 @@ export function CorporateKpiForm({
 
                   {/* Readable formula */}
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-sm font-medium text-foreground">Readable formula</span>
+                      <span className="text-sm font-medium text-foreground">Formula terbaca</span>
                     <Surface className="rounded-xl p-3">
                       <p className="text-sm text-foreground">
                         {formulaState.tokens.length > 0 ? readableFormula(formulaState.tokens, variableNameByCode) : '—'}
@@ -1123,7 +1156,7 @@ export function CorporateKpiForm({
                 <div className="flex flex-col gap-3">
                   <TextArea
                     className="w-full font-mono"
-                    aria-label="Raw formula"
+                    aria-label="Formula mentah"
                     value={formulaState.raw}
                     onChange={(e) => setFormulaState((prev) => ({ ...prev, raw: e.target.value }))}
                     disabled={isMutating}
@@ -1131,9 +1164,9 @@ export function CorporateKpiForm({
                     rows={3}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Advanced raw editor. Syntax: numbers, uppercase codes, and + − × ÷ operators with parentheses.
+                    Editor formula mentah lanjutan. Sintaks: angka, kode huruf besar, serta operator + − × ÷ dengan tanda kurung.
                     <br />
-                    Supported built-in symbol: <span className="font-mono">{PERIOD_MONTH_COUNT}</span> ({PERIOD_MONTH_COUNT_LABEL}).
+                    Simbol bawaan yang didukung: <span className="font-mono">{PERIOD_MONTH_COUNT}</span> ({PERIOD_MONTH_COUNT_LABEL}).
                   </p>
                 </div>
               )}
@@ -1148,16 +1181,16 @@ export function CorporateKpiForm({
                 positioned ancestor their absolute containing block is <body>, which
                 extends the viewport scroll (double scrollbar, same fix as Role form). */}
             <div className="relative flex flex-col gap-4">
-              <h2 className="text-sm font-semibold text-foreground">Score Configuration</h2>
+              <h2 className="text-sm font-semibold text-foreground">Konfigurasi Nilai</h2>
 
               <Tabs
                 selectedKey={scoreState.mode}
                 onSelectionChange={(key) => handleScoreModeChange(String(key) as 'simple' | 'advanced')}
               >
                 <Tabs.ListContainer>
-                  <Tabs.List aria-label="Score mode">
-                    <Tabs.Tab id="simple">Simple<Tabs.Indicator /></Tabs.Tab>
-                    <Tabs.Tab id="advanced">Advanced<Tabs.Indicator /></Tabs.Tab>
+                  <Tabs.List aria-label="Mode nilai">
+                    <Tabs.Tab id="simple">Sederhana<Tabs.Indicator /></Tabs.Tab>
+                    <Tabs.Tab id="advanced">Lanjutan<Tabs.Indicator /></Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
               </Tabs>
@@ -1179,7 +1212,7 @@ export function CorporateKpiForm({
                     onChange={(value) => setScoreDirection(value as ScoreDirection)}
                     isDisabled={isMutating}
                   >
-                    <Label>Scoring direction</Label>
+                    <Label>Arah penilaian</Label>
                     <Radio value="higher">
                       {/* flex-row: the v3 default .radio__content stacks control + label
                           vertically; the row keeps the label beside the indicator */}
@@ -1187,7 +1220,7 @@ export function CorporateKpiForm({
                         <Radio.Control>
                           <Radio.Indicator />
                         </Radio.Control>
-                        Higher results receive higher scores
+                        Hasil lebih tinggi mendapat nilai lebih tinggi
                       </Radio.Content>
                     </Radio>
                     <Radio value="lower">
@@ -1195,7 +1228,7 @@ export function CorporateKpiForm({
                         <Radio.Control>
                           <Radio.Indicator />
                         </Radio.Control>
-                        Lower results receive higher scores
+                        Hasil lebih rendah mendapat nilai lebih tinggi
                       </Radio.Content>
                     </Radio>
                   </RadioGroup>
@@ -1204,20 +1237,20 @@ export function CorporateKpiForm({
                       Add Employee Positions section (employee-form.tsx). */}
                   <Table>
                     <Table.ScrollContainer>
-                      <Table.Content aria-label="Score levels" className="min-w-[480px]">
+                      <Table.Content aria-label="Tingkat nilai" className="min-w-[480px]">
                         <Table.Header>
-                          <Table.Column id="score" isRowHeader>Score</Table.Column>
+                          <Table.Column id="score" isRowHeader>Nilai</Table.Column>
                           <Table.Column id="boundary">
-                            {scoreState.direction === 'higher' ? 'Minimum result' : 'Maximum result'}
+                            {scoreState.direction === 'higher' ? 'Hasil minimum' : 'Hasil maksimum'}
                           </Table.Column>
-                          <Table.Column id="condition">Condition</Table.Column>
-                          <Table.Column id="actions" aria-label="Actions" className="text-center">{''}</Table.Column>
+                          <Table.Column id="condition">Kondisi</Table.Column>
+                          <Table.Column id="actions" aria-label="Aksi" className="text-center">{''}</Table.Column>
                         </Table.Header>
                         <Table.Body
                           renderEmptyState={() => (
                             <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
                               <Tray className="h-8 w-8" />
-                              <span className="text-sm">No score levels configured</span>
+                              <span className="text-sm">Belum ada tingkat nilai</span>
                             </div>
                           )}
                         >
@@ -1227,14 +1260,14 @@ export function CorporateKpiForm({
                               <Table.Row key={row.id} id={row.id}>
                                 <Table.Cell>
                                   <TextField
-                                    aria-label={`Score for level ${index + 1}`}
+                                      aria-label={`Nilai tingkat ${index + 1}`}
                                     value={row.score}
                                     onChange={(val) => updateScoreRow(row.id, { score: val })}
                                     isDisabled={isMutating}
                                     variant="secondary"
                                   >
-                                    <Label className="sr-only">Score</Label>
-                                    <Input type="number" step="any" placeholder="Score" />
+                                    <Label className="sr-only">Nilai</Label>
+                                    <Input type="number" step="any" placeholder="Nilai" />
                                   </TextField>
                                 </Table.Cell>
                                 <Table.Cell>
@@ -1242,14 +1275,14 @@ export function CorporateKpiForm({
                                     <span className="text-muted-foreground">—</span>
                                   ) : (
                                     <TextField
-                                      aria-label={`Threshold for score ${row.score || index + 1}`}
+                                      aria-label={`Batas untuk nilai ${row.score || index + 1}`}
                                       value={row.threshold}
                                       onChange={(val) => updateScoreRow(row.id, { threshold: val })}
                                       isDisabled={isMutating}
                                       variant="secondary"
                                     >
-                                      <Label className="sr-only">Threshold</Label>
-                                      <Input type="number" step="any" placeholder="Threshold" />
+                                      <Label className="sr-only">Batas</Label>
+                                      <Input type="number" step="any" placeholder="Batas" />
                                     </TextField>
                                   )}
                                 </Table.Cell>
@@ -1262,7 +1295,7 @@ export function CorporateKpiForm({
                                       isIconOnly
                                       variant="danger-soft"
                                       size="sm"
-                                      aria-label={`Remove score level ${index + 1}`}
+                                      aria-label={`Hapus tingkat nilai ${index + 1}`}
                                       isDisabled={scoreState.rows.length <= 1 || isMutating}
                                       onPress={() => removeScoreRow(row.id)}
                                     >
@@ -1290,7 +1323,7 @@ export function CorporateKpiForm({
                   <div className="flex items-center gap-2">
                     <Button variant="tertiary" size="sm" onPress={addScoreRow} isDisabled={isMutating}>
                       <Plus className="h-4 w-4" />
-                      Add score level
+                      Tambah tingkat nilai
                     </Button>
                   </div>
 
@@ -1298,16 +1331,16 @@ export function CorporateKpiForm({
                       field root; the control and Resulting score share one
                       control row so they stay aligned with the input control. */}
                   <TextField
-                    aria-label="Sample result"
+                    aria-label="Contoh hasil"
                     value={sampleValue}
                     onChange={setSampleValue}
                     isDisabled={isMutating}
                   >
-                    <Label>Sample result</Label>
+                    <Label>Contoh hasil</Label>
                     <BuilderControlRow>
-                      <Input type="number" step="any" className="w-40" placeholder="e.g. 85" />
+                      <Input type="number" step="any" className="w-40" placeholder="mis. 85" />
                       <span className="text-sm text-muted-foreground">
-                        Resulting score:{' '}
+                        Nilai hasil:{' '}
                         <span className="font-semibold text-foreground">
                           {simulatedScore != null ? simulatedScore : '—'}
                         </span>
@@ -1319,7 +1352,7 @@ export function CorporateKpiForm({
                 <div className="flex flex-col gap-3">
                   <TextArea
                     className="w-full font-mono"
-                    aria-label="Assessment rules JSON"
+                    aria-label="JSON aturan penilaian"
                     value={scoreState.json}
                     onChange={(e) => setScoreState((prev) => ({ ...prev, json: e.target.value }))}
                     disabled={isMutating}
@@ -1336,18 +1369,18 @@ export function CorporateKpiForm({
 
         {isEditMode && editLocked && (
           <Alert status="default">
-            This Corporate KPI belongs to an ACTIVE structure — its configuration is frozen.
-            Deactivate the structure before editing.
+            KPI Perusahaan ini berada pada struktur ACTIVE sehingga konfigurasinya terkunci.
+            Nonaktifkan struktur sebelum mengubahnya.
           </Alert>
         )}
 
         <div className="flex items-center justify-end gap-3">
-          <Button variant="secondary" onPress={() => router.back()} isDisabled={isMutating}>
-            Cancel
+          <Button variant="secondary" onPress={handleCancel} isDisabled={isMutating}>
+            Batal
           </Button>
           <Button type="submit" variant="primary" isDisabled={isMutating || editLocked} isPending={isMutating}>
             <FloppyDisk className="h-4 w-4" />
-            {isEditMode ? 'Save Changes' : 'Save'}
+            {isEditMode ? 'Simpan Perubahan' : 'Simpan'}
           </Button>
         </div>
       </Form>

@@ -2,8 +2,7 @@ import { extractErrorMessage } from '@/types/api';
 
 /**
  * Corporate KPI mutation error mapper.
- * Maps known backend error details to user-facing English messages.
- * Backend errors are in English, so safe details pass through.
+ * Maps known backend error details to user-facing Indonesian messages.
  */
 export function mapKpiError(error: unknown, fallback: string): string {
   const raw = extractErrorMessage(error, '');
@@ -13,53 +12,53 @@ export function mapKpiError(error: unknown, fallback: string): string {
   const known: Record<string, string> = {
     /* ── Yearly structure lifecycle ── */
     'Corporate KPI structure already exists for this year':
-      'A Corporate KPI structure already exists for this year.',
+      'Struktur KPI Perusahaan untuk tahun ini sudah ada.',
     'Corporate KPI structure still has KPI nodes':
-      'This structure cannot be deleted — it still contains KPI nodes.',
+      'Struktur ini tidak dapat dihapus karena masih memiliki node KPI.',
     'Corporate KPI structure has no indicators':
-      'This structure cannot be activated — it has no indicators yet.',
+      'Struktur ini tidak dapat diaktifkan karena belum memiliki indikator.',
     'Total weight must be exactly 100% before activating the structure':
-      'Total indicator weight must be exactly 100% before activating the structure.',
+      'Total bobot indikator harus tepat 100% sebelum struktur diaktifkan.',
     'Cannot activate the Corporate KPI structure — indicator':
-      'The structure cannot be activated — one or more indicators are incomplete.',
+      'Struktur tidak dapat diaktifkan karena ada indikator yang belum lengkap.',
     'Corporate KPI structure must be ACTIVE':
-      'The Corporate KPI structure must be ACTIVE before Activities can reference its indicators.',
+      'Struktur KPI Perusahaan harus berstatus ACTIVE sebelum indikator dapat digunakan Aktivitas.',
     'Corporate KPI structure is ACTIVE — deactivate it before changing its configuration':
-      'The structure is ACTIVE — deactivate it before changing the KPI configuration.',
+      'Struktur berstatus ACTIVE — nonaktifkan sebelum mengubah konfigurasi KPI.',
     'Corporate KPI structure not found':
-      'The Corporate KPI structure could not be found.',
+      'Struktur KPI Perusahaan tidak ditemukan.',
     'Corporate KPI structure is not deleted':
-      'This Corporate KPI structure is not deleted.',
+      'Struktur KPI Perusahaan ini tidak sedang dihapus.',
     'Cannot restore — the year structure is deleted':
-      'Restore the year structure before restoring its KPIs.',
+      'Pulihkan struktur tahun sebelum memulihkan KPI di dalamnya.',
     'No Corporate KPI structure found for the source year':
-      'The source year has no Corporate KPI structure to copy from.',
+      'Tahun sumber tidak memiliki struktur KPI Perusahaan untuk disalin.',
     'Source year must differ from the target year':
-      'The source year must be different from the target year.',
+      'Tahun sumber harus berbeda dari tahun tujuan.',
     'Corporate KPI code already exists in this year':
-      'A Corporate KPI with this code already exists in the selected structure.',
+      'KPI Perusahaan dengan kode ini sudah ada pada struktur yang dipilih.',
     'Corporate KPI not found':
-      'The Corporate KPI could not be found.',
+      'KPI Perusahaan tidak ditemukan.',
     'An INDICATOR must have an ASPECT parent':
-      'The selected parent is not a valid Aspect.',
+      'Aspect induk yang dipilih tidak valid.',
     'An ASPECT must not have a unit or target value':
-      'An Aspect cannot have a unit or target value.',
+      'Aspect tidak boleh memiliki unit atau nilai target.',
     'ASPECT must not have a parent':
-      'An Aspect must be a root node and cannot have a parent.',
+      'Aspect harus menjadi node akar dan tidak boleh memiliki induk.',
     'Parent and child must belong to the same Corporate KPI structure':
-      'The Indicator and its parent Aspect must belong to the same year structure.',
+      'Indikator dan Aspect induknya harus berada pada struktur tahun yang sama.',
     'An ASPECT must not have formula, assessment rules, weight, or target score':
-      'An Aspect cannot carry scoring configuration.',
+      'Aspect tidak boleh memiliki konfigurasi penilaian.',
     'Total weight would exceed 100%':
-      'Total indicator weight would exceed 100%.',
+      'Total bobot indikator akan melebihi 100%.',
     'Formula references a variable that is not bound to the indicator':
-      'The formula references a variable that is not bound to the indicator — save the indicator to bind it automatically.',
+      'Formula merujuk variabel yang belum terikat ke indikator — simpan indikator untuk mengikatnya otomatis.',
     'Cannot delete — KPI node still has active children':
-      'Delete all child Indicators before deleting this Aspect.',
+      'Hapus semua indikator anak sebelum menghapus Aspect ini.',
     'Cannot restore — parent KPI is deleted':
-      'Restore the parent Aspect before restoring this Indicator.',
+      'Pulihkan Aspect induk sebelum memulihkan indikator ini.',
     'ACCESS_DENIED':
-      'You do not have permission to perform this action.',
+      'Anda tidak memiliki izin untuk melakukan tindakan ini.',
   };
 
   for (const [key, message] of Object.entries(known)) {

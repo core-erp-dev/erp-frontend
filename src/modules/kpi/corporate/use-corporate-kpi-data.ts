@@ -21,6 +21,12 @@ export type PendingLifecycleAction =
   | { kind: 'structure'; type: 'activate' | 'deactivate'; targetId: string }
   | null;
 
+function normalizeNodes(nodes: CorporateKpiNode[] | null | undefined): CorporateKpiNode[] {
+  return Array.isArray(nodes)
+    ? nodes.map((node) => ({ ...node, children: normalizeNodes(node.children) }))
+    : [];
+}
+
 export interface UseCorporateKpiDataReturn {
   /* ── Read state ── */
   tree: CorporateKpiNode[];
@@ -51,8 +57,8 @@ export interface UseCorporateKpiDataReturn {
 
   /* ── Node lifecycle ── */
   pendingLifecycle: PendingLifecycleAction;
-  deleteKpi: (id: string) => Promise<boolean>;
-  restoreKpi: (id: string) => Promise<boolean>;
+  deleteKpi: (id: string, year?: number) => Promise<boolean>;
+  restoreKpi: (id: string, year?: number) => Promise<boolean>;
 }
 
 export function useCorporateKpiData(): UseCorporateKpiDataReturn {
@@ -72,85 +78,89 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
   const mountedRef = useRef(true);
   const currentYearRef = useRef<number | null>(null);
   const currentMonthRef = useRef<number | undefined>(undefined);
+  const treeRequestRef = useRef(0);
+  const deletedRequestRef = useRef(0);
+  const structuresRequestRef = useRef(0);
 
   const fetchStructures = useCallback(async () => {
+    const requestId = ++structuresRequestRef.current;
     setIsLoadingStructures(true);
     setStructuresError(null);
     try {
       const data = await corporateKpiStructuresApi.list();
-      if (mountedRef.current) setStructures(data);
+      if (mountedRef.current && requestId === structuresRequestRef.current) setStructures(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
       const msg = extractKpiError(err);
-      if (mountedRef.current) setStructuresError(msg);
-      toast.danger(msg);
+      if (mountedRef.current && requestId === structuresRequestRef.current) {
+        setStructuresError(msg);
+        toast.danger(msg);
+      }
     } finally {
-      if (mountedRef.current) setIsLoadingStructures(false);
+      if (mountedRef.current && requestId === structuresRequestRef.current) setIsLoadingStructures(false);
     }
   }, []);
 
   const fetchTree = useCallback(async (year: number, month?: number) => {
+    const requestId = ++treeRequestRef.current;
     setIsLoadingTree(true);
     setTreeError(null);
     currentYearRef.current = year;
     currentMonthRef.current = month;
     try {
       const data = await corporateKpiApi.getTreeByYear(year, month);
-      if (mountedRef.current) setTree(data);
+      if (mountedRef.current && requestId === treeRequestRef.current) setTree(normalizeNodes(data));
     } catch (err: unknown) {
       const msg = extractKpiError(err);
-      if (mountedRef.current) { setTreeError(msg); setTree([]); }
-      toast.danger(msg);
+      if (mountedRef.current && requestId === treeRequestRef.current) {
+        setTreeError(msg);
+        setTree([]);
+        toast.danger(msg);
+      }
     } finally {
-      if (mountedRef.current) setIsLoadingTree(false);
+      if (mountedRef.current && requestId === treeRequestRef.current) setIsLoadingTree(false);
     }
   }, []);
 
   const fetchDeleted = useCallback(async () => {
+    const requestId = ++deletedRequestRef.current;
     setIsLoadingDeleted(true);
     setDeletedError(null);
     try {
       const data = await corporateKpiApi.getDeleted();
-      if (mountedRef.current) { setDeletedList(data); setHasLoadedDeleted(true); }
+      if (mountedRef.current && requestId === deletedRequestRef.current) {
+        setDeletedList(normalizeNodes(data));
+        setHasLoadedDeleted(true);
+      }
     } catch (err: unknown) {
       const msg = extractKpiError(err);
-      if (mountedRef.current) setDeletedError(msg);
-      toast.danger(msg);
+      if (mountedRef.current && requestId === deletedRequestRef.current) {
+        setDeletedError(msg);
+        toast.danger(msg);
+      }
     } finally {
-      if (mountedRef.current) setIsLoadingDeleted(false);
+      if (mountedRef.current && requestId === deletedRequestRef.current) setIsLoadingDeleted(false);
     }
   }, []);
 
   const refreshTree = useCallback(async (year: number, month?: number) => {
-    try {
-      const data = await corporateKpiApi.getTreeByYear(year, month);
-      if (mountedRef.current) setTree(data);
-    } catch (err: unknown) {
-      const msg = extractKpiError(err);
-      if (mountedRef.current) setTreeError(msg);
-      toast.danger(msg + ' — please retry.');
-    }
-  }, []);
+    await fetchTree(year, month);
+  }, [fetchTree]);
 
   /** Refresh the current-period tree (silent — uses the refs). */
   const refreshTreeSilent = useCallback(async () => {
     const year = currentYearRef.current;
     if (year == null) return;
-    try {
-      const data = await corporateKpiApi.getTreeByYear(year, currentMonthRef.current);
-      if (mountedRef.current) setTree(data);
-    } catch {
-      toast.danger('Tree refresh failed. You may retry manually.');
-    }
-  }, []);
+    await fetchTree(year, currentMonthRef.current);
+  }, [fetchTree]);
 
   /** Refresh deleted data silently (only if previously loaded). */
   const refreshDeletedSilent = useCallback(async () => {
     if (!hasLoadedDeleted) return;
     try {
       const data = await corporateKpiApi.getDeleted();
-      if (mountedRef.current) setDeletedList(data);
+      if (mountedRef.current) setDeletedList(normalizeNodes(data));
     } catch {
-      toast.danger('Deleted-KPI refresh failed. You may retry manually.');
+      toast.danger('Penyegaran KPI terhapus gagal. Silakan coba lagi.');
     }
   }, [hasLoadedDeleted]);
 
@@ -161,10 +171,10 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
     try {
       const result = await corporateKpiStructuresApi.create(payload);
       await fetchStructures();
-      toast.success('Corporate KPI structure created.');
+      toast.success('Struktur KPI Perusahaan berhasil dibuat.');
       return result;
     } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while creating the Corporate KPI structure.');
+      const msg = mapKpiError(err, 'Terjadi kesalahan saat membuat struktur KPI Perusahaan.');
       toast.danger(msg);
       return null;
     } finally {
@@ -178,14 +188,14 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
     try {
       await corporateKpiStructuresApi.changeStatus(id, { status });
       toast.success(status === 'ACTIVE'
-        ? 'Corporate KPI structure activated.'
-        : 'Corporate KPI structure deactivated.');
+        ? 'Struktur KPI Perusahaan berhasil diaktifkan.'
+        : 'Struktur KPI Perusahaan berhasil dinonaktifkan.');
       await fetchStructures();
       const year = currentYearRef.current;
       if (year != null) await refreshTreeSilent();
       return true;
     } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while changing the structure status.');
+      const msg = mapKpiError(err, 'Terjadi kesalahan saat mengubah status struktur.');
       toast.danger(msg);
       return false;
     } finally {
@@ -199,67 +209,74 @@ export function useCorporateKpiData(): UseCorporateKpiDataReturn {
     setIsMutating(true);
     try {
       const result = await corporateKpiApi.create(payload);
-      await refreshTreeSilent();
+      await fetchStructures();
+      const year = payload.year ?? currentYearRef.current;
+      if (year != null) await fetchTree(year, currentMonthRef.current);
       return result;
     } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while saving the Corporate KPI.');
+      const msg = mapKpiError(err, 'Terjadi kesalahan saat menyimpan KPI Perusahaan.');
       toast.danger(msg);
       return null;
     } finally {
       if (mountedRef.current) setIsMutating(false);
     }
-  }, [refreshTreeSilent]);
+  }, [fetchStructures, fetchTree]);
 
   const updateNode = useCallback(async (id: string, payload: UpdateKpiRequest): Promise<CorporateKpiNode | null> => {
     setIsMutating(true);
     try {
       const result = await corporateKpiApi.update(id, payload);
+      await fetchStructures();
       await refreshTreeSilent();
       return result;
     } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while saving the Corporate KPI.');
+      const msg = mapKpiError(err, 'Terjadi kesalahan saat menyimpan KPI Perusahaan.');
       toast.danger(msg);
       return null;
     } finally {
       if (mountedRef.current) setIsMutating(false);
     }
-  }, [refreshTreeSilent]);
+  }, [fetchStructures, refreshTreeSilent]);
 
   // ── node lifecycle ──
 
-  const deleteKpi = useCallback(async (id: string): Promise<boolean> => {
+  const deleteKpi = useCallback(async (id: string, year?: number): Promise<boolean> => {
     setPendingLifecycle({ kind: 'node', type: 'delete', targetId: id });
     try {
       await corporateKpiApi.deleteNode(id);
-      toast.success('Corporate KPI deleted successfully.');
+      toast.success('KPI Perusahaan berhasil dihapus.');
+      await fetchStructures();
+      if (year != null && currentYearRef.current !== year) currentYearRef.current = year;
       await refreshTreeSilent();
       await refreshDeletedSilent();
       return true;
     } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while deleting the Corporate KPI.');
+      const msg = mapKpiError(err, 'Terjadi kesalahan saat menghapus KPI Perusahaan.');
       toast.danger(msg);
       return false;
     } finally {
       if (mountedRef.current) setPendingLifecycle(null);
     }
-  }, [refreshTreeSilent, refreshDeletedSilent]);
+  }, [fetchStructures, refreshTreeSilent, refreshDeletedSilent]);
 
-  const restoreKpi = useCallback(async (id: string): Promise<boolean> => {
+  const restoreKpi = useCallback(async (id: string, year?: number): Promise<boolean> => {
     setPendingLifecycle({ kind: 'node', type: 'restore', targetId: id });
     try {
       await corporateKpiApi.restoreNode(id);
-      toast.success('Corporate KPI restored successfully.');
+      toast.success('KPI Perusahaan berhasil dipulihkan.');
+      await fetchStructures();
+      if (year != null && currentYearRef.current !== year) currentYearRef.current = year;
       await refreshTreeSilent();
       await refreshDeletedSilent();
       return true;
     } catch (err: unknown) {
-      const msg = mapKpiError(err, 'Something went wrong while restoring the Corporate KPI.');
+      const msg = mapKpiError(err, 'Terjadi kesalahan saat memulihkan KPI Perusahaan.');
       toast.danger(msg);
       return false;
     } finally {
       if (mountedRef.current) setPendingLifecycle(null);
     }
-  }, [refreshTreeSilent, refreshDeletedSilent]);
+  }, [fetchStructures, refreshTreeSilent, refreshDeletedSilent]);
 
   useEffect(() => {
     mountedRef.current = true;

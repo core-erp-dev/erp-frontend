@@ -57,5 +57,5 @@ export const corporateKpiStructuresApi = {
 
 /** Read-error wrapper. */
 export function extractStructureError(error: unknown): string {
-  return extractErrorMessage(error, 'Failed to load Corporate KPI structures.');
+  return extractErrorMessage(error, 'Gagal memuat struktur KPI Perusahaan.');
 }
