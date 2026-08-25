@@ -20,11 +20,11 @@ interface UnitPerformanceResultsTableProps {
 }
 
 function formatNumber(value: number | null): string {
-  return value == null ? '—' : new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(value);
+  return value == null ? '-' : new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(value);
 }
 
 function formatPercent(value: number | null): string {
-  return value == null ? '—' : `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)}%`;
+  return value == null ? '-' : `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)}%`;
 }
 
 export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTableProps> = ({

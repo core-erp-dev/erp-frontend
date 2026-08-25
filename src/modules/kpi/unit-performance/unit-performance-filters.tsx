@@ -68,7 +68,7 @@ export const UnitPerformanceFilters: React.FC<UnitPerformanceFiltersProps> = ({
     <SearchField aria-label="Cari Performa Unit" value={searchQuery} onChange={onSearchChange} className="w-72">
       <SearchField.Group>
         <SearchField.SearchIcon />
-        <SearchField.Input placeholder="Cari unit" />
+        <SearchField.Input placeholder="Cari" />
         <SearchField.ClearButton aria-label="Hapus pencarian" />
       </SearchField.Group>
     </SearchField>
