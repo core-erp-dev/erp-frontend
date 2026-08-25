@@ -88,6 +88,7 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                   render={({ field, fieldState }) => (
                     <ComboBox
                       className="w-full"
+                      variant="secondary"
                       isRequired
                       selectedKey={field.value || null}
                       onSelectionChange={(key) => field.onChange(key ? String(key) : '')}
