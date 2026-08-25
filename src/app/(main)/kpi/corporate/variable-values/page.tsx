@@ -13,9 +13,10 @@ import { ValuesSheetTable, isValidValueInput, valueToDraft } from '@/modules/kpi
 import type { BatchVariableValueItem, ValueDraft, SheetPeriod } from '@/modules/kpi/corporate/values/values.types';
 import { MONTH_NAMES_ID } from '@/modules/kpi/corporate/period-label';
 import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
-import { getCorporateKpiDefaultYear, getCorporateKpiYearOptions } from '@/modules/kpi/corporate/corporate-kpi-year-options';
+import { getCorporateKpiDefaultValueYear, getCorporateKpiValueYearOptions } from '@/modules/kpi/corporate/corporate-kpi-year-options';
 import { extractErrorMessage } from '@/types/api';
 import type { VariableSortDirection, VariableSortField } from '@/modules/kpi/corporate/variables/variables.types';
+import type { CorporateKpiStructure } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 type PeriodMode = 'monthly' | 'annual';
 const SORT_OPTIONS: { field: VariableSortField; direction: VariableSortDirection; label: string }[] = [
@@ -50,14 +51,14 @@ export default function KpiCorporateVariableValuesPage() {
   }, [sortBy, sortDirection]);
   const isDefaultSort = sortBy === 'name' && sortDirection === 'asc';
 
-  const [structures, setStructures] = useState<Array<{ year: number }>>([]);
+  const [structures, setStructures] = useState<CorporateKpiStructure[]>([]);
   const [isLoadingStructures, setIsLoadingStructures] = useState(true);
   const [structuresError, setStructuresError] = useState<string | null>(null);
   const structureRequestRef = useRef(0);
   const [searchInput, setSearchInput] = useState(urlSearch);
   const [isSearchTransitioning, setIsSearchTransitioning] = useState(false);
-  const years = useMemo(() => getCorporateKpiYearOptions(structures, currentYear), [structures, currentYear]);
-  const defaultYear = useMemo(() => getCorporateKpiDefaultYear(years, currentYear), [years, currentYear]);
+  const years = useMemo(() => getCorporateKpiValueYearOptions(structures), [structures]);
+  const defaultYear = useMemo(() => getCorporateKpiDefaultValueYear(years, currentYear), [years, currentYear]);
   const selectedYear = years.includes(urlYear) ? urlYear : defaultYear;
   const selectedMonth = urlMonth;
 
@@ -69,7 +70,7 @@ export default function KpiCorporateVariableValuesPage() {
     const next = { period: periodMode, year: selectedYear, month: selectedMonth, search: urlSearch, sortBy, sortDirection, ...patch };
     const params = new URLSearchParams();
     if (next.period !== 'monthly') params.set('period', next.period);
-    if (next.year !== currentYear) params.set('year', String(next.year));
+    if (next.year != null && next.year !== currentYear) params.set('year', String(next.year));
     if (next.period === 'monthly' && next.month !== currentMonth) params.set('month', String(next.month));
     if (next.search) params.set('search', next.search);
     if (next.sortBy !== 'name' || next.sortDirection !== 'asc') {
@@ -97,7 +98,7 @@ export default function KpiCorporateVariableValuesPage() {
   useEffect(() => { if (canRead) void loadStructures(); }, [canRead, loadStructures]);
   useEffect(() => {
     setSearchInput(urlSearch);
-    if (!isLoadingStructures && (urlYear !== selectedYear || (periodMode === 'monthly' && urlMonth !== selectedMonth))) updateUrl({ year: selectedYear, month: selectedMonth });
+    if (!isLoadingStructures && selectedYear != null && (urlYear !== selectedYear || (periodMode === 'monthly' && urlMonth !== selectedMonth))) updateUrl({ year: selectedYear, month: selectedMonth });
   }, [isLoadingStructures, periodMode, selectedMonth, selectedYear, updateUrl, urlMonth, urlSearch, urlYear]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -107,7 +108,7 @@ export default function KpiCorporateVariableValuesPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput, updateUrl, urlSearch]);
   useEffect(() => {
-    if (canRead && !isLoadingStructures && !structuresError) {
+    if (canRead && !isLoadingStructures && !structuresError && selectedYear != null) {
       const period: SheetPeriod = { year: selectedYear, sortBy, sortDirection };
       if (periodMode === 'monthly') period.month = selectedMonth;
       void fetchSheet(period);
@@ -117,6 +118,7 @@ export default function KpiCorporateVariableValuesPage() {
 
   const handleRetry = useCallback(() => {
     if (structuresError || isLoadingStructures) void loadStructures();
+    if (selectedYear == null) return;
     const period: SheetPeriod = { year: selectedYear, sortBy, sortDirection };
     if (periodMode === 'monthly') period.month = selectedMonth;
     void fetchSheet(period);
@@ -137,6 +139,7 @@ export default function KpiCorporateVariableValuesPage() {
   const hasInvalidDraft = useMemo(() => Object.values(draft).some((value) => !isValidValueInput(value)), [draft]);
 
   const handleSave = useCallback(async () => {
+    if (selectedYear == null) return;
     const items: BatchVariableValueItem[] = [];
     const clearings: { variableId: string; month: number | null }[] = [];
     for (const row of sheet) {
@@ -167,11 +170,11 @@ export default function KpiCorporateVariableValuesPage() {
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs><BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem><BreadcrumbsItem>KPI</BreadcrumbsItem><BreadcrumbsItem href={KPI_ROUTES.corporate}>{KPI_LABELS.corporate}</BreadcrumbsItem><BreadcrumbsItem>{KPI_LABELS.corporateVariableValues}</BreadcrumbsItem></Breadcrumbs>
-      <div className="flex items-center justify-between"><div className="flex items-center gap-3"><h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariableValues}</h1><Chip size="md" className="pointer-events-none" aria-label={`Total ${sheet.length} nilai`}>{sheet.length}</Chip></div><div className="flex items-center gap-2"><Button isIconOnly variant="tertiary" onPress={handleRetry} isDisabled={tableLoading || isSaving} aria-label="Muat ulang nilai variabel"><ArrowsClockwise className={`h-4 w-4 ${tableLoading ? 'animate-spin' : ''}`} /></Button>{canManage && (isEditing ? <><Button variant="secondary" onPress={cancelEditing} isDisabled={isSaving}>Batal</Button><Button variant="primary" onPress={handleSave} isPending={isSaving} isDisabled={isSaving || hasInvalidDraft}><FloppyDisk className="h-4 w-4" />Simpan</Button></> : <Button variant="primary" onPress={startEditing} isDisabled={tableLoading}><PencilSimple className="h-4 w-4" />Input Nilai</Button>)}</div></div>
+      <div className="flex items-center justify-between"><div className="flex items-center gap-3"><h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariableValues}</h1><Chip size="md" className="pointer-events-none" aria-label={`Total ${sheet.length} nilai`}>{sheet.length}</Chip></div><div className="flex items-center gap-2"><Button isIconOnly variant="tertiary" onPress={handleRetry} isDisabled={tableLoading || isSaving} aria-label="Muat ulang nilai variabel"><ArrowsClockwise className={`h-4 w-4 ${tableLoading ? 'animate-spin' : ''}`} /></Button>{canManage && (isEditing ? <><Button variant="secondary" onPress={cancelEditing} isDisabled={isSaving}>Batal</Button><Button variant="primary" onPress={handleSave} isPending={isSaving} isDisabled={isSaving || hasInvalidDraft}><FloppyDisk className="h-4 w-4" />Simpan</Button></> : <Button variant="primary" onPress={startEditing} isDisabled={tableLoading || selectedYear == null}><PencilSimple className="h-4 w-4" />Input Nilai</Button>)}</div></div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Tabs selectedKey={periodMode} onSelectionChange={(key) => handleModeChange(key as PeriodMode)}><Tabs.ListContainer><Tabs.List aria-label="Periode"><Tabs.Tab id="monthly">Bulan<Tabs.Indicator /></Tabs.Tab><Tabs.Tab id="annual">Tahun<Tabs.Indicator /></Tabs.Tab></Tabs.List></Tabs.ListContainer></Tabs>
-          <Dropdown><Button variant="tertiary" aria-label="Pilih tahun">{selectedYear}<CaretDown className="h-4 w-4" /></Button><Dropdown.Popover><Dropdown.Menu onAction={(key) => handleYearChange(Number(key))}>{years.map((year) => <Dropdown.Item key={year} id={String(year)} textValue={String(year)}>{year}</Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown>
+          <Dropdown><Button variant="tertiary" aria-label="Pilih tahun">{selectedYear ?? '-'}<CaretDown className="h-4 w-4" /></Button><Dropdown.Popover><Dropdown.Menu onAction={(key) => handleYearChange(Number(key))}>{years.map((year) => <Dropdown.Item key={year} id={String(year)} textValue={String(year)}>{year}</Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown>
           {periodMode === 'monthly' && <Dropdown><Button variant="tertiary" aria-label="Pilih bulan">{selectedMonthName}<CaretDown className="h-4 w-4" /></Button><Dropdown.Popover><Dropdown.Menu onAction={(key) => handleMonthChange(Number(key))}>{MONTH_NAMES_ID.map((name, index) => <Dropdown.Item key={name} id={String(index + 1)} textValue={name}>{name}</Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown>}
           <Dropdown><Button variant="tertiary" aria-label="Urutkan"><FunnelSimple className="h-4 w-4" />Urutkan{!isDefaultSort && <><span className="mx-0.5 h-4 w-px bg-border" /><Check className="h-4 w-4" /></>}</Button><Dropdown.Popover><Dropdown.Menu selectedKeys={sortSelectionKeys} selectionMode="single" onSelectionChange={handleSortSelectionChange}>{SORT_OPTIONS.map((option, index) => <Dropdown.Item key={index} id={String(index)} textValue={option.label}><Dropdown.ItemIndicator /><Label>{option.label}</Label></Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown>
           {!isDefaultSort && <Button isIconOnly variant="tertiary" aria-label="Reset pengurutan" onPress={() => updateUrl({ sortBy: 'name', sortDirection: 'asc' })}><X className="h-4 w-4" /></Button>}
