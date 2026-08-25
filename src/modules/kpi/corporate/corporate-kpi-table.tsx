@@ -225,22 +225,24 @@ export const CorporateKpiTable: React.FC<CorporateKpiTableProps> = ({
                   <Table.Row key={`${row.id}-${index}`}>
                     <Table.Cell>
                       <div className="flex items-center gap-1" style={{ paddingLeft: indent }}>
-                        {row.hasChildren && (
-                          <Button
-                            isIconOnly
-                            variant="ghost"
-                            size="sm"
-                            aria-label={effectiveExpanded.has(row.id) ? `Tutup ${row.name}` : `Buka ${row.name}`}
-                            onPress={() => onToggleExpand(row.id)}
-                            className="mr-1 h-5 w-5 min-w-0"
-                          >
-                            {effectiveExpanded.has(row.id) ? (
-                              <CaretDown className="h-3.5 w-3.5 text-gray-500" />
-                            ) : (
-                              <CaretRight className="h-3.5 w-3.5 text-gray-500" />
-                            )}
-                          </Button>
-                        )}
+                        <span className="mr-1 flex h-5 w-5 min-w-0 shrink-0 items-center justify-center">
+                          {row.hasChildren && (
+                            <Button
+                              isIconOnly
+                              variant="ghost"
+                              size="sm"
+                              aria-label={effectiveExpanded.has(row.id) ? `Tutup ${row.name}` : `Buka ${row.name}`}
+                              onPress={() => onToggleExpand(row.id)}
+                              className="h-5 w-5 min-w-0"
+                            >
+                              {effectiveExpanded.has(row.id) ? (
+                                <CaretDown className="h-3.5 w-3.5 text-gray-500" />
+                              ) : (
+                                <CaretRight className="h-3.5 w-3.5 text-gray-500" />
+                              )}
+                            </Button>
+                          )}
+                        </span>
                         <span className="font-medium text-foreground">{row.code}</span>
                       </div>
                     </Table.Cell>
