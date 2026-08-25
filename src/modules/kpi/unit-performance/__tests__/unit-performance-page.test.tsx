@@ -1,6 +1,6 @@
 /**
  * Unit Performance page orchestration tests for the weight-matrix model:
- * permission guards (read shows the matrix, manage adds Add Unit/delete),
+ * permission guards (read shows the matrix, manage opens the unit manager),
  * the matrix is fetched for the selected year, participant add/delete flows,
  * and the full matrix save flow (dynamic columns, one atomic request).
  */
@@ -88,7 +88,7 @@ describe('access control', () => {
     mockPermissions = { 'unit_performance:read': true };
     render(<UnitPerformancePage />);
     expect(await screen.findByText('ROE')).toBeInTheDocument();
-    // unit name appears in the matrix header AND the participants list
+    // unit name appears in the matrix header
     expect(screen.getAllByText('Hublang').length).toBeGreaterThan(0);
     expect(screen.queryByText('Kelola Unit')).not.toBeInTheDocument();
     expect(screen.queryByText('Atur Bobot')).not.toBeInTheDocument();
@@ -145,11 +145,12 @@ describe('participant registry', () => {
     expect(screen.queryByText('Weight (%)')).not.toBeInTheDocument();
   });
 
-  it('removes a unit through the delete dialog', async () => {
+  it('removes a unit through the Kelola Unit modal', async () => {
     mockPermissions = { 'unit_performance:read': true, 'unit_performance:manage': true };
     render(<UnitPerformancePage />);
     await screen.findByText('ROE');
 
+    fireEvent.click(screen.getByRole('button', { name: 'Kelola Unit' }));
     fireEvent.click(screen.getByLabelText('Hapus unit Hublang'));
     // getByText matches DIRECT text nodes only — the unit name lives in a
     // nested span, so match on the full textContent of the dialog body

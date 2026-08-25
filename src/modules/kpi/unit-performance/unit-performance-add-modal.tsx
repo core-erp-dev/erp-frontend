@@ -17,7 +17,8 @@ import {
   useFilter,
 } from '@heroui/react';
 import type { OrganizationUnitResponse } from '@/modules/organization/organization-units/types';
-import type { CreateUnitPerformanceRequest } from './unit-performance.types';
+import type { CreateUnitPerformanceRequest, UnitPerformanceMatrixUnit } from './unit-performance.types';
+import { UnitPerformanceParticipants } from './unit-performance-participants';
 
 export interface UnitPerformanceAddModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export interface UnitPerformanceAddModalProps {
   onSubmit: (payload: CreateUnitPerformanceRequest) => Promise<boolean>;
   /** Flattened active org units — already excluding configured ones by the page. */
   orgUnits: OrganizationUnitResponse[];
+  configuredUnits?: UnitPerformanceMatrixUnit[];
+  onRemove?: (unit: UnitPerformanceMatrixUnit) => void;
   isSubmitting: boolean;
 }
 
@@ -46,6 +49,8 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
   onClose,
   onSubmit,
   orgUnits,
+  configuredUnits = [],
+  onRemove,
   isSubmitting,
 }) => {
   const { contains } = useFilter({ sensitivity: 'base' });
@@ -72,7 +77,7 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[480px]">
             <Modal.Header className="flex items-center justify-between">
-            <Modal.Heading>Tambah Unit Peserta</Modal.Heading>
+            <Modal.Heading>Kelola Unit</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
 
@@ -128,6 +133,17 @@ export const UnitPerformanceAddModal: React.FC<UnitPerformanceAddModalProps> = (
                   Setelah ditambahkan, unit muncul sebagai kolom baru pada matriks bobot.
                   Total setiap indikator harus tepat 100% sebelum disimpan.
                 </p>
+                {configuredUnits.length > 0 && (
+                  <div className="flex flex-col gap-2 border-t border-border pt-4">
+                    <p className="text-sm font-medium text-foreground">Unit yang dipilih</p>
+                    <UnitPerformanceParticipants
+                      units={configuredUnits}
+                      canManage={onRemove != null}
+                      isMutating={isSubmitting}
+                      onDelete={(unit) => onRemove?.(unit)}
+                    />
+                  </div>
+                )}
               </Form>
             </Modal.Body>
 
