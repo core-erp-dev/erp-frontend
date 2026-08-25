@@ -9,6 +9,11 @@ import { variablesApi } from '../variables-api';
 jest.mock('../variables-api');
 const mockedApi = jest.mocked(variablesApi);
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 let mockPermissions: Record<string, boolean> = {};
 
 jest.mock('@/hooks/use-permission', () => ({
@@ -54,13 +59,13 @@ describe('Variables page', () => {
   it('shows access denied without read permission', () => {
     mockPermissions = {};
     render(<KpiCorporateVariablesPage />);
-    expect(screen.getByText('Access Denied')).toBeInTheDocument();
+    expect(screen.getByText('Akses Ditolak')).toBeInTheDocument();
   });
 
   it('renders title and variable rows for read-only user', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariablesPage />);
-    expect(await screen.findByRole('heading', { name: 'KPI Variables' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Variabel KPI' })).toBeInTheDocument();
     expect(await screen.findByText('ROI')).toBeInTheDocument();
     expect(screen.getByText('Return on Investment')).toBeInTheDocument();
   });
@@ -69,32 +74,32 @@ describe('Variables page', () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariablesPage />);
     await screen.findByText('ROI');
-    expect(screen.queryByText('Add Variable')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Edit')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Delete')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tambah Variabel')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Edit /)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Hapus /)).not.toBeInTheDocument();
   });
 
   it('manage user sees Add Variable and the Deleted toggle', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporateVariablesPage />);
-    expect(await screen.findByText('Add Variable')).toBeInTheDocument();
-    expect(screen.getByText('Deleted')).toBeInTheDocument();
+    expect(await screen.findByText('Tambah Variabel')).toBeInTheDocument();
+    expect(screen.getByText('Data Terhapus')).toBeInTheDocument();
   });
 
   it('manage user sees row edit/delete actions', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporateVariablesPage />);
     await screen.findByText('ROI');
-    expect(screen.getByLabelText('Edit')).toBeInTheDocument();
-    expect(screen.getByLabelText('Delete')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Edit /)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Hapus /)).toBeInTheDocument();
   });
 
   it('opens the create modal with Add Variable', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporateVariablesPage />);
-    fireEvent.click(await screen.findByText('Add Variable'));
+    fireEvent.click(await screen.findByText('Tambah Variabel'));
     // Modal opens with the code input visible (create mode)
-    expect(await screen.findByPlaceholderText('e.g. ROI')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('Masukkan Kode')).toBeInTheDocument();
   });
 
   it('deleted view fetches deleted variables and offers restore', async () => {
@@ -103,32 +108,32 @@ describe('Variables page', () => {
       { ...sampleVariable, id: 'var-9', code: 'OLD', name: 'Old Variable', deletedAt: '2026-01-02T00:00:00' },
     ]);
     render(<KpiCorporateVariablesPage />);
-    fireEvent.click(await screen.findByText('Deleted'));
+    fireEvent.click(await screen.findByText('Data Terhapus'));
     expect(await screen.findByText('OLD')).toBeInTheDocument();
-    expect(screen.getByLabelText('Restore')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Restore'));
+    expect(screen.getByLabelText(/^Pulihkan /)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/^Pulihkan /));
     await waitFor(() => expect(mockedApi.restore).toHaveBeenCalledWith('var-9'));
   });
 
   it('toggles back to Current view with the same button', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporateVariablesPage />);
-    fireEvent.click(await screen.findByText('Deleted'));
+    fireEvent.click(await screen.findByText('Data Terhapus'));
     // Deleted scope: the toggle reads "Current" and the deleted data was fetched
-    expect(await screen.findByText('Current')).toBeInTheDocument();
+    expect(await screen.findByText('Aktif')).toBeInTheDocument();
     expect(mockedApi.getDeleted).toHaveBeenCalled();
 
-    fireEvent.click(screen.getByText('Current'));
-    expect(await screen.findByText('Deleted')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Aktif'));
+    expect(await screen.findByText('Data Terhapus')).toBeInTheDocument();
   });
 
   it('delete flow confirms then soft-deletes', async () => {
     mockPermissions = { 'corporate_kpi:read': true, 'corporate_kpi:manage': true };
     render(<KpiCorporateVariablesPage />);
     await screen.findByText('ROI');
-    fireEvent.click(screen.getByLabelText('Delete'));
-    expect(await screen.findByText('Delete Variable')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Delete'));
+    fireEvent.click(screen.getByLabelText(/^Hapus /));
+    expect(await screen.findByText('Hapus Variabel')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Hapus', { selector: 'button' }));
     await waitFor(() => expect(mockedApi.softDelete).toHaveBeenCalledWith('var-1'));
   });
 
@@ -139,9 +144,9 @@ describe('Variables page', () => {
     render(<KpiCorporateVariablesPage />);
     await screen.findByText('ROI');
 
-    fireEvent.click(screen.getByLabelText('Edit'));
-    expect(await screen.findByText('Edit Variable')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Save Changes'));
+    fireEvent.click(screen.getByLabelText(/^Edit /));
+    expect(await screen.findByText('Ubah Variabel')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
     await waitFor(() => expect(mockedApi.update).toHaveBeenCalled());
     const payload = mockedApi.update.mock.calls[0][1] as Record<string, unknown>;
     // The persisted ANNUAL_REQUIRED mode is submitted back, not dropped

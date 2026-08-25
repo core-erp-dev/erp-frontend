@@ -46,7 +46,7 @@ export const ValuesSheetTable: React.FC<ValuesSheetTableProps> = ({
   onRetry,
   canEdit,
   tableKey,
-  emptyLabel = 'No variable values found for the selected period.',
+  emptyLabel = 'Belum ada nilai variabel pada periode yang dipilih.',
   onDeleteAnnual,
   deletingId,
 }) => {
@@ -71,7 +71,7 @@ export const ValuesSheetTable: React.FC<ValuesSheetTableProps> = ({
       return (
         <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
           <span className="text-sm text-danger">{error}</span>
-          <Button variant="secondary" size="sm" onPress={onRetry}>Retry</Button>
+          <Button variant="secondary" size="sm" onPress={onRetry}>Coba Lagi</Button>
         </div>
       );
     }
@@ -86,13 +86,13 @@ export const ValuesSheetTable: React.FC<ValuesSheetTableProps> = ({
   return (
     <Table key={tableKey}>
       <Table.ScrollContainer>
-        <Table.Content aria-label="Variable Values" className="min-w-[720px]">
+        <Table.Content aria-label="Nilai Variabel KPI" className="min-w-[720px]">
           <Table.Header>
-            <Table.Column id="code" isRowHeader>Code</Table.Column>
-            <Table.Column id="name">Name</Table.Column>
-            <Table.Column id="unit">Unit</Table.Column>
-            <Table.Column id="mode">Mode</Table.Column>
-            <Table.Column id="value">Value</Table.Column>
+            <Table.Column id="name" isRowHeader>Nama</Table.Column>
+            <Table.Column id="code">Kode</Table.Column>
+            <Table.Column id="unit">Satuan</Table.Column>
+            <Table.Column id="mode">Mode Agregasi</Table.Column>
+            <Table.Column id="value">Nilai</Table.Column>
             {onDeleteAnnual && <Table.Column id="actions" className="text-center">{''}</Table.Column>}
           </Table.Header>
           <Table.Body renderEmptyState={renderEmptyState}>
@@ -101,11 +101,9 @@ export const ValuesSheetTable: React.FC<ValuesSheetTableProps> = ({
               const invalid = invalidRows.has(row.variableId);
               return (
                 <Table.Row key={row.variableId}>
-                  <Table.Cell>
-                    <span className="font-medium text-foreground">{row.variableCode}</span>
-                  </Table.Cell>
                   <Table.Cell className="text-foreground">{row.name}</Table.Cell>
-                  <Table.Cell className="text-muted-foreground">{row.unit || '–'}</Table.Cell>
+                  <Table.Cell><span className="font-medium text-foreground">{row.variableCode}</span></Table.Cell>
+                  <Table.Cell className="text-muted-foreground">{row.unit || '-'}</Table.Cell>
                   <Table.Cell>
                     <Chip size="sm" className="pointer-events-none" variant="soft">
                       {aggregationModeLabel(row.aggregationMode)}
@@ -115,7 +113,7 @@ export const ValuesSheetTable: React.FC<ValuesSheetTableProps> = ({
                     {canEdit ? (
                       <div className="flex items-center gap-2">
                         <TextField
-                          aria-label={`Value for ${row.variableCode}`}
+                          aria-label={`Nilai untuk ${row.name}`}
                           type="number"
                           value={raw}
                           onChange={(val) => onDraftChange?.(row.variableId, val)}
@@ -124,18 +122,18 @@ export const ValuesSheetTable: React.FC<ValuesSheetTableProps> = ({
                           className="w-40"
                           variant="secondary"
                         >
-                          <Label className="sr-only">Value</Label>
+                          <Label className="sr-only">Nilai</Label>
                           <Input
                             step="any"
-                            placeholder={row.value == null ? 'No value' : ''}
+                            placeholder={row.value == null ? 'Masukkan Nilai' : ''}
                             className="text-sm"
                           />
-                          <FieldError>{invalid ? 'Enter a valid number' : ''}</FieldError>
+                          <FieldError>{invalid ? 'Masukkan angka yang valid' : ''}</FieldError>
                         </TextField>
                       </div>
                     ) : (
                       <span className="text-muted-foreground">
-                        {row.value == null ? '–' : row.value}
+                        {row.value == null ? '-' : row.value}
                       </span>
                     )}
                   </Table.Cell>
@@ -146,7 +144,7 @@ export const ValuesSheetTable: React.FC<ValuesSheetTableProps> = ({
                           isIconOnly
                           variant="tertiary"
                           size="sm"
-                          aria-label={`Delete annual value for ${row.variableCode}`}
+                          aria-label={`Hapus nilai tahunan ${row.name}`}
                           isDisabled={deletingId != null}
                           isPending={deletingId === row.variableId}
                           onPress={() => onDeleteAnnual(row)}

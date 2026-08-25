@@ -12,7 +12,11 @@ export const valuesApi = {
    * absent from the query when the period is annual — never sent as 0/null/''.
    */
   getSheet: async (period: SheetPeriod): Promise<VariableValue[]> => {
-    const params: Record<string, number> = { year: period.year };
+    const params: Record<string, number | string> = {
+      year: period.year,
+      sortBy: period.sortBy ?? 'name',
+      sortDirection: period.sortDirection ?? 'asc',
+    };
     if (period.month != null) params.month = period.month;
     const response = await api.get<ApiResponse<VariableValue[]>>(
       '/api/v1/corporate-kpis/variable-values',
@@ -56,5 +60,5 @@ export const valuesApi = {
 
 /** Read-error wrapper. */
 export function extractValuesError(error: unknown): string {
-  return extractErrorMessage(error, 'Failed to load variable values.');
+  return extractErrorMessage(error, 'Gagal memuat nilai variabel.');
 }

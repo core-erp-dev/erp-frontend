@@ -11,9 +11,9 @@ describe('mapVariableError', () => {
       new Error('Cannot change aggregation mode — delete the annual value first'),
       'fallback',
     );
-    expect(message).toContain('Mode cannot be changed while an annual value exists');
-    expect(message).toContain('KPI Values');
-    expect(message).toContain('Delete the annual value first');
+    expect(message).toContain('Mode tidak dapat diubah selama nilai tahunan masih ada');
+    expect(message).toContain('Nilai Variabel KPI');
+    expect(message).toContain('Hapus nilai tahunan terlebih dahulu');
   });
 
   it('maps the annual-value mode mismatch to a clear explanation', () => {
@@ -21,7 +21,7 @@ describe('mapVariableError', () => {
       new Error('Annual values are only allowed for variables with aggregationMode ANNUAL_REQUIRED'),
       'fallback',
     );
-    expect(message).toContain('aggregation mode');
+    expect(message).toContain('mode agregasi');
     expect(message).toContain('ANNUAL_REQUIRED');
   });
 

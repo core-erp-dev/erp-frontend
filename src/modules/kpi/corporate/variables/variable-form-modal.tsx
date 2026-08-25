@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback } from 'react';
-import { useForm, Controller, type Resolver } from 'react-hook-form';
+import { useForm, useWatch, Controller, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -38,13 +38,13 @@ const CODE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 function buildSchema(isEdit: boolean) {
   const base = {
-    name: z.string().min(1, 'Name is required').max(255, 'Name must be at most 255 characters'),
-    unit: z.string().max(50, 'Unit must be at most 50 characters').optional(),
+    name: z.string().min(1, 'Nama wajib diisi').max(255, 'Nama maksimal 255 karakter'),
+    unit: z.string().max(50, 'Satuan maksimal 50 karakter').optional(),
     description: z.string().optional(),
     // Edit: the loaded mode is prefilled; omitting it preserves the stored mode.
     aggregationMode: isEdit
       ? z.string().optional()
-      : z.string().min(1, 'Aggregation mode is required'),
+      : z.string().min(1, 'Mode agregasi wajib dipilih'),
   };
   if (isEdit) {
     // Code is immutable — the edit schema has NO code field at all.
@@ -54,9 +54,9 @@ function buildSchema(isEdit: boolean) {
     ...base,
     code: z
       .string()
-      .min(1, 'Code is required')
-      .max(50, 'Code must be at most 50 characters')
-      .regex(CODE_PATTERN, 'Code must start with an uppercase letter and contain only uppercase letters, digits, and underscores'),
+      .min(1, 'Kode wajib diisi')
+      .max(50, 'Kode maksimal 50 karakter')
+      .regex(CODE_PATTERN, 'Kode harus diawali huruf kapital dan hanya boleh berisi huruf kapital, angka, serta garis bawah'),
   });
 }
 
@@ -87,14 +87,14 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
     aggregationMode: variable?.aggregationMode ?? '',
   };
 
-  const { control, handleSubmit, watch } = useForm<VariableFormValues>({
+  const { control, handleSubmit } = useForm<VariableFormValues>({
     // The create/edit schemas produce different input shapes (code + required
     // mode vs mode-optional); the resolver is structurally compatible.
     resolver: zodResolver(schema) as Resolver<VariableFormValues>,
     defaultValues: initial,
   });
 
-  const selectedMode = watch('aggregationMode');
+  const selectedMode = useWatch({ control, name: 'aggregationMode' });
   const selectedModeDescription = selectedMode
     ? AGGREGATION_MODE_DESCRIPTIONS[selectedMode as keyof typeof AGGREGATION_MODE_DESCRIPTIONS]
     : undefined;
@@ -135,7 +135,7 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[480px]">
             <Modal.Header className="flex items-center justify-between">
-              <Modal.Heading>{isEdit ? 'Edit Variable' : 'Add Variable'}</Modal.Heading>
+              <Modal.Heading>{isEdit ? 'Ubah Variabel' : 'Tambah Variabel'}</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
 
@@ -148,7 +148,7 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                   e.preventDefault();
                   handleSubmit(
                     onFormSubmit as (data: VariableFormValues) => Promise<void>,
-                    (formErrors) => console.log('FORM ERRORS', formErrors),
+                    () => undefined,
                   )();
                 }}
                 className="flex flex-col gap-4"
@@ -172,8 +172,8 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                         validationBehavior="aria"
                         variant="secondary"
                       >
-                        <Label>Code</Label>
-                        <Input placeholder="e.g. ROI" />
+                        <Label>Kode</Label>
+                        <Input placeholder="Masukkan Kode" />
                         <FieldError>{fieldState.error?.message}</FieldError>
                       </TextField>
                     )}
@@ -197,8 +197,8 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                       validationBehavior="aria"
                       variant="secondary"
                     >
-                      <Label>Name</Label>
-                      <Input placeholder="e.g. Return on Investment" />
+                      <Label>Nama</Label>
+                      <Input placeholder="Masukkan Nama Variabel" />
                       <FieldError>{fieldState.error?.message}</FieldError>
                     </TextField>
                   )}
@@ -220,7 +220,7 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                         validationBehavior="aria"
                         variant="secondary"
                       >
-                        <Label>Aggregation Mode</Label>
+                        <Label>Mode Agregasi</Label>
                         <Select.Trigger>
                           <Select.Value />
                           <Select.Indicator />
@@ -264,8 +264,8 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                       validationBehavior="aria"
                       variant="secondary"
                     >
-                      <Label>Unit</Label>
-                      <Input placeholder="e.g. %" />
+                        <Label>Satuan</Label>
+                        <Input placeholder="Masukkan Satuan" />
                       <FieldError>{fieldState.error?.message}</FieldError>
                     </TextField>
                   )}
@@ -282,7 +282,7 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                       onChange={(e) => field.onChange(e.target.value)}
                       disabled={isSubmitting}
                       variant="secondary"
-                      placeholder="Optional description"
+                      placeholder="Masukkan Deskripsi (opsional)"
                       rows={3}
                     />
                   )}
@@ -292,7 +292,7 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
 
             <Modal.Footer className="flex justify-end gap-2">
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
-                Cancel
+                Batal
               </Button>
               <Button
                 variant="primary"
@@ -301,7 +301,7 @@ export const VariableFormModal: React.FC<VariableFormModalProps> = ({
                 isDisabled={isSubmitting}
                 isPending={isSubmitting}
               >
-                {isEdit ? 'Save Changes' : 'Create'}
+                {isEdit ? 'Simpan Perubahan' : 'Simpan'}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

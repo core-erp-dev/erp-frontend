@@ -37,6 +37,7 @@ export const Copy = createIcon('Copy');
 export const FloppyDisk = createIcon('FloppyDisk');
 export const MagnifyingGlass = createIcon('MagnifyingGlass');
 export const ArrowsClockwise = createIcon('ArrowsClockwise');
+export const FunnelSimple = createIcon('FunnelSimple');
 export const DownloadSimple = createIcon('DownloadSimple');
 export const Eye = createIcon('Eye');
 export const EyeSlash = createIcon('EyeSlash');

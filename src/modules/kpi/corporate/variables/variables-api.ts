@@ -1,16 +1,20 @@
 import { api } from '@/lib/axios';
 import { extractErrorMessage } from '@/types/api';
 import type { ApiResponse } from '@/types/api';
-import type { Variable, CreateVariableRequest, UpdateVariableRequest } from './variables.types';
+import type { Variable, CreateVariableRequest, UpdateVariableRequest, VariableSortField, VariableSortDirection } from './variables.types';
 
 /** Corporate KPI Variables API — CRUD + soft-delete/restore (manage-gated mutations). */
 export const variablesApi = {
   /* ── Reads (corporate_kpi:read) ── */
 
-  list: async (search?: string): Promise<Variable[]> => {
+  list: async (
+    search?: string,
+    sortBy: VariableSortField = 'name',
+    sortDirection: VariableSortDirection = 'asc',
+  ): Promise<Variable[]> => {
     const response = await api.get<ApiResponse<Variable[]>>(
       '/api/v1/corporate-kpis/variables',
-      { params: search ? { search } : {} },
+      { params: { ...(search ? { search } : {}), sortBy, sortDirection } },
     );
     return response.data.data;
   },
@@ -22,8 +26,13 @@ export const variablesApi = {
 
   /* ── Deleted list (corporate_kpi:manage) ── */
 
-  getDeleted: async (): Promise<Variable[]> => {
-    const response = await api.get<ApiResponse<Variable[]>>('/api/v1/corporate-kpis/variables/deleted');
+  getDeleted: async (
+    sortBy: VariableSortField = 'name',
+    sortDirection: VariableSortDirection = 'asc',
+  ): Promise<Variable[]> => {
+    const response = await api.get<ApiResponse<Variable[]>>('/api/v1/corporate-kpis/variables/deleted', {
+      params: { sortBy, sortDirection },
+    });
     return response.data.data;
   },
 
@@ -54,5 +63,5 @@ export const variablesApi = {
 
 /** Read-error wrapper. */
 export function extractVariablesError(error: unknown): string {
-  return extractErrorMessage(error, 'Failed to load variables.');
+  return extractErrorMessage(error, 'Gagal memuat variabel.');
 }

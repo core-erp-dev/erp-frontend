@@ -1,8 +1,7 @@
 import { extractErrorMessage } from '@/types/api';
 
 /**
- * Variables mutation error mapper — backend error details are English, so
- * known details map to friendlier messages and unknown details fall back.
+ * Detail error dari backend dipetakan ke pesan yang konsisten untuk UI.
  */
 export function mapVariableError(error: unknown, fallback: string): string {
   const raw = extractErrorMessage(error, '');
@@ -11,21 +10,21 @@ export function mapVariableError(error: unknown, fallback: string): string {
 
   const known: Record<string, string> = {
     'Corporate KPI variable code already exists':
-      'A variable with this code already exists. Codes are reserved permanently, including deleted variables.',
+      'Variabel dengan kode tersebut sudah ada. Kode tetap dicadangkan termasuk pada data terhapus.',
     'Variable code must match ^[A-Z][A-Z0-9_]*$':
-      'Code must start with an uppercase letter and contain only uppercase letters, digits, and underscores.',
+      'Kode harus diawali huruf kapital dan hanya boleh berisi huruf kapital, angka, serta garis bawah.',
     'Corporate KPI variable not found':
-      'The variable could not be found.',
+      'Variabel tidak ditemukan.',
     'Cannot delete — variable is still referenced by an active indicator':
-      'This variable is still bound to an active indicator and cannot be deleted. Unlink it first.',
+      'Variabel masih digunakan oleh indikator aktif dan tidak dapat dihapus. Lepaskan penggunaannya terlebih dahulu.',
     'Cannot change aggregation mode — delete the annual value first':
-      'Mode cannot be changed while an annual value exists. Delete the annual value first (KPI Values, Year tab), then retry.',
+      'Mode tidak dapat diubah selama nilai tahunan masih ada. Hapus nilai tahunan terlebih dahulu pada Nilai Variabel KPI, tab Tahun.',
     'Annual values are only allowed for variables with aggregationMode ANNUAL_REQUIRED':
-      'Annual values are only allowed for variables with the ANNUAL_REQUIRED aggregation mode.',
+      'Nilai tahunan hanya dapat digunakan untuk variabel dengan mode agregasi ANNUAL_REQUIRED.',
     'Aggregation mode is required':
-      'Aggregation mode is required.',
+      'Mode agregasi wajib dipilih.',
     'ACCESS_DENIED':
-      'You do not have permission to perform this action.',
+      'Anda tidak memiliki izin untuk melakukan tindakan ini.',
   };
 
   for (const [key, message] of Object.entries(known)) {

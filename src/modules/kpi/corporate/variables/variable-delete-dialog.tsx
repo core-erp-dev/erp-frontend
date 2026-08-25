@@ -30,7 +30,7 @@ export const VariableDeleteDialog: React.FC<VariableDeleteDialogProps> = ({
       <Modal.Container>
         <Modal.Dialog className="sm:max-w-[420px]">
           <Modal.Header className="flex items-center justify-between">
-            <Modal.Heading>Delete Variable</Modal.Heading>
+            <Modal.Heading>Hapus Variabel</Modal.Heading>
             <Modal.CloseTrigger />
           </Modal.Header>
 
@@ -38,18 +38,18 @@ export const VariableDeleteDialog: React.FC<VariableDeleteDialogProps> = ({
             <div className="flex items-start gap-3">
               <Trash className="mt-0.5 h-5 w-5 text-danger" />
               <p className="text-sm text-muted-foreground">
-                Delete variable <span className="font-medium text-foreground">{variable.code} — {variable.name}</span>?
-                The code stays reserved and the variable can be restored from the Deleted view.
+                Hapus variabel <span className="font-medium text-foreground">{variable.code} - {variable.name}</span>?
+                Kode tetap digunakan dan variabel dapat dipulihkan dari data terhapus.
               </p>
             </div>
           </Modal.Body>
 
           <Modal.Footer className="flex justify-end gap-2">
             <Button variant="secondary" onPress={onCancel} isDisabled={isPending}>
-              Cancel
+              Batal
             </Button>
             <Button variant="danger" onPress={onConfirm} isPending={isPending} isDisabled={isPending}>
-              Delete
+              Hapus
             </Button>
           </Modal.Footer>
         </Modal.Dialog>

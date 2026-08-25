@@ -92,8 +92,8 @@ describe('Variable form modal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. ROI'), { target: { value: 'ROI' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Return on Investment'), { target: { value: 'ROI' } });
     // No mode selected (Select mock never clicked)
-    fireEvent.click(screen.getByText('Create'));
-    expect(await screen.findByText('Aggregation mode is required')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(await screen.findByText('Mode agregasi wajib dipilih')).toBeInTheDocument();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
@@ -102,7 +102,7 @@ describe('Variable form modal', () => {
     fireEvent.change(screen.getByPlaceholderText('e.g. ROI'), { target: { value: 'ROI' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Return on Investment'), { target: { value: 'ROI' } });
     fireEvent.click(screen.getByTestId('select-aggregation-mode')); // mock selects 'AVERAGE'
-    fireEvent.click(screen.getByText('Create'));
+    fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(mockOnSubmit).toHaveBeenCalledTimes(1));
     expect(mockOnSubmit.mock.calls[0][0]).toMatchObject({
       code: 'ROI',
@@ -114,7 +114,7 @@ describe('Variable form modal', () => {
 
   it('edit form loads and submits the persisted mode explicitly', async () => {
     renderModal({ mode: 'EDIT', variable }); // variable.aggregationMode = 'SUM'
-    fireEvent.click(screen.getByText('Save Changes'));
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
     await waitFor(() => expect(mockOnSubmit).toHaveBeenCalledTimes(1));
     const payload = mockOnSubmit.mock.calls[0][0] as Record<string, unknown>;
     expect(payload).not.toHaveProperty('code');
@@ -126,7 +126,7 @@ describe('Variable form modal', () => {
   it('edit can switch the mode to another enum value', async () => {
     renderModal({ mode: 'EDIT', variable });
     fireEvent.click(screen.getByTestId('select-aggregation-mode')); // mock selects 'AVERAGE'
-    fireEvent.click(screen.getByText('Save Changes'));
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
     await waitFor(() => expect(mockOnSubmit).toHaveBeenCalledTimes(1));
     const payload = mockOnSubmit.mock.calls[0][0] as Record<string, unknown>;
     expect(payload.aggregationMode).toBe('AVERAGE');
@@ -136,9 +136,9 @@ describe('Variable form modal', () => {
     renderModal({ mode: 'CREATE' });
     fireEvent.change(screen.getByPlaceholderText('e.g. ROI'), { target: { value: 'roi' } });
     fireEvent.change(screen.getByPlaceholderText('e.g. Return on Investment'), { target: { value: 'ROI' } });
-    fireEvent.click(screen.getByText('Create'));
+    fireEvent.click(screen.getByText('Simpan'));
     expect(
-      await screen.findByText(/must start with an uppercase letter/),
+      await screen.findByText(/Kode harus diawali huruf kapital/),
     ).toBeInTheDocument();
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });

@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem, SearchField } from '@heroui/react';
-import { Plus, House, ArrowsClockwise, Trash, CheckCircle } from '@phosphor-icons/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Alert, Button, Chip, Breadcrumbs, BreadcrumbsItem, SearchField, Dropdown, Label } from '@heroui/react';
+import { Plus, House, ArrowsClockwise, Trash, CheckCircle, FunnelSimple, Check, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
@@ -10,40 +11,67 @@ import { useVariablesData } from '@/modules/kpi/corporate/variables/use-variable
 import { VariablesTable } from '@/modules/kpi/corporate/variables/variables-table';
 import { VariableFormModal, type VariableFormMode } from '@/modules/kpi/corporate/variables/variable-form-modal';
 import { VariableDeleteDialog } from '@/modules/kpi/corporate/variables/variable-delete-dialog';
-import type { Variable, CreateVariableRequest, UpdateVariableRequest } from '@/modules/kpi/corporate/variables/variables.types';
+import type { Variable, CreateVariableRequest, UpdateVariableRequest, VariableSortDirection, VariableSortField } from '@/modules/kpi/corporate/variables/variables.types';
+
+const SORT_OPTIONS: { field: VariableSortField; direction: VariableSortDirection; label: string }[] = [
+  { field: 'name', direction: 'asc', label: 'Nama (A-Z)' },
+  { field: 'name', direction: 'desc', label: 'Nama (Z-A)' },
+  { field: 'code', direction: 'asc', label: 'Kode (A-Z)' },
+  { field: 'code', direction: 'desc', label: 'Kode (Z-A)' },
+];
 
 export default function KpiCorporateVariablesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { hasPerm } = usePermission();
   const canRead = hasPerm(PERM.CORPORATE_KPI_READ);
   const canManage = hasPerm(PERM.CORPORATE_KPI_MANAGE);
 
-  const [viewMode, setViewMode] = useState<'current' | 'deleted'>('current');
-  const [searchQuery, setSearchQuery] = useState('');
+  const viewMode = searchParams.get('scope') === 'deleted' ? 'deleted' : 'current';
+  const searchQuery = searchParams.get('search') ?? '';
+  const sortBy = searchParams.get('sortBy') === 'code' ? 'code' : 'name';
+  const sortDirection = searchParams.get('sortDirection') === 'desc' ? 'desc' : 'asc';
+  const [searchInput, setSearchInput] = useState(searchQuery);
   const [modalMode, setModalMode] = useState<VariableFormMode | null>(null);
   const [editVariable, setEditVariable] = useState<Variable | undefined>(undefined);
   const [deleteVariable, setDeleteVariable] = useState<Variable | null>(null);
 
   const {
-    variables, deletedList, isLoading, isLoadingDeleted, error, deletedError, hasLoadedDeleted,
+    variables, deletedList, isLoading, isLoadingDeleted, error, deletedError,
     fetchList, fetchDeleted, isMutating, createVariable, updateVariable, deleteVariable: removeVariable, restoreVariable,
   } = useVariablesData();
 
-  // Fetch list on mount and when search changes (debounced by caller)
-  useEffect(() => {
-    if (canRead) fetchList(searchQuery || undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canRead]);
-
-  useEffect(() => {
-    if (viewMode === 'deleted' && !hasLoadedDeleted && canManage) {
-      fetchDeleted();
+  const updateUrl = useCallback((patch: Partial<{ search: string; scope: 'current' | 'deleted'; sortBy: VariableSortField; sortDirection: VariableSortDirection }>) => {
+    const next = { search: searchQuery, scope: viewMode, sortBy, sortDirection, ...patch };
+    const params = new URLSearchParams();
+    if (next.search) params.set('search', next.search);
+    if (next.scope === 'deleted') params.set('scope', 'deleted');
+    if (next.sortBy !== 'name' || next.sortDirection !== 'asc') {
+      params.set('sortBy', next.sortBy);
+      params.set('sortDirection', next.sortDirection);
     }
-  }, [viewMode, hasLoadedDeleted, canManage, fetchDeleted]);
+    const query = params.toString();
+    router.replace(query ? `${KPI_ROUTES.corporateVariables}?${query}` : KPI_ROUTES.corporateVariables, { scroll: false });
+  }, [router, searchQuery, sortBy, sortDirection, viewMode]);
 
-  const handleSearchChange = useCallback((query: string) => {
-    setSearchQuery(query);
-    fetchList(query || undefined);
-  }, [fetchList]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchInput(searchQuery), 0);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchInput !== searchQuery) updateUrl({ search: searchInput });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchInput, searchQuery, updateUrl]);
+
+  useEffect(() => {
+    if (canRead && viewMode === 'current') void fetchList({ search: searchQuery || undefined, sortBy, sortDirection });
+  }, [canRead, fetchList, searchQuery, sortBy, sortDirection, viewMode]);
+
+  useEffect(() => {
+    if (canRead && canManage && viewMode === 'deleted') void fetchDeleted(sortBy, sortDirection);
+  }, [canRead, canManage, fetchDeleted, sortBy, sortDirection, viewMode]);
 
   const openCreate = useCallback(() => {
     setModalMode('CREATE');
@@ -85,12 +113,12 @@ export default function KpiCorporateVariablesPage() {
       <div className="flex w-full flex-col gap-6">
         <Breadcrumbs>
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
-          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+            <BreadcrumbsItem>KPI</BreadcrumbsItem>
           <BreadcrumbsItem>{KPI_LABELS.corporate}</BreadcrumbsItem>
           <BreadcrumbsItem>{KPI_LABELS.corporateVariables}</BreadcrumbsItem>
         </Breadcrumbs>
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariables}</h1>
-        <Alert status="danger">Access Denied</Alert>
+        <Alert status="danger">Akses Ditolak</Alert>
       </div>
     );
   }
@@ -109,7 +137,7 @@ export default function KpiCorporateVariablesPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.corporateVariables}</h1>
-          <Chip size="md" className="pointer-events-none" aria-label={`Total ${totalCount} variables`}>
+          <Chip size="md" className="pointer-events-none" aria-label={`Total ${totalCount} variabel`}>
             {totalCount}
           </Chip>
         </div>
@@ -117,16 +145,16 @@ export default function KpiCorporateVariablesPage() {
           <Button
             isIconOnly
             variant="tertiary"
-            onPress={() => fetchList(searchQuery || undefined)}
-            isDisabled={isLoading}
-            aria-label="Refresh"
+            onPress={() => viewMode === 'deleted' ? fetchDeleted(sortBy, sortDirection) : fetchList({ search: searchQuery || undefined, sortBy, sortDirection })}
+            isDisabled={isLoading || isLoadingDeleted || isMutating}
+            aria-label="Muat ulang variabel"
           >
             <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
           {canManage && viewMode === 'current' && (
             <Button variant="primary" onPress={openCreate}>
               <Plus className="h-4 w-4" />
-              Add Variable
+              Tambah Variabel
             </Button>
           )}
         </div>
@@ -135,32 +163,56 @@ export default function KpiCorporateVariablesPage() {
       {/* Filters row — same pattern as the Corporate KPI page (deleted toggle + search) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* Deleted scope toggle — Positions-style button */}
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Urutkan">
+              <FunnelSimple className="h-4 w-4" />
+              Urutkan
+              {!(sortBy === 'name' && sortDirection === 'asc') && <Check className="h-4 w-4" />}
+            </Button>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                selectedKeys={new Set([`${sortBy}-${sortDirection}`])}
+                selectionMode="single"
+                onAction={(key) => {
+                  const selected = SORT_OPTIONS.find((option) => `${option.field}-${option.direction}` === String(key));
+                  if (selected) updateUrl({ sortBy: selected.field, sortDirection: selected.direction });
+                }}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <Dropdown.Item key={`${option.field}-${option.direction}`} id={`${option.field}-${option.direction}`} textValue={option.label}>
+                    {sortBy === option.field && sortDirection === option.direction && <Check className="h-4 w-4" />}
+                    <Label>{option.label}</Label>
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+          {!(sortBy === 'name' && sortDirection === 'asc') && (
+            <Button isIconOnly variant="tertiary" aria-label="Hapus pengurutan" onPress={() => updateUrl({ sortBy: 'name', sortDirection: 'asc' })}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
           {canManage && (
             <Button
               variant="tertiary"
-              aria-label={viewMode === 'deleted' ? 'Show current' : 'Show deleted'}
-              onPress={() => setViewMode(viewMode === 'deleted' ? 'current' : 'deleted')}
+              aria-label={viewMode === 'deleted' ? 'Tampilkan data aktif' : 'Tampilkan data terhapus'}
+              onPress={() => updateUrl({ scope: viewMode === 'deleted' ? 'current' : 'deleted' })}
             >
-              {viewMode === 'deleted' ? (
-                <CheckCircle className="h-4 w-4" />
-              ) : (
-                <Trash className="h-4 w-4" />
-              )}
-              {viewMode === 'deleted' ? 'Current' : 'Deleted'}
+              {viewMode === 'deleted' ? <CheckCircle className="h-4 w-4" /> : <Trash className="h-4 w-4" />}
+              {viewMode === 'deleted' ? 'Aktif' : 'Data Terhapus'}
             </Button>
           )}
         </div>
         <SearchField
-          aria-label="Search variables"
-          value={searchQuery}
-          onChange={handleSearchChange}
+          aria-label="Cari variabel"
+          value={searchInput}
+          onChange={setSearchInput}
           className="w-72"
         >
           <SearchField.Group>
             <SearchField.SearchIcon />
-            <SearchField.Input placeholder="Search" />
-            <SearchField.ClearButton aria-label="Clear search" />
+            <SearchField.Input placeholder="Cari" />
+            <SearchField.ClearButton aria-label="Hapus pencarian" />
           </SearchField.Group>
         </SearchField>
       </div>
@@ -174,12 +226,13 @@ export default function KpiCorporateVariablesPage() {
         isLoadingDeleted={isLoadingDeleted}
         error={error}
         deletedError={deletedError}
-        onRetry={() => fetchList(searchQuery || undefined)}
-        onRetryDeleted={fetchDeleted}
+        onRetry={() => fetchList({ search: searchQuery || undefined, sortBy, sortDirection })}
+        onRetryDeleted={() => fetchDeleted(sortBy, sortDirection)}
         onCreate={canManage ? openCreate : undefined}
         onEdit={canManage ? openEdit : undefined}
         onDelete={canManage ? (variable) => setDeleteVariable(variable) : undefined}
         onRestore={canManage ? (variable) => restoreVariable(variable.id) : undefined}
+        isMutating={isMutating}
       />
 
       {/* Create/Edit Modal */}

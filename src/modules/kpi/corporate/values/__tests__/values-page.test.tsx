@@ -15,6 +15,31 @@ import type { VariableValueSheetRow } from '../values.types';
 
 jest.mock('../use-variable-values-data');
 
+let mockUrlParams = new URLSearchParams();
+let mockUrlListeners = new Set<() => void>();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    replace: (url: string) => {
+      mockUrlParams = new URLSearchParams(url.split('?')[1] ?? '');
+      mockUrlListeners.forEach((listener) => listener());
+    },
+  }),
+  useSearchParams: () => {
+    const React = jest.requireActual('react') as typeof import('react');
+    const [, forceUpdate] = React.useState(0);
+    React.useEffect(() => {
+      const listener = () => forceUpdate((value) => value + 1);
+      mockUrlListeners.add(listener);
+      return () => mockUrlListeners.delete(listener);
+    }, []);
+    return mockUrlParams;
+  },
+}));
+
+jest.mock('@/modules/kpi/corporate/corporate-kpi-structures-api', () => ({
+  corporateKpiStructuresApi: { list: jest.fn().mockResolvedValue([]) },
+}));
+
 let mockPermissions: Record<string, boolean> = {};
 
 jest.mock('@/hooks/use-permission', () => ({
@@ -62,6 +87,8 @@ let fetchSheetMock: jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockUrlParams = new URLSearchParams();
+  mockUrlListeners = new Set();
   mockPermissions = {};
   fetchSheetMock = jest.fn().mockResolvedValue(undefined);
   mockedHook.mockReturnValue({ ...baseHook, fetchSheet: fetchSheetMock });
@@ -71,25 +98,26 @@ describe('KPI Values page', () => {
   it('shows access denied without read permission', () => {
     mockPermissions = {};
     render(<KpiCorporateVariableValuesPage />);
-    expect(screen.getByText('Access Denied')).toBeInTheDocument();
+    expect(screen.getByText('Akses Ditolak')).toBeInTheDocument();
   });
 
   it('renders the KPI Values title and breadcrumb', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    expect(await screen.findByRole('heading', { name: 'KPI Values' })).toBeInTheDocument();
-    // Breadcrumb + heading both carry the KPI Values label
-    expect(screen.getAllByText('KPI Values').length).toBeGreaterThanOrEqual(2);
+    expect(await screen.findByRole('heading', { name: 'Nilai Variabel KPI' })).toBeInTheDocument();
+    expect(screen.getAllByText('Nilai Variabel KPI').length).toBeGreaterThanOrEqual(2);
   });
 
   it('auto-fetches the MONTHLY sheet on mount (year + month)', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    await screen.findByText('Month');
-    expect(fetchSheetMock).toHaveBeenCalledWith({
+    await screen.findByText('Bulan');
+    await waitFor(() => expect(fetchSheetMock).toHaveBeenCalledWith({
       year: new Date().getFullYear(),
       month: new Date().getMonth() + 1,
-    });
+      sortBy: 'name',
+      sortDirection: 'asc',
+    }));
   });
 
   it('displays values read-only with no page-level action buttons', async () => {
@@ -111,29 +139,35 @@ describe('KPI Values page', () => {
   it('switching to Year refetches the ANNUAL sheet (month omitted) and hides the month selector', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    await screen.findByText('Month');
-    expect(screen.getByLabelText('Select month')).toBeInTheDocument();
+    await screen.findByText('Bulan');
+    expect(screen.getByLabelText('Pilih bulan')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Year'));
+    fireEvent.click(screen.getByText('Tahun'));
     await waitFor(() => expect(fetchSheetMock).toHaveBeenLastCalledWith({
       year: new Date().getFullYear(),
+      sortBy: 'name',
+      sortDirection: 'asc',
     }));
-    expect(screen.queryByLabelText('Select month')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Pilih bulan')).not.toBeInTheDocument();
   });
 
   it('switching back to Month refetches with the month again', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     render(<KpiCorporateVariableValuesPage />);
-    await screen.findByText('Month');
+    await screen.findByText('Bulan');
 
-    fireEvent.click(screen.getByText('Year'));
+    fireEvent.click(screen.getByText('Tahun'));
     await waitFor(() => expect(fetchSheetMock).toHaveBeenLastCalledWith({
       year: new Date().getFullYear(),
+      sortBy: 'name',
+      sortDirection: 'asc',
     }));
-    fireEvent.click(screen.getByText('Month'));
+    fireEvent.click(screen.getByText('Bulan'));
     await waitFor(() => expect(fetchSheetMock).toHaveBeenLastCalledWith({
       year: new Date().getFullYear(),
       month: new Date().getMonth() + 1,
+      sortBy: 'name',
+      sortDirection: 'asc',
     }));
   });
 
@@ -143,20 +177,20 @@ describe('KPI Values page', () => {
     await screen.findByText('Return on Investment');
 
     fireEvent.change(screen.getByTestId('search-kpi-values'), { target: { value: 'NPM' } });
-    expect(screen.getByText('NPM')).toBeInTheDocument();
-    expect(screen.queryByText('Return on Investment')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('NPM')).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Return on Investment')).not.toBeInTheDocument());
 
     fireEvent.change(screen.getByTestId('search-kpi-values'), { target: { value: 'zzz' } });
-    expect(await screen.findByText(/No values match/)).toBeInTheDocument();
+    expect(await screen.findByText(/Tidak ada nilai yang cocok/)).toBeInTheDocument();
   });
 
   it('renders the annual empty state after switching to Year with no rows', async () => {
     mockPermissions = { 'corporate_kpi:read': true };
     mockedHook.mockReturnValue({ ...baseHook, sheet: [], fetchSheet: fetchSheetMock });
     render(<KpiCorporateVariableValuesPage />);
-    fireEvent.click(await screen.findByText('Year'));
+    fireEvent.click(await screen.findByText('Tahun'));
     expect(
-      await screen.findByText('No variables require an annual value for this year.'),
+      await screen.findByText('Tidak ada variabel yang memerlukan nilai tahunan untuk tahun ini.'),
     ).toBeInTheDocument();
   });
 
@@ -172,12 +206,12 @@ describe('KPI Values page', () => {
     mockedHook.mockReturnValue({
       ...baseHook,
       sheet: [],
-      error: 'Failed to load variable values.',
+      error: 'Gagal memuat nilai variabel.',
       fetchSheet: fetchSheetMock,
     });
     render(<KpiCorporateVariableValuesPage />);
-    expect(await screen.findByText('Failed to load variable values.')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Retry'));
+    expect(await screen.findByText('Gagal memuat nilai variabel.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Coba Lagi'));
     expect(fetchSheetMock).toHaveBeenCalledTimes(2);
   });
 });

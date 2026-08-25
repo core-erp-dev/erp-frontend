@@ -41,4 +41,6 @@ export type ValueDraft = Record<string, string>;
 export interface SheetPeriod {
   year: number;
   month?: number;
+  sortBy?: 'name' | 'code';
+  sortDirection?: 'asc' | 'desc';
 }

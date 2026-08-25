@@ -48,45 +48,55 @@ export function useVariableValuesData(): UseVariableValuesDataReturn {
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const loadedKeyRef = useRef<string | null>(null);
+  const loadedPeriodRef = useRef<SheetPeriod | null>(null);
+  const requestRef = useRef(0);
 
   const keyFor = useCallback((period: SheetPeriod) =>
     period.month != null ? `${period.year}-${period.month}` : `${period.year}-annual`, []);
 
   const fetchSheet = useCallback(async (period: SheetPeriod) => {
+    const requestId = ++requestRef.current;
+    const normalizedPeriod: SheetPeriod = {
+      ...period,
+      sortBy: period.sortBy ?? 'name',
+      sortDirection: period.sortDirection ?? 'asc',
+    };
+    const apiPeriod = period.sortBy || period.sortDirection ? normalizedPeriod : period;
     setIsLoading(true);
     setError(null);
+    setSheet([]);
+    setLoadedKey(null);
+    loadedKeyRef.current = null;
     try {
       // Merge the sheet with variable metadata (name/unit/mode) — the backend
       // sheet returns code only, so we join with the variables list.
       const [rows, variables] = await Promise.all([
-        valuesApi.getSheet(period),
-        variablesApi.list(),
+        valuesApi.getSheet(apiPeriod),
+        variablesApi.list(undefined, normalizedPeriod.sortBy, normalizedPeriod.sortDirection),
       ]);
       const merged = mergeRows(rows as VariableValueSheetRow[], variables);
-      if (mountedRef.current) {
+      if (mountedRef.current && requestId === requestRef.current) {
         setSheet(merged);
-        const key = keyFor(period);
+        const key = keyFor(apiPeriod);
         setLoadedKey(key);
         loadedKeyRef.current = key;
+        loadedPeriodRef.current = apiPeriod;
       }
     } catch (err: unknown) {
       const msg = extractValuesError(err);
-      if (mountedRef.current) { setError(msg); setSheet([]); }
+      if (mountedRef.current && requestId === requestRef.current) { setError(msg); setSheet([]); }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoading(false);
+      if (mountedRef.current && requestId === requestRef.current) setIsLoading(false);
     }
   }, [keyFor]);
 
   const refetchLoaded = useCallback(async () => {
-    const key = loadedKeyRef.current;
-    if (!key) return;
-    const [yearStr, scope] = key.split('-');
-    const year = Number(yearStr);
-    const period: SheetPeriod = scope === 'annual' ? { year } : { year, month: Number(scope) };
+    const period = loadedPeriodRef.current;
+    if (!period) return;
     const [rows, variables] = await Promise.all([
       valuesApi.getSheet(period),
-      variablesApi.list(),
+      variablesApi.list(undefined, period.sortBy, period.sortDirection),
     ]);
     if (mountedRef.current) {
       setSheet(mergeRows(rows as VariableValueSheetRow[], variables));
@@ -104,10 +114,10 @@ export function useVariableValuesData(): UseVariableValuesDataReturn {
       } catch {
         // keep the optimistic state if the refetch fails
       }
-      toast.success('Values saved successfully.');
+      toast.success('Nilai berhasil disimpan.');
       return true;
     } catch (err: unknown) {
-      const msg = extractErrorMessage(err, 'Something went wrong while saving the values.');
+      const msg = extractErrorMessage(err, 'Terjadi kesalahan saat menyimpan nilai.');
       if (mountedRef.current) setSaveError(msg);
       toast.danger(msg);
       return false;
@@ -126,10 +136,10 @@ export function useVariableValuesData(): UseVariableValuesDataReturn {
       } catch {
         // keep the sheet as-is if the refetch fails
       }
-      toast.success('Annual value deleted.');
+      toast.success('Nilai tahunan berhasil dihapus.');
       return true;
     } catch (err: unknown) {
-      const msg = extractErrorMessage(err, 'Something went wrong while deleting the annual value.');
+      const msg = extractErrorMessage(err, 'Terjadi kesalahan saat menghapus nilai tahunan.');
       if (mountedRef.current) setSaveError(msg);
       toast.danger(msg);
       return false;
@@ -148,10 +158,10 @@ export function useVariableValuesData(): UseVariableValuesDataReturn {
       } catch {
         // keep the sheet as-is if the refetch fails
       }
-      toast.success('Value removed.');
+      toast.success('Nilai berhasil dihapus.');
       return true;
     } catch (err: unknown) {
-      const msg = extractErrorMessage(err, 'Something went wrong while deleting the value.');
+      const msg = extractErrorMessage(err, 'Terjadi kesalahan saat menghapus nilai.');
       if (mountedRef.current) setSaveError(msg);
       toast.danger(msg);
       return false;

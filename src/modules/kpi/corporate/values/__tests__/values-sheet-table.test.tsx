@@ -61,8 +61,8 @@ describe('values sheet table', () => {
     renderTable({ canEdit: false });
     expect(screen.queryByLabelText('Value for ROI')).not.toBeInTheDocument();
     expect(screen.getByText('12.5')).toBeInTheDocument();
-    // null value shows an em dash in read-only mode
-    expect(screen.getAllByText('–').length).toBeGreaterThan(0);
+    // null value uses the plain hyphen in read-only mode
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
   });
 
   it('marks invalid input and blocks nothing (validation surfaces on Save)', () => {
@@ -79,7 +79,7 @@ describe('values sheet table', () => {
         tableKey="monthly-values"
       />,
     );
-    expect(screen.getByText('Enter a valid number')).toBeInTheDocument();
+    expect(screen.getByText('Masukkan angka yang valid')).toBeInTheDocument();
     rerender(
       <ValuesSheetTable
         sheet={rows}
@@ -98,7 +98,7 @@ describe('values sheet table', () => {
   it('shows the default empty state when no rows exist', () => {
     renderTable({ sheet: [], isLoading: false, error: null });
     expect(
-      screen.getByText('No variable values found for the selected period.'),
+      screen.getByText('Belum ada nilai variabel pada periode yang dipilih.'),
     ).toBeInTheDocument();
   });
 
@@ -113,10 +113,10 @@ describe('values sheet table', () => {
   it('renders a per-row annual delete action only for stored values', () => {
     const onDeleteAnnual = jest.fn();
     renderTable({ tableKey: 'annual-values', onDeleteAnnual });
-    expect(screen.getByLabelText('Delete annual value for NPM')).toBeInTheDocument();
-    expect(screen.getByLabelText('Delete annual value for REV')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hapus nilai tahunan Net Profit Margin')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hapus nilai tahunan Revenue')).toBeInTheDocument();
     // ROI has value null → no delete action (nothing to clear)
-    expect(screen.queryByLabelText('Delete annual value for ROI')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Hapus nilai tahunan Return on Investment')).not.toBeInTheDocument();
   });
 });
 

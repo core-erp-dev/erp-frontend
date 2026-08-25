@@ -14,11 +14,11 @@ describe('aggregation mode constants', () => {
     expect(AGGREGATION_MODES).toEqual(['SUM', 'AVERAGE', 'LAST_NON_NULL', 'ANNUAL_REQUIRED']);
   });
 
-  it('maps each backend value to the intended English label', () => {
-    expect(AGGREGATION_MODE_LABELS.SUM).toBe('Sum');
-    expect(AGGREGATION_MODE_LABELS.AVERAGE).toBe('Average');
-    expect(AGGREGATION_MODE_LABELS.LAST_NON_NULL).toBe('Last Non-Null');
-    expect(AGGREGATION_MODE_LABELS.ANNUAL_REQUIRED).toBe('Annual Value');
+  it('maps each backend value to the intended Indonesian label', () => {
+    expect(AGGREGATION_MODE_LABELS.SUM).toBe('Jumlah');
+    expect(AGGREGATION_MODE_LABELS.AVERAGE).toBe('Rata-rata');
+    expect(AGGREGATION_MODE_LABELS.LAST_NON_NULL).toBe('Nilai Terakhir');
+    expect(AGGREGATION_MODE_LABELS.ANNUAL_REQUIRED).toBe('Nilai Tahunan');
   });
 
   it('provides a concise description for every mode', () => {
@@ -28,8 +28,8 @@ describe('aggregation mode constants', () => {
   });
 
   it('label fallback never fabricates a value for null/unknown input', () => {
-    expect(aggregationModeLabel(null)).toBe('–');
-    expect(aggregationModeLabel(undefined)).toBe('–');
+    expect(aggregationModeLabel(null)).toBe('-');
+    expect(aggregationModeLabel(undefined)).toBe('-');
     expect(aggregationModeLabel('UNKNOWN')).toBe('UNKNOWN');
   });
 });

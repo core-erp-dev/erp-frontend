@@ -13,6 +13,9 @@ export interface Variable {
   updatedAt: string;
 }
 
+export type VariableSortField = 'name' | 'code';
+export type VariableSortDirection = 'asc' | 'desc';
+
 export interface CreateVariableRequest {
   code: string;
   name: string;
