@@ -162,7 +162,7 @@ export default function KpiCorporateVariablesPage() {
             isDisabled={isLoading || isLoadingDeleted || isMutating}
             aria-label="Muat ulang variabel"
           >
-            <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <ArrowsClockwise className={`h-4 w-4 ${isLoading || isLoadingDeleted ? 'animate-spin' : ''}`} />
           </Button>
           {canManage && viewMode === 'current' && (
             <Button variant="primary" onPress={openCreate}>

@@ -41,7 +41,10 @@ function mergeRows(rows: VariableValueSheetRow[], variables: Array<{ id: string;
 
 export function useVariableValuesData(): UseVariableValuesDataReturn {
   const [sheet, setSheet] = useState<VariableValueSheetRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // The first sheet request starts from an effect after period metadata is
+  // resolved. Start loading so the table cannot render a temporary empty
+  // state between those two lifecycle steps.
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);

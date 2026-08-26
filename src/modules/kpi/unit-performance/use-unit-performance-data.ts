@@ -23,7 +23,9 @@ export interface UseUnitPerformanceDataReturn {
 
 export function useUnitPerformanceData(): UseUnitPerformanceDataReturn {
   const [matrix, setMatrix] = useState<UnitPerformanceWeightMatrix | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // The first request starts from an effect. Start in the loading state so
+  // the matrix cannot render an empty state for the render before that effect.
+  const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);

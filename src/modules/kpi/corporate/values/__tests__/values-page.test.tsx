@@ -37,7 +37,9 @@ jest.mock('next/navigation', () => ({
 }));
 
 jest.mock('@/modules/kpi/corporate/corporate-kpi-structures-api', () => ({
-  corporateKpiStructuresApi: { list: jest.fn().mockResolvedValue([]) },
+  corporateKpiStructuresApi: {
+    list: jest.fn().mockResolvedValue([{ year: new Date().getFullYear(), status: 'ACTIVE' }]),
+  },
 }));
 
 let mockPermissions: Record<string, boolean> = {};
@@ -118,6 +120,15 @@ describe('KPI Values page', () => {
       sortBy: 'name',
       sortDirection: 'asc',
     }));
+  });
+
+  it('keeps period selectors enabled while the sheet is refetching', async () => {
+    mockedHook.mockReturnValue({ ...baseHook, isLoading: true, fetchSheet: fetchSheetMock });
+    mockPermissions = { 'corporate_kpi:read': true };
+    render(<KpiCorporateVariableValuesPage />);
+
+    await waitFor(() => expect(screen.getByLabelText('Pilih tahun')).not.toBeDisabled());
+    expect(screen.getByLabelText('Pilih bulan')).not.toBeDisabled();
   });
 
   it('displays values read-only with no page-level action buttons', async () => {

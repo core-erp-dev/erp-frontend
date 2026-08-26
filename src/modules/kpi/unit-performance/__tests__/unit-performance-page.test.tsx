@@ -10,6 +10,7 @@ import UnitPerformancePage from '@/modules/kpi/unit-performance/unit-performance
 import { unitPerformanceApi } from '../unit-performance-api';
 import { organizationUnitApi } from '@/modules/organization/organization-units/services/organization-unit-api';
 import type { UnitPerformanceWeightMatrix } from '../unit-performance.types';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 
 /* ── Mock dependencies ── */
 
@@ -18,6 +19,12 @@ const mockedApi = jest.mocked(unitPerformanceApi);
 
 jest.mock('@/modules/organization/organization-units/services/organization-unit-api');
 const mockedOrgUnitApi = jest.mocked(organizationUnitApi);
+
+jest.mock('@/modules/kpi/corporate/corporate-kpi-structures-api', () => ({
+  corporateKpiStructuresApi: { list: jest.fn() },
+  extractStructureError: jest.fn(() => 'Gagal memuat struktur.'),
+}));
+const mockedStructuresApi = jest.mocked(corporateKpiStructuresApi);
 
 let mockPermissions: Record<string, boolean> = {};
 
@@ -71,6 +78,7 @@ beforeEach(() => {
     weight: null, realization: null, performance: null, status: null,
   });
   mockedApi.delete.mockResolvedValue(undefined);
+  mockedStructuresApi.list.mockResolvedValue([]);
   mockedOrgUnitApi.getUnitTree.mockResolvedValue([
     { id: 'ou-new', parentId: null, parentName: null, unitCode: 'NEW', unitName: 'New Unit',
       unitType: 'DEPARTMENT', children: [] },
@@ -107,11 +115,30 @@ describe('access control', () => {
 });
 
 describe('matrix fetch', () => {
+  it('keeps the period unresolved while structure metadata is loading', () => {
+    let resolveStructures: (value: unknown[]) => void = () => undefined;
+    mockedStructuresApi.list.mockReturnValue(new Promise((resolve) => { resolveStructures = resolve; }));
+    mockPermissions = { 'unit_performance:read': true, 'corporate_kpi:read': true };
+    render(<UnitPerformancePage />);
+
+    expect(screen.getByRole('button', { name: 'Pilih tahun konfigurasi' })).toHaveTextContent('-');
+    expect(mockedApi.getWeightMatrix).not.toHaveBeenCalled();
+    resolveStructures([]);
+  });
+
   it('fetches the weight matrix for the current year by default', async () => {
     mockPermissions = { 'unit_performance:read': true };
     render(<UnitPerformancePage />);
     await screen.findByText('ROE');
     expect(mockedApi.getWeightMatrix).toHaveBeenCalledWith(new Date().getFullYear());
+  });
+
+  it('keeps the year selector enabled while the matrix is refetching', () => {
+    mockedApi.getWeightMatrix.mockReturnValue(new Promise(() => undefined));
+    mockPermissions = { 'unit_performance:read': true };
+    render(<UnitPerformancePage />);
+
+    expect(screen.getByRole('button', { name: 'Pilih tahun konfigurasi' })).not.toBeDisabled();
   });
 });
 

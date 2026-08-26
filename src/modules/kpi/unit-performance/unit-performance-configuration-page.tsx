@@ -35,9 +35,9 @@ function flattenOrgUnits(nodes: OrganizationUnitResponse[]): OrganizationUnitRes
   return result;
 }
 
-function parseYear(value: string | null): number {
+function parseYear(value: string | null): number | null {
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : new Date().getFullYear();
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 const EMPTY_MATRIX = (year: number): Matrix => ({
@@ -59,7 +59,7 @@ export const UnitPerformanceConfigurationPage: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const urlYear = parseYear(searchParams.get('year'));
   const [structures, setStructures] = useState<CorporateKpiStructure[]>([]);
-  const [isLoadingStructures, setIsLoadingStructures] = useState(canReadCorporateKpi);
+  const [isLoadingStructures, setIsLoadingStructures] = useState(true);
   const [structuresError, setStructuresError] = useState<string | null>(null);
   const structureRequestRef = useRef(0);
   const [orgUnits, setOrgUnits] = useState<OrganizationUnitResponse[]>([]);
@@ -73,10 +73,19 @@ export const UnitPerformanceConfigurationPage: React.FC = () => {
     () => canReadCorporateKpi ? getCorporateKpiValueYearOptions(structures) : [currentYear],
     [canReadCorporateKpi, currentYear, structures],
   );
-  const selectedYear = years.includes(urlYear) ? urlYear : getCorporateKpiDefaultValueYear(years, currentYear);
+  const selectedYear = years.length > 0 && urlYear != null && years.includes(urlYear)
+    ? urlYear
+    : canReadCorporateKpi
+      ? getCorporateKpiDefaultValueYear(years, currentYear)
+      : currentYear;
+  const yearIsCanonical = selectedYear != null && (urlYear === selectedYear || (urlYear == null && selectedYear === currentYear));
   const tableMatrix = matrix ?? EMPTY_MATRIX(selectedYear ?? currentYear);
-  const tableLoading = isLoadingStructures || isLoading;
   const tableError = structuresError ?? error;
+  const periodNeedsResolution = canReadCorporateKpi
+    && !structuresError
+    && (isLoadingStructures || !yearIsCanonical);
+  const tableLoading = !tableError && (periodNeedsResolution || (selectedYear != null && isLoading));
+  const periodSelectionLoading = canReadCorporateKpi && (isLoadingStructures || selectedYear == null || years.length === 0);
   const validation = useMemo(() => getMatrixValidation(tableMatrix, draft), [draft, tableMatrix]);
 
   const updateYearUrl = useCallback((year: number) => {
@@ -104,12 +113,12 @@ export const UnitPerformanceConfigurationPage: React.FC = () => {
   }, [canReadCorporateKpi, loadStructures]);
 
   useEffect(() => {
-    if (!isLoadingStructures && selectedYear != null && selectedYear !== urlYear) updateYearUrl(selectedYear);
-  }, [isLoadingStructures, selectedYear, updateYearUrl, urlYear]);
+    if (canReadCorporateKpi && !isLoadingStructures && !structuresError && selectedYear != null && !yearIsCanonical) updateYearUrl(selectedYear);
+  }, [canReadCorporateKpi, isLoadingStructures, selectedYear, structuresError, updateYearUrl, yearIsCanonical]);
 
   useEffect(() => {
-    if (canRead && !isLoadingStructures && !structuresError && selectedYear != null && selectedYear === urlYear) void fetchMatrix(selectedYear);
-  }, [canRead, fetchMatrix, isLoadingStructures, selectedYear, structuresError, urlYear]);
+    if (canRead && !isLoadingStructures && !structuresError && selectedYear != null && (!canReadCorporateKpi || yearIsCanonical)) void fetchMatrix(selectedYear);
+  }, [canRead, canReadCorporateKpi, fetchMatrix, isLoadingStructures, selectedYear, structuresError, yearIsCanonical]);
 
   useEffect(() => {
     setIsEditing(false);
@@ -174,7 +183,7 @@ export const UnitPerformanceConfigurationPage: React.FC = () => {
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs><BreadcrumbsItem href="/" aria-label="Beranda"><House className="h-4 w-4" /></BreadcrumbsItem><BreadcrumbsItem>KPI</BreadcrumbsItem><BreadcrumbsItem>KPI Unit</BreadcrumbsItem><BreadcrumbsItem>{KPI_LABELS.unitPerformanceConfiguration}</BreadcrumbsItem></Breadcrumbs>
       <div className="flex items-center justify-between"><div className="flex items-center gap-3"><h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.unitPerformanceConfiguration}</h1><Chip size="md" className="pointer-events-none" aria-label={`Total ${tableMatrix.indicators.length} indikator`}>{tableMatrix.indicators.length}</Chip></div><div className="flex items-center gap-2"><Button isIconOnly variant="tertiary" onPress={handleRetry} isDisabled={tableLoading || isMutating} aria-label="Muat ulang konfigurasi Performa Unit"><ArrowsClockwise className={`h-4 w-4 ${tableLoading ? 'animate-spin' : ''}`} /></Button>{canManage && (isEditing ? <><Button variant="secondary" onPress={cancelEditing} isDisabled={isMutating}>Batal</Button><Button variant="primary" onPress={handleSave} isPending={isMutating} isDisabled={isMutating || !validation.allValid}><FloppyDisk className="h-4 w-4" />Simpan</Button></> : <><Button variant="secondary" onPress={() => setAddOpen(true)} isDisabled={tableLoading || isMutating}>Tambah Unit</Button><Button variant="primary" onPress={startEditing} isDisabled={tableLoading || isMutating || selectedYear == null || tableMatrix.indicators.length === 0 || tableMatrix.units.length === 0}><PencilSimple className="h-4 w-4" />Atur Bobot</Button></>)}</div></div>
-      <div className="flex items-center gap-2"><Dropdown><Button variant="tertiary" aria-label="Pilih tahun konfigurasi" isDisabled={tableLoading || isMutating}>{selectedYear ?? '-'}<CaretDown className="h-4 w-4" /></Button><Dropdown.Popover><Dropdown.Menu onAction={(key) => handleYearChange(Number(key))}>{years.map((year) => <Dropdown.Item key={year} id={String(year)} textValue={String(year)}>{year}</Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown></div>
+      <div className="flex items-center gap-2"><Dropdown><Button variant="tertiary" aria-label="Pilih tahun konfigurasi" isDisabled={periodSelectionLoading || isMutating}>{selectedYear ?? '-'}<CaretDown className="h-4 w-4" /></Button><Dropdown.Popover><Dropdown.Menu onAction={(key) => handleYearChange(Number(key))}>{years.map((year) => <Dropdown.Item key={year} id={String(year)} textValue={String(year)}>{year}</Dropdown.Item>)}</Dropdown.Menu></Dropdown.Popover></Dropdown></div>
       <UnitPerformanceWeightMatrix matrix={tableMatrix} draft={draft} canEdit={isEditing && canManage} isLoading={tableLoading} error={tableError} onRetry={handleRetry} onDraftChange={handleDraftChange} onDeleteUnit={canManage ? setDeleteTarget : undefined} isUnitActionDisabled={isEditing || isMutating || tableLoading} />
       {addOpen && <UnitPerformanceAddModal isOpen onClose={() => setAddOpen(false)} onSubmit={handleAddUnit} orgUnits={availableUnits} isSubmitting={isMutating} />}
       {deleteTarget && <UnitPerformanceDeleteDialog row={deleteTarget} isOpen isPending={isMutating} onConfirm={handleDelete} onCancel={() => setDeleteTarget(null)} />}

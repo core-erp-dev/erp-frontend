@@ -7,7 +7,7 @@ import { MONTH_NAMES_ID } from '@/modules/kpi/corporate/period-label';
 
 export interface UnitPerformanceFiltersProps {
   periodMode: 'monthly' | 'annual';
-  selectedYear: number;
+  selectedYear: number | null;
   years: number[];
   selectedMonth: number;
   searchQuery: string;
@@ -40,8 +40,8 @@ export const UnitPerformanceFilters: React.FC<UnitPerformanceFiltersProps> = ({
       </Tabs>
 
       <Dropdown>
-        <Button variant="tertiary" aria-label="Pilih tahun">
-          {selectedYear}<CaretDown className="h-4 w-4" />
+        <Button variant="tertiary" aria-label="Pilih tahun" isDisabled={selectedYear == null || years.length === 0}>
+          {selectedYear ?? '-'}<CaretDown className="h-4 w-4" />
         </Button>
         <Dropdown.Popover>
           <Dropdown.Menu onAction={(key) => onYearChange(Number(key))}>
@@ -52,7 +52,7 @@ export const UnitPerformanceFilters: React.FC<UnitPerformanceFiltersProps> = ({
 
       {periodMode === 'monthly' && (
         <Dropdown>
-          <Button variant="tertiary" aria-label="Pilih bulan">
+          <Button variant="tertiary" aria-label="Pilih bulan" isDisabled={selectedYear == null}>
             {MONTH_NAMES_ID[selectedMonth - 1] ?? selectedMonth}<CaretDown className="h-4 w-4" />
           </Button>
           <Dropdown.Popover>

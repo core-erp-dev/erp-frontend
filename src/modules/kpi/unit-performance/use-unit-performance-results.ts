@@ -15,7 +15,9 @@ export interface UseUnitPerformanceResultsReturn {
 /** Read-only result surface. Each period request owns its loading/data state. */
 export function useUnitPerformanceResults(): UseUnitPerformanceResultsReturn {
   const [rows, setRows] = useState<UnitPerformanceRow[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // The first request starts from an effect. Start in the loading state so
+  // the table cannot render an empty state for the render before that effect.
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const requestRef = useRef(0);

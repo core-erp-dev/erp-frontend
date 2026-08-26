@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Breadcrumbs, BreadcrumbsItem, Button, Chip } from '@heroui/react';
 import { ArrowsClockwise, House } from '@phosphor-icons/react';
@@ -18,9 +18,9 @@ import type { UnitPerformanceRow } from '@/modules/kpi/unit-performance/unit-per
 
 const PAGE_SIZE = 10;
 
-function parseYear(value: string | null, fallback: number): number {
+function parseYear(value: string | null): number | null {
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function parseMonth(value: string | null, fallback: number): number {
@@ -47,37 +47,39 @@ export default function UnitPerformancePage() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const periodMode: 'monthly' | 'annual' = searchParams.get('period') === 'annual' ? 'annual' : 'monthly';
-  const selectedYear = parseYear(searchParams.get('year'), currentYear);
+  const urlYear = parseYear(searchParams.get('year'));
   const selectedMonth = parseMonth(searchParams.get('month'), currentMonth);
   const searchQuery = searchParams.get('search') ?? '';
   const selectedPage = parsePage(searchParams.get('page'));
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [searchInput, setSearchInput] = useState(searchQuery);
   const [isSearchTransitioning, setIsSearchTransitioning] = useState(false);
-  const transitionRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { years: availableYears, isLoading: isPeriodLoading, error: periodError, refetch: refetchPeriods } = useUnitPerformancePeriods(canReadCorporateKpi);
   const { rows, isLoading, error, fetchPerformance } = useUnitPerformanceResults();
+
+  // A period backed by KPI structures is not valid until that metadata has
+  // loaded. Keep the selector at '-' and do not issue a request for a
+  // calendar-year guess while the valid year is being resolved.
+  const selectedYear = canReadCorporateKpi
+    ? availableYears !== null && availableYears.length > 0
+      ? urlYear != null && availableYears.includes(urlYear)
+        ? urlYear
+        : getCorporateKpiDefaultValueYear(availableYears, currentYear)
+      : null
+    : urlYear ?? currentYear;
 
   const updateUrl = useCallback((patch: Partial<{ period: 'monthly' | 'annual'; year: number; month: number; search: string; page: number }>) => {
     const next = { period: periodMode, year: selectedYear, month: selectedMonth, search: searchQuery, page: selectedPage, ...patch };
     const params = new URLSearchParams();
     if (next.period === 'annual') params.set('period', 'annual');
-    if (next.year !== currentYear) params.set('year', String(next.year));
+    if (next.year != null && next.year !== currentYear) params.set('year', String(next.year));
     if (next.period === 'monthly' && next.month !== currentMonth) params.set('month', String(next.month));
     if (next.search) params.set('search', next.search);
     if (next.page > 1) params.set('page', String(next.page));
     router.replace(params.toString() ? `${KPI_ROUTES.unitPerformance}?${params.toString()}` : KPI_ROUTES.unitPerformance, { scroll: false });
   }, [currentMonth, currentYear, periodMode, router, searchQuery, selectedMonth, selectedPage, selectedYear]);
 
-  const markTransition = useCallback(() => {
-    setIsTransitioning(true);
-    if (transitionRef.current) clearTimeout(transitionRef.current);
-    transitionRef.current = setTimeout(() => setIsTransitioning(false), 150);
-  }, []);
-
-  useEffect(() => () => {
-    if (transitionRef.current) clearTimeout(transitionRef.current);
-  }, []);
+  const markTransition = useCallback(() => setIsTransitioning(true), []);
 
   useEffect(() => {
     setSearchInput(searchQuery);
@@ -94,31 +96,33 @@ export default function UnitPerformancePage() {
 
   const hasValidSelectedYear = !canReadCorporateKpi
     ? true
-    : availableYears !== null && availableYears.length > 0 && availableYears.includes(selectedYear);
+    : selectedYear != null && availableYears !== null && availableYears.includes(selectedYear);
+  const rawMonth = searchParams.get('month');
+  const monthNeedsResolution = periodMode === 'monthly' && rawMonth !== null && Number(rawMonth) !== selectedMonth;
+  const periodNeedsResolution = monthNeedsResolution || (canReadCorporateKpi
+    && (availableYears === null || (selectedYear != null && urlYear !== selectedYear && !(urlYear == null && selectedYear === currentYear))));
 
   useEffect(() => {
-    if (!canReadCorporateKpi || availableYears === null || availableYears.length === 0 || hasValidSelectedYear) return;
-    const fallbackYear = getCorporateKpiDefaultValueYear(availableYears, currentYear);
-    if (fallbackYear !== null) {
-      markTransition();
-      updateUrl({ year: fallbackYear, page: 1 });
-    }
-  }, [availableYears, canReadCorporateKpi, currentYear, hasValidSelectedYear, markTransition, updateUrl]);
+    const yearIsCanonical = selectedYear != null && (urlYear === selectedYear || (urlYear == null && selectedYear === currentYear));
+    if (!canReadCorporateKpi || availableYears === null || availableYears.length === 0 || selectedYear == null || yearIsCanonical) return;
+    updateUrl({ year: selectedYear, page: 1 });
+  }, [availableYears, canReadCorporateKpi, currentYear, selectedYear, updateUrl, urlYear]);
 
   useEffect(() => {
-    const rawMonth = searchParams.get('month');
-    if (periodMode === 'monthly' && rawMonth !== null && Number(rawMonth) !== selectedMonth) {
+    if (monthNeedsResolution) {
       markTransition();
       updateUrl({ month: selectedMonth, page: 1 });
     }
-  }, [markTransition, periodMode, searchParams, selectedMonth, updateUrl]);
+  }, [markTransition, monthNeedsResolution, selectedMonth, updateUrl]);
 
   useEffect(() => {
-    if (!canRead || isPeriodLoading || periodError || !hasValidSelectedYear) return;
+    if (!canRead || isPeriodLoading || periodError || !hasValidSelectedYear || selectedYear == null || periodNeedsResolution) return;
+    setIsTransitioning(false);
     void fetchPerformance(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined);
-  }, [canRead, fetchPerformance, hasValidSelectedYear, isPeriodLoading, periodError, periodMode, selectedMonth, selectedYear]);
+  }, [canRead, fetchPerformance, hasValidSelectedYear, isPeriodLoading, periodError, periodMode, periodNeedsResolution, selectedMonth, selectedYear]);
 
   const filteredRows = useMemo(() => filterRows(rows, searchQuery), [rows, searchQuery]);
+  const selectableYears = canReadCorporateKpi ? availableYears ?? [] : selectedYear != null ? [selectedYear] : [];
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(selectedPage, totalPages);
   const pageRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -137,12 +141,13 @@ export default function UnitPerformancePage() {
       void refetchPeriods();
       return;
     }
+    if (selectedYear == null) return;
     void fetchPerformance(selectedYear, periodMode === 'monthly' ? selectedMonth : undefined);
   }, [fetchPerformance, periodError, periodMode, refetchPeriods, selectedMonth, selectedYear]);
 
   const getDetailHref = useCallback((id: string) => {
     const query = new URLSearchParams();
-    query.set('year', String(selectedYear));
+    if (selectedYear != null) query.set('year', String(selectedYear));
     if (periodMode === 'annual') query.set('period', 'annual');
     else query.set('month', String(selectedMonth));
     for (const key of ['period', 'year', 'month', 'search', 'page']) {
@@ -156,13 +161,13 @@ export default function UnitPerformancePage() {
   if (!canRead) return <ForbiddenAccess />;
 
   const tableError = periodError ?? error;
-  const tableLoading = isLoading || isPeriodLoading;
+  const tableLoading = !tableError && ((selectedYear != null && isLoading) || isPeriodLoading || periodNeedsResolution);
 
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs><BreadcrumbsItem href="/" aria-label="Beranda"><House className="h-4 w-4" /></BreadcrumbsItem><BreadcrumbsItem>KPI</BreadcrumbsItem><BreadcrumbsItem>KPI Unit</BreadcrumbsItem><BreadcrumbsItem>{KPI_LABELS.unitPerformance}</BreadcrumbsItem></Breadcrumbs>
       <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.unitPerformance}</h1><Chip size="md" className="pointer-events-none" aria-label={`Total ${filteredRows.length} hasil`}>{filteredRows.length}</Chip></div><Button isIconOnly variant="tertiary" onPress={handleRetry} isDisabled={tableLoading} aria-label="Muat ulang Performa Unit"><ArrowsClockwise className={`h-4 w-4 ${tableLoading ? 'animate-spin' : ''}`} /></Button></div>
-      <UnitPerformanceFilters periodMode={periodMode} selectedYear={selectedYear} years={availableYears ?? [selectedYear]} selectedMonth={selectedMonth} searchQuery={searchInput} onPeriodModeChange={handlePeriodChange} onYearChange={handleYearChange} onMonthChange={handleMonthChange} onSearchChange={handleSearchChange} />
+      <UnitPerformanceFilters periodMode={periodMode} selectedYear={selectedYear} years={selectableYears} selectedMonth={selectedMonth} searchQuery={searchInput} onPeriodModeChange={handlePeriodChange} onYearChange={handleYearChange} onMonthChange={handleMonthChange} onSearchChange={handleSearchChange} />
       <UnitPerformanceResultsTable rows={pageRows} isLoading={tableLoading} error={tableError} isTransitioning={isTransitioning || isSearchTransitioning} searchQuery={searchQuery} onRetry={handleRetry} currentPage={safePage} totalPages={totalPages} totalItems={filteredRows.length} pageSize={PAGE_SIZE} onPageChange={handlePageChange} getDetailHref={getDetailHref} />
     </div>
   );

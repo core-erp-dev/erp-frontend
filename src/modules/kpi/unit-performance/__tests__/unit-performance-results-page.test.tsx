@@ -3,9 +3,16 @@ import { render, screen } from '@testing-library/react';
 import UnitPerformancePage from '@/app/(main)/kpi/unit-performance/page';
 import { unitPerformanceApi } from '../unit-performance-api';
 import type { UnitPerformanceRow } from '../unit-performance.types';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 
 jest.mock('../unit-performance-api');
 const mockedApi = jest.mocked(unitPerformanceApi);
+
+jest.mock('@/modules/kpi/corporate/corporate-kpi-structures-api', () => ({
+  corporateKpiStructuresApi: { list: jest.fn() },
+  extractStructureError: jest.fn(() => 'Gagal memuat struktur.'),
+}));
+const mockedStructuresApi = jest.mocked(corporateKpiStructuresApi);
 
 let mockPermissions: Record<string, boolean> = {};
 jest.mock('@/hooks/use-permission', () => ({
@@ -29,6 +36,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockPermissions = {};
   mockedApi.getPerformance.mockResolvedValue([row]);
+  mockedStructuresApi.list.mockResolvedValue([]);
 });
 
 it('guards the result page before fetching', async () => {
@@ -56,4 +64,22 @@ it('fetches and renders the result contract without exposing matrix editing', as
   expect(screen.queryByText('Nilai')).not.toBeInTheDocument();
   expect(screen.queryByText('Target Nilai Renbis')).not.toBeInTheDocument();
   expect(screen.queryByText('Simpan Matriks Bobot')).not.toBeInTheDocument();
+});
+
+it('keeps the period unresolved while structure metadata is loading', () => {
+  mockedStructuresApi.list.mockReturnValue(new Promise(() => undefined));
+  mockPermissions = { 'unit_performance:read': true, 'corporate_kpi:read': true };
+  render(<UnitPerformancePage />);
+
+  expect(screen.getByRole('button', { name: 'Pilih tahun' })).toHaveTextContent('-');
+  expect(mockedApi.getPerformance).not.toHaveBeenCalled();
+});
+
+it('keeps period selectors enabled while results are refetching', () => {
+  mockedApi.getPerformance.mockReturnValue(new Promise(() => undefined));
+  mockPermissions = { 'unit_performance:read': true };
+  render(<UnitPerformancePage />);
+
+  expect(screen.getByRole('button', { name: 'Pilih tahun' })).not.toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Pilih bulan' })).not.toBeDisabled();
 });
