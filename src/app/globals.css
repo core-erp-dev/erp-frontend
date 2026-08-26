@@ -10,6 +10,28 @@ body {
   background-color: #f5f5f5;
 }
 
+/*
+ * Data-table density baseline
+ *
+ * HeroUI's Table.Cell owns the vertical padding.  A minimum cell height keeps
+ * text-only rows aligned with rows that contain a small action button or
+ * chip, without forcing a fixed height: wrapped text and validation messages
+ * are still allowed to grow naturally.
+ */
+:root {
+  /* 36px mobile Button--sm + 24px shared cell padding. */
+  --table-row-min-height: 3.75rem;
+}
+
+.table-root .table__cell {
+  height: var(--table-row-min-height);
+}
+
+/* Text inputs otherwise add their own py-2 on top of the cell's py-3. */
+.table-root .table__cell .input {
+  @apply py-1.5;
+}
+
 /* @media (prefers-color-scheme: dark) {
   body {
     background-color: #060607;

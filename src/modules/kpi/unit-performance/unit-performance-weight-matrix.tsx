@@ -165,13 +165,13 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
               const complete = totalCents === 10000;
               return (
                 <Table.Row key={indicator.id}>
-                  <Table.Cell className="whitespace-nowrap py-3 font-medium text-foreground">{indicator.code}</Table.Cell>
-                  <Table.Cell className="whitespace-nowrap py-3 text-foreground">{indicator.name}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap font-medium text-foreground">{indicator.code}</Table.Cell>
+                  <Table.Cell className="whitespace-nowrap text-foreground">{indicator.name}</Table.Cell>
                   {matrix.units.map((unit) => {
                     const value = cellValue(matrix, draft, indicator.id, unit.id);
                     const invalid = value.trim() !== '' && toWeightCents(value) == null;
                     return (
-                      <Table.Cell key={unit.id} className="py-3">
+                      <Table.Cell key={unit.id}>
                         {canEdit ? (
                           <TextField
                             aria-label={`${indicator.code} ${indicator.name} - ${unit.unitName} Bobot`}
@@ -193,7 +193,7 @@ export const UnitPerformanceWeightMatrix: React.FC<UnitPerformanceWeightMatrixPr
                       </Table.Cell>
                     );
                   })}
-                  <Table.Cell className="py-3">
+                  <Table.Cell>
                     <Chip size="sm" variant="soft" color={complete ? 'success' : 'danger'} className="font-medium">
                       {formatCents(totalCents)}%
                     </Chip>
