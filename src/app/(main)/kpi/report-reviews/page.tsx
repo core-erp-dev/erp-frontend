@@ -12,6 +12,11 @@ import { ReportDetailModal } from '@/modules/kpi/report/report-detail-modal';
 import { ReportReviewDialog } from '@/modules/kpi/report/report-review-dialog';
 import { ReassignReviewerDialog } from '@/modules/kpi/admin/reassign-reviewer-dialog';
 import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
+import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
+import { paginateKpiItems, useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
+import { useDebounce } from '@/hooks/use-debounce';
+
+const REPORT_REVIEW_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], defaultSort: 'activityName', defaultDirection: 'asc' as const, filterOptions: ['PENDING', 'APPROVED', 'REJECTED'] };
 
 /**
  * Report Reviews (`/kpi/report-reviews`) — the review queue for the active user.
@@ -37,6 +42,13 @@ export default function KpiReportReviewsPage() {
     isApproving, isRejecting,
     recoverable, clearRecoverable,
   } = useReportData();
+  const tableState = useKpiTableState(REPORT_REVIEW_TABLE_STATE);
+  const { filters: tableFilters, setSearch } = tableState;
+  const [searchInput, setSearchInput] = useState(tableState.filters.search);
+  const debouncedSearch = useDebounce(searchInput, 400);
+  useEffect(() => { if (debouncedSearch !== tableFilters.search) setSearch(debouncedSearch); }, [debouncedSearch, tableFilters.search, setSearch]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
 
   // Fetch on mount (direct-load / refresh safe)
   useEffect(() => {
@@ -97,6 +109,16 @@ export default function KpiReportReviewsPage() {
     setReassignReport(null);
   }, []);
 
+  const visibleReports = toReview.filter((report) =>
+    (!tableState.filters.search || report.activityName.toLowerCase().includes(tableState.filters.search.toLowerCase()))
+    && (!tableState.filters.filter || report.status === tableState.filters.filter),
+  ).sort((left, right) => {
+    const leftValue = tableState.filters.sortBy === 'createdAt' ? left.createdAt : left.activityName;
+    const rightValue = tableState.filters.sortBy === 'createdAt' ? right.createdAt : right.activityName;
+    return leftValue.localeCompare(rightValue, 'id-ID') * (tableState.filters.direction === 'desc' ? -1 : 1);
+  });
+  const pagedReports = paginateKpiItems(visibleReports, tableState.filters.page);
+
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
@@ -109,7 +131,7 @@ export default function KpiReportReviewsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.reportReviews}</h1>
         <div className="flex items-center gap-2">
-          <Button isIconOnly variant="tertiary" onPress={fetchToReview} isDisabled={isLoadingReview} aria-label="Refresh">
+          <Button isIconOnly variant="tertiary" onPress={fetchToReview} isDisabled={isLoadingReview} aria-label="Muat ulang laporan">
             <ArrowsClockwise className={`h-4 w-4 ${isLoadingReview ? 'animate-spin' : ''}`} />
           </Button>
         </div>
@@ -138,13 +160,31 @@ export default function KpiReportReviewsPage() {
         </div>
       )}
 
+      <KpiTableToolbar
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        searchLabel="Cari laporan"
+        filterOptions={[{ id: 'PENDING', label: 'Menunggu Persetujuan' }, { id: 'APPROVED', label: 'Disetujui' }, { id: 'REJECTED', label: 'Ditolak' }]}
+        selectedFilterIds={tableState.filters.filter ? new Set([tableState.filters.filter]) : new Set()}
+        onFilterChange={(selection) => { const selected = selection instanceof Set ? Array.from(selection)[0] : undefined; tableState.setFilter(String(selected ?? '')); }}
+        sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
+        selectedSortId={`${tableState.filters.sortBy}:${tableState.filters.direction}`}
+        onSortChange={(selection) => { const selected = selection instanceof Set ? String(Array.from(selection)[0] ?? '') : ''; const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc']; if (field && direction) tableState.setSort(field, direction); }}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.sortBy !== REPORT_REVIEW_TABLE_STATE.defaultSort || tableState.filters.direction !== 'asc')}
+        onReset={() => { setSearchInput(''); tableState.reset(); }}
+      />
+
       <ReportTable
-        items={toReview}
-        isLoading={isLoadingReview}
+        items={pagedReports.items}
+        isLoading={isLoadingReview || tableState.isQueryLoading}
         error={reviewError}
         mode="TO_REVIEW"
         onViewDetail={openDetail}
         onReassignReviewer={canReassignReviewer ? openReassignReviewer : undefined}
+        totalItems={pagedReports.totalItems}
+        currentPage={pagedReports.page}
+        totalPages={pagedReports.totalPages}
+        onPageChange={tableState.setPage}
       />
 
       {/* Detail Modal — REVIEW mode exposes approve/reject */}
@@ -171,7 +211,7 @@ export default function KpiReportReviewsPage() {
       )}
 
       {(isApproving || isRejecting) && (
-        <div className="sr-only" aria-live="polite">Processing report...</div>
+        <div className="sr-only" aria-live="polite">Memproses laporan...</div>
       )}
 
       {/* T18 — administrative reviewer reassignment (hierarchy-assigned reports only) */}

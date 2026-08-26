@@ -96,20 +96,20 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
   const validate = useCallback((): boolean => {
     const errs: Record<string, string> = {};
 
-    if (!selectedActivityId) errs.activity = 'Please select an activity.';
-    if (!reportDate) errs.date = 'Report date is required.';
+    if (!selectedActivityId) errs.activity = 'Pilih aktivitas.';
+    if (!reportDate) errs.date = 'Tanggal laporan wajib diisi.';
     if (!executionDescription.trim()) {
-      errs.description = 'Execution description is required.';
+      errs.description = 'Deskripsi pelaksanaan wajib diisi.';
     } else if (executionDescription.length > 2000) {
-      errs.description = 'Execution description must not exceed 2,000 characters.';
+      errs.description = 'Deskripsi pelaksanaan maksimal 2.000 karakter.';
     }
     const rv = parseFloat(realizedValue);
-    if (!realizedValue || isNaN(rv) || rv <= 0) errs.value = 'Realized value must be a positive number.';
-    if (note.length > 1000) errs.note = 'Note must not exceed 1,000 characters.';
+    if (!realizedValue || isNaN(rv) || rv <= 0) errs.value = 'Nilai realisasi harus berupa angka positif.';
+    if (note.length > 1000) errs.note = 'Catatan maksimal 1.000 karakter.';
     if (!evidenceFile) {
       errs.evidence = 'Photo evidence is required.';
     } else if (!ALLOWED_MIME.includes(evidenceFile.type)) {
-      errs.evidence = 'Evidence must be a JPEG, PNG, or WebP image.';
+      errs.evidence = 'Bukti harus berupa gambar JPEG, PNG, atau WebP.';
     } else if (evidenceFile.size > MAX_FILE_SIZE) {
       errs.evidence = 'File size must not exceed 5 MB.';
     }
@@ -167,7 +167,7 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[600px]">
             <Modal.Header>
-              <Modal.Heading>Submit Report</Modal.Heading>
+              <Modal.Heading>Ajukan Laporan</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
             <Modal.Body>
@@ -178,7 +178,7 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                     <div className="flex items-center justify-center py-4"><Spinner size="sm" /></div>
                   ) : activities.length === 0 ? (
                     <div className="rounded-3xl bg-surface-secondary p-4 text-center text-sm text-muted-foreground">
-                      No eligible activities. You must be assigned to an active activity to submit a report.
+                      Tidak ada aktivitas yang tersedia. Anda harus ditugaskan ke aktivitas aktif untuk mengajukan laporan.
                     </div>
                   ) : (
                     <Select
@@ -186,9 +186,9 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                       selectedKey={selectedActivityId || null}
                       onSelectionChange={(k) => setSelectedActivityId(String(k || ''))}
                       isInvalid={!!errors.activity}
-                      placeholder="Select activity..."
+                      placeholder="Pilih aktivitas..."
                     >
-                      <Label>Activity</Label>
+                  <Label>Aktivitas</Label>
                       <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                       <Select.Popover>
                         <ListBox>
@@ -197,7 +197,7 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                               <div className="flex flex-col">
                                 <span className="text-sm font-medium text-foreground">{a.activityName}</span>
                                 <span className="text-xs text-muted-foreground">
-                                  Target: {a.targetValue} {a.unit} &middot; Period: {a.periodYear}/{String(a.periodMonth).padStart(2, '0')}
+                                  Target: {a.targetValue} {a.unit} &middot; Periode: {a.periodYear}/{String(a.periodMonth).padStart(2, '0')}
                                 </span>
                               </div>
                             </ListBox.Item>
@@ -215,11 +215,11 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                     <span className="font-medium text-foreground">{selectedActivity.activityName}</span>
                     <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span>Target: {selectedActivity.targetValue} {selectedActivity.unit}</span>
-                      <span>Period: {selectedActivity.periodYear}/{String(selectedActivity.periodMonth).padStart(2, '0')}</span>
-                      <span>Progress: {selectedActivity.progressPercent}%</span>
+                      <span>Periode: {selectedActivity.periodYear}/{String(selectedActivity.periodMonth).padStart(2, '0')}</span>
+                      <span>Kemajuan: {selectedActivity.progressPercent}%</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Realized value is incremental — enter the value achieved this period.
+                      Nilai realisasi bersifat tambahan — masukkan capaian pada periode ini.
                     </p>
                   </div>
                 )}
@@ -231,7 +231,7 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                   onChange={(e) => setReportDate(e)}
                   isInvalid={!!errors.date}
                 >
-                  <Label>Report Date</Label>
+                  <Label>Tanggal Laporan</Label>
                   <Input variant="secondary" type="date" />
                 </TextField>
                 {errors.date && <p className="-mt-3 text-xs text-danger">{errors.date}</p>}
@@ -243,7 +243,7 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                   onChange={(e) => setExecutionDescription(e)}
                   isInvalid={!!errors.description}
                 >
-                  <Label>Execution Description</Label>
+                  <Label>Deskripsi Pelaksanaan</Label>
                   <TextArea variant="secondary" placeholder="Describe the work completed..." rows={3} />
                 </TextField>
                 {errors.description && <p className="-mt-3 text-xs text-danger">{errors.description}</p>}
@@ -256,12 +256,12 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                   onChange={(e) => setRealizedValue(e)}
                   isInvalid={!!errors.value}
                 >
-                  <Label>Realized Value {selectedActivity ? `(${selectedActivity.unit})` : ''}</Label>
+                  <Label>Nilai Realisasi {selectedActivity ? `(${selectedActivity.unit})` : ''}</Label>
                   <Input variant="secondary" type="number" step="any" placeholder="Incremental value for this period..." />
                 </TextField>
                 {errors.value && <p className="-mt-3 text-xs text-danger">{errors.value}</p>}
                 <p className="-mt-3 text-xs text-muted-foreground">
-                  Enter the value achieved during this reporting period. Approved values are summed automatically.
+                  Masukkan capaian pada periode pelaporan ini. Nilai yang disetujui akan dijumlahkan otomatis.
                 </p>
 
                 {/* ── Note ── */}
@@ -270,14 +270,14 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                   onChange={(e) => setNote(e)}
                   isInvalid={!!errors.note}
                 >
-                  <Label>Note</Label>
+                  <Label>Catatan</Label>
                   <TextArea variant="secondary" placeholder="Optional note..." rows={2} />
                 </TextField>
                 {errors.note && <p className="-mt-3 text-xs text-danger">{errors.note}</p>}
 
                 {/* ── Evidence File ── */}
                 <div>
-                  <Label className="mb-1 block text-sm">Photo Evidence (JPEG, PNG, or WebP, max 5 MB)</Label>
+                  <Label className="mb-1 block text-sm">Bukti Foto (JPEG, PNG, atau WebP, maksimal 5 MB)</Label>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -287,7 +287,7 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
                   {errors.evidence && <p className="mt-1 text-xs text-danger">{errors.evidence}</p>}
                   {evidencePreview && (
                     <div className="mt-2">
-                      <img src={evidencePreview} alt="Evidence preview" className="max-h-48 rounded-lg object-contain" />
+                      <img src={evidencePreview} alt="Pratinjau bukti" className="max-h-48 rounded-lg object-contain" />
                       {evidenceFile && (
                         <p className="mt-1 text-xs text-muted-foreground">
                           {evidenceFile.name} ({(evidenceFile.size / 1024).toFixed(1)} KB)
@@ -306,10 +306,10 @@ export function ReportSubmitModal({ isOpen, onClose, onSuccess }: ReportSubmitMo
             <Modal.Footer>
               <Button variant="secondary" onPress={handleClose} isDisabled={isSubmitting}>
                 <X className="h-4 w-4" />
-                Cancel
+                Batal
               </Button>
               <Button variant="primary" onPress={handleSubmit} isDisabled={isSubmitting} isPending={isSubmitting}>
-                Submit Report
+                Kirim Laporan
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

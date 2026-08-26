@@ -155,11 +155,11 @@ export function ActivityRequestModal({
     setValidationError(null);
     setConflict(null);
     if (!assigneeId) {
-      setValidationError('Select an assignee position.');
+      setValidationError('Pilih posisi penanggung jawab.');
       return;
     }
     if (!activityName.trim()) {
-      setValidationError('Activity name is required.');
+      setValidationError('Nama aktivitas wajib diisi.');
       return;
     }
     if (!unit.trim()) {
@@ -168,15 +168,15 @@ export function ActivityRequestModal({
     }
     const tv = parseFloat(targetValue);
     if (!targetValue || Number.isNaN(tv) || tv <= 0) {
-      setValidationError('Target value must be a positive number.');
+      setValidationError('Nilai target harus berupa angka positif.');
       return;
     }
     if (mode === 'root' && !ckId) {
-      setValidationError('Select a Corporate KPI indicator for a root activity.');
+      setValidationError('Pilih indikator KPI Perusahaan untuk aktivitas induk.');
       return;
     }
     if (mode === 'child' && !parentId) {
-      setValidationError('Select a parent activity for a child activity.');
+      setValidationError('Pilih aktivitas induk untuk aktivitas turunan.');
       return;
     }
 
@@ -206,14 +206,14 @@ export function ActivityRequestModal({
     try {
       const result = await submitCreateRequest(body);
       if (result.success) {
-        toast.success('Activity request submitted successfully.');
+        toast.success('Pengajuan aktivitas berhasil dikirim.');
         onSuccess();
         onClose();
       } else if (result.conflict) {
         setConflict(result.conflict);
         onConflict();
       } else {
-        toast.danger(result.message ?? 'Failed to submit the activity request.');
+        toast.danger(result.message ?? 'Gagal mengirim pengajuan aktivitas.');
       }
     } finally {
       setIsSubmitting(false);
@@ -231,7 +231,7 @@ export function ActivityRequestModal({
           <Modal.Dialog className="sm:max-w-[600px]">
             <Modal.Header>
               <Modal.Heading>
-                {mode === 'root' ? 'Request Root Activity' : 'Request Child Activity'}
+                {mode === 'root' ? 'Ajukan Aktivitas' : 'Ajukan Aktivitas Turunan'}
               </Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
@@ -260,7 +260,7 @@ export function ActivityRequestModal({
                     variant="secondary"
                     selectedKey={assigneeId || null}
                     onSelectionChange={(k) => setAssigneeId(String(k || ''))}
-                    placeholder={assignees.length === 0 ? 'No assignable positions' : 'Select assignee position...'}
+                    placeholder={assignees.length === 0 ? 'Tidak ada posisi yang dapat dipilih' : 'Pilih posisi penanggung jawab...'}
                   >
                     <Label>Assignee Position</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
@@ -286,9 +286,9 @@ export function ActivityRequestModal({
                     variant="secondary"
                     selectedKey={parentId || null}
                     onSelectionChange={(k) => { setParentId(String(k || '')); setAssigneeId(''); }}
-                    placeholder={parents.length === 0 ? 'No eligible parent activities' : 'Select parent activity...'}
+                    placeholder={parents.length === 0 ? 'Tidak ada aktivitas induk yang tersedia' : 'Pilih aktivitas induk...'}
                   >
-                    <Label>Parent Activity</Label>
+                    <Label>Aktivitas Induk</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox>
@@ -310,7 +310,7 @@ export function ActivityRequestModal({
                         selectedKey={String(selectedYear)}
                         onSelectionChange={(k) => { setSelectedYear(Number(k)); setCkId(''); }}
                       >
-                        <Label>Period Year</Label>
+                        <Label>Tahun Periode</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                         <Select.Popover>
                           <ListBox>
@@ -327,7 +327,7 @@ export function ActivityRequestModal({
                         selectedKey={String(periodMonth)}
                         onSelectionChange={(k) => setPeriodMonth(Number(k))}
                       >
-                        <Label>Period Month</Label>
+                        <Label>Bulan Periode</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                         <Select.Popover>
                           <ListBox>
@@ -348,7 +348,7 @@ export function ActivityRequestModal({
                         variant="secondary"
                         selectedKey={ckId || null}
                         onSelectionChange={(k) => setCkId(String(k || ''))}
-                        placeholder={ckTree.length === 0 ? 'No active indicators for this year' : 'Select Corporate KPI indicator...'}
+                        placeholder={ckTree.length === 0 ? 'Tidak ada indikator aktif untuk tahun ini' : 'Pilih indikator KPI Perusahaan...'}
                       >
                         <Label>Corporate KPI Indicator</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
@@ -370,12 +370,12 @@ export function ActivityRequestModal({
                 )}
 
                 <TextField isRequired value={activityName} onChange={setActivityName}>
-                  <Label>Activity Name</Label>
+                  <Label>Nama Aktivitas</Label>
                   <Input variant="secondary" placeholder="Enter activity name..." />
                 </TextField>
 
                 <TextField value={description} onChange={setDescription}>
-                  <Label>Description</Label>
+                  <Label>Deskripsi</Label>
                   <TextArea variant="secondary" placeholder="Optional description..." rows={2} />
                 </TextField>
 
@@ -385,7 +385,7 @@ export function ActivityRequestModal({
                     <Input variant="secondary" placeholder="e.g. %, IDR, units" />
                   </TextField>
                   <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
-                    <Label>Target Value</Label>
+                    <Label>Nilai Target</Label>
                     <Input variant="secondary" placeholder="e.g. 100" />
                   </TextField>
                 </div>
@@ -394,10 +394,10 @@ export function ActivityRequestModal({
             <Modal.Footer>
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
                 <XIcon className="h-4 w-4" />
-                Cancel
+                Batal
               </Button>
               <Button variant="primary" onPress={handleSubmit} isDisabled={isSubmitting} isPending={isSubmitting}>
-                Submit Request
+                Kirim Pengajuan
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Table, Spinner, Chip, Button } from '@heroui/react';
-import { Eye, Check, X, Tray } from '@phosphor-icons/react';
+import { Table, Chip, Button } from '@heroui/react';
+import { Eye, Check, X } from '@phosphor-icons/react';
+import { KpiTable } from '@/modules/kpi/shared/kpi-table';
 import {
   REQUEST_TYPE_LABEL,
   type KpiActivityChangeRequestResponse,
@@ -33,6 +34,10 @@ interface ApprovalTableProps {
    */
   ownRequestIds: Set<string>;
   onRetry?: () => void;
+  totalItems: number;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 }
 
 /* ── Helpers ── */
@@ -48,52 +53,33 @@ function formatDate(dateStr: string | null): string {
  * Every `kpi_activity:approve` holder sees the SAME company-wide PENDING
  * queue; there is no stored approver and no reassignment UI.
  */
-export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove, onReject, ownRequestIds, onRetry }: ApprovalTableProps) {
+export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove, onReject, ownRequestIds, onRetry, totalItems, currentPage, totalPages, onPageChange }: ApprovalTableProps) {
   return (
-    <Table key="approval-table">
-      <Table.ScrollContainer>
-        <Table.Content aria-label="Pending Approval Requests" className="min-w-[900px]">
-          <Table.Header>
-            <Table.Column isRowHeader id="requestType">Type</Table.Column>
-            <Table.Column id="requester">Requester</Table.Column>
-            <Table.Column id="activityName">Activity</Table.Column>
-            <Table.Column id="parent">Parent</Table.Column>
-            <Table.Column id="assignee">Assignee</Table.Column>
-            <Table.Column id="corporateKpi">Corporate KPI</Table.Column>
-            <Table.Column id="target">Target</Table.Column>
-            <Table.Column id="created">Date</Table.Column>
-            <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>
-          </Table.Header>
-          <Table.Body
-            renderEmptyState={() => {
-              if (isLoading) {
-                return (
-                  <div className="flex h-24 items-center justify-center">
-                    <Spinner size="md" />
-                  </div>
-                );
-              }
-              if (error) {
-                return (
-                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
-                    <span className="text-sm text-danger">{error}</span>
-                    {onRetry && (
-                      <Button variant="secondary" size="sm" onPress={onRetry}>
-                        Retry
-                      </Button>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-                  <Tray className="h-8 w-8" />
-                  <span className="text-sm">No pending requests in the company queue.</span>
-                </div>
-              );
-            }}
-          >
-            {items.map((item) => {
+    <KpiTable
+      ariaLabel="Data Persetujuan Aktivitas"
+      contentAriaLabel="Persetujuan Aktivitas"
+      minWidth="min-w-[900px]"
+      header={<>
+        <Table.Column isRowHeader id="requestType">Jenis</Table.Column>
+        <Table.Column id="requester">Pengaju</Table.Column>
+        <Table.Column id="activityName">Aktivitas</Table.Column>
+        <Table.Column id="parent">Aktivitas Induk</Table.Column>
+        <Table.Column id="assignee">Penanggung Jawab</Table.Column>
+        <Table.Column id="corporateKpi">KPI Perusahaan</Table.Column>
+        <Table.Column id="target">Target</Table.Column>
+        <Table.Column id="created">Tanggal</Table.Column>
+        <Table.Column id="actions" aria-label="Aksi">{''}</Table.Column>
+      </>}
+      isLoading={isLoading}
+      error={error}
+      emptyLabel="Tidak ada pengajuan yang menunggu persetujuan."
+      onRetry={onRetry}
+      totalItems={totalItems}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
+    >
+      {items.map((item) => {
               const isOwn = ownRequestIds.has(item.id);
               return (
                 <Table.Row key={item.id} id={String(item.id)}>
@@ -113,37 +99,16 @@ export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove
                   <Table.Cell className="text-muted-foreground">{formatDate(item.createdAt)}</Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
-                      <Button isIconOnly variant="tertiary" size="sm" aria-label="View detail" onPress={() => onViewDetail(item.id)}>
+                      <Button isIconOnly variant="tertiary" size="sm" aria-label="Lihat detail pengajuan" onPress={() => onViewDetail(item.id)}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
-                        isIconOnly
-                        variant="primary"
-                        size="sm"
-                        aria-label={isOwn ? 'You cannot approve your own request' : 'Approve'}
-                        isDisabled={isOwn}
-                        onPress={() => onApprove(item)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        isIconOnly
-                        variant="danger-soft"
-                        size="sm"
-                        aria-label={isOwn ? 'You cannot reject your own request' : 'Reject'}
-                        isDisabled={isOwn}
-                        onPress={() => onReject(item)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      {!isOwn && <Button isIconOnly variant="primary" size="sm" aria-label="Setujui pengajuan" onPress={() => onApprove(item)}><Check className="h-4 w-4" /></Button>}
+                      {!isOwn && <Button isIconOnly variant="danger-soft" size="sm" aria-label="Tolak pengajuan" onPress={() => onReject(item)}><X className="h-4 w-4" /></Button>}
                     </div>
                   </Table.Cell>
                 </Table.Row>
               );
             })}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
-    </Table>
+    </KpiTable>
   );
 }

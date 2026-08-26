@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Table, Chip, ProgressBar, Button, Spinner } from '@heroui/react';
-import { Eye, PencilLine, Plus, Prohibit, Tray, Wrench } from '@phosphor-icons/react';
+import { Chip, ProgressBar, Button, Table } from '@heroui/react';
+import { Eye, PencilLine, Plus, Prohibit, PencilSimple } from '@phosphor-icons/react';
+import { KpiTable } from '@/modules/kpi/shared/kpi-table';
 import {
   ACTIVITY_STATUS_LABEL,
   type KpiActivityResponse,
@@ -17,6 +18,11 @@ interface ActivityTableProps {
   /** Show the exact assignee identity column (used by the All Activities view). */
   showAssignee?: boolean;
   onRetry?: () => void;
+  emptyLabel?: React.ReactNode;
+  totalItems: number;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
 
   /* ── Position-dependent actions (only rendered when provided) ── */
   /**
@@ -53,55 +59,39 @@ function isOwned(item: KpiActivityResponse, ownAssignmentUserPositionId: string 
  * id, never a coworker's assignment).
  */
 export function ActivityTable({
-  items, isLoading, error, onViewDetail, showAssignee, onRetry,
+  items, isLoading, error, onViewDetail, showAssignee, onRetry, emptyLabel = 'Tidak ada aktivitas.',
+  totalItems, currentPage, totalPages, onPageChange,
   ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit,
 }: ActivityTableProps) {
   return (
-    <Table key="kpi-activity-table" aria-label="KPI Activities">
-      <Table.ScrollContainer>
-        <Table.Content aria-label="Activities" className="min-w-[800px]">
-          <Table.Header>
-            <Table.Column isRowHeader id="activityName">Activity Name</Table.Column>
-            <Table.Column id="parentActivity">Parent Activity</Table.Column>
-            <Table.Column id="corporateKpi">Corporate KPI</Table.Column>
-            {showAssignee && <Table.Column id="assignee">Assignee</Table.Column>}
-            <Table.Column id="period">Period</Table.Column>
-            <Table.Column id="target">Target</Table.Column>
-            <Table.Column id="realized">Realized</Table.Column>
-            <Table.Column id="progress">Progress</Table.Column>
-            <Table.Column id="status">Status</Table.Column>
-            <Table.Column id="actions" aria-label="Actions">{''}</Table.Column>
-          </Table.Header>
-          <Table.Body
-            renderEmptyState={() => {
-              if (isLoading) {
-                return (
-                  <div className="flex h-24 items-center justify-center">
-                    <Spinner size="md" />
-                  </div>
-                );
-              }
-              if (error) {
-                return (
-                  <div className="flex flex-col items-center justify-center gap-3 py-12 text-muted-foreground">
-                    <span className="text-sm text-danger">{error}</span>
-                    {onRetry && (
-                      <Button variant="secondary" size="sm" onPress={onRetry}>
-                        Retry
-                      </Button>
-                    )}
-                  </div>
-                );
-              }
-              return (
-                <div className="flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
-                  <Tray className="h-8 w-8" />
-                  <span className="text-sm">No activities found.</span>
-                </div>
-              );
-            }}
-          >
-            {items.map((item) => {
+    <KpiTable
+      ariaLabel="Data Aktivitas"
+      contentAriaLabel="Aktivitas"
+      minWidth="min-w-[800px]"
+      header={
+        <>
+          <Table.Column isRowHeader id="activityName">Nama Aktivitas</Table.Column>
+          <Table.Column id="parentActivity">Aktivitas Induk</Table.Column>
+          <Table.Column id="corporateKpi">KPI Perusahaan</Table.Column>
+          {showAssignee && <Table.Column id="assignee">Penanggung Jawab</Table.Column>}
+          <Table.Column id="period">Periode</Table.Column>
+          <Table.Column id="target">Target</Table.Column>
+          <Table.Column id="realized">Realisasi</Table.Column>
+          <Table.Column id="progress">Kemajuan</Table.Column>
+          <Table.Column id="status">Status</Table.Column>
+          <Table.Column id="actions" aria-label="Aksi">{''}</Table.Column>
+        </>
+      }
+      isLoading={isLoading}
+      error={error}
+      emptyLabel={emptyLabel}
+      onRetry={onRetry}
+      totalItems={totalItems}
+      currentPage={currentPage}
+      totalPages={totalPages}
+      onPageChange={onPageChange}
+    >
+      {items.map((item) => {
               const owned = isOwned(item, ownAssignmentUserPositionId);
               const canChange = owned && item.status === 'ACTIVE' && onRequestChange;
               return (
@@ -153,7 +143,7 @@ export function ActivityTable({
                         isIconOnly
                         variant="tertiary"
                         size="sm"
-                        aria-label={`View detail for ${item.activityName}`}
+                        aria-label={`Lihat detail ${item.activityName}`}
                         onPress={() => onViewDetail(item.id)}
                       >
                         <Eye className="h-4 w-4" />
@@ -163,7 +153,7 @@ export function ActivityTable({
                           isIconOnly
                           variant="tertiary"
                           size="sm"
-                          aria-label={`Add child to ${item.activityName}`}
+                          aria-label={`Tambah aktivitas turunan dari ${item.activityName}`}
                           onPress={() => onAddChild(item)}
                         >
                           <Plus className="h-4 w-4" />
@@ -174,7 +164,7 @@ export function ActivityTable({
                           isIconOnly
                           variant="tertiary"
                           size="sm"
-                          aria-label={`Request update for ${item.activityName}`}
+                          aria-label={`Ajukan perubahan ${item.activityName}`}
                           onPress={() => onRequestChange(item, 'update')}
                         >
                           <PencilLine className="h-4 w-4" />
@@ -185,7 +175,7 @@ export function ActivityTable({
                           isIconOnly
                           variant="tertiary"
                           size="sm"
-                          aria-label={`Request cancellation for ${item.activityName}`}
+                          aria-label={`Ajukan pembatalan ${item.activityName}`}
                           onPress={() => onRequestChange(item, 'cancel')}
                         >
                           <Prohibit className="h-4 w-4" />
@@ -196,20 +186,17 @@ export function ActivityTable({
                           isIconOnly
                           variant="tertiary"
                           size="sm"
-                          aria-label={`Admin edit ${item.activityName}`}
+                          aria-label={`Edit ${item.activityName}`}
                           onPress={() => onAdminEdit(item)}
                         >
-                          <Wrench className="h-4 w-4" />
+                          <PencilSimple className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
                   </Table.Cell>
                 </Table.Row>
               );
-            })}
-          </Table.Body>
-        </Table.Content>
-      </Table.ScrollContainer>
-    </Table>
+        })}
+    </KpiTable>
   );
 }

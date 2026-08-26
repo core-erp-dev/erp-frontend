@@ -15,7 +15,7 @@ import { extractPositionsError, getMyPositions, toActingPositions } from './my-p
  * A loading failure is recoverable via `refetch` and must never hide ordinary
  * Activity reads — the caller decides where to surface `error`.
  */
-export function useMyPositions() {
+export function useMyPositions(enabled = true) {
   const [positions, setPositions] = useState<ActingPosition[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +35,8 @@ export function useMyPositions() {
   }, []);
 
   useEffect(() => {
-    void refetch();
-  }, [refetch]);
+    if (enabled) void refetch();
+  }, [enabled, refetch]);
 
   return { positions, isLoading, error, refetch };
 }
@@ -47,7 +47,7 @@ export interface ActingPositionSelectorProps {
   value: string | null;
   onChange: (positionId: string) => void;
   disabled?: boolean;
-  /** Compact header label; default "Acting Position". */
+  /** Compact header label. */
   label?: string;
 }
 
@@ -67,7 +67,7 @@ export function ActingPositionSelector({
   value,
   onChange,
   disabled,
-  label = 'Acting Position',
+  label = 'Posisi Aktif',
 }: ActingPositionSelectorProps) {
   return (
     <Select
@@ -76,7 +76,7 @@ export function ActingPositionSelector({
       onSelectionChange={(key) => {
         if (key !== null && key !== undefined) onChange(String(key));
       }}
-      placeholder={positions.length === 0 ? 'No active positions' : 'Select acting position...'}
+      placeholder={positions.length === 0 ? 'Tidak ada posisi aktif' : 'Pilih posisi aktif...'}
       isDisabled={disabled || positions.length === 0}
       aria-label={label}
     >
@@ -89,7 +89,7 @@ export function ActingPositionSelector({
               <span className="flex items-center gap-2 text-sm text-foreground">
                 {pos.positionName}
                 {pos.isPrimary && (
-                  <Chip size="sm" variant="soft" className="pointer-events-none">Primary</Chip>
+                  <Chip size="sm" variant="soft" className="pointer-events-none">Utama</Chip>
                 )}
               </span>
             </ListBox.Item>
@@ -122,7 +122,7 @@ export function ActingPositionPanel({
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Spinner size="sm" />
-        <span>Loading your positions...</span>
+        <span>Memuat posisi aktif...</span>
       </div>
     );
   }
@@ -132,9 +132,9 @@ export function ActingPositionPanel({
       <div className="flex items-center gap-3 rounded-lg bg-danger-soft p-3 text-sm text-danger-soft-foreground">
         <Warning className="h-4 w-4 shrink-0" />
         <span className="min-w-0 flex-1">{error}</span>
-        <Button variant="secondary" size="sm" onPress={onRetry}>
-          <ArrowsClockwise className="h-3.5 w-3.5" />
-          Retry
+          <Button variant="secondary" size="sm" onPress={onRetry}>
+            <ArrowsClockwise className="h-3.5 w-3.5" />
+          Coba Lagi
         </Button>
       </div>
     );
@@ -145,8 +145,8 @@ export function ActingPositionPanel({
       <div className="flex items-center gap-2 rounded-lg bg-warning-soft p-3 text-sm text-warning-soft-foreground">
         <Warning className="h-4 w-4 shrink-0" />
         <span>
-          You have no active Position — Position-dependent actions (requests, subordinate
-          activities, approvals) are unavailable. Contact an administrator if this is unexpected.
+          Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan,
+          aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.
         </span>
       </div>
     );

@@ -43,7 +43,7 @@ export function ReportDetailModal({
       evidenceUrlRef.current = url;
       setEvidenceUrl(url);
     } catch {
-      setEvidenceError('Failed to load evidence.');
+      setEvidenceError('Gagal memuat bukti.');
     } finally {
       setIsLoadingEvidence(false);
     }
@@ -82,60 +82,60 @@ export function ReportDetailModal({
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[600px]">
             <Modal.Header>
-              <Modal.Heading>Report Detail</Modal.Heading>
+              <Modal.Heading>Detail Laporan</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
             <Modal.Body>
               <div className="flex flex-col gap-4">
                 {/* ── Activity Context ── */}
                 <Surface className="rounded-2xl p-4">
-                  <h3 className="mb-2 text-sm font-semibold text-foreground">Activity</h3>
+                  <h3 className="mb-2 text-sm font-semibold text-foreground">Aktivitas</h3>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <DetailField label="Name" value={report.activityName} />
                     <DetailField label="Unit" value={report.unit} />
                     <DetailField label="Target" value={String(report.activityTargetValue)} />
-                    <DetailField label="Realized (incremental)" value={String(report.realizedValue)} />
+                    <DetailField label="Realisasi (bertambah)" value={String(report.realizedValue)} />
                   </div>
                 </Surface>
 
                 {/* ── Report Details ── */}
                 <Surface className="rounded-2xl p-4">
-                  <h3 className="mb-2 text-sm font-semibold text-foreground">Report</h3>
+                  <h3 className="mb-2 text-sm font-semibold text-foreground">Laporan</h3>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    <DetailField label="Date" value={report.reportDate} />
+                    <DetailField label="Tanggal" value={report.reportDate} />
                     <DetailField label="Status" value={
                       <Chip size="sm" color={REPORT_STATUS_CHIP_COLOR[report.status]} variant="soft">
                         {REPORT_STATUS_LABEL[report.status]}
                       </Chip>
                     } />
                     <div className="col-span-2">
-                      <DetailField label="Description" value={report.executionDescription} />
+                      <DetailField label="Deskripsi" value={report.executionDescription} />
                     </div>
                     {report.note && (
                       <div className="col-span-2">
-                        <DetailField label="Note" value={report.note} />
+                        <DetailField label="Catatan" value={report.note} />
                       </div>
                     )}
-                    <DetailField label="Submitted By" value={report.submittedByUserName} />
-                    <DetailField label="Reviewer" value={report.reviewerUserName ?? 'Company queue'} />
+                    <DetailField label="Diajukan Oleh" value={report.submittedByUserName} />
+                    <DetailField label="Peninjau" value={report.reviewerUserName ?? 'Antrean perusahaan'} />
                   </div>
                 </Surface>
 
                 {/* ── Review Info ── */}
                 {report.status !== 'PENDING' && (
                   <Surface className="rounded-2xl p-4">
-                    <h3 className="mb-2 text-sm font-semibold text-foreground">Review</h3>
+                    <h3 className="mb-2 text-sm font-semibold text-foreground">Peninjauan</h3>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <DetailField label="Reviewed At" value={
+                      <DetailField label="Ditinjau Pada" value={
                         report.reviewedAt
-                          ? new Date(report.reviewedAt).toLocaleDateString('en-GB', {
+                          ? new Date(report.reviewedAt).toLocaleDateString('id-ID', {
                               day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
                             })
                           : '-'
                       } />
                       {report.rejectionReason && (
                         <div className="col-span-2">
-                          <Label className="text-xs text-muted-foreground">Rejection Reason</Label>
+                          <Label className="text-xs text-muted-foreground">Alasan Penolakan</Label>
                           <p className="mt-0.5 text-sm text-danger">{report.rejectionReason}</p>
                         </div>
                       )}
@@ -146,11 +146,11 @@ export function ReportDetailModal({
                 {/* ── Evidence ── */}
                 <Surface className="rounded-2xl p-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-foreground">Evidence</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Bukti</h3>
                     {evidenceUrl && !isLoadingEvidence && (
                       <Button variant="tertiary" size="sm" onPress={downloadEvidence}>
                         <DownloadSimple className="h-4 w-4" />
-                        Download
+                        Unduh
                       </Button>
                     )}
                   </div>
@@ -170,7 +170,7 @@ export function ReportDetailModal({
                         </p>
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No evidence loaded.</p>
+                        <p className="text-sm text-muted-foreground">Bukti belum dimuat.</p>
                     )}
                   </div>
                 </Surface>
@@ -186,10 +186,10 @@ export function ReportDetailModal({
                   ) : (
                     <>
                       <Button variant="danger" className="flex-1" onPress={() => onReject?.(report.id)}>
-                        Reject
+                        Tolak
                       </Button>
                       <Button variant="primary" className="flex-1" onPress={() => onApprove?.(report.id)}>
-                        Approve
+                        Setujui
                       </Button>
                     </>
                   )}
@@ -198,7 +198,7 @@ export function ReportDetailModal({
               {(!isReviewMode || report.status !== 'PENDING') && (
                 <Button variant="secondary" onPress={onClose}>
                   <X className="h-4 w-4" />
-                  Close
+                  Tutup
                 </Button>
               )}
             </Modal.Footer>

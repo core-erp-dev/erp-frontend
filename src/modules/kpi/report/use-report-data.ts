@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from '@heroui/react';
 import { reportV1Api, extractReportV1Error } from './report-v1-api';
 import { extractErrorMessage } from '@/types/api';
@@ -25,17 +25,28 @@ export function useReportData() {
   const [myReports, setMyReports] = useState<KpiReportResponse[]>([]);
   const [isLoadingMy, setIsLoadingMy] = useState(false);
   const [myError, setMyError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const requestSeqRef = useRef({ mine: 0, review: 0 });
+  useEffect(() => {
+    // React Strict Mode runs effect cleanup during its development probe and
+    // then mounts the effect again. Reset the guard in setup so the real
+    // request is still allowed to commit its loading/data state.
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const fetchMyReports = useCallback(async () => {
+    const requestId = ++requestSeqRef.current.mine;
     setIsLoadingMy(true);
     setMyError(null);
+    setMyReports([]);
     try {
       const data = await reportV1Api.getReports('mine');
-      setMyReports(data);
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) setMyReports(data);
     } catch (err) {
-      setMyError(extractReportV1Error(err));
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) setMyError(extractReportV1Error(err));
     } finally {
-      setIsLoadingMy(false);
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) setIsLoadingMy(false);
     }
   }, []);
 
@@ -45,15 +56,17 @@ export function useReportData() {
   const [reviewError, setReviewError] = useState<string | null>(null);
 
   const fetchToReview = useCallback(async () => {
+    const requestId = ++requestSeqRef.current.review;
     setIsLoadingReview(true);
     setReviewError(null);
+    setToReview([]);
     try {
       const data = await reportV1Api.getReports('to-review');
-      setToReview(data);
+      if (mountedRef.current && requestId === requestSeqRef.current.review) setToReview(data);
     } catch (err) {
-      setReviewError(extractReportV1Error(err));
+      if (mountedRef.current && requestId === requestSeqRef.current.review) setReviewError(extractReportV1Error(err));
     } finally {
-      setIsLoadingReview(false);
+      if (mountedRef.current && requestId === requestSeqRef.current.review) setIsLoadingReview(false);
     }
   }, []);
 
@@ -68,10 +81,10 @@ export function useReportData() {
     setIsSubmitting(true);
     try {
       await reportV1Api.submitReport(payload, evidenceFile);
-      toast.success('Report submitted successfully.');
+      toast.success('Laporan berhasil diajukan.');
       return true;
     } catch (err) {
-      toast.danger(mapReportError(err, 'Failed to submit report.'));
+      toast.danger(mapReportError(err, 'Gagal mengajukan laporan.'));
       return false;
     } finally {
       setIsSubmitting(false);
@@ -85,7 +98,7 @@ export function useReportData() {
     setIsApproving(true);
     try {
       await reportV1Api.approveReport(id);
-      toast.success('Report approved successfully.');
+      toast.success('Laporan berhasil disetujui.');
       await fetchToReview();
       return true;
     } catch (err) {
@@ -95,7 +108,7 @@ export function useReportData() {
         setRecoverable(recoverableConflict(kind));
         await fetchToReview();
       } else {
-        toast.danger(raw || 'Failed to approve report.');
+        toast.danger(raw || 'Gagal menyetujui laporan.');
       }
       return false;
     } finally {
@@ -110,7 +123,7 @@ export function useReportData() {
     setIsRejecting(true);
     try {
       await reportV1Api.rejectReport(id, payload);
-      toast.success('Report rejected successfully.');
+      toast.success('Laporan berhasil ditolak.');
       await fetchToReview();
       return true;
     } catch (err) {
@@ -120,7 +133,7 @@ export function useReportData() {
         setRecoverable(recoverableConflict(kind));
         await fetchToReview();
       } else {
-        toast.danger(raw || 'Failed to reject report.');
+        toast.danger(raw || 'Gagal menolak laporan.');
       }
       return false;
     } finally {
@@ -153,18 +166,18 @@ function mapReportError(error: unknown, fallback: string): string {
   const raw = extractErrorMessage(error, '');
   if (!raw) return fallback;
   const known: Record<string, string> = {
-    'Activity not found': 'The selected activity could not be found or is no longer available.',
-    'Activity is not active': 'The selected activity is no longer active.',
-    'Report date must be within the activity period': 'The report date must be within the activity\'s assigned period.',
-    'A pending report already exists for this activity': 'A pending report already exists for this activity. Submit after it is reviewed.',
-    'Photo evidence is required': 'Photo evidence is required.',
-    'Evidence must be an image (JPEG, PNG, or WebP)': 'Evidence must be a JPEG, PNG, or WebP image.',
-    'Report not found': 'The report could not be found.',
-    'Report has already been processed': 'This report has already been processed.',
-    'Cannot review your own report': 'You cannot review your own report.',
-    'Not the designated reviewer': 'You are not the designated reviewer for this report.',
-    'Evidence file not found': 'The evidence file could not be found on the server.',
-    'Parent activity owner is no longer valid': 'The reviewer could not be determined. Please contact an administrator.',
+    'Activity not found': 'Aktivitas yang dipilih tidak ditemukan atau sudah tidak tersedia.',
+    'Activity is not active': 'Aktivitas yang dipilih sudah tidak aktif.',
+    'Report date must be within the activity period': 'Tanggal laporan harus berada dalam periode aktivitas.',
+    'A pending report already exists for this activity': 'Sudah ada laporan yang menunggu persetujuan untuk aktivitas ini.',
+    'Photo evidence is required': 'Bukti foto wajib diisi.',
+    'Evidence must be an image (JPEG, PNG, or WebP)': 'Bukti harus berupa gambar JPEG, PNG, atau WebP.',
+    'Report not found': 'Laporan tidak ditemukan.',
+    'Report has already been processed': 'Laporan ini sudah diproses.',
+    'Cannot review your own report': 'Anda tidak dapat meninjau laporan sendiri.',
+    'Not the designated reviewer': 'Anda bukan peninjau laporan ini.',
+    'Evidence file not found': 'Berkas bukti tidak ditemukan di server.',
+    'Parent activity owner is no longer valid': 'Peninjau tidak dapat ditentukan. Hubungi administrator.',
   };
   for (const [key, message] of Object.entries(known)) {
     if (raw.includes(key)) return message;

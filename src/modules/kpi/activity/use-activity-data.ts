@@ -107,6 +107,7 @@ export function useActivityData(): UseActivityDataReturn {
 
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const mountedRef = useRef(true);
+  const requestSeqRef = useRef({ mine: 0, all: 0, subordinates: 0, superior: 0, requests: 0 });
 
   useEffect(() => {
     mountedRef.current = true;
@@ -114,32 +115,36 @@ export function useActivityData(): UseActivityDataReturn {
   }, []);
 
   const fetchMyActivities = useCallback(async () => {
+    const requestId = ++requestSeqRef.current.mine;
     setIsLoadingMy(true);
     setMyError(null);
+    setMyActivities([]);
     try {
       const data = await activityV1Api.getActivities('mine');
-      if (mountedRef.current) setMyActivities(data);
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) setMyActivities(data);
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current) { setMyError(msg); setMyActivities([]); }
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) { setMyError(msg); setMyActivities([]); }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoadingMy(false);
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) setIsLoadingMy(false);
     }
   }, []);
 
   const fetchAllActivities = useCallback(async () => {
+    const requestId = ++requestSeqRef.current.all;
     setIsLoadingAll(true);
     setAllError(null);
+    setAllActivities([]);
     try {
       const data = await activityV1Api.getActivities('all');
-      if (mountedRef.current) setAllActivities(data);
+      if (mountedRef.current && requestId === requestSeqRef.current.all) setAllActivities(data);
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current) { setAllError(msg); setAllActivities([]); }
+      if (mountedRef.current && requestId === requestSeqRef.current.all) { setAllError(msg); setAllActivities([]); }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoadingAll(false);
+      if (mountedRef.current && requestId === requestSeqRef.current.all) setIsLoadingAll(false);
     }
   }, []);
 
@@ -149,24 +154,27 @@ export function useActivityData(): UseActivityDataReturn {
    * Position refetches and never mixes cached data from another Position.
    */
   const fetchSubordinatesActivities = useCallback(async (actingPositionId: string) => {
+    const requestId = ++requestSeqRef.current.subordinates;
     setIsLoadingSubordinates(true);
     setSubordinatesError(null);
+    setSubordinatesActivities([]);
+    setSubordinatesActingPositionId(null);
     try {
       const data = await activityV1Api.getActivities('subordinates', actingPositionId);
-      if (mountedRef.current) {
+      if (mountedRef.current && requestId === requestSeqRef.current.subordinates) {
         setSubordinatesActivities(data);
         setSubordinatesActingPositionId(actingPositionId);
       }
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current) {
+      if (mountedRef.current && requestId === requestSeqRef.current.subordinates) {
         setSubordinatesError(msg);
         setSubordinatesActivities([]);
         setSubordinatesActingPositionId(null);
       }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoadingSubordinates(false);
+      if (mountedRef.current && requestId === requestSeqRef.current.subordinates) setIsLoadingSubordinates(false);
     }
   }, []);
 
@@ -176,32 +184,36 @@ export function useActivityData(): UseActivityDataReturn {
    * plus the selected acting Position; switching Position replaces the list.
    */
   const fetchSuperiorActivities = useCallback(async (actingPositionId: string) => {
+    const requestId = ++requestSeqRef.current.superior;
     setIsLoadingSuperior(true);
     setSuperiorError(null);
+    setSuperiorActivities([]);
     try {
       const data = await activityV1Api.getActivities('superior', actingPositionId);
-      if (mountedRef.current) setSuperiorActivities(data);
+      if (mountedRef.current && requestId === requestSeqRef.current.superior) setSuperiorActivities(data);
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current) { setSuperiorError(msg); setSuperiorActivities([]); }
+      if (mountedRef.current && requestId === requestSeqRef.current.superior) { setSuperiorError(msg); setSuperiorActivities([]); }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoadingSuperior(false);
+      if (mountedRef.current && requestId === requestSeqRef.current.superior) setIsLoadingSuperior(false);
     }
   }, []);
 
   const fetchMyRequests = useCallback(async () => {
+    const requestId = ++requestSeqRef.current.requests;
     setIsLoadingRequests(true);
     setRequestsError(null);
+    setMyRequests([]);
     try {
       const data = await activityV1Api.getRequests('mine');
-      if (mountedRef.current) setMyRequests(data);
+      if (mountedRef.current && requestId === requestSeqRef.current.requests) setMyRequests(data);
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current) { setRequestsError(msg); setMyRequests([]); }
+      if (mountedRef.current && requestId === requestSeqRef.current.requests) { setRequestsError(msg); setMyRequests([]); }
       toast.danger(msg);
     } finally {
-      if (mountedRef.current) setIsLoadingRequests(false);
+      if (mountedRef.current && requestId === requestSeqRef.current.requests) setIsLoadingRequests(false);
     }
   }, []);
 

@@ -130,5 +130,5 @@ export const activityV1Api = {
 
 /** Error extractor (read). */
 export function extractActivityV1Error(error: unknown): string {
-  return extractErrorMessage(error, 'Failed to load activity data.');
+  return extractErrorMessage(error, 'Gagal memuat data aktivitas.');
 }

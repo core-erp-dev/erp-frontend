@@ -86,14 +86,14 @@ export function ActivityChangeModal({
       try {
         const result = await submitChangeRequest(activity.id, body);
         if (result.success) {
-          toast.success('Cancellation request submitted successfully.');
+          toast.success('Pengajuan pembatalan berhasil dikirim.');
           onSuccess();
           onClose();
         } else if (result.conflict) {
           setConflict(result.conflict);
           onConflict();
         } else {
-          toast.danger(result.message ?? 'Failed to submit the cancellation request.');
+          toast.danger(result.message ?? 'Gagal mengirim pengajuan pembatalan.');
         }
       } finally {
         setIsSubmitting(false);
@@ -103,7 +103,7 @@ export function ActivityChangeModal({
 
     /* UPDATE mode */
     if (!activityName.trim()) {
-      setValidationError('Activity name is required.');
+      setValidationError('Nama aktivitas wajib diisi.');
       return;
     }
     if (!unit.trim()) {
@@ -112,7 +112,7 @@ export function ActivityChangeModal({
     }
     const tv = parseFloat(targetValue);
     if (!targetValue || Number.isNaN(tv) || tv <= 0) {
-      setValidationError('Target value must be a positive number.');
+      setValidationError('Nilai target harus berupa angka positif.');
       return;
     }
 
@@ -135,7 +135,7 @@ export function ActivityChangeModal({
         setConflict(result.conflict);
         onConflict();
       } else {
-        toast.danger(result.message ?? 'Failed to submit the update request.');
+        toast.danger(result.message ?? 'Gagal mengirim pengajuan perubahan.');
       }
     } finally {
       setIsSubmitting(false);
@@ -153,7 +153,7 @@ export function ActivityChangeModal({
           <Modal.Dialog className="sm:max-w-[560px]">
             <Modal.Header>
               <Modal.Heading>
-                {mode === 'update' ? 'Request Activity Update' : 'Request Activity Cancellation'}
+                {mode === 'update' ? 'Ajukan Perubahan Aktivitas' : 'Ajukan Pembatalan Aktivitas'}
               </Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
@@ -171,7 +171,7 @@ export function ActivityChangeModal({
                 )}
 
                 <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
-                  <div>Activity: <span className="font-medium text-foreground">{activity.activityName}</span></div>
+                  <div>Aktivitas: <span className="font-medium text-foreground">{activity.activityName}</span></div>
                   <div>
                     Acting Position: <span className="font-medium text-foreground">{actingPosition.positionName}</span>
                     {actingPosition.isPrimary ? ' (Primary)' : ''}
@@ -181,12 +181,12 @@ export function ActivityChangeModal({
                 {mode === 'update' ? (
                   <>
                     <TextField isRequired value={activityName} onChange={setActivityName}>
-                      <Label>Activity Name</Label>
+                      <Label>Nama Aktivitas</Label>
                       <Input variant="secondary" placeholder="Enter activity name..." />
                     </TextField>
 
                     <TextField value={description} onChange={setDescription}>
-                      <Label>Description</Label>
+                      <Label>Deskripsi</Label>
                       <TextArea variant="secondary" placeholder="Optional description..." rows={2} />
                     </TextField>
 
@@ -196,15 +196,15 @@ export function ActivityChangeModal({
                         <Input variant="secondary" placeholder="e.g. %, IDR, units" />
                       </TextField>
                       <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
-                        <Label>Target Value</Label>
+                        <Label>Nilai Target</Label>
                         <Input variant="secondary" placeholder="e.g. 100" />
                       </TextField>
                     </div>
                   </>
                 ) : (
                   <TextField isRequired value={cancellationReason} onChange={setCancellationReason}>
-                    <Label>Cancellation Reason</Label>
-                    <TextArea variant="secondary" placeholder="Explain why this activity must be cancelled..." rows={3} />
+                    <Label>Alasan Pembatalan</Label>
+                    <TextArea variant="secondary" placeholder="Jelaskan alasan aktivitas ini harus dibatalkan..." rows={3} />
                   </TextField>
                 )}
               </div>
@@ -212,7 +212,7 @@ export function ActivityChangeModal({
             <Modal.Footer>
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
                 <XIcon className="h-4 w-4" />
-                Cancel
+                Batal
               </Button>
               <Button
                 variant={mode === 'cancel' ? 'danger' : 'primary'}
@@ -220,7 +220,7 @@ export function ActivityChangeModal({
                 isDisabled={isSubmitting}
                 isPending={isSubmitting}
               >
-                Submit {mode === 'cancel' ? 'Cancellation' : 'Update'} Request
+                Kirim Pengajuan {mode === 'cancel' ? 'Pembatalan' : 'Perubahan'}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

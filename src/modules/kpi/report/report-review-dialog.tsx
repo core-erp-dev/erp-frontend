@@ -31,11 +31,11 @@ export function ReportReviewDialog({
 
     if (!isApproval) {
       if (!rejectionReason.trim()) {
-        setValidationError('Rejection reason is required.');
+        setValidationError('Alasan penolakan wajib diisi.');
         return;
       }
       if (rejectionReason.length > 1000) {
-        setValidationError('Rejection reason must not exceed 1,000 characters.');
+        setValidationError('Alasan penolakan maksimal 1.000 karakter.');
         return;
       }
     }
@@ -68,19 +68,19 @@ export function ReportReviewDialog({
               <Modal.Icon className={`${isApproval ? 'bg-primary/10 text-primary' : 'bg-danger-soft text-danger-soft-foreground'}`}>
                 <Warning className="size-5" />
               </Modal.Icon>
-              <Modal.Heading>{isApproval ? 'Approve Report' : 'Reject Report'}</Modal.Heading>
+        <Modal.Heading>{isApproval ? 'Setujui Laporan' : 'Tolak Laporan'}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
               <div className="space-y-3 text-center">
                 <p className="text-sm text-muted-foreground">
                   {isApproval
-                    ? `Approve this execution report from ${report.submittedByUserName}?`
-                    : `Reject execution report from ${report.submittedByUserName}?`}
+                    ? `Setujui laporan pelaksanaan dari ${report.submittedByUserName}?`
+                    : `Tolak laporan pelaksanaan dari ${report.submittedByUserName}?`}
                 </p>
                 <div className="rounded-xl bg-surface-secondary p-3 text-left text-sm">
                   <p className="font-medium text-foreground">{report.activityName}</p>
                   <p className="mt-1 text-muted-foreground">
-                    Realized: {report.realizedValue} {report.unit} &middot; Date: {report.reportDate}
+                    Realisasi: {report.realizedValue} {report.unit} &middot; Tanggal: {report.reportDate}
                   </p>
                 </div>
 
@@ -92,8 +92,8 @@ export function ReportReviewDialog({
                       onChange={(e) => { setRejectionReason(e); setValidationError(null); }}
                       isInvalid={!!validationError}
                     >
-                      <Label>Rejection Reason</Label>
-                      <TextArea variant="secondary" placeholder="Provide a reason for rejection..." rows={3} />
+                      <Label>Alasan Penolakan</Label>
+                      <TextArea variant="secondary" placeholder="Berikan alasan penolakan..." rows={3} />
                     </TextField>
                     {validationError && <p className="mt-1 text-xs text-danger">{validationError}</p>}
                     <p className="mt-1 text-right text-xs text-muted-foreground">{rejectionReason.length}/1000</p>
@@ -109,10 +109,10 @@ export function ReportReviewDialog({
                 isDisabled={isPending}
                 isPending={isPending}
               >
-                {isApproval ? 'Approve' : 'Reject'}
+                {isApproval ? 'Setujui' : 'Tolak'}
               </Button>
               <Button className="w-full" variant="secondary" onPress={handleClose} isDisabled={isPending}>
-                Cancel
+                Batal
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

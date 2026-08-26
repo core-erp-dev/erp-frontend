@@ -12,6 +12,11 @@ import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
 import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
 import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
 import type { KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity-v1.types';
+import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
+import { paginateKpiItems, useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
+import { useDebounce } from '@/hooks/use-debounce';
+
+const APPROVAL_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], defaultSort: 'activityName', defaultDirection: 'asc' as const, filterOptions: [] as string[] };
 
 /**
  * Activity Approvals — standalone page (`/kpi/approvals`).
@@ -37,6 +42,13 @@ export default function KpiApprovalsPage() {
     recoverable, clearRecoverable,
   } = useApprovalData();
   const { myRequests, fetchMyRequests } = useActivityData();
+  const tableState = useKpiTableState(APPROVAL_TABLE_STATE);
+  const { filters: tableFilters, setSearch } = tableState;
+  const [searchInput, setSearchInput] = useState(tableState.filters.search);
+  const debouncedSearch = useDebounce(searchInput, 400);
+  useEffect(() => { if (debouncedSearch !== tableFilters.search) setSearch(debouncedSearch); }, [debouncedSearch, tableFilters.search, setSearch]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
 
   // Own request ids (scope=mine) — used only to disable self-processing UI;
   // the backend is the authoritative self-approval ban.
@@ -83,6 +95,17 @@ export default function KpiApprovalsPage() {
     setDialogRequest(null);
   }, []);
 
+  const visibleRequests = toReview.filter((request) =>
+    !tableState.filters.search
+    || (request.activityName ?? '').toLowerCase().includes(tableState.filters.search.toLowerCase())
+    || request.requestedByUserName.toLowerCase().includes(tableState.filters.search.toLowerCase()),
+  ).sort((left, right) => {
+    const leftValue = tableState.filters.sortBy === 'createdAt' ? left.createdAt : (left.activityName ?? '');
+    const rightValue = tableState.filters.sortBy === 'createdAt' ? right.createdAt : (right.activityName ?? '');
+    return leftValue.localeCompare(rightValue, 'id-ID') * (tableState.filters.direction === 'desc' ? -1 : 1);
+  });
+  const pagedRequests = paginateKpiItems(visibleRequests, tableState.filters.page);
+
   // ── Permission guard ──
   if (!canApprove) {
     return (
@@ -90,14 +113,14 @@ export default function KpiApprovalsPage() {
         <Breadcrumbs>
           <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
           <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>Activities</BreadcrumbsItem>
-          <BreadcrumbsItem>Approvals</BreadcrumbsItem>
+            <BreadcrumbsItem>Aktivitas</BreadcrumbsItem>
+            <BreadcrumbsItem>Persetujuan Aktivitas</BreadcrumbsItem>
         </Breadcrumbs>
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.approvals}</h1>
         <Alert status="danger">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
+            <Alert.Title>Akses Ditolak</Alert.Title>
           </Alert.Content>
         </Alert>
       </div>
@@ -109,8 +132,8 @@ export default function KpiApprovalsPage() {
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
-        <BreadcrumbsItem>Activities</BreadcrumbsItem>
-        <BreadcrumbsItem>Approvals</BreadcrumbsItem>
+        <BreadcrumbsItem>Aktivitas</BreadcrumbsItem>
+        <BreadcrumbsItem>Persetujuan Aktivitas</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
@@ -126,7 +149,7 @@ export default function KpiApprovalsPage() {
           <Alert status="warning">
             <Alert.Indicator />
             <Alert.Content>
-              <Alert.Title>Request Already Processed</Alert.Title>
+              <Alert.Title>Pengajuan Sudah Diproses</Alert.Title>
               <Alert.Description>{recoverable.message}</Alert.Description>
             </Alert.Content>
           </Alert>
@@ -143,15 +166,30 @@ export default function KpiApprovalsPage() {
         </div>
       )}
 
+      <KpiTableToolbar
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        searchLabel="Cari pengajuan aktivitas"
+        sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
+        selectedSortId={`${tableState.filters.sortBy}:${tableState.filters.direction}`}
+        onSortChange={(selection) => { const selected = selection instanceof Set ? String(Array.from(selection)[0] ?? '') : ''; const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc']; if (field && direction) tableState.setSort(field, direction); }}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.sortBy !== APPROVAL_TABLE_STATE.defaultSort || tableState.filters.direction !== 'asc')}
+        onReset={() => { setSearchInput(''); tableState.reset(); }}
+      />
+
       <ApprovalTable
-        items={toReview}
-        isLoading={isLoading}
+        items={pagedRequests.items}
+        isLoading={isLoading || tableState.isQueryLoading}
         error={error}
         onViewDetail={openDetail}
         onApprove={openApprove}
         onReject={openReject}
         ownRequestIds={ownRequestIds}
         onRetry={fetchToReview}
+        totalItems={pagedRequests.totalItems}
+        currentPage={pagedRequests.page}
+        totalPages={pagedRequests.totalPages}
+        onPageChange={tableState.setPage}
       />
 
       {/* Detail Modal — shared with /kpi/activities */}
@@ -175,7 +213,7 @@ export default function KpiApprovalsPage() {
       )}
 
       {isDeciding && (
-        <div className="sr-only" aria-live="polite">Processing decision...</div>
+        <div className="sr-only" aria-live="polite">Memproses keputusan...</div>
       )}
     </div>
   );

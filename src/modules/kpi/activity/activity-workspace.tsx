@@ -6,19 +6,11 @@ import {
   useMemo,
   useState,
 } from 'react';
-import {
-  Alert,
-  Breadcrumbs,
-  BreadcrumbsItem,
-  Button,
-  Chip,
-  SearchField,
-} from '@heroui/react';
+import { Breadcrumbs, BreadcrumbsItem, Button, Chip } from '@heroui/react';
 import {
   ArrowsClockwise,
   House,
   Plus,
-  SquaresFour,
 } from '@phosphor-icons/react';
 
 import { PERM } from '@/constants/permissions';
@@ -33,11 +25,15 @@ import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
 import { AdminCreateActivityModal } from '@/modules/kpi/admin/admin-create-activity-modal';
 import { AdminUpdateActivityModal } from '@/modules/kpi/admin/admin-update-activity-modal';
 import {
-  ActingPositionPanel,
+  ActingPositionSelector,
   useMyPositions,
 } from '@/modules/kpi/shared/acting-position-selector';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
+import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
+import { paginateKpiItems, useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
+import { useDebounce } from '@/hooks/use-debounce';
+import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 
 export type ActivityViewId = 'my-activities' | 'all-activities' | 'subordinates' | 'my-requests';
 
@@ -46,6 +42,19 @@ const VIEW_TITLES: Record<ActivityViewId, string> = {
   'all-activities': KPI_LABELS.activitiesAll,
   'subordinates': KPI_LABELS.activitiesSubordinate,
   'my-requests': KPI_LABELS.activitiesMyRequests,
+};
+
+const ACTIVITY_TABLE_STATE = {
+  sortOptions: ['activityName', 'createdAt'],
+  defaultSort: 'activityName',
+  defaultDirection: 'asc' as const,
+  filterOptions: ['ACTIVE', 'CANCELLED'],
+};
+const REQUEST_TABLE_STATE = {
+  sortOptions: ['activityName', 'createdAt'],
+  defaultSort: 'activityName',
+  defaultDirection: 'asc' as const,
+  filterOptions: ['PENDING', 'APPROVED', 'REJECTED'],
 };
 
 /**
@@ -69,16 +78,23 @@ const VIEW_TITLES: Record<ActivityViewId, string> = {
  *   - No internal view tabs — every view is its own route/submenu.
  */
 export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
-  const { hasAnyPerm, hasPerm } = usePermission();
+  const { hasAnyPerm } = usePermission();
 
   const canViewAll = hasAnyPerm(PERM.KPI_ACTIVITY_READ_ALL, PERM.KPI_ACTIVITY_MANAGE);
+  if (view === 'all-activities' && !canViewAll) return <ForbiddenAccess />;
+  return <ActivityWorkspaceContent view={view} />;
+}
+
+function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
+  const { hasPerm } = usePermission();
   // T4 root request — exactly `kpi_activity:root_request` (never read_all/manage).
   const canRequestRoot = hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST);
   // T10/T11 administrative tools — exactly `kpi_activity:manage` (never an approval bypass).
   const canAdminManage = hasPerm(PERM.KPI_ACTIVITY_MANAGE);
 
   /* ── Acting-Position selection (explicit, never implicit) ── */
-  const { positions, isLoading: isLoadingPositions, error: positionsError, refetch: refetchPositions } = useMyPositions();
+  const needsPosition = view === 'my-activities' || view === 'subordinates';
+  const { positions, isLoading: isLoadingPositions, error: positionsError, refetch: refetchPositions } = useMyPositions(needsPosition);
   const [selectedPositionId, setSelectedPositionId] = useState<string | null>(null);
   const selectedActingPosition: ActingPosition | null = useMemo(
     () => positions.find((p) => p.positionId === selectedPositionId) ?? null,
@@ -86,27 +102,6 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
   );
 
   const title = VIEW_TITLES[view];
-
-  /* ── Route direct-load guard: `all` is gated on read_all | manage. ── */
-  if (view === 'all-activities' && !canViewAll) {
-    return (
-      <div className="flex w-full flex-col gap-6">
-        <Breadcrumbs>
-          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
-          <BreadcrumbsItem>KPI</BreadcrumbsItem>
-          <BreadcrumbsItem>{KPI_LABELS.activities}</BreadcrumbsItem>
-          <BreadcrumbsItem>{title}</BreadcrumbsItem>
-        </Breadcrumbs>
-        <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-        <Alert status="danger">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Access Denied</Alert.Title>
-          </Alert.Content>
-        </Alert>
-      </div>
-    );
-  }
 
   const {
     myActivities,
@@ -135,7 +130,7 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
   } = useActivityData();
 
   useEffect(() => {
-    if (view === 'my-activities') void fetchMyActivities();
+    if (view === 'my-activities' && selectedActingPosition) void fetchMyActivities();
     // My Activities self-child: ACTIVE activities of the acting Position's
     // direct superior (scope=superior) feed the self-child parent selector.
     if (view === 'my-activities' && selectedActingPosition) {
@@ -165,35 +160,49 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
     if (view === 'my-requests') void fetchMyRequests();
   }, [view, fetchMyRequests]);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const tableState = useKpiTableState(view === 'my-requests' ? REQUEST_TABLE_STATE : ACTIVITY_TABLE_STATE);
+  const { filters: tableFilters, setSearch } = tableState;
+  const [searchInput, setSearchInput] = useState(tableState.filters.search);
+  const debouncedSearch = useDebounce(searchInput, 400);
+  useEffect(() => {
+    if (debouncedSearch !== tableFilters.search) setSearch(debouncedSearch);
+  }, [debouncedSearch, tableFilters.search, setSearch]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
+  const normalizedSearch = tableFilters.search.trim().toLowerCase();
 
   const filteredMyActivities = useMemo(() => {
     const items = myActivities ?? [];
-    if (!normalizedSearch) return items;
-    return items.filter((a) => a.activityName.toLowerCase().includes(normalizedSearch));
-  }, [myActivities, normalizedSearch]);
+    return items.filter((a) => (!normalizedSearch || a.activityName.toLowerCase().includes(normalizedSearch)) && (!tableState.filters.filter || a.status === tableState.filters.filter));
+  }, [myActivities, normalizedSearch, tableState.filters.filter]);
 
   const filteredAllActivities = useMemo(() => {
     const items = allActivities ?? [];
-    if (!normalizedSearch) return items;
-    return items.filter((a) => a.activityName.toLowerCase().includes(normalizedSearch));
-  }, [allActivities, normalizedSearch]);
+    return items.filter((a) => (!normalizedSearch || a.activityName.toLowerCase().includes(normalizedSearch)) && (!tableState.filters.filter || a.status === tableState.filters.filter));
+  }, [allActivities, normalizedSearch, tableState.filters.filter]);
 
   const filteredSubordinates = useMemo(() => {
     const items = subordinatesActivities ?? [];
-    if (!normalizedSearch) return items;
-    return items.filter((a) => a.activityName.toLowerCase().includes(normalizedSearch));
-  }, [subordinatesActivities, normalizedSearch]);
+    return items.filter((a) => (!normalizedSearch || a.activityName.toLowerCase().includes(normalizedSearch)) && (!tableState.filters.filter || a.status === tableState.filters.filter));
+  }, [subordinatesActivities, normalizedSearch, tableState.filters.filter]);
 
   const filteredMyRequests = useMemo(() => {
     const items = myRequests ?? [];
-    if (!normalizedSearch) return items;
-    return items.filter((r) =>
-      (r.activityName ?? '').toLowerCase().includes(normalizedSearch)
-      || r.id.toLowerCase().includes(normalizedSearch),
-    );
-  }, [myRequests, normalizedSearch]);
+    return items.filter((r) => (!normalizedSearch || (r.activityName ?? '').toLowerCase().includes(normalizedSearch) || r.id.toLowerCase().includes(normalizedSearch)) && (!tableState.filters.filter || r.status === tableState.filters.filter));
+  }, [myRequests, normalizedSearch, tableState.filters.filter]);
+
+  const sortItems = useCallback(<T extends { activityName?: string | null; createdAt?: string | null }>(items: T[]) => {
+    const direction = tableState.filters.direction === 'desc' ? -1 : 1;
+    return [...items].sort((left, right) => {
+      const leftValue = tableState.filters.sortBy === 'createdAt' ? (left.createdAt ?? '') : (left.activityName ?? '');
+      const rightValue = tableState.filters.sortBy === 'createdAt' ? (right.createdAt ?? '') : (right.activityName ?? '');
+      return leftValue.localeCompare(rightValue, 'id-ID') * direction;
+    });
+  }, [tableState.filters.direction, tableState.filters.sortBy]);
+  const pagedMyActivities = useMemo(() => paginateKpiItems(sortItems(filteredMyActivities), tableState.filters.page), [filteredMyActivities, sortItems, tableState.filters.page]);
+  const pagedAllActivities = useMemo(() => paginateKpiItems(sortItems(filteredAllActivities), tableState.filters.page), [filteredAllActivities, sortItems, tableState.filters.page]);
+  const pagedSubordinates = useMemo(() => paginateKpiItems(sortItems(filteredSubordinates), tableState.filters.page), [filteredSubordinates, sortItems, tableState.filters.page]);
+  const pagedMyRequests = useMemo(() => paginateKpiItems(sortItems(filteredMyRequests), tableState.filters.page), [filteredMyRequests, sortItems, tableState.filters.page]);
 
   const totalItems = useMemo(() => {
     switch (view) {
@@ -205,21 +214,14 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
     }
   }, [view, myActivities, allActivities, subordinatesActivities, myRequests]);
 
-  const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingSuperior || isLoadingRequests;
+  const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingSuperior || isLoadingRequests || tableState.isQueryLoading || isLoadingPositions;
 
   const handleRefresh = useCallback(() => {
-    void Promise.allSettled([
-      fetchMyActivities(),
-      fetchAllActivities(),
-      fetchMyRequests(),
-      selectedActingPosition
-        ? fetchSubordinatesActivities(selectedActingPosition.positionId)
-        : Promise.resolve(),
-      selectedActingPosition
-        ? fetchSuperiorActivities(selectedActingPosition.positionId)
-        : Promise.resolve(),
-    ]);
-  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities, selectedActingPosition]);
+    if (view === 'my-activities' && selectedActingPosition) void fetchMyActivities();
+    if (view === 'all-activities') void fetchAllActivities();
+    if (view === 'subordinates' && selectedActingPosition) void fetchSubordinatesActivities(selectedActingPosition.positionId);
+    if (view === 'my-requests') void fetchMyRequests();
+  }, [view, fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, selectedActingPosition]);
 
   /* ── Detail modal ── */
   const [detailModal, setDetailModal] = useState<{
@@ -310,7 +312,7 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
           <Chip
             size="md"
             className="pointer-events-none"
-            aria-label={`Total ${totalItems} items`}
+            aria-label={`Total ${totalItems} data`}
           >
             {totalItems}
           </Chip>
@@ -329,115 +331,98 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
             />
           </Button>
 
-          {canRequestRoot && (
+          {view === 'my-activities' && canRequestRoot && selectedActingPosition && (
             <Button
               variant="primary"
               onPress={() => setRequestModal({ isOpen: true, mode: 'root', parentsSource: 'own' })}
-              isDisabled={!selectedActingPosition}
             >
               <Plus className="h-4 w-4" />
-              Request Activity
+              Ajukan Aktivitas
             </Button>
           )}
 
           {/* Self-child request (My Activities): parent = the direct superior's
               ACTIVE activities (scope=superior); assignee = the actor (T3
               self-child returns only the actor's own assignment). No permission. */}
-          {view === 'my-activities' && (
+          {view === 'my-activities' && selectedActingPosition && superiorActivities.length > 0 && (
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 onPress={() => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'superior', initialParentId: null })}
-                isDisabled={!selectedActingPosition || superiorActivities.length === 0}
               >
                 <Plus className="h-4 w-4" />
-                Request Child Activity
+                Ajukan Aktivitas Turunan
               </Button>
-              {(!selectedActingPosition || superiorActivities.length === 0) && (
-                <span className="max-w-44 text-xs text-muted-foreground">
-                  {selectedActingPosition
-                    ? 'No eligible parent activities from your superior.'
-                    : 'Select an acting position above.'}
-                </span>
-              )}
             </div>
           )}
 
           {/* Child-for-subordinate request (Subordinate): parent = the acting
               Position's OWN ACTIVE activities; assignee = a direct subordinate
               chosen from assignable-assignees. No permission. */}
-          {view === 'subordinates' && (
+          {view === 'subordinates' && selectedActingPosition && ownActiveParents.length > 0 && (
             <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 onPress={() => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'own', initialParentId: null })}
-                isDisabled={!selectedActingPosition || ownActiveParents.length === 0}
               >
                 <Plus className="h-4 w-4" />
-                Request Child Activity
+                Ajukan Aktivitas Bawahan
               </Button>
-              {(!selectedActingPosition || ownActiveParents.length === 0) && (
-                <span className="max-w-44 text-xs text-muted-foreground">
-                  {selectedActingPosition
-                    ? 'No eligible parent activities from your position.'
-                    : 'Select an acting position above.'}
-                </span>
-              )}
             </div>
           )}
 
-          {canAdminManage && (
+          {view === 'all-activities' && canAdminManage && (
             <Button
               variant="primary"
               onPress={() => setAdminCreateOpen(true)}
             >
               <Plus className="h-4 w-4" />
-              Admin Create Activity
+              Buat Aktivitas
             </Button>
           )}
         </div>
       </div>
 
-      {/* Row 2: Acting Position + Search */}
-      <div className="flex min-w-0 items-center justify-between gap-4">
-        <div className="flex shrink-0 items-center gap-4">
+      <KpiTableToolbar
+        leading={needsPosition ? (
           <div className="w-72">
-            <ActingPositionPanel
+            <ActingPositionSelector
               positions={positions}
-              isLoading={isLoadingPositions}
-              error={positionsError}
-              onRetry={() => { setSelectedPositionId(null); void refetchPositions(); }}
               value={selectedPositionId}
               onChange={setSelectedPositionId}
+              disabled={isLoadingPositions || Boolean(positionsError)}
             />
           </div>
-          <SearchField
-            name="search"
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="w-72 shrink-0"
-          >
-            <SearchField.Group>
-              <SearchField.SearchIcon />
-              <SearchField.Input
-                aria-label="Search activities"
-                placeholder="Search activities"
-              />
-              <SearchField.ClearButton />
-            </SearchField.Group>
-          </SearchField>
-        </div>
-      </div>
+        ) : undefined}
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        searchLabel="Cari aktivitas"
+        filterOptions={view === 'my-requests' ? [{ id: 'PENDING', label: 'Menunggu Persetujuan' }, { id: 'APPROVED', label: 'Disetujui' }, { id: 'REJECTED', label: 'Ditolak' }] : [{ id: 'ACTIVE', label: 'Aktif' }, { id: 'CANCELLED', label: 'Dibatalkan' }]}
+        selectedFilterIds={tableState.filters.filter ? new Set([tableState.filters.filter]) : new Set()}
+        onFilterChange={(selection) => {
+          const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
+          tableState.setFilter(String(selected ?? ''));
+        }}
+        sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
+        selectedSortId={`${tableState.filters.sortBy}:${tableState.filters.direction}`}
+        onSortChange={(selection) => {
+          const selected = selection instanceof Set ? String(Array.from(selection)[0] ?? '') : '';
+          const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc'];
+          if (field && direction) tableState.setSort(field, direction);
+        }}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
+        onReset={() => { setSearchInput(''); tableState.reset(); }}
+      />
 
       {/* Active view table */}
       <div className="w-full">
         {view === 'my-activities' && (
           <ActivityTable
-            items={filteredMyActivities}
-            isLoading={isLoadingMy}
-            error={myError}
+            items={pagedMyActivities.items}
+            isLoading={isLoadingMy || tableState.isQueryLoading || isLoadingPositions}
+            error={positionsError || myError}
             onViewDetail={openActivityDetail}
-            onRetry={fetchMyActivities}
+            onRetry={positionsError ? refetchPositions : fetchMyActivities}
             ownAssignmentUserPositionId={selectedActingPosition?.userPositionId ?? null}
             onAddChild={selectedActingPosition
               ? (item) => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'own', initialParentId: item.id })
@@ -445,50 +430,59 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
             onRequestChange={selectedActingPosition
               ? (item, mode) => setChangeModal({ isOpen: true, mode, activity: item })
               : undefined}
-            canAdminEdit={canAdminManage}
-            onAdminEdit={canAdminManage ? (item) => setAdminEditModal({ isOpen: true, activity: item }) : undefined}
+            canAdminEdit={false}
+            onAdminEdit={undefined}
+            emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Belum ada aktivitas.'}
+            totalItems={pagedMyActivities.totalItems}
+            currentPage={pagedMyActivities.page}
+            totalPages={pagedMyActivities.totalPages}
+            onPageChange={tableState.setPage}
           />
         )}
 
         {view === 'all-activities' && (
           <ActivityTable
-            items={filteredAllActivities}
-            isLoading={isLoadingAll}
+            items={pagedAllActivities.items}
+            isLoading={isLoadingAll || tableState.isQueryLoading}
             error={allError}
             onViewDetail={openActivityDetail}
             onRetry={fetchAllActivities}
             showAssignee
             canAdminEdit={canAdminManage}
             onAdminEdit={canAdminManage ? (item) => setAdminEditModal({ isOpen: true, activity: item }) : undefined}
+            totalItems={pagedAllActivities.totalItems}
+            currentPage={pagedAllActivities.page}
+            totalPages={pagedAllActivities.totalPages}
+            onPageChange={tableState.setPage}
           />
         )}
 
         {view === 'subordinates' && (
-          selectedActingPosition ? (
             <ActivityTable
-              items={filteredSubordinates}
-              isLoading={isLoadingSubordinates}
-              error={subordinatesError}
+              items={pagedSubordinates.items}
+              isLoading={isLoadingSubordinates || tableState.isQueryLoading || isLoadingPositions}
+              error={positionsError || subordinatesError}
               onViewDetail={openActivityDetail}
-              onRetry={() => fetchSubordinatesActivities(selectedActingPosition.positionId)}
+              onRetry={() => { if (selectedActingPosition) void fetchSubordinatesActivities(selectedActingPosition.positionId); }}
               showAssignee
+              emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Pilih posisi aktif untuk melihat aktivitas bawahan.'}
+              totalItems={pagedSubordinates.totalItems}
+              currentPage={pagedSubordinates.page}
+              totalPages={pagedSubordinates.totalPages}
+              onPageChange={tableState.setPage}
             />
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-default-300 py-12 text-muted-foreground">
-              <SquaresFour className="h-8 w-8" />
-              <span className="text-sm">
-                Select an acting position above to view subordinate activities.
-              </span>
-            </div>
-          )
         )}
 
         {view === 'my-requests' && (
           <RequestTable
-            items={filteredMyRequests}
-            isLoading={isLoadingRequests}
+            items={pagedMyRequests.items}
+            isLoading={isLoadingRequests || tableState.isQueryLoading}
             error={requestsError}
             onViewDetail={openRequestDetail}
+            totalItems={pagedMyRequests.totalItems}
+            currentPage={pagedMyRequests.page}
+            totalPages={pagedMyRequests.totalPages}
+            onPageChange={tableState.setPage}
           />
         )}
       </div>

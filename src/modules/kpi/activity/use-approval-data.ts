@@ -42,6 +42,7 @@ export function useApprovalData(): UseApprovalDataReturn {
   const [isDeciding, setIsDeciding] = useState(false);
   const [recoverable, setRecoverable] = useState<RecoverableConflict | null>(null);
   const mountedRef = useRef(true);
+  const requestSeqRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -49,17 +50,18 @@ export function useApprovalData(): UseApprovalDataReturn {
   }, []);
 
   const fetchToReview = useCallback(async () => {
+    const requestId = ++requestSeqRef.current;
     setIsLoading(true);
     setError(null);
+    setToReview([]);
     try {
       const data = await activityV1Api.getRequests('to-review');
-      if (mountedRef.current) setToReview(data);
+      if (mountedRef.current && requestId === requestSeqRef.current) setToReview(data);
     } catch (err: unknown) {
-      const msg = extractErrorMessage(err, 'Failed to load approval requests.');
-      if (mountedRef.current) { setError(msg); setToReview([]); }
-      toast.danger(msg);
+      const msg = extractErrorMessage(err, 'Gagal memuat pengajuan persetujuan aktivitas.');
+      if (mountedRef.current && requestId === requestSeqRef.current) { setError(msg); setToReview([]); toast.danger(msg); }
     } finally {
-      if (mountedRef.current) setIsLoading(false);
+      if (mountedRef.current && requestId === requestSeqRef.current) setIsLoading(false);
     }
   }, []);
 
@@ -67,7 +69,7 @@ export function useApprovalData(): UseApprovalDataReturn {
     setIsDeciding(true);
     try {
       await activityV1Api.decideRequest(id, body);
-      toast.success(body.decision === 'APPROVE' ? 'Request approved successfully.' : 'Request rejected successfully.');
+      toast.success(body.decision === 'APPROVE' ? 'Pengajuan berhasil disetujui.' : 'Pengajuan berhasil ditolak.');
       if (mountedRef.current) {
         setRecoverable(null);
         await fetchToReview();
@@ -81,7 +83,7 @@ export function useApprovalData(): UseApprovalDataReturn {
         if (mountedRef.current) setRecoverable(recoverableConflict(kind));
         if (mountedRef.current) await fetchToReview();
       } else {
-        toast.danger(raw || 'Something went wrong while processing the request.');
+        toast.danger(raw || 'Terjadi kesalahan saat memproses pengajuan.');
       }
       return false;
     } finally {

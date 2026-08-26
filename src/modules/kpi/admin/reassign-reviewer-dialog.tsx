@@ -55,15 +55,15 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
   const handleConfirm = useCallback(async () => {
     setValidationError(null);
     if (!selectedUserId) {
-      setValidationError('Select the new reviewer.');
+      setValidationError('Pilih peninjau baru.');
       return;
     }
     if (!reason.trim()) {
-      setValidationError('An administrative reason is required.');
+      setValidationError('Alasan administratif wajib diisi.');
       return;
     }
     if (reason.length > 1000) {
-      setValidationError('Reason must not exceed 1000 characters.');
+      setValidationError('Alasan maksimal 1.000 karakter.');
       return;
     }
     setIsSubmitting(true);
@@ -72,11 +72,11 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
         newReviewerUserId: selectedUserId,
         reason: reason.trim(),
       });
-      toast.success('Reviewer reassigned successfully.');
+      toast.success('Peninjau berhasil dialihkan.');
       onSuccess();
       onClose();
     } catch (err) {
-      toast.danger(err instanceof Error ? err.message : 'Failed to reassign reviewer.');
+      toast.danger(err instanceof Error ? err.message : 'Gagal mengalihkan peninjau.');
     } finally {
       setIsSubmitting(false);
     }
@@ -88,16 +88,16 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[480px]">
             <Modal.Header>
-              <Modal.Heading>Reassign Reviewer</Modal.Heading>
+              <Modal.Heading>Alihkan Peninjau</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
             <Modal.Body>
               <div className="flex flex-col gap-4">
                 <p className="text-sm text-muted-foreground">
-                  Reassign the review for{' '}
+                  Alihkan peninjauan untuk{' '}
                   <strong className="text-foreground">{report.activityName}</strong>{' '}
-                  (currently assigned to{' '}
-                  <strong className="text-foreground">{report.reviewerUserName ?? 'the current reviewer'}</strong>).
+                  (saat ini ditugaskan kepada{' '}
+                  <strong className="text-foreground">{report.reviewerUserName ?? 'peninjau saat ini'}</strong>).
                 </p>
 
                 <div>
@@ -109,9 +109,9 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
                       selectedKey={selectedUserId || null}
                       onSelectionChange={(k) => setSelectedUserId(String(k || ''))}
                       isInvalid={!!validationError && !selectedUserId}
-                      placeholder="Select new reviewer..."
+                      placeholder="Pilih peninjau baru..."
                     >
-                      <Label>New Reviewer</Label>
+                      <Label>Peninjau Baru</Label>
                       <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                       <Select.Popover>
                         <ListBox>
@@ -130,8 +130,8 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
                 </div>
 
                 <TextField value={reason} onChange={(e) => { setReason(e); setValidationError(null); }} isInvalid={!!validationError && !!reason}>
-                  <Label>Reason</Label>
-                  <TextArea variant="secondary" placeholder="Administrative audit reason (required)..." rows={3} />
+                  <Label>Alasan</Label>
+                  <TextArea variant="secondary" placeholder="Alasan audit administratif (wajib)..." rows={3} />
                 </TextField>
                 {validationError && <p className="-mt-2 text-xs text-danger">{validationError}</p>}
               </div>
@@ -139,11 +139,11 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
             <Modal.Footer>
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
                 <X className="h-4 w-4" />
-                Cancel
+                Batal
               </Button>
               <Button variant="primary" onPress={handleConfirm} isDisabled={isSubmitting} isPending={isSubmitting}>
                 <ArrowsClockwise className="h-4 w-4" />
-                Reassign
+                Alihkan
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

@@ -10,9 +10,9 @@
 export type KpiReportStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export const REPORT_STATUS_LABEL: Record<KpiReportStatus, string> = {
-  PENDING: 'Pending',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
+  PENDING: 'Menunggu Persetujuan',
+  APPROVED: 'Disetujui',
+  REJECTED: 'Ditolak',
 };
 
 export const REPORT_STATUS_CHIP_COLOR: Record<KpiReportStatus, 'warning' | 'success' | 'danger'> = {

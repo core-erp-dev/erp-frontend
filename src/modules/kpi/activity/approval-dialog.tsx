@@ -42,11 +42,11 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
   const handleConfirm = useCallback(async () => {
     if (mode === 'REJECT') {
       if (!reason.trim()) {
-        setReasonError('Rejection reason is required.');
+        setReasonError('Alasan penolakan wajib diisi.');
         return;
       }
       if (reason.length > 1000) {
-        setReasonError('Rejection reason must not exceed 1000 characters.');
+        setReasonError('Alasan penolakan maksimal 1.000 karakter.');
         return;
       }
       setReasonError(null);
@@ -70,7 +70,7 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
                 <Modal.Icon className="bg-primary-soft text-primary-soft-foreground">
                   <Warning className="size-5" />
                 </Modal.Icon>
-                <Modal.Heading>Approve Request</Modal.Heading>
+                <Modal.Heading>Setujui Pengajuan</Modal.Heading>
               </Modal.Header>
               <Modal.Body>
                 <p className="text-center text-sm text-muted-foreground">
@@ -84,10 +84,10 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
               </Modal.Body>
               <Modal.Footer className="flex-col-reverse">
                 <Button className="w-full" variant="primary" onPress={handleConfirm} isDisabled={isDeciding} isPending={isDeciding}>
-                  Approve
+                  Setujui
                 </Button>
                 <Button className="w-full" variant="secondary" onPress={handleClose} isDisabled={isDeciding}>
-                  Cancel
+                  Batal
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>
@@ -106,7 +106,7 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
               <Modal.Icon className="bg-danger-soft text-danger-soft-foreground">
                 <Warning className="size-5" />
               </Modal.Icon>
-              <Modal.Heading>Reject Request</Modal.Heading>
+              <Modal.Heading>Tolak Pengajuan</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
               <p className="mb-4 text-sm text-muted-foreground">
@@ -120,18 +120,18 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
                 onChange={(e) => { setReason(e); setReasonError(null); }}
                 isInvalid={!!reasonError}
               >
-                <Label>Rejection Reason</Label>
-                <TextArea variant="secondary" placeholder="Explain why this request is being rejected..." rows={3} />
+                <Label>Alasan Penolakan</Label>
+                <TextArea variant="secondary" placeholder="Jelaskan alasan pengajuan ini ditolak..." rows={3} />
               </TextField>
               {reasonError && <p className="mt-1 text-xs text-danger">{reasonError}</p>}
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onPress={handleClose} isDisabled={isDeciding}>
                 <X className="h-4 w-4" />
-                Cancel
+                Batal
               </Button>
               <Button variant="danger" onPress={handleConfirm} isDisabled={isDeciding} isPending={isDeciding}>
-                Reject
+                Tolak
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

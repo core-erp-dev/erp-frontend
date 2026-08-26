@@ -111,6 +111,7 @@ export const navigationConfig: SidebarItem[] = [
       { title: 'Aktivitas Saya', href: KPI_ROUTES.activitiesMine },
       { title: 'Aktivitas Bawahan', href: KPI_ROUTES.activitiesSubordinate },
       { title: 'Pengajuan Saya', href: KPI_ROUTES.activitiesMyRequests },
+      { title: 'Persetujuan Aktivitas', href: KPI_ROUTES.approvals, permissions: [PERM.KPI_ACTIVITY_APPROVE] },
     ],
   },
   {
@@ -125,13 +126,6 @@ export const navigationConfig: SidebarItem[] = [
       { title: 'Laporan Saya', href: KPI_ROUTES.reports },
       { title: 'Persetujuan Laporan', href: KPI_ROUTES.reportReviews },
     ],
-  },
-  {
-    title: 'Persetujuan',
-    href: KPI_ROUTES.approvals,
-    icon: ClipboardText,
-    group: 'KPI',
-    permissions: [PERM.KPI_ACTIVITY_APPROVE],
   },
 
   // ── ORGANIZATION ──

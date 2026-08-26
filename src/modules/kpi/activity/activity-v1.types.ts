@@ -205,21 +205,21 @@ export interface AdminReassignReviewerRequest {
   reason: string;
 }
 
-/* ── Friendly display labels (English only) ── */
+/* ── Label tampilan Bahasa Indonesia ── */
 
 export const ACTIVITY_STATUS_LABEL: Record<KpiActivityStatus, string> = {
-  ACTIVE: 'Active',
-  CANCELLED: 'Cancelled',
+  ACTIVE: 'Aktif',
+  CANCELLED: 'Dibatalkan',
 };
 
 export const REQUEST_TYPE_LABEL: Record<KpiActivityRequestType, string> = {
-  CREATE: 'Create',
-  UPDATE: 'Update',
-  CANCEL: 'Cancel',
+  CREATE: 'Buat',
+  UPDATE: 'Ubah',
+  CANCEL: 'Batalkan',
 };
 
 export const REQUEST_STATUS_LABEL: Record<KpiActivityRequestStatus, string> = {
-  PENDING: 'Pending',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
+  PENDING: 'Menunggu Persetujuan',
+  APPROVED: 'Disetujui',
+  REJECTED: 'Ditolak',
 };

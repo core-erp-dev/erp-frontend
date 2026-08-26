@@ -26,18 +26,18 @@ export const KPI_ROUTES = {
 
 // ── Labels ────────────────────────────────────────────────────────────────
 export const KPI_LABELS = {
-  overview: 'Dashboard',
+  overview: 'Dasbor',
   corporate: 'Struktur KPI Perusahaan',
   corporateVariables: 'Variabel KPI',
   corporateVariableValues: 'Nilai Variabel KPI',
-  activities: 'Activities',
-  activitiesAll: 'All Activities',
-  activitiesMine: 'My Activities',
-  activitiesSubordinate: 'Subordinate',
-  activitiesMyRequests: 'My Request',
-  reports: 'My Report',
-  reportReviews: 'Report Reviews',
-  approvals: 'Activity Approvals',
+  activities: 'Aktivitas',
+  activitiesAll: 'Semua Aktivitas',
+  activitiesMine: 'Aktivitas Saya',
+  activitiesSubordinate: 'Aktivitas Bawahan',
+  activitiesMyRequests: 'Pengajuan Saya',
+  reports: 'Laporan Saya',
+  reportReviews: 'Persetujuan Laporan',
+  approvals: 'Persetujuan Aktivitas',
   unitPerformance: 'Performa Unit',
   unitPerformanceConfiguration: 'Konfigurasi',
 } as const;
