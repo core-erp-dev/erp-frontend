@@ -91,6 +91,8 @@ export type ActivityListQuery = {
   status: KpiActivityStatus | '';
   /** Optional position filter for mine/subordinates; omitted means all relevant positions. */
   positionId?: string;
+  /** Subordinate depth for the subordinates scope; defaults to all descendants. */
+  subordinateScope?: 'all' | 'direct';
   sortBy: 'activityName' | 'createdAt';
   sortDirection: 'asc' | 'desc';
 };

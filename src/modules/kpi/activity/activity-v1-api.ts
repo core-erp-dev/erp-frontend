@@ -59,6 +59,7 @@ export const activityV1Api = {
         scope,
         ...(actingPositionId && (scope === 'subordinates' || scope === 'superior') ? { actingPositionId } : {}),
         ...(query.positionId && (scope === 'mine' || scope === 'subordinates') ? { positionId: query.positionId } : {}),
+        ...(query.subordinateScope && scope === 'subordinates' ? { subordinateScope: query.subordinateScope } : {}),
         page: query.page,
         size: query.size,
         ...(query.search ? { search: query.search } : {}),

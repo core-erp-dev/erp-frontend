@@ -77,10 +77,10 @@ describe('activityV1Api.getActivities (T1)', () => {
   it('sends positionId as a filter without actingPositionId', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap({ content: [activity], page: 1, size: 10, totalElements: 1, totalPages: 1, last: true }) });
     await activityV1Api.getActivitiesPage('subordinates', undefined, {
-      page: 1, size: 10, search: '', status: '', positionId: 'pos-1', sortBy: 'activityName', sortDirection: 'asc',
+      page: 1, size: 10, search: '', status: '', positionId: 'pos-1', subordinateScope: 'direct', sortBy: 'activityName', sortDirection: 'asc',
     });
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', {
-      params: { scope: 'subordinates', positionId: 'pos-1', page: 1, size: 10, sortBy: 'activityName', sortDirection: 'asc' },
+      params: { scope: 'subordinates', positionId: 'pos-1', subordinateScope: 'direct', page: 1, size: 10, sortBy: 'activityName', sortDirection: 'asc' },
     });
   });
 

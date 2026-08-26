@@ -100,6 +100,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   const needsPosition = view === 'my-activities' || view === 'subordinates';
   const { positions, isLoading: isLoadingPositions, error: positionsError, refetch: refetchPositions } = useMyPositions(needsPosition);
   const selectedPositionId = tableFilters.positionId || null;
+  const subordinateScope = tableFilters.subordinateScope as 'all' | 'direct';
   const selectedActingPosition: ActingPosition | null = useMemo(
     () => positions.find((p) => p.positionId === selectedPositionId) ?? null,
     [positions, selectedPositionId],
@@ -149,9 +150,10 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     search: tableFilters.search,
     status: tableFilters.filter as 'ACTIVE' | 'CANCELLED' | '',
     positionId: needsPosition ? (tableFilters.positionId || undefined) : undefined,
+    subordinateScope: view === 'subordinates' ? subordinateScope : undefined,
     sortBy: tableFilters.sortBy as 'activityName' | 'createdAt',
     sortDirection: tableFilters.direction as 'asc' | 'desc',
-  }), [needsPosition, tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.positionId, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+  }), [needsPosition, subordinateScope, tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.positionId, tableFilters.search, tableFilters.size, tableFilters.sortBy, view]);
 
   const parentActivityQuery = useMemo(() => ({
     ...allActivitiesQuery,
@@ -415,35 +417,66 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             <Button variant="tertiary" aria-label="Filter Posisi" isDisabled={isLoadingPositions || Boolean(positionsError)}>
               <SlidersHorizontal className="h-4 w-4" />
               Filter
-              {selectedPositionId && (
+              {(selectedPositionId || (view === 'subordinates' && subordinateScope === 'direct')) && (
                 <>
                   <span className="mx-0.5 h-4 w-px bg-border" />
-                  <span className="text-sm font-medium text-foreground">1</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {Number(Boolean(selectedPositionId)) + Number(view === 'subordinates' && subordinateScope === 'direct')}
+                  </span>
                 </>
               )}
             </Button>
             <Dropdown.Popover className="min-w-[220px]">
               <Dropdown.Menu
-                selectedKeys={new Set([selectedPositionId ?? 'all'])}
-                selectionMode="single"
+                selectedKeys={new Set([
+                  `position:${selectedPositionId ?? 'all'}`,
+                  ...(view === 'subordinates' ? [`scope:${subordinateScope}`] : []),
+                ])}
+                selectionMode="multiple"
                 onSelectionChange={(selection) => {
-                  const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
-                  tableState.setPositionId(String(selected ?? 'all') === 'all' ? '' : String(selected));
+                  const selected = selection instanceof Set ? Array.from(selection).map(String) : [];
+                  // The shared Pegawai filter uses a multi-selection menu. Keep
+                  // one effective value per section so switching is immediate.
+                  const positionKey = selected.filter((key) => key.startsWith('position:')).at(-1);
+                  const scopeKey = selected.filter((key) => key.startsWith('scope:')).at(-1);
+                  const nextPositionId = positionKey && positionKey !== 'position:all'
+                    ? positionKey.replace('position:', '')
+                    : '';
+                  if (nextPositionId !== (selectedPositionId ?? '')) {
+                    tableState.setPositionId(nextPositionId);
+                  }
+                  const nextSubordinateScope = scopeKey === 'scope:direct' ? 'direct' : 'all';
+                  if (view === 'subordinates' && nextSubordinateScope !== subordinateScope) {
+                    tableState.setSubordinateScope(nextSubordinateScope);
+                  }
                 }}
               >
                 <Dropdown.Section>
                   <Header>Posisi</Header>
-                  <Dropdown.Item key="all" id="all" textValue="Semua Posisi">
+                  <Dropdown.Item key="position:all" id="position:all" textValue="Semua Posisi">
                     <Dropdown.ItemIndicator />
                     <Label>Semua Posisi</Label>
                   </Dropdown.Item>
                   {positions.map((position) => (
-                    <Dropdown.Item key={position.positionId} id={position.positionId} textValue={position.positionName}>
+                    <Dropdown.Item key={`position:${position.positionId}`} id={`position:${position.positionId}`} textValue={position.positionName}>
                       <Dropdown.ItemIndicator />
                       <Label>{position.positionName}</Label>
                     </Dropdown.Item>
                   ))}
                 </Dropdown.Section>
+                {view === 'subordinates' && (
+                  <Dropdown.Section>
+                    <Header>Cakupan Bawahan</Header>
+                    <Dropdown.Item key="scope:all" id="scope:all" textValue="Semua Bawahan">
+                      <Dropdown.ItemIndicator />
+                      <Label>Semua Bawahan</Label>
+                    </Dropdown.Item>
+                    <Dropdown.Item key="scope:direct" id="scope:direct" textValue="Bawahan Langsung">
+                      <Dropdown.ItemIndicator />
+                      <Label>Bawahan Langsung</Label>
+                    </Dropdown.Item>
+                  </Dropdown.Section>
+                )}
               </Dropdown.Menu>
             </Dropdown.Popover>
           </Dropdown>
@@ -465,7 +498,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc'];
           if (field && direction) tableState.setSort(field, direction);
         }}
-        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.positionId || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.positionId || (view === 'subordinates' && subordinateScope === 'direct') || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
         onReset={() => { setSearchInput(''); tableState.reset(); }}
       />
 
