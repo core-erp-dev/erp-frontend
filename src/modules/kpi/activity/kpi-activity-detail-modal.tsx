@@ -71,7 +71,7 @@ export function KpiActivityDetailModal({
       if (mode === 'ACTIVITY') {
         const result = await fetchActivityDetail(entityId);
         if (result) setActivity(result);
-        else setLoadError('Failed to load activity detail.');
+        else setLoadError('Gagal memuat detail aktivitas.');
       } else {
         const result = await fetchRequestDetail(entityId);
         if (result) {
@@ -83,7 +83,7 @@ export function KpiActivityDetailModal({
             setCurrentActivity(current);
           }
         } else {
-          setLoadError('Failed to load request detail.');
+          setLoadError('Gagal memuat detail pengajuan.');
         }
       }
       setIsLoading(false);
@@ -103,17 +103,18 @@ export function KpiActivityDetailModal({
 
   const renderActivityDetail = () => {
     if (!activity) return null;
+    const indicators = activity.corporateKpis ?? (activity.corporateKpiId ? [{ id: activity.corporateKpiId, code: activity.corporateKpiCode, name: activity.corporateKpiName }] : []);
     return (
       <div className="flex flex-col gap-6">
         <Surface className="flex flex-col gap-4 rounded-3xl p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Activity Information</h2>
-          <DetailRow label="Activity Name" value={activity.activityName} />
-          <DetailRow label="Description" value={activity.description || '-'} />
-          <DetailRow label="Parent Activity" value={activity.parentActivityName || '-'} />
-          <DetailRow label="Corporate KPI" value={activity.corporateKpiName} />
-          <DetailRow label="Period" value={`${activity.periodYear}-${String(activity.periodMonth).padStart(2, '0')}`} />
+          <DetailRow label="Nama Aktivitas" value={activity.activityName} />
+          <DetailRow label="Deskripsi" value={activity.description || '-'} />
+          <DetailRow label="Aktivitas Induk" value={activity.parentActivityName || '-'} />
+          <DetailRow label="KPI Perusahaan" value={<div className="flex flex-col gap-1">{indicators.map((kpi) => <span key={kpi.id}>{kpi.code} · {kpi.name}</span>)}</div>} />
+          <DetailRow label="Periode" value={new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(new Date(activity.periodYear, activity.periodMonth - 1, 1))} />
           <DetailRow label="Unit" value={activity.unit} />
-          <DetailRow label="Target Value" value={String(activity.targetValue)} />
+          <DetailRow label="Nilai Target" value={String(activity.targetValue)} />
           <DetailRow label="Realized Value" value={String(activity.realizedValue)} />
           <DetailRow label="Progress" value={`${Math.round(activity.progressPercent)}%`} />
           <DetailRow label="Status" value={
@@ -121,7 +122,7 @@ export function KpiActivityDetailModal({
               {ACTIVITY_STATUS_LABEL[activity.status]}
             </Chip>
           } />
-          <DetailRow label="Assignee" value={activity.assignedToUserName} />
+          <DetailRow label="Penanggung Jawab" value={activity.assignedToUserName} />
           <DetailRow label="Position" value={activity.assignedToPositionName} />
         </Surface>
       </div>
@@ -140,6 +141,7 @@ export function KpiActivityDetailModal({
     if (!request) return null;
     const isCancel = request.requestType === 'CANCEL';
     const isUpdate = request.requestType === 'UPDATE';
+    const indicators = request.corporateKpis ?? (request.corporateKpiId ? [{ id: request.corporateKpiId, code: '', name: request.corporateKpiName ?? '' }] : []);
 
     return (
       <div className="flex flex-col gap-6">
@@ -149,8 +151,8 @@ export function KpiActivityDetailModal({
             <div className="grid grid-cols-3 gap-1 text-xs text-muted-foreground">
               <span>Field</span><span>Current</span><span>Proposed</span>
             </div>
-            {renderComparison('Activity Name', currentActivity.activityName, request.activityName || '-')}
-            {renderComparison('Description', currentActivity.description || '-', request.description || '-')}
+            {renderComparison('Nama Aktivitas', currentActivity.activityName, request.activityName || '-')}
+            {renderComparison('Deskripsi', currentActivity.description || '-', request.description || '-')}
             {renderComparison('Unit', currentActivity.unit, request.unit || '-')}
             {renderComparison('Target', String(currentActivity.targetValue), request.targetValue != null ? String(request.targetValue) : '-')}
           </Surface>
@@ -168,22 +170,22 @@ export function KpiActivityDetailModal({
               {REQUEST_STATUS_LABEL[request.status]}
             </Chip>
           } />
-          <DetailRow label="Activity Name" value={request.activityName || '-'} />
-          {isCancel && request.cancellationReason ? <DetailRow label="Cancellation Reason" value={request.cancellationReason} /> : null}
-          <DetailRow label="Parent Activity" value={request.parentActivityName || '-'} />
-          <DetailRow label="Corporate KPI" value={request.corporateKpiName || '-'} />
-          <DetailRow label="Assignee" value={request.assignedToUserName || '-'} />
-          <DetailRow label="Period" value={request.periodYear ? `${request.periodYear}-${String(request.periodMonth).padStart(2, '0')}` : '-'} />
+          <DetailRow label="Nama Aktivitas" value={request.activityName || '-'} />
+          {isCancel && request.cancellationReason ? <DetailRow label="Alasan Pembatalan" value={request.cancellationReason} /> : null}
+          <DetailRow label="Aktivitas Induk" value={request.parentActivityName || '-'} />
+          <DetailRow label="KPI Perusahaan" value={indicators.length > 0 ? <div className="flex flex-col gap-1">{indicators.map((kpi) => <span key={kpi.id}>{kpi.code ? `${kpi.code} · ` : ''}{kpi.name}</span>)}</div> : '-'} />
+          <DetailRow label="Penanggung Jawab" value={request.assignedToUserName || '-'} />
+          <DetailRow label="Periode" value={request.periodYear && request.periodMonth ? new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(new Date(request.periodYear, request.periodMonth - 1, 1)) : '-'} />
           <DetailRow label="Unit" value={request.unit || '-'} />
-          <DetailRow label="Target Value" value={request.targetValue != null ? String(request.targetValue) : '-'} />
-          <DetailRow label="Requested By" value={request.requestedByUserName} />
-          {request.rejectionReason ? <DetailRow label="Rejection Reason" value={request.rejectionReason} /> : null}
+          <DetailRow label="Nilai Target" value={request.targetValue != null ? String(request.targetValue) : '-'} />
+          <DetailRow label="Diajukan Oleh" value={request.requestedByUserName} />
+          {request.rejectionReason ? <DetailRow label="Alasan Penolakan" value={request.rejectionReason} /> : null}
         </Surface>
       </div>
     );
   };
 
-  const title = mode === 'ACTIVITY' ? 'Activity Detail' : 'Request Detail';
+  const title = mode === 'ACTIVITY' ? 'Detail Aktivitas' : 'Detail Pengajuan';
   const Icon = mode === 'ACTIVITY' ? ClipboardText : Checks;
 
   return (

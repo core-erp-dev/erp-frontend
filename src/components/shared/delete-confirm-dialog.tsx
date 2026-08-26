@@ -15,6 +15,11 @@ interface DeleteConfirmDialogProps {
   /** Optional additional warning message */
   warning?: string;
   isDeleting?: boolean;
+  /** Reuses the same confirmation surface for another destructive action. */
+  title?: string;
+  actionVerb?: string;
+  confirmLabel?: string;
+  pendingLabel?: string;
 }
 
 export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
@@ -25,6 +30,10 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   entityLabel,
   warning,
   isDeleting = false,
+  title = 'Konfirmasi Hapus',
+  actionVerb = 'menghapus',
+  confirmLabel = 'Hapus',
+  pendingLabel = 'Menghapus...',
 }) => {
   return (
     // NOTE: Modal.Backdrop is used as the root (controlled, without <Modal>) —
@@ -43,12 +52,12 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
               <Modal.Icon className="bg-danger-soft text-danger-soft-foreground">
                 <Warning className="size-5" />
               </Modal.Icon>
-              <Modal.Heading>Konfirmasi Hapus</Modal.Heading>
+              <Modal.Heading>{title}</Modal.Heading>
             </Modal.Header>
 
             <Modal.Body>
               <p className="text-sm text-muted-foreground text-center">
-                Yakin ingin menghapus {entityLabel}{' '}
+                Yakin ingin {actionVerb} {entityLabel}{' '}
                 <strong className="text-foreground">{name}</strong>?
                 {warning && (
                   <>
@@ -67,7 +76,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
                 isDisabled={isDeleting}
                 isPending={isDeleting}
               >
-                {isDeleting ? 'Menghapus...' : 'Hapus'}
+                {isDeleting ? pendingLabel : confirmLabel}
               </Button>
               <Button
                 className="w-full"

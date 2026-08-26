@@ -81,6 +81,7 @@ export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove
     >
       {items.map((item) => {
               const isOwn = ownRequestIds.has(item.id);
+              const indicators = item.corporateKpis ?? (item.corporateKpiId ? [{ id: item.corporateKpiId, code: '', name: item.corporateKpiName ?? '' }] : []);
               return (
                 <Table.Row key={item.id} id={String(item.id)}>
                   <Table.Cell>
@@ -92,7 +93,9 @@ export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove
                   <Table.Cell className="font-medium text-foreground">{item.activityName || '-'}</Table.Cell>
                   <Table.Cell className="text-muted-foreground">{item.parentActivityName || '-'}</Table.Cell>
                   <Table.Cell className="text-muted-foreground">{item.assignedToUserName || '-'}</Table.Cell>
-                  <Table.Cell className="text-muted-foreground">{item.corporateKpiName || '-'}</Table.Cell>
+                  <Table.Cell className="text-muted-foreground">
+                    {indicators.length > 0 ? `${indicators[0].code ? `${indicators[0].code} · ` : ''}${indicators[0].name}${indicators.length > 1 ? ` +${indicators.length - 1} lainnya` : ''}` : '-'}
+                  </Table.Cell>
                   <Table.Cell className="text-muted-foreground">
                     {item.targetValue != null ? `${item.targetValue}${item.unit ? ` ${item.unit}` : ''}` : '-'}
                   </Table.Cell>

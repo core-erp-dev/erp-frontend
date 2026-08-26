@@ -12,6 +12,7 @@ import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
 import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
+import { ActivityIndicatorMultiSelect } from '@/modules/kpi/activity/activity-indicator-multi-select';
 
 interface AdminCreateActivityModalProps {
   isOpen: boolean;
@@ -47,7 +48,7 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
   const [parentId, setParentId] = useState('');
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedCkId, setSelectedCkId] = useState('');
+  const [selectedCkIds, setSelectedCkIds] = useState<string[]>([]);
   const [activityName, setActivityName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
@@ -116,7 +117,7 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
       setSelectedUserId('');
       setSelectedUserPositionId('');
       setParentId('');
-      setSelectedCkId('');
+      setSelectedCkIds([]);
       setActivityName('');
       setDescription('');
       setUnit('');
@@ -139,28 +140,28 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
   const handleSubmit = useCallback(async () => {
     setValidationError(null);
     if (!selectedUserPositionId) {
-      setValidationError('Select the assignee position.');
+      setValidationError('Pilih posisi penanggung jawab.');
       return;
     }
     if (!activityName.trim()) {
-      setValidationError('Activity name is required.');
+      setValidationError('Nama aktivitas wajib diisi.');
       return;
     }
     if (!unit.trim()) {
-      setValidationError('Unit is required.');
+      setValidationError('Unit wajib diisi.');
       return;
     }
     const tv = parseFloat(targetValue);
     if (!targetValue || isNaN(tv) || tv <= 0) {
-      setValidationError('Target value must be a positive number.');
+      setValidationError('Nilai target harus berupa angka positif.');
       return;
     }
-    if (isRoot && !selectedCkId) {
-      setValidationError('Select a Corporate KPI indicator for a root activity.');
+    if (isRoot && selectedCkIds.length === 0) {
+      setValidationError('Pilih minimal satu indikator KPI Perusahaan untuk aktivitas induk.');
       return;
     }
     if (!reason.trim()) {
-      setValidationError('An administrative reason is required.');
+      setValidationError('Alasan administratif wajib diisi.');
       return;
     }
 
@@ -169,7 +170,7 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
       await kpiAdminV1Api.adminCreateActivity({
         assignedToUserPositionId: selectedUserPositionId,
         parentId: isRoot ? undefined : parentId,
-        corporateKpiId: isRoot ? selectedCkId : undefined,
+        corporateKpiIds: isRoot ? selectedCkIds : undefined,
         periodYear: isRoot ? selectedYear : undefined,
         periodMonth: isRoot ? periodMonth : undefined,
         activityName: activityName.trim(),
@@ -178,15 +179,15 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
         targetValue: tv,
         reason: reason.trim(),
       });
-      toast.success('Activity created successfully.');
+      toast.success('Aktivitas berhasil dibuat.');
       onSuccess();
       onClose();
     } catch (err) {
-      toast.danger(err instanceof Error ? err.message : 'Failed to create activity.');
+      toast.danger(err instanceof Error ? err.message : 'Gagal membuat aktivitas.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedUserPositionId, activityName, unit, targetValue, isRoot, selectedCkId, reason, parentId, selectedYear, periodMonth, description, onSuccess, onClose]);
+  }, [selectedUserPositionId, activityName, unit, targetValue, isRoot, selectedCkIds, reason, parentId, selectedYear, periodMonth, description, onSuccess, onClose]);
 
   return (
     <Modal isOpen={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -194,7 +195,7 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[600px]">
             <Modal.Header>
-              <Modal.Heading>Admin Create Activity</Modal.Heading>
+            <Modal.Heading>Buat Aktivitas</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
             <Modal.Body>
@@ -212,9 +213,9 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
                     variant="secondary"
                     selectedKey={selectedUserId || null}
                     onSelectionChange={(k) => handleUserChange(String(k || ''))}
-                    placeholder="Select assignee user..."
+                    placeholder="Pilih pengguna penanggung jawab..."
                   >
-                    <Label>Assignee User</Label>
+                    <Label>Pengguna Penanggung Jawab</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox>
@@ -233,9 +234,9 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
                     variant="secondary"
                     selectedKey={selectedUserPositionId || null}
                     onSelectionChange={(k) => setSelectedUserPositionId(String(k || ''))}
-                    placeholder="Select assignee position..."
+                    placeholder="Pilih posisi penanggung jawab..."
                   >
-                    <Label>Assignee Position</Label>
+                    <Label>Posisi Penanggung Jawab</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox>
@@ -253,10 +254,10 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
                 <Select
                   variant="secondary"
                   selectedKey={parentId || null}
-                  onSelectionChange={(k) => { setParentId(String(k || '')); setSelectedCkId(''); }}
-                  placeholder="No parent — root activity"
+                  onSelectionChange={(k) => { setParentId(String(k || '')); setSelectedCkIds([]); }}
+                  placeholder="Tanpa induk — aktivitas utama"
                 >
-                  <Label>Parent Activity (optional)</Label>
+                  <Label>Aktivitas Induk (opsional)</Label>
                   <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                   <Select.Popover>
                     <ListBox>
@@ -275,9 +276,9 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
                       <Select
                         variant="secondary"
                         selectedKey={String(selectedYear)}
-                        onSelectionChange={(k) => { setSelectedYear(Number(k)); setSelectedCkId(''); }}
+                        onSelectionChange={(k) => { setSelectedYear(Number(k)); setSelectedCkIds([]); }}
                       >
-                        <Label>Period Year</Label>
+                        <Label>Tahun Periode</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                         <Select.Popover>
                           <ListBox>
@@ -294,7 +295,7 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
                         selectedKey={String(periodMonth)}
                         onSelectionChange={(k) => setPeriodMonth(Number(k))}
                       >
-                        <Label>Period Month</Label>
+                        <Label>Bulan Periode</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                         <Select.Popover>
                           <ListBox>
@@ -308,70 +309,49 @@ export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCr
                       </Select>
                     </div>
 
-                    <div>
-                      {isLoadingCk ? (
-                        <div className="flex items-center justify-center py-4"><Spinner size="sm" /></div>
-                      ) : (
-                        <Select
-                          variant="secondary"
-                          selectedKey={selectedCkId || null}
-                          onSelectionChange={(k) => setSelectedCkId(String(k || ''))}
-                          placeholder={ckTree.length === 0 ? 'No active indicators for this year' : 'Select Corporate KPI indicator...'}
-                        >
-                          <Label>Corporate KPI Indicator</Label>
-                          <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                          <Select.Popover>
-                            <ListBox>
-                              {ckTree.map((node) => (
-                                <ListBox.Item key={node.id} id={node.id} textValue={`${node.code} - ${node.name}`}>
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-foreground">{node.code}</span>
-                                    <span className="text-xs text-muted-foreground">{node.name}</span>
-                                  </div>
-                                </ListBox.Item>
-                              ))}
-                            </ListBox>
-                          </Select.Popover>
-                        </Select>
-                      )}
-                    </div>
+                    <ActivityIndicatorMultiSelect
+                      indicators={ckTree}
+                      selectedIds={selectedCkIds}
+                      onChange={setSelectedCkIds}
+                      isLoading={isLoadingCk}
+                    />
                   </>
                 )}
 
                 <TextField isRequired value={activityName} onChange={setActivityName}>
-                  <Label>Activity Name</Label>
-                  <Input variant="secondary" placeholder="Enter activity name..." />
+                  <Label>Nama Aktivitas</Label>
+                  <Input variant="secondary" placeholder="Masukkan nama aktivitas..." />
                 </TextField>
 
                 <TextField value={description} onChange={setDescription}>
-                  <Label>Description</Label>
-                  <TextArea variant="secondary" placeholder="Optional description..." rows={2} />
+                  <Label>Deskripsi</Label>
+                  <TextArea variant="secondary" placeholder="Deskripsi opsional..." rows={2} />
                 </TextField>
 
                 <div className="grid grid-cols-2 gap-4">
                   <TextField isRequired value={unit} onChange={setUnit}>
                     <Label>Unit</Label>
-                    <Input variant="secondary" placeholder="e.g. %, IDR, units" />
+                    <Input variant="secondary" placeholder="Contoh: %, IDR, unit" />
                   </TextField>
                   <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
-                    <Label>Target Value</Label>
-                    <Input variant="secondary" placeholder="e.g. 100" />
+                    <Label>Nilai Target</Label>
+                    <Input variant="secondary" placeholder="Contoh: 100" />
                   </TextField>
                 </div>
 
                 <TextField value={reason} onChange={setReason}>
-                  <Label>Reason</Label>
-                  <TextArea variant="secondary" placeholder="Administrative audit reason (required)..." rows={2} />
+                  <Label>Alasan</Label>
+                  <TextArea variant="secondary" placeholder="Alasan audit administratif wajib diisi..." rows={2} />
                 </TextField>
               </div>
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
                 <X className="h-4 w-4" />
-                Cancel
+                Batal
               </Button>
               <Button variant="primary" onPress={handleSubmit} isDisabled={isSubmitting} isPending={isSubmitting}>
-                Create Activity
+                Buat Aktivitas
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

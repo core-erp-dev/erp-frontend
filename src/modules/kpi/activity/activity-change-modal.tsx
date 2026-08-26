@@ -6,6 +6,10 @@ import {
 } from '@heroui/react';
 import { X as XIcon } from '@phosphor-icons/react';
 import { useActivityData } from './use-activity-data';
+import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
+import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
+import { ActivityIndicatorMultiSelect } from './activity-indicator-multi-select';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { RecoverableConflict } from '@/modules/kpi/shared/domain-errors';
 import type {
@@ -51,6 +55,9 @@ export function ActivityChangeModal({
   const [description, setDescription] = useState(activity.description ?? '');
   const [unit, setUnit] = useState(activity.unit);
   const [targetValue, setTargetValue] = useState(String(activity.targetValue));
+  const [corporateKpiIds, setCorporateKpiIds] = useState<string[]>([]);
+  const [indicators, setIndicators] = useState<CorporateKpiNode[]>([]);
+  const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<RecoverableConflict | null>(null);
@@ -63,10 +70,32 @@ export function ActivityChangeModal({
     setDescription(activity.description ?? '');
     setUnit(activity.unit);
     setTargetValue(String(activity.targetValue));
+    setCorporateKpiIds(activity.corporateKpis?.map((kpi) => kpi.id) ?? (activity.corporateKpiId ? [activity.corporateKpiId] : []));
     setCancellationReason('');
     setValidationError(null);
     setConflict(null);
   }, [isOpen, activity]);
+
+  useEffect(() => {
+    if (!isOpen || mode !== 'update') return;
+    let active = true;
+    setIsLoadingIndicators(true);
+    Promise.all([corporateKpiApi.getTreeByYear(activity.periodYear), corporateKpiStructuresApi.list()])
+      .then(([tree, structures]) => {
+        if (!active) return;
+        const activeStructures = new Set(structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id));
+        const result: CorporateKpiNode[] = [];
+        const collect = (nodes: CorporateKpiNode[]) => nodes.forEach((node) => {
+          if (node.nodeType === 'INDICATOR' && activeStructures.has(node.structureId)) result.push(node);
+          if (node.children.length > 0) collect(node.children);
+        });
+        collect(tree);
+        setIndicators(result);
+      })
+      .catch(() => { if (active) setIndicators([]); })
+      .finally(() => { if (active) setIsLoadingIndicators(false); });
+    return () => { active = false; };
+  }, [isOpen, mode, activity.periodYear]);
 
   const handleSubmit = useCallback(async () => {
     setValidationError(null);
@@ -74,7 +103,7 @@ export function ActivityChangeModal({
 
     if (mode === 'cancel') {
       if (!cancellationReason.trim()) {
-        setValidationError('A cancellation reason is required.');
+        setValidationError('Alasan pembatalan wajib diisi.');
         return;
       }
       const body: CancelChangeRequest = {
@@ -107,7 +136,11 @@ export function ActivityChangeModal({
       return;
     }
     if (!unit.trim()) {
-      setValidationError('Unit is required.');
+      setValidationError('Unit wajib diisi.');
+      return;
+    }
+    if (corporateKpiIds.length === 0) {
+      setValidationError('Pilih minimal satu indikator KPI Perusahaan.');
       return;
     }
     const tv = parseFloat(targetValue);
@@ -123,12 +156,13 @@ export function ActivityChangeModal({
       description: description.trim() || null,
       unit: unit.trim(),
       targetValue: tv,
+      corporateKpiIds,
     };
     setIsSubmitting(true);
     try {
       const result = await submitChangeRequest(activity.id, body);
       if (result.success) {
-        toast.success('Update request submitted successfully.');
+        toast.success('Pengajuan perubahan berhasil dikirim.');
         onSuccess();
         onClose();
       } else if (result.conflict) {
@@ -141,7 +175,7 @@ export function ActivityChangeModal({
       setIsSubmitting(false);
     }
   }, [
-    mode, cancellationReason, activityName, unit, targetValue, description,
+    mode, cancellationReason, activityName, unit, targetValue, description, corporateKpiIds,
     actingPosition.positionId, activity.id, submitChangeRequest,
     onSuccess, onClose, onConflict,
   ]);
@@ -173,31 +207,37 @@ export function ActivityChangeModal({
                 <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
                   <div>Aktivitas: <span className="font-medium text-foreground">{activity.activityName}</span></div>
                   <div>
-                    Acting Position: <span className="font-medium text-foreground">{actingPosition.positionName}</span>
-                    {actingPosition.isPrimary ? ' (Primary)' : ''}
+                    Posisi Acting: <span className="font-medium text-foreground">{actingPosition.positionName}</span>
+                    {actingPosition.isPrimary ? ' (Utama)' : ''}
                   </div>
                 </div>
 
                 {mode === 'update' ? (
                   <>
+                    <ActivityIndicatorMultiSelect
+                      indicators={indicators}
+                      selectedIds={corporateKpiIds}
+                      onChange={setCorporateKpiIds}
+                      isLoading={isLoadingIndicators}
+                    />
                     <TextField isRequired value={activityName} onChange={setActivityName}>
                       <Label>Nama Aktivitas</Label>
-                      <Input variant="secondary" placeholder="Enter activity name..." />
+                      <Input variant="secondary" placeholder="Masukkan nama aktivitas..." />
                     </TextField>
 
                     <TextField value={description} onChange={setDescription}>
                       <Label>Deskripsi</Label>
-                      <TextArea variant="secondary" placeholder="Optional description..." rows={2} />
+                      <TextArea variant="secondary" placeholder="Deskripsi opsional..." rows={2} />
                     </TextField>
 
                     <div className="grid grid-cols-2 gap-4">
                       <TextField isRequired value={unit} onChange={setUnit}>
                         <Label>Unit</Label>
-                        <Input variant="secondary" placeholder="e.g. %, IDR, units" />
+                        <Input variant="secondary" placeholder="Contoh: %, IDR, unit" />
                       </TextField>
                       <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
                         <Label>Nilai Target</Label>
-                        <Input variant="secondary" placeholder="e.g. 100" />
+                        <Input variant="secondary" placeholder="Contoh: 100" />
                       </TextField>
                     </div>
                   </>

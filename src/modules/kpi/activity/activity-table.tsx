@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Chip, Button, Dropdown, Table } from '@heroui/react';
-import { DotsThreeVertical, Eye, PencilLine, PencilSimple, Plus, Prohibit } from '@phosphor-icons/react';
+import { Chip, Button, Dropdown, Table, Tooltip } from '@heroui/react';
+import { DotsThreeVertical, Eye, PencilLine, PencilSimple, Plus, Prohibit, Trash } from '@phosphor-icons/react';
 import { KpiTable } from '@/modules/kpi/shared/kpi-table';
 import {
   ACTIVITY_STATUS_LABEL,
@@ -26,6 +26,7 @@ interface ActivityTableProps {
   onRequestChange?: (item: KpiActivityResponse, mode: 'update' | 'cancel') => void;
   canAdminEdit?: boolean;
   onAdminEdit?: (item: KpiActivityResponse) => void;
+  onAdminCancel?: (item: KpiActivityResponse) => void;
 }
 
 const ACTIVITY_STATUS_CHIP_COLOR: Record<KpiActivityStatus, 'default' | 'success'> = {
@@ -51,7 +52,7 @@ function formatPeriod(year: number, month: number): string {
 export function ActivityTable({
   items, isLoading, error, onViewDetail, onRetry, emptyLabel = 'Tidak ada aktivitas.',
   totalItems, currentPage, totalPages, onPageChange,
-  ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit,
+  ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit, onAdminCancel,
 }: ActivityTableProps) {
   return (
     <KpiTable
@@ -82,6 +83,8 @@ export function ActivityTable({
         const owned = isOwned(item, ownAssignmentUserPositionId);
         const canChange = owned && item.status === 'ACTIVE' && Boolean(onRequestChange);
         const canManage = Boolean(canAdminEdit && onAdminEdit && item.version != null);
+        const indicators = item.corporateKpis ?? (item.corporateKpiId ? [{ id: item.corporateKpiId, code: item.corporateKpiCode, name: item.corporateKpiName }] : []);
+        const firstIndicator = indicators[0];
 
         return (
           <Table.Row key={item.id} id={item.id}>
@@ -94,7 +97,18 @@ export function ActivityTable({
               </div>
             </Table.Cell>
             <Table.Cell>
-              <span className="text-foreground">{item.corporateKpiCode} · {item.corporateKpiName}</span>
+              {indicators.length <= 1 ? (
+                <span className="text-foreground">{firstIndicator ? `${firstIndicator.code} · ${firstIndicator.name}` : '-'}</span>
+              ) : (
+                <Tooltip delay={0}>
+                  <Tooltip.Trigger aria-label={`${indicators.length} indikator KPI Perusahaan`}>
+                    <span className="cursor-help text-foreground">{firstIndicator?.code} · {firstIndicator?.name} <span className="text-muted-foreground">+{indicators.length - 1} lainnya</span></span>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content placement="right">
+                    <div className="flex max-w-xs flex-col gap-1">{indicators.map((kpi) => <span key={kpi.id}>{kpi.code} · {kpi.name}</span>)}</div>
+                  </Tooltip.Content>
+                </Tooltip>
+              )}
             </Table.Cell>
             <Table.Cell>
               <div className="flex min-w-0 flex-col gap-0.5">
@@ -126,6 +140,7 @@ export function ActivityTable({
                       if (key === 'update') onRequestChange?.(item, 'update');
                       if (key === 'cancel') onRequestChange?.(item, 'cancel');
                       if (key === 'manage') onAdminEdit?.(item);
+                      if (key === 'admin-cancel') onAdminCancel?.(item);
                     }}>
                       <Dropdown.Item id="view" textValue="Lihat detail">
                         <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground" /><span>Lihat detail</span></div>
@@ -148,6 +163,12 @@ export function ActivityTable({
                       {canManage && (
                         <Dropdown.Item id="manage" textValue="Kelola aktivitas">
                           <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Kelola aktivitas</span></div>
+                        </Dropdown.Item>
+                      )}
+                      {canManage && item.status === 'ACTIVE' && onAdminCancel && (
+                        <Dropdown.Item id="admin-cancel" textValue="Batalkan Aktivitas" variant="danger">
+                          <Trash className="h-4 w-4 text-danger" />
+                          <span className="text-danger">Batalkan Aktivitas</span>
                         </Dropdown.Item>
                       )}
                     </Dropdown.Menu>

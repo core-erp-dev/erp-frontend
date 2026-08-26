@@ -10,6 +10,10 @@ import { employeeApi } from '@/modules/organization/employees/services/employee-
 import type { CoreUser, UserPositionResponse } from '@/modules/organization/employees/types';
 import type { RecoverableConflict } from '@/modules/kpi/shared/domain-errors';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
+import { ActivityIndicatorMultiSelect } from '@/modules/kpi/activity/activity-indicator-multi-select';
+import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
+import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
+import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
 
 interface AdminUpdateActivityModalProps {
   isOpen: boolean;
@@ -24,6 +28,7 @@ interface AdminUpdateActivityModalProps {
   onSuccess: () => void;
   /** Called after ACTIVITY_VERSION_CONFLICT (refetch authoritative data). */
   onConflict: () => void;
+  initialAction?: AdminAction;
 }
 
 type AdminAction = 'UPDATE' | 'REASSIGN' | 'CANCEL';
@@ -38,7 +43,7 @@ type AdminAction = 'UPDATE' | 'REASSIGN' | 'CANCEL';
  * re-open the form — there is NO silent retry of a stale update.
  */
 export function AdminUpdateActivityModal({
-  isOpen, onClose, activity, onSuccess, onConflict,
+  isOpen, onClose, activity, onSuccess, onConflict, initialAction = 'UPDATE',
 }: AdminUpdateActivityModalProps) {
   const [action, setAction] = useState<AdminAction>('UPDATE');
   const [reason, setReason] = useState('');
@@ -46,6 +51,9 @@ export function AdminUpdateActivityModal({
   const [description, setDescription] = useState(activity.description ?? '');
   const [unit, setUnit] = useState(activity.unit);
   const [targetValue, setTargetValue] = useState(String(activity.targetValue));
+  const [corporateKpiIds, setCorporateKpiIds] = useState<string[]>([]);
+  const [indicators, setIndicators] = useState<CorporateKpiNode[]>([]);
+  const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
   const [users, setUsers] = useState<CoreUser[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -62,17 +70,39 @@ export function AdminUpdateActivityModal({
   /* Reset + prefill from the authoritative Activity response on open. */
   useEffect(() => {
     if (!isOpen) return;
-    setAction('UPDATE');
+    setAction(initialAction);
     setReason('');
     setActivityName(activity.activityName);
     setDescription(activity.description ?? '');
     setUnit(activity.unit);
     setTargetValue(String(activity.targetValue));
+    setCorporateKpiIds(activity.corporateKpis?.map((kpi) => kpi.id) ?? (activity.corporateKpiId ? [activity.corporateKpiId] : []));
     setSelectedUserId('');
     setSelectedUserPositionId('');
     setValidationError(null);
     setConflict(null);
-  }, [isOpen, activity]);
+  }, [isOpen, activity, initialAction]);
+
+  useEffect(() => {
+    if (!isOpen || action !== 'UPDATE') return;
+    let active = true;
+    setIsLoadingIndicators(true);
+    Promise.all([corporateKpiApi.getTreeByYear(activity.periodYear), corporateKpiStructuresApi.list()])
+      .then(([tree, structures]) => {
+        if (!active) return;
+        const activeStructures = new Set(structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id));
+        const result: CorporateKpiNode[] = [];
+        const collect = (nodes: CorporateKpiNode[]) => nodes.forEach((node) => {
+          if (node.nodeType === 'INDICATOR' && activeStructures.has(node.structureId)) result.push(node);
+          if (node.children.length > 0) collect(node.children);
+        });
+        collect(tree);
+        setIndicators(result);
+      })
+      .catch(() => { if (active) setIndicators([]); })
+      .finally(() => { if (active) setIsLoadingIndicators(false); });
+    return () => { active = false; };
+  }, [isOpen, action, activity.periodYear]);
 
   /* Load candidate users only when REASSIGN is chosen. */
   useEffect(() => {
@@ -95,26 +125,30 @@ export function AdminUpdateActivityModal({
     setConflict(null);
 
     if (!reason.trim()) {
-      setValidationError('An administrative reason is required.');
+      setValidationError('Alasan administratif wajib diisi.');
       return;
     }
     if (action === 'UPDATE') {
       if (!activityName.trim()) {
-        setValidationError('Activity name is required.');
+        setValidationError('Nama aktivitas wajib diisi.');
         return;
       }
       if (!unit.trim()) {
-        setValidationError('Unit is required.');
+        setValidationError('Unit wajib diisi.');
         return;
       }
       const tv = parseFloat(targetValue);
       if (!targetValue || Number.isNaN(tv) || tv <= 0) {
-        setValidationError('Target value must be a positive number.');
+        setValidationError('Nilai target harus berupa angka positif.');
+        return;
+      }
+      if (corporateKpiIds.length === 0) {
+        setValidationError('Pilih minimal satu indikator KPI Perusahaan.');
         return;
       }
     }
     if (action === 'REASSIGN' && !selectedUserPositionId) {
-      setValidationError('Select the new assignee position.');
+      setValidationError('Pilih posisi penanggung jawab baru.');
       return;
     }
 
@@ -129,17 +163,18 @@ export function AdminUpdateActivityModal({
         description: action === 'UPDATE' ? description.trim() || undefined : undefined,
         unit: action === 'UPDATE' ? unit.trim() : undefined,
         targetValue: action === 'UPDATE' ? parseFloat(targetValue) : undefined,
+        corporateKpiIds: action === 'UPDATE' ? corporateKpiIds : undefined,
         assignedToUserPositionId: action === 'REASSIGN' ? selectedUserPositionId : undefined,
       });
-      toast.success('Activity updated successfully.');
+      toast.success(action === 'CANCEL' ? 'Aktivitas berhasil dibatalkan.' : 'Aktivitas berhasil diperbarui.');
       onSuccess();
       onClose();
     } catch (err) {
-      const raw = err instanceof Error ? err.message : 'Failed to update the activity.';
+      const raw = err instanceof Error ? err.message : 'Gagal memperbarui aktivitas.';
       if (raw.includes('Activity was modified by another user')) {
         setConflict({
           kind: 'version-conflict',
-          message: 'This activity was modified by another user — reload and review the newer version before resubmitting.',
+          message: 'Aktivitas ini diubah oleh pengguna lain — muat ulang dan tinjau versi terbaru sebelum mengirim ulang.',
           refetch: true,
         });
         onConflict();
@@ -151,7 +186,7 @@ export function AdminUpdateActivityModal({
     }
   }, [
     action, reason, activityName, unit, targetValue, description,
-    selectedUserPositionId, activity.id, activity.version,
+    selectedUserPositionId, corporateKpiIds, activity.id, activity.version,
     onSuccess, onClose, onConflict,
   ]);
 
@@ -161,7 +196,7 @@ export function AdminUpdateActivityModal({
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[560px]">
             <Modal.Header>
-              <Modal.Heading>Admin Update Activity</Modal.Heading>
+            <Modal.Heading>{action === 'CANCEL' ? 'Batalkan Aktivitas' : 'Kelola Aktivitas'}</Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
             <Modal.Body>
@@ -179,49 +214,55 @@ export function AdminUpdateActivityModal({
 
                 <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
                   <div>
-                    Activity: <span className="font-medium text-foreground">{activity.activityName}</span>
+                    Aktivitas: <span className="font-medium text-foreground">{activity.activityName}</span>
                   </div>
                   <div>
-                    Version: <span className="font-medium text-foreground">{activity.version}</span>
+                    Versi: <span className="font-medium text-foreground">{activity.version}</span>
                   </div>
                 </div>
 
-                <Select
+                {initialAction !== 'CANCEL' && <Select
                   variant="secondary"
                   selectedKey={action}
                   onSelectionChange={(k) => setAction(String(k) as AdminAction)}
                 >
-                  <Label>Action</Label>
+                  <Label>Aksi</Label>
                   <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                   <Select.Popover>
                     <ListBox>
-                      <ListBox.Item key="UPDATE" id="UPDATE" textValue="Update details">Update details</ListBox.Item>
-                      <ListBox.Item key="REASSIGN" id="REASSIGN" textValue="Reassign assignee">Reassign assignee</ListBox.Item>
-                      <ListBox.Item key="CANCEL" id="CANCEL" textValue="Cancel activity">Cancel activity</ListBox.Item>
+                      <ListBox.Item key="UPDATE" id="UPDATE" textValue="Ubah detail">Ubah detail</ListBox.Item>
+                      <ListBox.Item key="REASSIGN" id="REASSIGN" textValue="Ganti penanggung jawab">Ganti penanggung jawab</ListBox.Item>
+                      <ListBox.Item key="CANCEL" id="CANCEL" textValue="Batalkan aktivitas">Batalkan aktivitas</ListBox.Item>
                     </ListBox>
                   </Select.Popover>
-                </Select>
+                </Select>}
 
                 {action === 'UPDATE' && (
                   <>
+                    <ActivityIndicatorMultiSelect
+                      indicators={indicators}
+                      selectedIds={corporateKpiIds}
+                      onChange={setCorporateKpiIds}
+                      isLoading={isLoadingIndicators}
+                    />
                     <TextField isRequired value={activityName} onChange={setActivityName}>
-                      <Label>Activity Name</Label>
-                      <Input variant="secondary" placeholder="Enter activity name..." />
+                      <Label>Nama Aktivitas</Label>
+                      <Input variant="secondary" placeholder="Masukkan nama aktivitas..." />
                     </TextField>
 
                     <TextField value={description} onChange={setDescription}>
-                      <Label>Description</Label>
-                      <TextArea variant="secondary" placeholder="Optional description..." rows={2} />
+                      <Label>Deskripsi</Label>
+                      <TextArea variant="secondary" placeholder="Deskripsi opsional..." rows={2} />
                     </TextField>
 
                     <div className="grid grid-cols-2 gap-4">
                       <TextField isRequired value={unit} onChange={setUnit}>
                         <Label>Unit</Label>
-                        <Input variant="secondary" placeholder="e.g. %, IDR, units" />
+                        <Input variant="secondary" placeholder="Contoh: %, IDR, unit" />
                       </TextField>
                       <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
-                        <Label>Target Value</Label>
-                        <Input variant="secondary" placeholder="e.g. 100" />
+                        <Label>Nilai Target</Label>
+                        <Input variant="secondary" placeholder="Contoh: 100" />
                       </TextField>
                     </div>
                   </>
@@ -236,9 +277,9 @@ export function AdminUpdateActivityModal({
                         variant="secondary"
                         selectedKey={selectedUserId || null}
                         onSelectionChange={(k) => handleUserChange(String(k || ''))}
-                        placeholder="Select assignee user..."
+                        placeholder="Pilih pengguna penanggung jawab..."
                       >
-                        <Label>New Assignee User</Label>
+                        <Label>Pengguna Penanggung Jawab Baru</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                         <Select.Popover>
                           <ListBox>
@@ -257,9 +298,9 @@ export function AdminUpdateActivityModal({
                         variant="secondary"
                         selectedKey={selectedUserPositionId || null}
                         onSelectionChange={(k) => setSelectedUserPositionId(String(k || ''))}
-                        placeholder="Select assignee position..."
+                        placeholder="Pilih posisi penanggung jawab..."
                       >
-                        <Label>New Assignee Position</Label>
+                        <Label>Posisi Penanggung Jawab Baru</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                         <Select.Popover>
                           <ListBox>
@@ -276,15 +317,15 @@ export function AdminUpdateActivityModal({
                 )}
 
                 <TextField value={reason} onChange={setReason}>
-                  <Label>Reason</Label>
-                  <TextArea variant="secondary" placeholder="Administrative audit reason (required)..." rows={2} />
+                  <Label>Alasan</Label>
+                  <TextArea variant="secondary" placeholder="Alasan administratif wajib diisi..." rows={2} />
                 </TextField>
               </div>
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
                 <XIcon className="h-4 w-4" />
-                Cancel
+                Batal
               </Button>
               <Button
                 variant={action === 'CANCEL' ? 'danger' : 'primary'}
@@ -292,7 +333,7 @@ export function AdminUpdateActivityModal({
                 isDisabled={isSubmitting}
                 isPending={isSubmitting}
               >
-                Apply Update
+                {action === 'CANCEL' ? 'Batalkan Aktivitas' : 'Simpan Perubahan'}
               </Button>
             </Modal.Footer>
           </Modal.Dialog>

@@ -87,10 +87,10 @@ describe('ActivityRequestModal — self-child assignee auto-selection', () => {
 
     await waitFor(() => expect(mockedAssignable).toHaveBeenCalledWith('pos-1', 'boss-act-1'));
 
-    fireEvent.change(screen.getByPlaceholderText('Enter activity name...'), { target: { value: 'My Child' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. %, IDR, units'), { target: { value: '%' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. 100'), { target: { value: '5' } });
-    fireEvent.click(screen.getByRole('button', { name: /Submit Request/ }));
+    fireEvent.change(screen.getByPlaceholderText('Masukkan nama aktivitas...'), { target: { value: 'My Child' } });
+    fireEvent.change(screen.getByPlaceholderText('Contoh: %, IDR, unit'), { target: { value: '%' } });
+    fireEvent.change(screen.getByPlaceholderText('Contoh: 100'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: /Kirim Pengajuan/ }));
 
     await waitFor(() =>
       expect(mockSubmitCreate).toHaveBeenCalledWith(expect.objectContaining({
@@ -108,12 +108,12 @@ describe('ActivityRequestModal — self-child assignee auto-selection', () => {
 
     await waitFor(() => expect(mockedAssignable).toHaveBeenCalled());
 
-    fireEvent.change(screen.getByPlaceholderText('Enter activity name...'), { target: { value: 'Child' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. %, IDR, units'), { target: { value: '%' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. 100'), { target: { value: '5' } });
-    fireEvent.click(screen.getByRole('button', { name: /Submit Request/ }));
+    fireEvent.change(screen.getByPlaceholderText('Masukkan nama aktivitas...'), { target: { value: 'Child' } });
+    fireEvent.change(screen.getByPlaceholderText('Contoh: %, IDR, unit'), { target: { value: '%' } });
+    fireEvent.change(screen.getByPlaceholderText('Contoh: 100'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: /Kirim Pengajuan/ }));
 
-    expect(await screen.findByText('Select an assignee position.')).toBeInTheDocument();
+    expect(await screen.findByText('Pilih posisi penanggung jawab.')).toBeInTheDocument();
     expect(mockSubmitCreate).not.toHaveBeenCalled();
   });
 });

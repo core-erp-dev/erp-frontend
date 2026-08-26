@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Breadcrumbs, BreadcrumbsItem, Button, Chip } from '@heroui/react';
+import { Breadcrumbs, BreadcrumbsItem, Button, Chip, toast } from '@heroui/react';
 import {
   ArrowsClockwise,
   House,
@@ -24,6 +24,8 @@ import { ActivityChangeModal } from '@/modules/kpi/activity/activity-change-moda
 import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
 import { AdminCreateActivityModal } from '@/modules/kpi/admin/admin-create-activity-modal';
 import { AdminUpdateActivityModal } from '@/modules/kpi/admin/admin-update-activity-modal';
+import { kpiAdminV1Api } from '@/modules/kpi/admin/kpi-admin-v1-api';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import {
   ActingPositionSelector,
   useMyPositions,
@@ -167,7 +169,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   useEffect(() => {
     if (debouncedSearch !== tableFilters.search) setSearch(debouncedSearch);
   }, [debouncedSearch, tableFilters.search, setSearch]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
   const normalizedSearch = tableFilters.search.trim().toLowerCase();
 
@@ -266,7 +267,10 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   const [adminEditModal, setAdminEditModal] = useState<{
     isOpen: boolean;
     activity: KpiActivityResponse | null;
-  }>({ isOpen: false, activity: null });
+    initialAction: 'UPDATE' | 'CANCEL';
+  }>({ isOpen: false, activity: null, initialAction: 'UPDATE' });
+  const [adminCancelTarget, setAdminCancelTarget] = useState<KpiActivityResponse | null>(null);
+  const [isAdminCancelling, setIsAdminCancelling] = useState(false);
 
   /* Eligible parents for child create: the actor's own ACTIVE activities
    * (exact-assignment ownership — backend requires parent-assignee or self). */
@@ -291,6 +295,25 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         : Promise.resolve(),
     ]);
   }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities, selectedActingPosition]);
+
+  const handleAdminCancel = useCallback(async () => {
+    if (!adminCancelTarget || adminCancelTarget.version == null) return;
+    setIsAdminCancelling(true);
+    try {
+      await kpiAdminV1Api.adminUpdateActivity(adminCancelTarget.id, {
+        action: 'CANCEL',
+        reason: 'Pembatalan administratif dari menu Semua Aktivitas.',
+        expectedVersion: adminCancelTarget.version,
+      });
+      toast.success('Aktivitas berhasil dibatalkan.');
+      setAdminCancelTarget(null);
+      refetchAll();
+    } catch (error) {
+      toast.danger(error instanceof Error ? error.message : 'Gagal membatalkan aktivitas.');
+    } finally {
+      setIsAdminCancelling(false);
+    }
+  }, [adminCancelTarget, refetchAll]);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -449,7 +472,8 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             onViewDetail={openActivityDetail}
             onRetry={fetchAllActivities}
             canAdminEdit={canAdminManage}
-            onAdminEdit={canAdminManage ? (item) => setAdminEditModal({ isOpen: true, activity: item }) : undefined}
+            onAdminEdit={canAdminManage ? (item) => setAdminEditModal({ isOpen: true, activity: item, initialAction: 'UPDATE' }) : undefined}
+            onAdminCancel={canAdminManage ? setAdminCancelTarget : undefined}
             totalItems={pagedAllActivities.totalItems}
             currentPage={pagedAllActivities.page}
             totalPages={pagedAllActivities.totalPages}
@@ -532,12 +556,27 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       {adminEditModal.activity && (
         <AdminUpdateActivityModal
           isOpen={adminEditModal.isOpen}
-          onClose={() => setAdminEditModal({ isOpen: false, activity: null })}
+          onClose={() => setAdminEditModal({ isOpen: false, activity: null, initialAction: 'UPDATE' })}
           activity={adminEditModal.activity}
           onSuccess={refetchAll}
           onConflict={refetchAll}
+          initialAction={adminEditModal.initialAction}
         />
       )}
+
+      <DeleteConfirmDialog
+        isOpen={Boolean(adminCancelTarget)}
+        onClose={() => setAdminCancelTarget(null)}
+        onConfirm={handleAdminCancel}
+        name={adminCancelTarget?.activityName ?? ''}
+        entityLabel="aktivitas"
+        title="Konfirmasi Pembatalan"
+        actionVerb="membatalkan"
+        confirmLabel="Batalkan Aktivitas"
+        pendingLabel="Membatalkan..."
+        warning="Aktivitas yang dibatalkan tidak dapat digunakan untuk pengajuan atau persetujuan baru."
+        isDeleting={isAdminCancelling}
+      />
     </div>
   );
 }

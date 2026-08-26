@@ -15,10 +15,18 @@
 
 /* ── Response types ── */
 
+export interface CorporateKpiReference {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface KpiActivityResponse {
   id: string;
   parentId: string | null;
   parentActivityName: string | null;
+  corporateKpis?: CorporateKpiReference[];
+  /** @deprecated compatibility with pre-multi-indicator responses. */
   corporateKpiId: string;
   corporateKpiName: string;
   corporateKpiCode: string;
@@ -50,6 +58,8 @@ export interface KpiActivityChangeRequestResponse {
   activityId: string | null;
   parentId: string | null;
   parentActivityName: string | null;
+  corporateKpis?: CorporateKpiReference[];
+  /** @deprecated compatibility with pre-multi-indicator responses. */
   corporateKpiId: string | null;
   corporateKpiName: string | null;
   assignedToUserPositionId: string | null;
@@ -104,7 +114,9 @@ interface CreateActivityBase {
 /** Root create: indicator + period required; `parentId` forbidden. */
 export interface CreateRootActivityV1Request extends CreateActivityBase {
   parentId?: never;
-  corporateKpiId: string;
+  corporateKpiIds?: string[];
+  /** @deprecated compatibility with pre-multi-indicator callers. */
+  corporateKpiId?: string;
   periodYear: number;
   periodMonth: number;
 }
@@ -112,6 +124,7 @@ export interface CreateRootActivityV1Request extends CreateActivityBase {
 /** Child create: `parentId` required; indicator/period inherited (forbidden on the wire). */
 export interface CreateChildActivityV1Request extends CreateActivityBase {
   parentId: string;
+  corporateKpiIds?: never;
   corporateKpiId?: never;
   periodYear?: never;
   periodMonth?: never;
@@ -134,6 +147,7 @@ export interface UpdateChangeRequest extends ChangeRequestBase {
   description: string | null;
   unit: string;
   targetValue: number;
+  corporateKpiIds?: string[];
   cancellationReason?: never;
 }
 
@@ -171,6 +185,8 @@ export type RequestDecisionRequest = ApproveDecision | RejectDecision;
 export interface AdminCreateActivityRequest {
   assignedToUserPositionId: string;
   parentId?: string;
+  corporateKpiIds?: string[];
+  /** @deprecated compatibility with pre-multi-indicator callers. */
   corporateKpiId?: string;
   periodYear?: number;
   periodMonth?: number;
@@ -193,6 +209,7 @@ export interface AdminUpdateActivityRequest {
   description?: string;
   unit?: string;
   targetValue?: number;
+  corporateKpiIds?: string[];
   assignedToUserPositionId?: string;
 }
 

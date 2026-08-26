@@ -17,6 +17,7 @@ import type {
   CreateActivityRequest,
   KpiActivityResponse,
 } from './activity-v1.types';
+import { ActivityIndicatorMultiSelect } from './activity-indicator-multi-select';
 
 interface ActivityRequestModalProps {
   isOpen: boolean;
@@ -64,7 +65,7 @@ export function ActivityRequestModal({
   const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
   const [ckTree, setCkTree] = useState<CorporateKpiNode[]>([]);
   const [isLoadingCk, setIsLoadingCk] = useState(false);
-  const [ckId, setCkId] = useState('');
+  const [ckIds, setCkIds] = useState<string[]>([]);
   const [activityName, setActivityName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
@@ -78,7 +79,7 @@ export function ActivityRequestModal({
     if (!isOpen) return;
     setAssigneeId('');
     setParentId(mode === 'child' && initialParentId ? initialParentId : '');
-    setCkId('');
+    setCkIds([]);
     setActivityName('');
     setDescription('');
     setUnit('');
@@ -163,7 +164,7 @@ export function ActivityRequestModal({
       return;
     }
     if (!unit.trim()) {
-      setValidationError('Unit is required.');
+      setValidationError('Unit wajib diisi.');
       return;
     }
     const tv = parseFloat(targetValue);
@@ -171,8 +172,8 @@ export function ActivityRequestModal({
       setValidationError('Nilai target harus berupa angka positif.');
       return;
     }
-    if (mode === 'root' && !ckId) {
-      setValidationError('Pilih indikator KPI Perusahaan untuk aktivitas induk.');
+    if (mode === 'root' && ckIds.length === 0) {
+      setValidationError('Pilih minimal satu indikator KPI Perusahaan untuk aktivitas induk.');
       return;
     }
     if (mode === 'child' && !parentId) {
@@ -184,7 +185,7 @@ export function ActivityRequestModal({
       ? {
           assignedToUserPositionId: assigneeId,
           actingPositionId: actingPosition.positionId,
-          corporateKpiId: ckId,
+          corporateKpiIds: ckIds,
           periodYear: selectedYear,
           periodMonth,
           activityName: activityName.trim(),
@@ -219,7 +220,7 @@ export function ActivityRequestModal({
       setIsSubmitting(false);
     }
   }, [
-    mode, assigneeId, activityName, unit, targetValue, ckId, parentId,
+    mode, assigneeId, activityName, unit, targetValue, ckIds, parentId,
     selectedYear, periodMonth, description, actingPosition.positionId,
     submitCreateRequest, onSuccess, onClose, onConflict,
   ]);
@@ -249,8 +250,8 @@ export function ActivityRequestModal({
                 )}
 
                 <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
-                  Acting Position: <span className="font-medium text-foreground">{actingPosition.positionName}</span>
-                  {actingPosition.isPrimary ? ' (Primary)' : ''}
+                  Posisi Acting: <span className="font-medium text-foreground">{actingPosition.positionName}</span>
+                  {actingPosition.isPrimary ? ' (Utama)' : ''}
                 </div>
 
                 {isLoadingAssignees ? (
@@ -262,7 +263,7 @@ export function ActivityRequestModal({
                     onSelectionChange={(k) => setAssigneeId(String(k || ''))}
                     placeholder={assignees.length === 0 ? 'Tidak ada posisi yang dapat dipilih' : 'Pilih posisi penanggung jawab...'}
                   >
-                    <Label>Assignee Position</Label>
+                    <Label>Posisi Penanggung Jawab</Label>
                     <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                     <Select.Popover>
                       <ListBox>
@@ -270,7 +271,7 @@ export function ActivityRequestModal({
                           <ListBox.Item key={a.userPositionId} id={a.userPositionId} textValue={a.userFullName}>
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-sm text-foreground">
-                                {a.userFullName}{a.isSelf ? ' (You)' : ''}
+                                {a.userFullName}{a.isSelf ? ' (Anda)' : ''}
                               </span>
                               <span className="text-xs text-muted-foreground">{a.positionName}</span>
                             </div>
@@ -308,7 +309,7 @@ export function ActivityRequestModal({
                       <Select
                         variant="secondary"
                         selectedKey={String(selectedYear)}
-                        onSelectionChange={(k) => { setSelectedYear(Number(k)); setCkId(''); }}
+                        onSelectionChange={(k) => { setSelectedYear(Number(k)); setCkIds([]); }}
                       >
                         <Label>Tahun Periode</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
@@ -341,52 +342,33 @@ export function ActivityRequestModal({
                       </Select>
                     </div>
 
-                    {isLoadingCk ? (
-                      <div className="flex items-center justify-center py-4"><Spinner size="sm" /></div>
-                    ) : (
-                      <Select
-                        variant="secondary"
-                        selectedKey={ckId || null}
-                        onSelectionChange={(k) => setCkId(String(k || ''))}
-                        placeholder={ckTree.length === 0 ? 'Tidak ada indikator aktif untuk tahun ini' : 'Pilih indikator KPI Perusahaan...'}
-                      >
-                        <Label>Corporate KPI Indicator</Label>
-                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                        <Select.Popover>
-                          <ListBox>
-                            {ckTree.map((node) => (
-                              <ListBox.Item key={node.id} id={node.id} textValue={`${node.code} - ${node.name}`}>
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium text-foreground">{node.code}</span>
-                                  <span className="text-xs text-muted-foreground">{node.name}</span>
-                                </div>
-                              </ListBox.Item>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
-                    )}
+                    <ActivityIndicatorMultiSelect
+                      indicators={ckTree}
+                      selectedIds={ckIds}
+                      onChange={setCkIds}
+                      isLoading={isLoadingCk}
+                    />
                   </>
                 )}
 
                 <TextField isRequired value={activityName} onChange={setActivityName}>
                   <Label>Nama Aktivitas</Label>
-                  <Input variant="secondary" placeholder="Enter activity name..." />
+                  <Input variant="secondary" placeholder="Masukkan nama aktivitas..." />
                 </TextField>
 
                 <TextField value={description} onChange={setDescription}>
                   <Label>Deskripsi</Label>
-                  <TextArea variant="secondary" placeholder="Optional description..." rows={2} />
+                  <TextArea variant="secondary" placeholder="Deskripsi opsional..." rows={2} />
                 </TextField>
 
                 <div className="grid grid-cols-2 gap-4">
                   <TextField isRequired value={unit} onChange={setUnit}>
                     <Label>Unit</Label>
-                    <Input variant="secondary" placeholder="e.g. %, IDR, units" />
+                    <Input variant="secondary" placeholder="Contoh: %, IDR, unit" />
                   </TextField>
                   <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
                     <Label>Nilai Target</Label>
-                    <Input variant="secondary" placeholder="e.g. 100" />
+                    <Input variant="secondary" placeholder="Contoh: 100" />
                   </TextField>
                 </div>
               </div>
