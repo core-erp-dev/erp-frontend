@@ -324,7 +324,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             variant="tertiary"
             onPress={handleRefresh}
             isDisabled={isAnyLoading}
-            aria-label="Refresh"
+            aria-label="Muat ulang data"
           >
             <ArrowsClockwise
               className={`h-4 w-4 ${isAnyLoading ? 'animate-spin' : ''}`}
@@ -398,6 +398,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         onSearchChange={setSearchInput}
         searchLabel="Cari aktivitas"
         filterOptions={view === 'my-requests' ? [{ id: 'PENDING', label: 'Menunggu Persetujuan' }, { id: 'APPROVED', label: 'Disetujui' }, { id: 'REJECTED', label: 'Ditolak' }] : [{ id: 'ACTIVE', label: 'Aktif' }, { id: 'CANCELLED', label: 'Dibatalkan' }]}
+        filterSelectionMode="single"
         selectedFilterIds={tableState.filters.filter ? new Set([tableState.filters.filter]) : new Set()}
         onFilterChange={(selection) => {
           const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
@@ -447,7 +448,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             error={allError}
             onViewDetail={openActivityDetail}
             onRetry={fetchAllActivities}
-            showAssignee
             canAdminEdit={canAdminManage}
             onAdminEdit={canAdminManage ? (item) => setAdminEditModal({ isOpen: true, activity: item }) : undefined}
             totalItems={pagedAllActivities.totalItems}
@@ -464,7 +464,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
               error={positionsError || subordinatesError}
               onViewDetail={openActivityDetail}
               onRetry={() => { if (selectedActingPosition) void fetchSubordinatesActivities(selectedActingPosition.positionId); }}
-              showAssignee
               emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Pilih posisi aktif untuk melihat aktivitas bawahan.'}
               totalItems={pagedSubordinates.totalItems}
               currentPage={pagedSubordinates.page}

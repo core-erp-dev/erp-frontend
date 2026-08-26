@@ -115,6 +115,7 @@ interface KpiTableToolbarProps {
   onSearchChange: (value: string) => void;
   searchLabel: string;
   filterOptions?: KpiTableOption[];
+  filterSelectionMode?: 'single' | 'multiple';
   selectedFilterIds?: Set<string>;
   onFilterChange?: (selection: Selection) => void;
   sortOptions?: KpiTableOption[];
@@ -131,6 +132,7 @@ export function KpiTableToolbar({
   onSearchChange,
   searchLabel,
   filterOptions = [],
+  filterSelectionMode = 'multiple',
   selectedFilterIds = new Set<string>(),
   onFilterChange,
   sortOptions = [],
@@ -151,7 +153,7 @@ export function KpiTableToolbar({
               {selectedFilterIds.size > 0 && <><span className="mx-0.5 h-4 w-px bg-border" /><span className="text-sm font-medium text-foreground">{selectedFilterIds.size}</span></>}
             </Button>
             <Dropdown.Popover className="min-w-[220px]">
-              <Dropdown.Menu selectedKeys={selectedFilterIds} selectionMode="multiple" onSelectionChange={onFilterChange}>
+              <Dropdown.Menu selectedKeys={selectedFilterIds} selectionMode={filterSelectionMode} onSelectionChange={onFilterChange}>
                 {filterOptions.map((option) => (
                   <Dropdown.Item key={option.id} id={option.id} textValue={option.label}>
                     <Dropdown.ItemIndicator /><Label>{option.label}</Label>
@@ -181,7 +183,7 @@ export function KpiTableToolbar({
           </Dropdown>
         )}
 
-        {hasActiveFilters && onReset && <Button isIconOnly variant="tertiary" aria-label="Reset filter" onPress={onReset}><X className="h-4 w-4" /></Button>}
+        {hasActiveFilters && onReset && <Button isIconOnly variant="tertiary" aria-label="Hapus filter" onPress={onReset}><X className="h-4 w-4" /></Button>}
       </div>
 
       <SearchField name="search" value={searchValue} onChange={onSearchChange} className="w-72" aria-label={searchLabel}>

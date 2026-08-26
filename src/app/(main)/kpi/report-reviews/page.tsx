@@ -165,6 +165,7 @@ export default function KpiReportReviewsPage() {
         onSearchChange={setSearchInput}
         searchLabel="Cari laporan"
         filterOptions={[{ id: 'PENDING', label: 'Menunggu Persetujuan' }, { id: 'APPROVED', label: 'Disetujui' }, { id: 'REJECTED', label: 'Ditolak' }]}
+        filterSelectionMode="single"
         selectedFilterIds={tableState.filters.filter ? new Set([tableState.filters.filter]) : new Set()}
         onFilterChange={(selection) => { const selected = selection instanceof Set ? Array.from(selection)[0] : undefined; tableState.setFilter(String(selected ?? '')); }}
         sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
