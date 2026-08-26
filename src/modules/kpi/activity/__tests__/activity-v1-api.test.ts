@@ -97,14 +97,33 @@ describe('activityV1Api.getRequests (T6)', () => {
   it('GET /api/v1/kpi-activity-requests with scope=mine', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap([request]) });
     const result = await activityV1Api.getRequests('mine');
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', { params: { scope: 'mine' } });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', {
+      params: { scope: 'mine', page: 1, size: 100, sortBy: 'createdAt', sortDirection: 'desc' },
+    });
     expect(result).toEqual([request]);
   });
 
   it('GET with scope=to-review', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
     await activityV1Api.getRequests('to-review');
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', { params: { scope: 'to-review' } });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', {
+      params: { scope: 'to-review', page: 1, size: 100, sortBy: 'createdAt', sortDirection: 'desc' },
+    });
+  });
+
+  it('sends the active server-side request page, search, status, and sort', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({
+      content: [request], page: 2, size: 10, totalElements: 11, totalPages: 2, last: true,
+    }) });
+    await activityV1Api.getRequestsPage('mine', {
+      page: 2, size: 10, search: 'laporan', status: 'REJECTED', sortBy: 'createdAt', sortDirection: 'desc',
+    });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', {
+      params: {
+        scope: 'mine', page: 2, size: 10, search: 'laporan', status: 'REJECTED',
+        sortBy: 'createdAt', sortDirection: 'desc',
+      },
+    });
   });
 });
 

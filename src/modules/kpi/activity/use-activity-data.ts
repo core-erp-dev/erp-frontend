@@ -12,6 +12,8 @@ import type {
   KpiActivityChangeRequestResponse,
   ActivityListQuery,
   PaginatedActivityResponse,
+  ActivityRequestListQuery,
+  PaginatedActivityRequestResponse,
 } from './activity-v1.types';
 
 /**
@@ -74,9 +76,10 @@ export interface UseActivityDataReturn {
 
   /* My Requests (requests scope=mine) */
   myRequests: KpiActivityChangeRequestResponse[];
+  myRequestsPagination: PaginatedActivityRequestResponse | null;
   isLoadingRequests: boolean;
   requestsError: string | null;
-  fetchMyRequests: () => Promise<void>;
+  fetchMyRequests: (query?: ActivityRequestListQuery) => Promise<void>;
 
   /* Detail fetches (lazy) */
   fetchActivityDetail: (id: string) => Promise<KpiActivityResponse | null>;
@@ -90,6 +93,9 @@ export interface UseActivityDataReturn {
 
 const DEFAULT_ACTIVITY_QUERY: ActivityListQuery = {
   page: 1, size: 100, search: '', status: '', sortBy: 'activityName', sortDirection: 'asc',
+};
+const DEFAULT_REQUEST_QUERY: ActivityRequestListQuery = {
+  page: 1, size: 100, search: '', status: '', sortBy: 'createdAt', sortDirection: 'desc',
 };
 
 export function useActivityData(): UseActivityDataReturn {
@@ -114,6 +120,7 @@ export function useActivityData(): UseActivityDataReturn {
   const [superiorError, setSuperiorError] = useState<string | null>(null);
 
   const [myRequests, setMyRequests] = useState<KpiActivityChangeRequestResponse[]>([]);
+  const [myRequestsPagination, setMyRequestsPagination] = useState<PaginatedActivityRequestResponse | null>(null);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
 
@@ -123,6 +130,7 @@ export function useActivityData(): UseActivityDataReturn {
   const latestAllQueryRef = useRef<ActivityListQuery | undefined>(undefined);
   const latestMyQueryRef = useRef<ActivityListQuery | undefined>(undefined);
   const latestSubordinatesQueryRef = useRef<ActivityListQuery | undefined>(undefined);
+  const latestMyRequestsQueryRef = useRef<ActivityRequestListQuery | undefined>(undefined);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -233,17 +241,22 @@ export function useActivityData(): UseActivityDataReturn {
     }
   }, []);
 
-  const fetchMyRequests = useCallback(async () => {
+  const fetchMyRequests = useCallback(async (query?: ActivityRequestListQuery) => {
     const requestId = ++requestSeqRef.current.requests;
+    latestMyRequestsQueryRef.current = query ?? latestMyRequestsQueryRef.current;
     setIsLoadingRequests(true);
     setRequestsError(null);
     setMyRequests([]);
+    setMyRequestsPagination(null);
     try {
-      const data = await activityV1Api.getRequests('mine');
-      if (mountedRef.current && requestId === requestSeqRef.current.requests) setMyRequests(data);
+      const data = await activityV1Api.getRequestsPage('mine', latestMyRequestsQueryRef.current ?? DEFAULT_REQUEST_QUERY);
+      if (mountedRef.current && requestId === requestSeqRef.current.requests) {
+        setMyRequests(data.content);
+        setMyRequestsPagination(data);
+      }
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current && requestId === requestSeqRef.current.requests) { setRequestsError(msg); setMyRequests([]); }
+      if (mountedRef.current && requestId === requestSeqRef.current.requests) { setRequestsError(msg); setMyRequests([]); setMyRequestsPagination(null); }
       toast.danger(msg);
     } finally {
       if (mountedRef.current && requestId === requestSeqRef.current.requests) setIsLoadingRequests(false);
@@ -311,7 +324,7 @@ export function useActivityData(): UseActivityDataReturn {
     subordinatesActivities, subordinatesPagination, isLoadingSubordinates, subordinatesError,
     subordinatesActingPositionId, fetchSubordinatesActivities,
     superiorActivities, isLoadingSuperior, superiorError, fetchSuperiorActivities,
-    myRequests, isLoadingRequests, requestsError, fetchMyRequests,
+    myRequests, myRequestsPagination, isLoadingRequests, requestsError, fetchMyRequests,
     fetchActivityDetail, fetchRequestDetail, isLoadingDetail,
     submitCreateRequest, submitChangeRequest,
   };

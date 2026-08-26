@@ -12,8 +12,9 @@ import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
 import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
 import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
 import type { KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity-v1.types';
+import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v1.types';
 import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
-import { paginateKpiItems, useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
+import { useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
 import { useDebounce } from '@/hooks/use-debounce';
 
 const APPROVAL_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], defaultSort: 'activityName', defaultDirection: 'asc' as const, filterOptions: [] as string[] };
@@ -37,7 +38,7 @@ export default function KpiApprovalsPage() {
   const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
 
   const {
-    toReview, isLoading, error, fetchToReview,
+    toReview, pagination, isLoading, error, fetchToReview,
     isDeciding,
     recoverable, clearRecoverable,
   } = useApprovalData();
@@ -50,6 +51,15 @@ export default function KpiApprovalsPage() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
 
+  const approvalQuery: ActivityRequestListQuery = useMemo(() => ({
+    page: tableFilters.page,
+    size: tableFilters.size,
+    search: tableFilters.search,
+    status: '',
+    sortBy: tableFilters.sortBy as ActivityRequestListQuery['sortBy'],
+    sortDirection: tableFilters.direction as ActivityRequestListQuery['sortDirection'],
+  }), [tableFilters.direction, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+
   // Own request ids (scope=mine) — used only to disable self-processing UI;
   // the backend is the authoritative self-approval ban.
   const ownRequestIds = useMemo(() => new Set(myRequests.map((r) => r.id)), [myRequests]);
@@ -57,10 +67,10 @@ export default function KpiApprovalsPage() {
   // Fetch on mount: company queue + own requests (for the self-processing UX)
   useEffect(() => {
     if (canApprove) {
-      fetchToReview();
+      fetchToReview(approvalQuery);
       fetchMyRequests();
     }
-  }, [canApprove, fetchToReview, fetchMyRequests]);
+  }, [canApprove, fetchToReview, fetchMyRequests, approvalQuery]);
 
   // ── Detail modal state ──
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -95,17 +105,6 @@ export default function KpiApprovalsPage() {
     setDialogRequest(null);
   }, []);
 
-  const visibleRequests = toReview.filter((request) =>
-    !tableState.filters.search
-    || (request.activityName ?? '').toLowerCase().includes(tableState.filters.search.toLowerCase())
-    || request.requestedByUserName.toLowerCase().includes(tableState.filters.search.toLowerCase()),
-  ).sort((left, right) => {
-    const leftValue = tableState.filters.sortBy === 'createdAt' ? left.createdAt : (left.activityName ?? '');
-    const rightValue = tableState.filters.sortBy === 'createdAt' ? right.createdAt : (right.activityName ?? '');
-    return leftValue.localeCompare(rightValue, 'id-ID') * (tableState.filters.direction === 'desc' ? -1 : 1);
-  });
-  const pagedRequests = paginateKpiItems(visibleRequests, tableState.filters.page);
-
   // ── Permission guard ──
   if (!canApprove) {
     return (
@@ -138,7 +137,7 @@ export default function KpiApprovalsPage() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.approvals}</h1>
-        <Button isIconOnly variant="tertiary" onPress={fetchToReview} isDisabled={isLoading} aria-label="Refresh">
+        <Button isIconOnly variant="tertiary" onPress={() => { void fetchToReview(approvalQuery); }} isDisabled={isLoading} aria-label="Muat ulang persetujuan aktivitas">
           <ArrowsClockwise className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
@@ -159,7 +158,7 @@ export default function KpiApprovalsPage() {
             size="sm"
             className="absolute right-2 top-2"
             onPress={clearRecoverable}
-            aria-label="Dismiss"
+            aria-label="Tutup pesan"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -178,7 +177,7 @@ export default function KpiApprovalsPage() {
       />
 
       <ApprovalTable
-        items={pagedRequests.items}
+        items={toReview}
         isLoading={isLoading || tableState.isQueryLoading}
         error={error}
         onViewDetail={openDetail}
@@ -186,9 +185,9 @@ export default function KpiApprovalsPage() {
         onReject={openReject}
         ownRequestIds={ownRequestIds}
         onRetry={fetchToReview}
-        totalItems={pagedRequests.totalItems}
-        currentPage={pagedRequests.page}
-        totalPages={pagedRequests.totalPages}
+        totalItems={pagination?.totalElements ?? 0}
+        currentPage={pagination?.page ?? tableFilters.page}
+        totalPages={pagination?.totalPages ?? 1}
         onPageChange={tableState.setPage}
       />
 

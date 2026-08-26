@@ -32,8 +32,9 @@ import {
 } from '@/modules/kpi/shared/acting-position-selector';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
+import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v1.types';
 import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
-import { paginateKpiItems, useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
+import { useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
 import { useDebounce } from '@/hooks/use-debounce';
 import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 
@@ -129,14 +130,11 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     fetchSuperiorActivities,
 
     myRequests,
+    myRequestsPagination,
     isLoadingRequests,
     requestsError,
     fetchMyRequests,
   } = useActivityData();
-
-  useEffect(() => {
-    if (view === 'my-requests') void fetchMyRequests();
-  }, [view, fetchMyRequests]);
 
   const tableState = useKpiTableState(view === 'my-requests' ? REQUEST_TABLE_STATE : ACTIVITY_TABLE_STATE);
   const { filters: tableFilters, setSearch } = tableState;
@@ -146,8 +144,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     if (debouncedSearch !== tableFilters.search) setSearch(debouncedSearch);
   }, [debouncedSearch, tableFilters.search, setSearch]);
   useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
-  const normalizedSearch = tableFilters.search.trim().toLowerCase();
-
   const allActivitiesQuery = useMemo(() => ({
     page: tableFilters.page,
     size: tableFilters.size,
@@ -165,6 +161,15 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     status: 'ACTIVE' as const,
   }), [allActivitiesQuery]);
 
+  const requestQuery: ActivityRequestListQuery = useMemo(() => ({
+    page: tableFilters.page,
+    size: tableFilters.size,
+    search: tableFilters.search,
+    status: tableFilters.filter as ActivityRequestListQuery['status'],
+    sortBy: tableFilters.sortBy as ActivityRequestListQuery['sortBy'],
+    sortDirection: tableFilters.direction as ActivityRequestListQuery['sortDirection'],
+  }), [tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+
   useEffect(() => {
     if (view === 'all-activities') void fetchAllActivities(allActivitiesQuery);
   }, [view, fetchAllActivities, allActivitiesQuery]);
@@ -178,21 +183,8 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       void fetchSubordinatesActivities(selectedActingPosition.positionId, allActivitiesQuery);
       void fetchMyActivities(parentActivityQuery);
     }
-  }, [view, selectedActingPosition, allActivitiesQuery, parentActivityQuery, fetchMyActivities, fetchSubordinatesActivities, fetchSuperiorActivities]);
-
-  const filteredMyRequests = useMemo(() => {
-    const items = myRequests ?? [];
-    return items.filter((r) => (!normalizedSearch || (r.activityName ?? '').toLowerCase().includes(normalizedSearch) || r.id.toLowerCase().includes(normalizedSearch)) && (!tableState.filters.filter || r.status === tableState.filters.filter));
-  }, [myRequests, normalizedSearch, tableState.filters.filter]);
-
-  const sortItems = useCallback(<T extends { activityName?: string | null; createdAt?: string | null }>(items: T[]) => {
-    const direction = tableState.filters.direction === 'desc' ? -1 : 1;
-    return [...items].sort((left, right) => {
-      const leftValue = tableState.filters.sortBy === 'createdAt' ? (left.createdAt ?? '') : (left.activityName ?? '');
-      const rightValue = tableState.filters.sortBy === 'createdAt' ? (right.createdAt ?? '') : (right.activityName ?? '');
-      return leftValue.localeCompare(rightValue, 'id-ID') * direction;
-    });
-  }, [tableState.filters.direction, tableState.filters.sortBy]);
+    if (view === 'my-requests') void fetchMyRequests(requestQuery);
+  }, [view, selectedActingPosition, allActivitiesQuery, parentActivityQuery, requestQuery, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities]);
   const pagedMyActivities = useMemo(() => ({
     items: myActivities,
     totalItems: myPagination?.totalElements ?? 0,
@@ -211,17 +203,22 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     totalPages: subordinatesPagination?.totalPages ?? 1,
     page: subordinatesPagination?.page ?? tableState.filters.page,
   }), [subordinatesActivities, subordinatesPagination, tableState.filters.page]);
-  const pagedMyRequests = useMemo(() => paginateKpiItems(sortItems(filteredMyRequests), tableState.filters.page), [filteredMyRequests, sortItems, tableState.filters.page]);
+  const pagedMyRequests = useMemo(() => ({
+    items: myRequests,
+    totalItems: myRequestsPagination?.totalElements ?? 0,
+    totalPages: myRequestsPagination?.totalPages ?? 1,
+    page: myRequestsPagination?.page ?? tableState.filters.page,
+  }), [myRequests, myRequestsPagination, tableState.filters.page]);
 
   const totalItems = useMemo(() => {
     switch (view) {
       case 'my-activities': return myPagination?.totalElements ?? 0;
       case 'all-activities': return allPagination?.totalElements ?? 0;
       case 'subordinates': return subordinatesPagination?.totalElements ?? 0;
-      case 'my-requests': return myRequests?.length ?? 0;
+      case 'my-requests': return myRequestsPagination?.totalElements ?? 0;
       default: return 0;
     }
-  }, [view, myPagination, allPagination, subordinatesPagination, myRequests]);
+  }, [view, myPagination, allPagination, subordinatesPagination, myRequestsPagination]);
 
   const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingSuperior || isLoadingRequests || tableState.isQueryLoading || isLoadingPositions;
 

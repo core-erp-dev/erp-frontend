@@ -11,6 +11,8 @@ import type {
   KpiActivityChangeRequestResponse,
   ActivityListQuery,
   PaginatedActivityResponse,
+  ActivityRequestListQuery,
+  PaginatedActivityRequestResponse,
   RequestDecisionRequest,
 } from './activity-v1.types';
 
@@ -127,11 +129,35 @@ export const activityV1Api = {
   /** T6 — scoped Activity-request list. */
   getRequests: async (scope: KpiRequestScope): Promise<KpiActivityChangeRequestResponse[]> => {
     assertRequestScope(scope, 'GET /api/v1/kpi-activity-requests');
-    const response = await api.get<ApiResponse<KpiActivityChangeRequestResponse[]>>(
+    const page = await activityV1Api.getRequestsPage(scope, {
+      page: 1, size: 100, search: '', status: '', sortBy: 'createdAt', sortDirection: 'desc',
+    });
+    return page.content;
+  },
+
+  getRequestsPage: async (
+    scope: KpiRequestScope,
+    query: ActivityRequestListQuery,
+  ): Promise<PaginatedActivityRequestResponse> => {
+    assertRequestScope(scope, 'GET /api/v1/kpi-activity-requests');
+    const response = await api.get<ApiResponse<PaginatedActivityRequestResponse | KpiActivityChangeRequestResponse[]>>(
       '/api/v1/kpi-activity-requests',
-      { params: { scope } },
+      {
+        params: {
+          scope,
+          page: query.page,
+          size: query.size,
+          ...(query.search ? { search: query.search } : {}),
+          ...(query.status ? { status: query.status } : {}),
+          sortBy: query.sortBy,
+          sortDirection: query.sortDirection,
+        },
+      },
     );
-    return response.data.data;
+    const data = response.data.data;
+    return Array.isArray(data)
+      ? { content: data, page: 1, size: data.length, totalElements: data.length, totalPages: data.length > 0 ? 1 : 0, last: true }
+      : data;
   },
 
   /** T7 — Activity-request detail. */

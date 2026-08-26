@@ -95,6 +95,17 @@ export type ActivityListQuery = {
 
 export type PaginatedActivityResponse = PaginatedResponse<KpiActivityResponse>;
 
+export type ActivityRequestListQuery = {
+  page: number;
+  size: number;
+  search: string;
+  status: KpiActivityRequestStatus | '';
+  sortBy: 'activityName' | 'createdAt';
+  sortDirection: 'asc' | 'desc';
+};
+
+export type PaginatedActivityRequestResponse = PaginatedResponse<KpiActivityChangeRequestResponse>;
+
 export type KpiActivityRequestType = 'CREATE' | 'UPDATE' | 'CANCEL';
 export type KpiActivityRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 

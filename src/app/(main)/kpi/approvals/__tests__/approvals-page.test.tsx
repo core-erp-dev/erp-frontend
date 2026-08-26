@@ -81,8 +81,8 @@ describe('KPI Approvals page — centralized approval queue', () => {
   it('shows Access Denied without kpi_activity:approve (manage does NOT grant the queue)', () => {
     mockPermissions = { 'kpi_activity:manage': true };
     render(<KpiApprovalsPage />);
-    expect(screen.getByText('Access Denied')).toBeInTheDocument();
-    expect(screen.queryByText('No pending requests in the company queue.')).not.toBeInTheDocument();
+    expect(screen.getByText('Akses Ditolak')).toBeInTheDocument();
+    expect(screen.queryByText('Tidak ada pengajuan yang menunggu persetujuan.')).not.toBeInTheDocument();
   });
 
   it('renders the company-wide queue for an approve holder', () => {
@@ -99,7 +99,7 @@ describe('KPI Approvals page — centralized approval queue', () => {
     expect(screen.queryByText('Assigned Approver')).not.toBeInTheDocument();
   });
 
-  it('disables approve/reject on requests the actor created (visible but not actionable)', () => {
+  it('hides approve/reject on requests the actor created (visible but not actionable)', () => {
     mockPermissions = { 'kpi_activity:approve': true };
     mockMyRequests = [pendingRequest('req-own', 'user-staff-a', 'Staff A')];
     mockToReview = [
@@ -108,28 +108,24 @@ describe('KPI Approvals page — centralized approval queue', () => {
     ];
     render(<KpiApprovalsPage />);
 
-    const ownApprove = screen.getByRole('button', { name: 'You cannot approve your own request' });
-    const ownReject = screen.getByRole('button', { name: 'You cannot reject your own request' });
-    expect(ownApprove).toBeDisabled();
-    expect(ownReject).toBeDisabled();
+    // The row remains visible, but actions the current user cannot perform are hidden.
+    expect(screen.getAllByRole('button', { name: 'Lihat detail pengajuan' })).toHaveLength(2);
 
-    const otherApprove = screen.getByRole('button', { name: 'Approve' });
-    const otherReject = screen.getByRole('button', { name: 'Reject' });
-    expect(otherApprove).not.toBeDisabled();
-    expect(otherReject).not.toBeDisabled();
+    expect(screen.getAllByRole('button', { name: 'Setujui pengajuan' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Tolak pengajuan' })).toHaveLength(1);
   });
 
   it('shows the empty state for an empty queue', () => {
     mockPermissions = { 'kpi_activity:approve': true };
     render(<KpiApprovalsPage />);
-    expect(screen.getByText('No pending requests in the company queue.')).toBeInTheDocument();
+    expect(screen.getByText('Tidak ada pengajuan yang menunggu persetujuan.')).toBeInTheDocument();
   });
 
   it('exposes no reassign-approver action anywhere (T9 UI removed)', () => {
     mockPermissions = { 'kpi_activity:approve': true, 'kpi_activity:manage': true };
     mockToReview = [pendingRequest('req-a', 'user-staff-a', 'Staff A')];
     render(<KpiApprovalsPage />);
-    expect(screen.queryByRole('button', { name: 'Reassign approver' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Reassign Approver')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tetapkan ulang pemeriksa' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Tetapkan Ulang Pemeriksa')).not.toBeInTheDocument();
   });
 });
