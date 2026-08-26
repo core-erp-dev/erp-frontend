@@ -6,12 +6,11 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Breadcrumbs, BreadcrumbsItem, Button, Chip, Dropdown, Header, Label, toast } from '@heroui/react';
+import { Breadcrumbs, BreadcrumbsItem, Button, Chip, toast, type Selection } from '@heroui/react';
 import {
   ArrowsClockwise,
   House,
   Plus,
-  SlidersHorizontal,
 } from '@phosphor-icons/react';
 
 import { PERM } from '@/constants/permissions';
@@ -31,7 +30,7 @@ import { useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v1.types';
-import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
+import { KpiTableToolbar, type KpiTableFilterSection } from '@/modules/kpi/shared/kpi-table';
 import { useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
 import { useDebounce } from '@/hooks/use-debounce';
 import { ForbiddenAccess } from '@/components/shared/forbidden-access';
@@ -162,6 +161,55 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     search: '',
     status: 'ACTIVE' as const,
   }), [allActivitiesQuery]);
+
+  const activityFilterSections = useMemo<KpiTableFilterSection[]>(() => [
+    {
+      id: 'position',
+      label: 'Posisi',
+      options: [
+        { id: 'position:all', label: 'Semua Posisi' },
+        ...positions.map((position) => ({ id: `position:${position.positionId}`, label: position.positionName })),
+      ],
+    },
+    ...(view === 'subordinates' ? [{
+      id: 'scope',
+      label: 'Cakupan Bawahan',
+      options: [
+        { id: 'scope:all', label: 'Semua Bawahan' },
+        { id: 'scope:direct', label: 'Bawahan Langsung' },
+      ],
+    }] : []),
+    {
+      id: 'status',
+      label: 'Status',
+      options: [{ id: 'status:ACTIVE', label: 'Aktif' }, { id: 'status:CANCELLED', label: 'Dibatalkan' }],
+    },
+  ], [positions, view]);
+
+  const selectedActivityFilterIds = useMemo(() => new Set([
+    `position:${selectedPositionId ?? 'all'}`,
+    ...(view === 'subordinates' ? [`scope:${subordinateScope}`] : []),
+    ...(tableFilters.filter ? [`status:${tableFilters.filter}`] : []),
+  ]), [selectedPositionId, subordinateScope, tableFilters.filter, view]);
+
+  const handleActivityFilterChange = useCallback((selection: Selection) => {
+    const selected = selection instanceof Set ? Array.from(selection).map(String) : [];
+    const positionKey = selected.filter((key) => key.startsWith('position:')).at(-1);
+    const nextPositionId = positionKey && positionKey !== 'position:all'
+      ? positionKey.replace('position:', '')
+      : '';
+    if (nextPositionId !== (selectedPositionId ?? '')) tableState.setPositionId(nextPositionId);
+
+    if (view === 'subordinates') {
+      const scopeKey = selected.filter((key) => key.startsWith('scope:')).at(-1);
+      const nextScope = scopeKey === 'scope:direct' ? 'direct' : 'all';
+      if (nextScope !== subordinateScope) tableState.setSubordinateScope(nextScope);
+    }
+
+    const statusKey = selected.filter((key) => key.startsWith('status:')).at(-1);
+    const nextStatus = statusKey ? statusKey.replace('status:', '') : '';
+    if (nextStatus !== tableFilters.filter) tableState.setFilter(nextStatus);
+  }, [selectedPositionId, subordinateScope, tableFilters.filter, tableState, view]);
 
   const requestQuery: ActivityRequestListQuery = useMemo(() => ({
     page: tableFilters.page,
@@ -412,82 +460,15 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       </div>
 
       <KpiTableToolbar
-        leading={needsPosition ? (
-          <Dropdown>
-            <Button variant="tertiary" aria-label="Filter Posisi" isDisabled={isLoadingPositions || Boolean(positionsError)}>
-              <SlidersHorizontal className="h-4 w-4" />
-              Filter
-              {(selectedPositionId || (view === 'subordinates' && subordinateScope === 'direct')) && (
-                <>
-                  <span className="mx-0.5 h-4 w-px bg-border" />
-                  <span className="text-sm font-medium text-foreground">
-                    {Number(Boolean(selectedPositionId)) + Number(view === 'subordinates' && subordinateScope === 'direct')}
-                  </span>
-                </>
-              )}
-            </Button>
-            <Dropdown.Popover className="min-w-[220px]">
-              <Dropdown.Menu
-                selectedKeys={new Set([
-                  `position:${selectedPositionId ?? 'all'}`,
-                  ...(view === 'subordinates' ? [`scope:${subordinateScope}`] : []),
-                ])}
-                selectionMode="multiple"
-                onSelectionChange={(selection) => {
-                  const selected = selection instanceof Set ? Array.from(selection).map(String) : [];
-                  // The shared Pegawai filter uses a multi-selection menu. Keep
-                  // one effective value per section so switching is immediate.
-                  const positionKey = selected.filter((key) => key.startsWith('position:')).at(-1);
-                  const scopeKey = selected.filter((key) => key.startsWith('scope:')).at(-1);
-                  const nextPositionId = positionKey && positionKey !== 'position:all'
-                    ? positionKey.replace('position:', '')
-                    : '';
-                  if (nextPositionId !== (selectedPositionId ?? '')) {
-                    tableState.setPositionId(nextPositionId);
-                  }
-                  const nextSubordinateScope = scopeKey === 'scope:direct' ? 'direct' : 'all';
-                  if (view === 'subordinates' && nextSubordinateScope !== subordinateScope) {
-                    tableState.setSubordinateScope(nextSubordinateScope);
-                  }
-                }}
-              >
-                <Dropdown.Section>
-                  <Header>Posisi</Header>
-                  <Dropdown.Item key="position:all" id="position:all" textValue="Semua Posisi">
-                    <Dropdown.ItemIndicator />
-                    <Label>Semua Posisi</Label>
-                  </Dropdown.Item>
-                  {positions.map((position) => (
-                    <Dropdown.Item key={`position:${position.positionId}`} id={`position:${position.positionId}`} textValue={position.positionName}>
-                      <Dropdown.ItemIndicator />
-                      <Label>{position.positionName}</Label>
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Section>
-                {view === 'subordinates' && (
-                  <Dropdown.Section>
-                    <Header>Cakupan Bawahan</Header>
-                    <Dropdown.Item key="scope:all" id="scope:all" textValue="Semua Bawahan">
-                      <Dropdown.ItemIndicator />
-                      <Label>Semua Bawahan</Label>
-                    </Dropdown.Item>
-                    <Dropdown.Item key="scope:direct" id="scope:direct" textValue="Bawahan Langsung">
-                      <Dropdown.ItemIndicator />
-                      <Label>Bawahan Langsung</Label>
-                    </Dropdown.Item>
-                  </Dropdown.Section>
-                )}
-              </Dropdown.Menu>
-            </Dropdown.Popover>
-          </Dropdown>
-        ) : undefined}
         searchValue={searchInput}
         onSearchChange={setSearchInput}
         searchLabel="Cari aktivitas"
-        filterOptions={view === 'my-requests' ? [{ id: 'PENDING', label: 'Menunggu Persetujuan' }, { id: 'APPROVED', label: 'Disetujui' }, { id: 'REJECTED', label: 'Ditolak' }] : [{ id: 'ACTIVE', label: 'Aktif' }, { id: 'CANCELLED', label: 'Dibatalkan' }]}
-        filterSelectionMode="single"
-        selectedFilterIds={tableState.filters.filter ? new Set([tableState.filters.filter]) : new Set()}
-        onFilterChange={(selection) => {
+        filterSections={needsPosition ? activityFilterSections : undefined}
+        filterOptions={!needsPosition ? (view === 'my-requests' ? [{ id: 'PENDING', label: 'Menunggu Persetujuan' }, { id: 'APPROVED', label: 'Disetujui' }, { id: 'REJECTED', label: 'Ditolak' }] : [{ id: 'ACTIVE', label: 'Aktif' }, { id: 'CANCELLED', label: 'Dibatalkan' }]) : undefined}
+        filterSelectionMode={needsPosition ? 'multiple' : 'single'}
+        selectedFilterIds={needsPosition ? selectedActivityFilterIds : (tableState.filters.filter ? new Set([tableState.filters.filter]) : new Set())}
+        filterCount={needsPosition ? Number(Boolean(selectedPositionId)) + Number(view === 'subordinates' && subordinateScope === 'direct') + Number(Boolean(tableFilters.filter)) : undefined}
+        onFilterChange={needsPosition ? handleActivityFilterChange : (selection) => {
           const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
           tableState.setFilter(String(selected ?? ''));
         }}

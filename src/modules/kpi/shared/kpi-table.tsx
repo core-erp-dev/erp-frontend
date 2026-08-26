@@ -1,13 +1,19 @@
 'use client';
 
 import React from 'react';
-import { Button, Dropdown, Label, Pagination, SearchField, Spinner, Table } from '@heroui/react';
+import { Button, Dropdown, Header, Label, Pagination, SearchField, Spinner, Table } from '@heroui/react';
 import { Check, FunnelSimple, SlidersHorizontal, Tray, X } from '@phosphor-icons/react';
 import type { Selection } from '@heroui/react';
 
 export interface KpiTableOption {
   id: string;
   label: string;
+}
+
+export interface KpiTableFilterSection {
+  id: string;
+  label: string;
+  options: KpiTableOption[];
 }
 
 export interface KpiTableProps {
@@ -115,8 +121,10 @@ interface KpiTableToolbarProps {
   onSearchChange: (value: string) => void;
   searchLabel: string;
   filterOptions?: KpiTableOption[];
+  filterSections?: KpiTableFilterSection[];
   filterSelectionMode?: 'single' | 'multiple';
   selectedFilterIds?: Set<string>;
+  filterCount?: number;
   onFilterChange?: (selection: Selection) => void;
   sortOptions?: KpiTableOption[];
   selectedSortId?: string;
@@ -132,8 +140,10 @@ export function KpiTableToolbar({
   onSearchChange,
   searchLabel,
   filterOptions = [],
+  filterSections = [],
   filterSelectionMode = 'multiple',
   selectedFilterIds = new Set<string>(),
+  filterCount,
   onFilterChange,
   sortOptions = [],
   selectedSortId,
@@ -145,16 +155,25 @@ export function KpiTableToolbar({
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         {leading}
-        {filterOptions.length > 0 && onFilterChange && (
+        {(filterOptions.length > 0 || filterSections.length > 0) && onFilterChange && (
           <Dropdown>
             <Button variant="tertiary" aria-label="Filter">
               <SlidersHorizontal className="h-4 w-4" />
               Filter
-              {selectedFilterIds.size > 0 && <><span className="mx-0.5 h-4 w-px bg-border" /><span className="text-sm font-medium text-foreground">{selectedFilterIds.size}</span></>}
+              {(filterCount ?? selectedFilterIds.size) > 0 && <><span className="mx-0.5 h-4 w-px bg-border" /><span className="text-sm font-medium text-foreground">{filterCount ?? selectedFilterIds.size}</span></>}
             </Button>
             <Dropdown.Popover className="min-w-[220px]">
               <Dropdown.Menu selectedKeys={selectedFilterIds} selectionMode={filterSelectionMode} onSelectionChange={onFilterChange}>
-                {filterOptions.map((option) => (
+                {filterSections.length > 0 ? filterSections.map((section) => (
+                  <Dropdown.Section key={section.id}>
+                    <Header>{section.label}</Header>
+                    {section.options.map((option) => (
+                      <Dropdown.Item key={option.id} id={option.id} textValue={option.label}>
+                        <Dropdown.ItemIndicator /><Label>{option.label}</Label>
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Section>
+                )) : filterOptions.map((option) => (
                   <Dropdown.Item key={option.id} id={option.id} textValue={option.label}>
                     <Dropdown.ItemIndicator /><Label>{option.label}</Label>
                   </Dropdown.Item>
