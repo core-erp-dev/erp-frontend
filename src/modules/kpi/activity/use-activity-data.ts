@@ -45,9 +45,10 @@ export interface MutationResult {
 export interface UseActivityDataReturn {
   /* My Activities (scope=mine) */
   myActivities: KpiActivityResponse[];
+  myPagination: PaginatedActivityResponse | null;
   isLoadingMy: boolean;
   myError: string | null;
-  fetchMyActivities: () => Promise<void>;
+  fetchMyActivities: (query?: ActivityListQuery) => Promise<void>;
 
   /* All Activities (scope=all) */
   allActivities: KpiActivityResponse[];
@@ -58,11 +59,12 @@ export interface UseActivityDataReturn {
 
   /* Subordinates (scope=subordinates + actingPositionId) */
   subordinatesActivities: KpiActivityResponse[];
+  subordinatesPagination: PaginatedActivityResponse | null;
   isLoadingSubordinates: boolean;
   subordinatesError: string | null;
   /** The acting Position whose subordinate data is currently loaded (isolation). */
   subordinatesActingPositionId: string | null;
-  fetchSubordinatesActivities: (actingPositionId: string) => Promise<void>;
+  fetchSubordinatesActivities: (actingPositionId: string, query?: ActivityListQuery) => Promise<void>;
 
   /* Superior (scope=superior + actingPositionId) — self-child parent source */
   superiorActivities: KpiActivityResponse[];
@@ -86,8 +88,13 @@ export interface UseActivityDataReturn {
   submitChangeRequest: (activityId: string, body: ChangeRequestRequest) => Promise<MutationResult>;
 }
 
+const DEFAULT_ACTIVITY_QUERY: ActivityListQuery = {
+  page: 1, size: 100, search: '', status: '', sortBy: 'activityName', sortDirection: 'asc',
+};
+
 export function useActivityData(): UseActivityDataReturn {
   const [myActivities, setMyActivities] = useState<KpiActivityResponse[]>([]);
+  const [myPagination, setMyPagination] = useState<PaginatedActivityResponse | null>(null);
   const [isLoadingMy, setIsLoadingMy] = useState(false);
   const [myError, setMyError] = useState<string | null>(null);
 
@@ -97,6 +104,7 @@ export function useActivityData(): UseActivityDataReturn {
   const [allError, setAllError] = useState<string | null>(null);
 
   const [subordinatesActivities, setSubordinatesActivities] = useState<KpiActivityResponse[]>([]);
+  const [subordinatesPagination, setSubordinatesPagination] = useState<PaginatedActivityResponse | null>(null);
   const [isLoadingSubordinates, setIsLoadingSubordinates] = useState(false);
   const [subordinatesError, setSubordinatesError] = useState<string | null>(null);
   const [subordinatesActingPositionId, setSubordinatesActingPositionId] = useState<string | null>(null);
@@ -113,23 +121,30 @@ export function useActivityData(): UseActivityDataReturn {
   const mountedRef = useRef(true);
   const requestSeqRef = useRef({ mine: 0, all: 0, subordinates: 0, superior: 0, requests: 0 });
   const latestAllQueryRef = useRef<ActivityListQuery | undefined>(undefined);
+  const latestMyQueryRef = useRef<ActivityListQuery | undefined>(undefined);
+  const latestSubordinatesQueryRef = useRef<ActivityListQuery | undefined>(undefined);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  const fetchMyActivities = useCallback(async () => {
+  const fetchMyActivities = useCallback(async (query?: ActivityListQuery) => {
     const requestId = ++requestSeqRef.current.mine;
+    latestMyQueryRef.current = query ?? latestMyQueryRef.current;
     setIsLoadingMy(true);
     setMyError(null);
     setMyActivities([]);
+    setMyPagination(null);
     try {
-      const data = await activityV1Api.getActivities('mine');
-      if (mountedRef.current && requestId === requestSeqRef.current.mine) setMyActivities(data);
+      const data = await activityV1Api.getActivitiesPage('mine', undefined, latestMyQueryRef.current ?? DEFAULT_ACTIVITY_QUERY);
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) {
+        setMyActivities(data.content);
+        setMyPagination(data);
+      }
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current && requestId === requestSeqRef.current.mine) { setMyError(msg); setMyActivities([]); }
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) { setMyError(msg); setMyActivities([]); setMyPagination(null); }
       toast.danger(msg);
     } finally {
       if (mountedRef.current && requestId === requestSeqRef.current.mine) setIsLoadingMy(false);
@@ -165,16 +180,21 @@ export function useActivityData(): UseActivityDataReturn {
    * selected acting Position. The result replaces any previous list; switching
    * Position refetches and never mixes cached data from another Position.
    */
-  const fetchSubordinatesActivities = useCallback(async (actingPositionId: string) => {
+  const fetchSubordinatesActivities = useCallback(async (actingPositionId: string, query?: ActivityListQuery) => {
     const requestId = ++requestSeqRef.current.subordinates;
+    latestSubordinatesQueryRef.current = query ?? latestSubordinatesQueryRef.current;
     setIsLoadingSubordinates(true);
     setSubordinatesError(null);
     setSubordinatesActivities([]);
+    setSubordinatesPagination(null);
     setSubordinatesActingPositionId(null);
     try {
-      const data = await activityV1Api.getActivities('subordinates', actingPositionId);
+      const data = await activityV1Api.getActivitiesPage(
+        'subordinates', actingPositionId, latestSubordinatesQueryRef.current ?? DEFAULT_ACTIVITY_QUERY,
+      );
       if (mountedRef.current && requestId === requestSeqRef.current.subordinates) {
-        setSubordinatesActivities(data);
+        setSubordinatesActivities(data.content);
+        setSubordinatesPagination(data);
         setSubordinatesActingPositionId(actingPositionId);
       }
     } catch (err: unknown) {
@@ -182,6 +202,7 @@ export function useActivityData(): UseActivityDataReturn {
       if (mountedRef.current && requestId === requestSeqRef.current.subordinates) {
         setSubordinatesError(msg);
         setSubordinatesActivities([]);
+        setSubordinatesPagination(null);
         setSubordinatesActingPositionId(null);
       }
       toast.danger(msg);
@@ -285,9 +306,9 @@ export function useActivityData(): UseActivityDataReturn {
   }, []);
 
   return {
-    myActivities, isLoadingMy, myError, fetchMyActivities,
+    myActivities, myPagination, isLoadingMy, myError, fetchMyActivities,
     allActivities, allPagination, isLoadingAll, allError, fetchAllActivities,
-    subordinatesActivities, isLoadingSubordinates, subordinatesError,
+    subordinatesActivities, subordinatesPagination, isLoadingSubordinates, subordinatesError,
     subordinatesActingPositionId, fetchSubordinatesActivities,
     superiorActivities, isLoadingSuperior, superiorError, fetchSuperiorActivities,
     myRequests, isLoadingRequests, requestsError, fetchMyRequests,
