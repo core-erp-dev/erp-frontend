@@ -16,8 +16,6 @@ import { UnitPerformanceFilters } from '@/modules/kpi/unit-performance/unit-perf
 import { UnitPerformanceResultsTable } from '@/modules/kpi/unit-performance/unit-performance-results-table';
 import type { UnitPerformanceRow } from '@/modules/kpi/unit-performance/unit-performance.types';
 
-const PAGE_SIZE = 10;
-
 function parseYear(value: string | null): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -26,11 +24,6 @@ function parseYear(value: string | null): number | null {
 function parseMonth(value: string | null, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : fallback;
-}
-
-function parsePage(value: string | null): number {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
 function filterRows(rows: UnitPerformanceRow[], searchQuery: string): UnitPerformanceRow[] {
@@ -50,7 +43,6 @@ export default function UnitPerformancePage() {
   const urlYear = parseYear(searchParams.get('year'));
   const selectedMonth = parseMonth(searchParams.get('month'), currentMonth);
   const searchQuery = searchParams.get('search') ?? '';
-  const selectedPage = parsePage(searchParams.get('page'));
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [searchInput, setSearchInput] = useState(searchQuery);
   const [isSearchTransitioning, setIsSearchTransitioning] = useState(false);
@@ -68,16 +60,15 @@ export default function UnitPerformancePage() {
       : null
     : urlYear ?? currentYear;
 
-  const updateUrl = useCallback((patch: Partial<{ period: 'monthly' | 'annual'; year: number; month: number; search: string; page: number }>) => {
-    const next = { period: periodMode, year: selectedYear, month: selectedMonth, search: searchQuery, page: selectedPage, ...patch };
+  const updateUrl = useCallback((patch: Partial<{ period: 'monthly' | 'annual'; year: number; month: number; search: string }>) => {
+    const next = { period: periodMode, year: selectedYear, month: selectedMonth, search: searchQuery, ...patch };
     const params = new URLSearchParams();
     if (next.period === 'annual') params.set('period', 'annual');
     if (next.year != null && next.year !== currentYear) params.set('year', String(next.year));
     if (next.period === 'monthly' && next.month !== currentMonth) params.set('month', String(next.month));
     if (next.search) params.set('search', next.search);
-    if (next.page > 1) params.set('page', String(next.page));
     router.replace(params.toString() ? `${KPI_ROUTES.unitPerformance}?${params.toString()}` : KPI_ROUTES.unitPerformance, { scroll: false });
-  }, [currentMonth, currentYear, periodMode, router, searchQuery, selectedMonth, selectedPage, selectedYear]);
+  }, [currentMonth, currentYear, periodMode, router, searchQuery, selectedMonth, selectedYear]);
 
   const markTransition = useCallback(() => setIsTransitioning(true), []);
 
@@ -85,13 +76,20 @@ export default function UnitPerformancePage() {
     setSearchInput(searchQuery);
   }, [searchQuery]);
 
+  useEffect(() => {
+    if (!searchParams.has('page')) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('page');
+    router.replace(params.toString() ? `${KPI_ROUTES.unitPerformance}?${params.toString()}` : KPI_ROUTES.unitPerformance, { scroll: false });
+  }, [router, searchParams]);
+
   const debouncedSearch = useDebounce(searchInput, 400);
   useEffect(() => {
     if (debouncedSearch === searchQuery) {
       setIsSearchTransitioning(false);
       return;
     }
-    updateUrl({ search: debouncedSearch, page: 1 });
+    updateUrl({ search: debouncedSearch });
   }, [debouncedSearch, searchQuery, updateUrl]);
 
   const hasValidSelectedYear = !canReadCorporateKpi
@@ -105,13 +103,13 @@ export default function UnitPerformancePage() {
   useEffect(() => {
     const yearIsCanonical = selectedYear != null && (urlYear === selectedYear || (urlYear == null && selectedYear === currentYear));
     if (!canReadCorporateKpi || availableYears === null || availableYears.length === 0 || selectedYear == null || yearIsCanonical) return;
-    updateUrl({ year: selectedYear, page: 1 });
+    updateUrl({ year: selectedYear });
   }, [availableYears, canReadCorporateKpi, currentYear, selectedYear, updateUrl, urlYear]);
 
   useEffect(() => {
     if (monthNeedsResolution) {
       markTransition();
-      updateUrl({ month: selectedMonth, page: 1 });
+      updateUrl({ month: selectedMonth });
     }
   }, [markTransition, monthNeedsResolution, selectedMonth, updateUrl]);
 
@@ -123,19 +121,10 @@ export default function UnitPerformancePage() {
 
   const filteredRows = useMemo(() => filterRows(rows, searchQuery), [rows, searchQuery]);
   const selectableYears = canReadCorporateKpi ? availableYears ?? [] : selectedYear != null ? [selectedYear] : [];
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
-  const safePage = Math.min(selectedPage, totalPages);
-  const pageRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  useEffect(() => {
-    if (selectedPage > totalPages) updateUrl({ page: totalPages });
-  }, [selectedPage, totalPages, updateUrl]);
-
-  const handlePeriodChange = useCallback((period: 'monthly' | 'annual') => { markTransition(); updateUrl({ period, page: 1 }); }, [markTransition, updateUrl]);
-  const handleYearChange = useCallback((year: number) => { markTransition(); updateUrl({ year, page: 1 }); }, [markTransition, updateUrl]);
-  const handleMonthChange = useCallback((month: number) => { markTransition(); updateUrl({ month, page: 1 }); }, [markTransition, updateUrl]);
+  const handlePeriodChange = useCallback((period: 'monthly' | 'annual') => { markTransition(); updateUrl({ period }); }, [markTransition, updateUrl]);
+  const handleYearChange = useCallback((year: number) => { markTransition(); updateUrl({ year }); }, [markTransition, updateUrl]);
+  const handleMonthChange = useCallback((month: number) => { markTransition(); updateUrl({ month }); }, [markTransition, updateUrl]);
   const handleSearchChange = useCallback((search: string) => { setSearchInput(search); setIsSearchTransitioning(true); }, []);
-  const handlePageChange = useCallback((page: number) => { markTransition(); updateUrl({ page }); }, [markTransition, updateUrl]);
   const handleRetry = useCallback(() => {
     if (periodError) {
       void refetchPeriods();
@@ -150,7 +139,7 @@ export default function UnitPerformancePage() {
     if (selectedYear != null) query.set('year', String(selectedYear));
     if (periodMode === 'annual') query.set('period', 'annual');
     else query.set('month', String(selectedMonth));
-    for (const key of ['period', 'year', 'month', 'search', 'page']) {
+    for (const key of ['period', 'year', 'month', 'search']) {
       const value = searchParams.get(key);
       if (value !== null && !((periodMode === 'annual' && key === 'month') || key === 'year')) query.set(key, value);
     }
@@ -168,7 +157,7 @@ export default function UnitPerformancePage() {
       <Breadcrumbs><BreadcrumbsItem href="/" aria-label="Beranda"><House className="h-4 w-4" /></BreadcrumbsItem><BreadcrumbsItem>KPI</BreadcrumbsItem><BreadcrumbsItem>KPI Unit</BreadcrumbsItem><BreadcrumbsItem>{KPI_LABELS.unitPerformance}</BreadcrumbsItem></Breadcrumbs>
       <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.unitPerformance}</h1><Chip size="md" className="pointer-events-none" aria-label={`Total ${filteredRows.length} hasil`}>{filteredRows.length}</Chip></div><Button isIconOnly variant="tertiary" onPress={handleRetry} isDisabled={tableLoading} aria-label="Muat ulang Performa Unit"><ArrowsClockwise className={`h-4 w-4 ${tableLoading ? 'animate-spin' : ''}`} /></Button></div>
       <UnitPerformanceFilters periodMode={periodMode} selectedYear={selectedYear} years={selectableYears} selectedMonth={selectedMonth} searchQuery={searchInput} onPeriodModeChange={handlePeriodChange} onYearChange={handleYearChange} onMonthChange={handleMonthChange} onSearchChange={handleSearchChange} />
-      <UnitPerformanceResultsTable rows={pageRows} isLoading={tableLoading} error={tableError} isTransitioning={isTransitioning || isSearchTransitioning} searchQuery={searchQuery} onRetry={handleRetry} currentPage={safePage} totalPages={totalPages} totalItems={filteredRows.length} pageSize={PAGE_SIZE} onPageChange={handlePageChange} getDetailHref={getDetailHref} />
+      <UnitPerformanceResultsTable rows={filteredRows} isLoading={tableLoading} error={tableError} isTransitioning={isTransitioning || isSearchTransitioning} searchQuery={searchQuery} onRetry={handleRetry} getDetailHref={getDetailHref} />
     </div>
   );
 }

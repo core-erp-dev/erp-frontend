@@ -66,6 +66,23 @@ it('fetches and renders the result contract without exposing matrix editing', as
   expect(screen.queryByText('Simpan Matriks Bobot')).not.toBeInTheDocument();
 });
 
+it('renders every row returned by the non-paginated endpoint', async () => {
+  mockPermissions = { 'unit_performance:read': true };
+  mockedApi.getPerformance.mockResolvedValue(
+    Array.from({ length: 11 }, (_, index) => ({
+      ...row,
+      id: `up-${index}`,
+      unitCode: `U${index}`,
+      unitName: `Unit ${index}`,
+    })),
+  );
+
+  render(<UnitPerformancePage />);
+
+  expect(await screen.findByText('Unit 10')).toBeInTheDocument();
+  expect(screen.queryByText('Berikutnya')).not.toBeInTheDocument();
+});
+
 it('keeps the period unresolved while structure metadata is loading', () => {
   mockedStructuresApi.list.mockReturnValue(new Promise(() => undefined));
   mockPermissions = { 'unit_performance:read': true, 'corporate_kpi:read': true };

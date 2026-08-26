@@ -7,7 +7,7 @@ jest.mock('@/modules/kpi/unit-performance/unit-performance-api');
 const mockedApi = jest.mocked(unitPerformanceApi);
 
 let mockPermissions: Record<string, boolean> = {};
-let mockSearchParams = new URLSearchParams('year=2025&month=6&from=unit-performance&search=HBL&page=2');
+let mockSearchParams = new URLSearchParams('year=2025&month=6&from=unit-performance&search=HBL');
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
 
@@ -32,7 +32,7 @@ const detail = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockPermissions = { 'unit_performance:read': true };
-  mockSearchParams = new URLSearchParams('year=2025&month=6&from=unit-performance&search=HBL&page=2');
+  mockSearchParams = new URLSearchParams('year=2025&month=6&from=unit-performance&search=HBL');
   mockedApi.getPerformanceDetail.mockResolvedValue(detail);
   sessionStorage.setItem('unit-performance-detail-origin', 'up-1');
 });

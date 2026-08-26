@@ -119,7 +119,7 @@ export default function UnitPerformanceDetailPage() {
       return;
     }
     const fallback = new URLSearchParams();
-    for (const key of ['period', 'year', 'month', 'search', 'page']) {
+    for (const key of ['period', 'year', 'month', 'search']) {
       const value = searchParams.get(key);
       if (value !== null) fallback.set(key, value);
     }

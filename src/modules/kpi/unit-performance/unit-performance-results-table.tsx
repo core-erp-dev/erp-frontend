@@ -3,7 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button, Pagination, Spinner, Table, Tooltip } from '@heroui/react';
+import { Button, Spinner, Table, Tooltip } from '@heroui/react';
 import { Check, Copy, Eye, Tray } from '@phosphor-icons/react';
 import { UNIT_PERFORMANCE_DETAIL_ORIGIN_KEY } from '@/modules/kpi/constants';
 import type { UnitPerformanceRow } from './unit-performance.types';
@@ -15,11 +15,6 @@ interface UnitPerformanceResultsTableProps {
   isTransitioning: boolean;
   searchQuery: string;
   onRetry: () => void;
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
   getDetailHref: (rowId: string) => string;
 }
 
@@ -38,11 +33,6 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
   isTransitioning,
   searchQuery,
   onRetry,
-  currentPage,
-  totalPages,
-  totalItems,
-  pageSize,
-  onPageChange,
   getDetailHref,
 }) => {
   const router = useRouter();
@@ -132,33 +122,5 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
         </Table.Body>
       </Table.Content>
     </Table.ScrollContainer>
-    {!isLoading && !isTransitioning && !error && totalItems > 0 && (
-      <Table.Footer>
-        <Pagination size="sm">
-          <Pagination.Summary>
-            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, totalItems)} dari {totalItems} data
-          </Pagination.Summary>
-          <Pagination.Content>
-            <Pagination.Item>
-              <Pagination.Previous isDisabled={currentPage === 1} onPress={() => onPageChange(currentPage - 1)}>
-                <Pagination.PreviousIcon />
-                Sebelumnya
-              </Pagination.Previous>
-            </Pagination.Item>
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-              <Pagination.Item key={page}>
-                <Pagination.Link isActive={page === currentPage} onPress={() => onPageChange(page)}>{page}</Pagination.Link>
-              </Pagination.Item>
-            ))}
-            <Pagination.Item>
-              <Pagination.Next isDisabled={currentPage === totalPages} onPress={() => onPageChange(currentPage + 1)}>
-                Berikutnya
-                <Pagination.NextIcon />
-              </Pagination.Next>
-            </Pagination.Item>
-          </Pagination.Content>
-        </Pagination>
-      </Table.Footer>
-    )}
   </Table>;
 };
