@@ -1,6 +1,6 @@
 import { api } from '@/lib/axios';
 import { extractErrorMessage } from '@/types/api';
-import type { ApiResponse } from '@/types/api';
+import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import { assertActivityScope, assertRequestScope } from '@/modules/kpi/shared/scope.types';
 import type { KpiActivityScope, KpiRequestScope } from '@/modules/kpi/shared/scope.types';
 import type {
@@ -9,6 +9,8 @@ import type {
   CreateActivityRequest,
   KpiActivityResponse,
   KpiActivityChangeRequestResponse,
+  ActivityListQuery,
+  PaginatedActivityResponse,
   RequestDecisionRequest,
 } from './activity-v1.types';
 
@@ -33,13 +35,39 @@ export const activityV1Api = {
     scope: KpiActivityScope,
     actingPositionId?: string,
   ): Promise<KpiActivityResponse[]> => {
-    assertActivityScope(scope, 'GET /api/v1/kpi-activities');
-    const response = await api.get<ApiResponse<KpiActivityResponse[]>>('/api/v1/kpi-activities', {
-      params: (scope === 'subordinates' || scope === 'superior') && actingPositionId
-        ? { scope, actingPositionId }
-        : { scope },
+    const page = await activityV1Api.getActivitiesPage(scope, actingPositionId, {
+      page: 1,
+      size: 100,
+      search: '',
+      status: '',
+      sortBy: 'activityName',
+      sortDirection: 'asc',
     });
-    return response.data.data;
+    return page.content;
+  },
+
+  getActivitiesPage: async (
+    scope: KpiActivityScope,
+    actingPositionId: string | undefined,
+    query: ActivityListQuery,
+  ): Promise<PaginatedActivityResponse> => {
+    assertActivityScope(scope, 'GET /api/v1/kpi-activities');
+    const response = await api.get<ApiResponse<PaginatedResponse<KpiActivityResponse> | KpiActivityResponse[]>>('/api/v1/kpi-activities', {
+      params: {
+        scope,
+        ...(actingPositionId && (scope === 'subordinates' || scope === 'superior') ? { actingPositionId } : {}),
+        page: query.page,
+        size: query.size,
+        ...(query.search ? { search: query.search } : {}),
+        ...(query.status ? { status: query.status } : {}),
+        sortBy: query.sortBy,
+        sortDirection: query.sortDirection,
+      },
+    });
+    const data = response.data.data;
+    return Array.isArray(data)
+      ? { content: data, page: 1, size: data.length, totalElements: data.length, totalPages: data.length > 0 ? 1 : 0, last: true }
+      : data;
   },
 
   /** T2 — Activity detail. `actingPositionId` is optional (direct-superior access only). */

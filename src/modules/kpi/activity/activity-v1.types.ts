@@ -48,6 +48,8 @@ export interface KpiActivityResponse {
   updatedAt: string;
 }
 
+import type { PaginatedResponse } from '@/types/api';
+
 export type KpiActivityStatus = 'ACTIVE' | 'CANCELLED';
 
 export interface KpiActivityChangeRequestResponse {
@@ -81,6 +83,17 @@ export interface KpiActivityChangeRequestResponse {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ActivityListQuery = {
+  page: number;
+  size: number;
+  search: string;
+  status: KpiActivityStatus | '';
+  sortBy: 'activityName' | 'createdAt';
+  sortDirection: 'asc' | 'desc';
+};
+
+export type PaginatedActivityResponse = PaginatedResponse<KpiActivityResponse>;
 
 export type KpiActivityRequestType = 'CREATE' | 'UPDATE' | 'CANCEL';
 export type KpiActivityRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

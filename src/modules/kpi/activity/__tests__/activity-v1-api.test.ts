@@ -1,7 +1,7 @@
 /**
  * Activity V1 client contract tests (T1/T2/T6/T7/T8).
- * Verifies exact method/path/query/body: `scope` always sent, actingPositionId
- * only for `subordinates`, and the unified decision body discriminated
+ * Verifies exact method/path/query/body: `scope` and pagination are sent,
+ * actingPositionId only for `subordinates`, and the unified decision body discriminated
  * (APPROVE never sends rejectionReason; REJECT requires it).
  */
 import { api } from '@/lib/axios';
@@ -38,7 +38,7 @@ describe('activityV1Api.getActivities (T1)', () => {
   it('GET /api/v1/kpi-activities with scope=mine', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap([activity]) });
     const result = await activityV1Api.getActivities('mine');
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', { params: { scope: 'mine' } });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', { params: { scope: 'mine', page: 1, size: 100, sortBy: 'activityName', sortDirection: 'asc' } });
     expect(result).toEqual([activity]);
   });
 
@@ -46,7 +46,7 @@ describe('activityV1Api.getActivities (T1)', () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
     await activityV1Api.getActivities('subordinates', 'pos-1');
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', {
-      params: { scope: 'subordinates', actingPositionId: 'pos-1' },
+      params: { scope: 'subordinates', actingPositionId: 'pos-1', page: 1, size: 100, sortBy: 'activityName', sortDirection: 'asc' },
     });
   });
 
@@ -54,14 +54,24 @@ describe('activityV1Api.getActivities (T1)', () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
     await activityV1Api.getActivities('superior', 'pos-1');
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', {
-      params: { scope: 'superior', actingPositionId: 'pos-1' },
+      params: { scope: 'superior', actingPositionId: 'pos-1', page: 1, size: 100, sortBy: 'activityName', sortDirection: 'asc' },
     });
   });
 
   it('never sends actingPositionId for scope=all', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
     await activityV1Api.getActivities('all', 'pos-1');
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', { params: { scope: 'all' } });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', { params: { scope: 'all', page: 1, size: 100, sortBy: 'activityName', sortDirection: 'asc' } });
+  });
+
+  it('sends the active server-side page, filters, search, and sort', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({ content: [activity], page: 2, size: 10, totalElements: 17, totalPages: 2, last: true }) });
+    await activityV1Api.getActivitiesPage('all', undefined, {
+      page: 2, size: 10, search: 'laporan', status: 'ACTIVE', sortBy: 'createdAt', sortDirection: 'desc',
+    });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', {
+      params: { scope: 'all', page: 2, size: 10, search: 'laporan', status: 'ACTIVE', sortBy: 'createdAt', sortDirection: 'desc' },
+    });
   });
 
   it('throws MissingScopeError when scope is missing (no backend default)', async () => {

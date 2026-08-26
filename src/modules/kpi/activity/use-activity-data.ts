@@ -10,6 +10,8 @@ import type {
   CreateActivityRequest,
   KpiActivityResponse,
   KpiActivityChangeRequestResponse,
+  ActivityListQuery,
+  PaginatedActivityResponse,
 } from './activity-v1.types';
 
 /**
@@ -49,9 +51,10 @@ export interface UseActivityDataReturn {
 
   /* All Activities (scope=all) */
   allActivities: KpiActivityResponse[];
+  allPagination: PaginatedActivityResponse | null;
   isLoadingAll: boolean;
   allError: string | null;
-  fetchAllActivities: () => Promise<void>;
+  fetchAllActivities: (query?: ActivityListQuery) => Promise<void>;
 
   /* Subordinates (scope=subordinates + actingPositionId) */
   subordinatesActivities: KpiActivityResponse[];
@@ -89,6 +92,7 @@ export function useActivityData(): UseActivityDataReturn {
   const [myError, setMyError] = useState<string | null>(null);
 
   const [allActivities, setAllActivities] = useState<KpiActivityResponse[]>([]);
+  const [allPagination, setAllPagination] = useState<PaginatedActivityResponse | null>(null);
   const [isLoadingAll, setIsLoadingAll] = useState(false);
   const [allError, setAllError] = useState<string | null>(null);
 
@@ -108,6 +112,7 @@ export function useActivityData(): UseActivityDataReturn {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const mountedRef = useRef(true);
   const requestSeqRef = useRef({ mine: 0, all: 0, subordinates: 0, superior: 0, requests: 0 });
+  const latestAllQueryRef = useRef<ActivityListQuery | undefined>(undefined);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -131,17 +136,24 @@ export function useActivityData(): UseActivityDataReturn {
     }
   }, []);
 
-  const fetchAllActivities = useCallback(async () => {
+  const fetchAllActivities = useCallback(async (query?: ActivityListQuery) => {
     const requestId = ++requestSeqRef.current.all;
+    latestAllQueryRef.current = query ?? latestAllQueryRef.current;
     setIsLoadingAll(true);
     setAllError(null);
     setAllActivities([]);
+    setAllPagination(null);
     try {
-      const data = await activityV1Api.getActivities('all');
-      if (mountedRef.current && requestId === requestSeqRef.current.all) setAllActivities(data);
+      const data = await activityV1Api.getActivitiesPage('all', undefined, latestAllQueryRef.current ?? {
+        page: 1, size: 10, search: '', status: '', sortBy: 'activityName', sortDirection: 'asc',
+      });
+      if (mountedRef.current && requestId === requestSeqRef.current.all) {
+        setAllActivities(data.content);
+        setAllPagination(data);
+      }
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);
-      if (mountedRef.current && requestId === requestSeqRef.current.all) { setAllError(msg); setAllActivities([]); }
+      if (mountedRef.current && requestId === requestSeqRef.current.all) { setAllError(msg); setAllActivities([]); setAllPagination(null); }
       toast.danger(msg);
     } finally {
       if (mountedRef.current && requestId === requestSeqRef.current.all) setIsLoadingAll(false);
@@ -274,7 +286,7 @@ export function useActivityData(): UseActivityDataReturn {
 
   return {
     myActivities, isLoadingMy, myError, fetchMyActivities,
-    allActivities, isLoadingAll, allError, fetchAllActivities,
+    allActivities, allPagination, isLoadingAll, allError, fetchAllActivities,
     subordinatesActivities, isLoadingSubordinates, subordinatesError,
     subordinatesActingPositionId, fetchSubordinatesActivities,
     superiorActivities, isLoadingSuperior, superiorError, fetchSuperiorActivities,

@@ -112,6 +112,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     fetchMyActivities,
 
     allActivities,
+    allPagination,
     isLoadingAll,
     allError,
     fetchAllActivities,
@@ -139,10 +140,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       void fetchSuperiorActivities(selectedActingPosition.positionId);
     }
   }, [view, fetchMyActivities, selectedActingPosition, fetchSuperiorActivities]);
-
-  useEffect(() => {
-    if (view === 'all-activities') void fetchAllActivities();
-  }, [view, fetchAllActivities]);
 
   /**
    * Subordinates: only after an explicit acting Position is selected, and the
@@ -172,15 +169,23 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
   const normalizedSearch = tableFilters.search.trim().toLowerCase();
 
+  const allActivitiesQuery = useMemo(() => ({
+    page: tableFilters.page,
+    size: tableFilters.size,
+    search: tableFilters.search,
+    status: tableFilters.filter as 'ACTIVE' | 'CANCELLED' | '',
+    sortBy: tableFilters.sortBy as 'activityName' | 'createdAt',
+    sortDirection: tableFilters.direction as 'asc' | 'desc',
+  }), [tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+
+  useEffect(() => {
+    if (view === 'all-activities') void fetchAllActivities(allActivitiesQuery);
+  }, [view, fetchAllActivities, allActivitiesQuery]);
+
   const filteredMyActivities = useMemo(() => {
     const items = myActivities ?? [];
     return items.filter((a) => (!normalizedSearch || a.activityName.toLowerCase().includes(normalizedSearch)) && (!tableState.filters.filter || a.status === tableState.filters.filter));
   }, [myActivities, normalizedSearch, tableState.filters.filter]);
-
-  const filteredAllActivities = useMemo(() => {
-    const items = allActivities ?? [];
-    return items.filter((a) => (!normalizedSearch || a.activityName.toLowerCase().includes(normalizedSearch)) && (!tableState.filters.filter || a.status === tableState.filters.filter));
-  }, [allActivities, normalizedSearch, tableState.filters.filter]);
 
   const filteredSubordinates = useMemo(() => {
     const items = subordinatesActivities ?? [];
@@ -201,19 +206,24 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     });
   }, [tableState.filters.direction, tableState.filters.sortBy]);
   const pagedMyActivities = useMemo(() => paginateKpiItems(sortItems(filteredMyActivities), tableState.filters.page), [filteredMyActivities, sortItems, tableState.filters.page]);
-  const pagedAllActivities = useMemo(() => paginateKpiItems(sortItems(filteredAllActivities), tableState.filters.page), [filteredAllActivities, sortItems, tableState.filters.page]);
+  const pagedAllActivities = useMemo(() => ({
+    items: allActivities,
+    totalItems: allPagination?.totalElements ?? 0,
+    totalPages: allPagination?.totalPages ?? 1,
+    page: allPagination?.page ?? tableState.filters.page,
+  }), [allActivities, allPagination, tableState.filters.page]);
   const pagedSubordinates = useMemo(() => paginateKpiItems(sortItems(filteredSubordinates), tableState.filters.page), [filteredSubordinates, sortItems, tableState.filters.page]);
   const pagedMyRequests = useMemo(() => paginateKpiItems(sortItems(filteredMyRequests), tableState.filters.page), [filteredMyRequests, sortItems, tableState.filters.page]);
 
   const totalItems = useMemo(() => {
     switch (view) {
       case 'my-activities': return myActivities?.length ?? 0;
-      case 'all-activities': return allActivities?.length ?? 0;
+      case 'all-activities': return allPagination?.totalElements ?? 0;
       case 'subordinates': return subordinatesActivities?.length ?? 0;
       case 'my-requests': return myRequests?.length ?? 0;
       default: return 0;
     }
-  }, [view, myActivities, allActivities, subordinatesActivities, myRequests]);
+  }, [view, myActivities, allPagination, subordinatesActivities, myRequests]);
 
   const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingSuperior || isLoadingRequests || tableState.isQueryLoading || isLoadingPositions;
 

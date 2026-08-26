@@ -62,7 +62,7 @@ describe('useActivityData — subordinates scope', () => {
       await result.current.fetchSubordinatesActivities('pos-A');
     });
     expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/kpi-activities', {
-      params: { scope: 'subordinates', actingPositionId: 'pos-A' },
+      params: { scope: 'subordinates', actingPositionId: 'pos-A', page: 1, size: 100, sortBy: 'activityName', sortDirection: 'asc' },
     });
     expect(result.current.subordinatesActingPositionId).toBe('pos-A');
     expect(result.current.subordinatesActivities.map((a) => a.id)).toEqual(['act-a']);
@@ -72,11 +72,33 @@ describe('useActivityData — subordinates scope', () => {
       await result.current.fetchSubordinatesActivities('pos-B');
     });
     expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/kpi-activities', {
-      params: { scope: 'subordinates', actingPositionId: 'pos-B' },
+      params: { scope: 'subordinates', actingPositionId: 'pos-B', page: 1, size: 100, sortBy: 'activityName', sortDirection: 'asc' },
     });
     expect(result.current.subordinatesActingPositionId).toBe('pos-B');
     expect(result.current.subordinatesActivities.map((a) => a.id)).toEqual(['act-b']);
     expect(result.current.subordinatesActivities.some((a) => a.id === 'act-a')).toBe(false);
+  });
+});
+
+describe('useActivityData — server-side all activities pagination', () => {
+  it('replaces rows and preserves filtered total metadata from the backend', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({
+      content: [activityA], page: 2, size: 10, totalElements: 17, totalPages: 2, last: true,
+    }) });
+
+    const { result } = renderHook(() => useActivityData());
+    await act(async () => {
+      await result.current.fetchAllActivities({
+        page: 2, size: 10, search: 'A', status: 'ACTIVE', sortBy: 'createdAt', sortDirection: 'desc',
+      });
+    });
+
+    expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/kpi-activities', {
+      params: { scope: 'all', page: 2, size: 10, search: 'A', status: 'ACTIVE', sortBy: 'createdAt', sortDirection: 'desc' },
+    });
+    expect(result.current.allActivities.map((a) => a.id)).toEqual(['act-a']);
+    expect(result.current.allPagination?.totalElements).toBe(17);
+    expect(result.current.allPagination?.totalPages).toBe(2);
   });
 });
 
@@ -92,7 +114,7 @@ describe('useActivityData — superior scope (self-child parent source)', () => 
       await result.current.fetchSuperiorActivities('pos-A');
     });
     expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/kpi-activities', {
-      params: { scope: 'superior', actingPositionId: 'pos-A' },
+      params: { scope: 'superior', actingPositionId: 'pos-A', page: 1, size: 100, sortBy: 'activityName', sortDirection: 'asc' },
     });
     expect(result.current.superiorActivities.map((a) => a.id)).toEqual(['act-a']);
 
