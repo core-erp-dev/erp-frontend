@@ -59,14 +59,14 @@ export interface UseActivityDataReturn {
   allError: string | null;
   fetchAllActivities: (query?: ActivityListQuery) => Promise<void>;
 
-  /* Subordinates (scope=subordinates + actingPositionId) */
+  /* Subordinates (scope=subordinates; optional positionId filter) */
   subordinatesActivities: KpiActivityResponse[];
   subordinatesPagination: PaginatedActivityResponse | null;
   isLoadingSubordinates: boolean;
   subordinatesError: string | null;
-  /** The acting Position whose subordinate data is currently loaded (isolation). */
+  /** The selected Position whose subordinate data is currently loaded, when filtered. */
   subordinatesActingPositionId: string | null;
-  fetchSubordinatesActivities: (actingPositionId: string, query?: ActivityListQuery) => Promise<void>;
+  fetchSubordinatesActivities: (actingPositionId?: string, query?: ActivityListQuery) => Promise<void>;
 
   /* Superior (scope=superior + actingPositionId) — self-child parent source */
   superiorActivities: KpiActivityResponse[];
@@ -184,11 +184,11 @@ export function useActivityData(): UseActivityDataReturn {
   }, []);
 
   /**
-   * Subordinates — always sends an explicit `scope=subordinates` plus the
-   * selected acting Position. The result replaces any previous list; switching
-   * Position refetches and never mixes cached data from another Position.
+   * Subordinates — omits the position filter by default so the backend can
+   * aggregate every relevant position. A selected position is sent as a query
+   * filter; every result replaces the previous list and is race guarded.
    */
-  const fetchSubordinatesActivities = useCallback(async (actingPositionId: string, query?: ActivityListQuery) => {
+  const fetchSubordinatesActivities = useCallback(async (actingPositionId?: string, query?: ActivityListQuery) => {
     const requestId = ++requestSeqRef.current.subordinates;
     latestSubordinatesQueryRef.current = query ?? latestSubordinatesQueryRef.current;
     setIsLoadingSubordinates(true);
@@ -203,7 +203,7 @@ export function useActivityData(): UseActivityDataReturn {
       if (mountedRef.current && requestId === requestSeqRef.current.subordinates) {
         setSubordinatesActivities(data.content);
         setSubordinatesPagination(data);
-        setSubordinatesActingPositionId(actingPositionId);
+        setSubordinatesActingPositionId(actingPositionId ?? null);
       }
     } catch (err: unknown) {
       const msg = extractActivityV1Error(err);

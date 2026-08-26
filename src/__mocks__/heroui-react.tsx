@@ -55,6 +55,7 @@ export const Spinner = mk('Spinner');
 export const Badge = mk('Badge');
 export const Button = mk('Button');
 export const Label = mk('Label');
+export const Header = mk('Header');
 export const Input = mk('Input');
 export const Separator = mk('Separator');
 export const Chip = mk('Chip');

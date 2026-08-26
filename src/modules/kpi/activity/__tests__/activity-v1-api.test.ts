@@ -74,6 +74,16 @@ describe('activityV1Api.getActivities (T1)', () => {
     });
   });
 
+  it('sends positionId as a filter without actingPositionId', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({ content: [activity], page: 1, size: 10, totalElements: 1, totalPages: 1, last: true }) });
+    await activityV1Api.getActivitiesPage('subordinates', undefined, {
+      page: 1, size: 10, search: '', status: '', positionId: 'pos-1', sortBy: 'activityName', sortDirection: 'asc',
+    });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', {
+      params: { scope: 'subordinates', positionId: 'pos-1', page: 1, size: 10, sortBy: 'activityName', sortDirection: 'asc' },
+    });
+  });
+
   it('throws MissingScopeError when scope is missing (no backend default)', async () => {
     await expect(activityV1Api.getActivities(undefined as never)).rejects.toThrow('scope is required');
   });

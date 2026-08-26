@@ -89,6 +89,8 @@ export type ActivityListQuery = {
   size: number;
   search: string;
   status: KpiActivityStatus | '';
+  /** Optional position filter for mine/subordinates; omitted means all relevant positions. */
+  positionId?: string;
   sortBy: 'activityName' | 'createdAt';
   sortDirection: 'asc' | 'desc';
 };

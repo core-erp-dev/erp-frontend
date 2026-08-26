@@ -30,8 +30,8 @@ import type {
 export const activityV1Api = {
   /**
    * T1 — scoped Activity list.
-   * `actingPositionId` is required for `subordinates` and `superior`; `mine`/`all`
-   * never send it and never guess a position.
+   * `actingPositionId` remains for `superior`; mine/subordinates use the
+   * optional `positionId` query filter and omit it for all relevant positions.
    */
   getActivities: async (
     scope: KpiActivityScope,
@@ -58,6 +58,7 @@ export const activityV1Api = {
       params: {
         scope,
         ...(actingPositionId && (scope === 'subordinates' || scope === 'superior') ? { actingPositionId } : {}),
+        ...(query.positionId && (scope === 'mine' || scope === 'subordinates') ? { positionId: query.positionId } : {}),
         page: query.page,
         size: query.size,
         ...(query.search ? { search: query.search } : {}),

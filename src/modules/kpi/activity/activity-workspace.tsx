@@ -6,11 +6,12 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Breadcrumbs, BreadcrumbsItem, Button, Chip, toast } from '@heroui/react';
+import { Breadcrumbs, BreadcrumbsItem, Button, Chip, Dropdown, Header, Label, toast } from '@heroui/react';
 import {
   ArrowsClockwise,
   House,
   Plus,
+  SlidersHorizontal,
 } from '@phosphor-icons/react';
 
 import { PERM } from '@/constants/permissions';
@@ -26,10 +27,7 @@ import { AdminCreateActivityModal } from '@/modules/kpi/admin/admin-create-activ
 import { AdminUpdateActivityModal } from '@/modules/kpi/admin/admin-update-activity-modal';
 import { kpiAdminV1Api } from '@/modules/kpi/admin/kpi-admin-v1-api';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import {
-  ActingPositionSelector,
-  useMyPositions,
-} from '@/modules/kpi/shared/acting-position-selector';
+import { useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v1.types';
@@ -67,12 +65,12 @@ const REQUEST_TABLE_STATE = {
  * this workspace with its view id; the view determines the dataset/API scope:
  *   - mine        → GET /api/v1/kpi-activities?scope=mine
  *   - all         → GET /api/v1/kpi-activities?scope=all  (read_all | manage)
- *   - subordinates→ GET /api/v1/kpi-activities?scope=subordinates&actingPositionId=
+ *   - subordinates→ GET /api/v1/kpi-activities?scope=subordinates (+ optional positionId)
  *   - my-requests → GET /api/v1/kpi-activity-requests?scope=mine
  *
- * Acting-Position rules (locked): the user EXPLICITLY selects an acting
- * Position (`core_positions.id`); nothing is guessed. `subordinates` reads
- * and every submission require the selection; `mine`/`all` reads never do.
+ * Position filter rules: mine/subordinates default to all active positions
+ * owned by the user; an optional URL `positionId` narrows the dataset. Actions
+ * that create or change activities still require an explicitly selected position.
  * A Position-loading failure never hides ordinary Activity reads.
  *
  * Deliberately NOT here:
@@ -95,10 +93,13 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   // T10/T11 administrative tools — exactly `kpi_activity:manage` (never an approval bypass).
   const canAdminManage = hasPerm(PERM.KPI_ACTIVITY_MANAGE);
 
-  /* ── Acting-Position selection (explicit, never implicit) ── */
+  const tableState = useKpiTableState(view === 'my-requests' ? REQUEST_TABLE_STATE : ACTIVITY_TABLE_STATE);
+  const { filters: tableFilters, setSearch } = tableState;
+
+  /* ── Position filter (URL-controlled; default is all active positions) ── */
   const needsPosition = view === 'my-activities' || view === 'subordinates';
   const { positions, isLoading: isLoadingPositions, error: positionsError, refetch: refetchPositions } = useMyPositions(needsPosition);
-  const [selectedPositionId, setSelectedPositionId] = useState<string | null>(null);
+  const selectedPositionId = tableFilters.positionId || null;
   const selectedActingPosition: ActingPosition | null = useMemo(
     () => positions.find((p) => p.positionId === selectedPositionId) ?? null,
     [positions, selectedPositionId],
@@ -136,8 +137,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     fetchMyRequests,
   } = useActivityData();
 
-  const tableState = useKpiTableState(view === 'my-requests' ? REQUEST_TABLE_STATE : ACTIVITY_TABLE_STATE);
-  const { filters: tableFilters, setSearch } = tableState;
   const [searchInput, setSearchInput] = useState(tableState.filters.search);
   const debouncedSearch = useDebounce(searchInput, 400);
   useEffect(() => {
@@ -149,9 +148,10 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     size: tableFilters.size,
     search: tableFilters.search,
     status: tableFilters.filter as 'ACTIVE' | 'CANCELLED' | '',
+    positionId: needsPosition ? (tableFilters.positionId || undefined) : undefined,
     sortBy: tableFilters.sortBy as 'activityName' | 'createdAt',
     sortDirection: tableFilters.direction as 'asc' | 'desc',
-  }), [tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+  }), [needsPosition, tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.positionId, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
 
   const parentActivityQuery = useMemo(() => ({
     ...allActivitiesQuery,
@@ -175,13 +175,13 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   }, [view, fetchAllActivities, allActivitiesQuery]);
 
   useEffect(() => {
-    if (view === 'my-activities' && selectedActingPosition) {
+    if (view === 'my-activities') {
       void fetchMyActivities(allActivitiesQuery);
-      void fetchSuperiorActivities(selectedActingPosition.positionId);
+      if (selectedActingPosition) void fetchSuperiorActivities(selectedActingPosition.positionId);
     }
-    if (view === 'subordinates' && selectedActingPosition) {
-      void fetchSubordinatesActivities(selectedActingPosition.positionId, allActivitiesQuery);
-      void fetchMyActivities(parentActivityQuery);
+    if (view === 'subordinates') {
+      void fetchSubordinatesActivities(undefined, allActivitiesQuery);
+      if (selectedActingPosition) void fetchMyActivities(parentActivityQuery);
     }
     if (view === 'my-requests') void fetchMyRequests(requestQuery);
   }, [view, selectedActingPosition, allActivitiesQuery, parentActivityQuery, requestQuery, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities]);
@@ -223,11 +223,11 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingSuperior || isLoadingRequests || tableState.isQueryLoading || isLoadingPositions;
 
   const handleRefresh = useCallback(() => {
-    if (view === 'my-activities' && selectedActingPosition) void fetchMyActivities();
+    if (view === 'my-activities') void fetchMyActivities();
     if (view === 'all-activities') void fetchAllActivities();
-    if (view === 'subordinates' && selectedActingPosition) void fetchSubordinatesActivities(selectedActingPosition.positionId);
+    if (view === 'subordinates') void fetchSubordinatesActivities();
     if (view === 'my-requests') void fetchMyRequests();
-  }, [view, fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, selectedActingPosition]);
+  }, [view, fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities]);
 
   /* ── Detail modal ── */
   const [detailModal, setDetailModal] = useState<{
@@ -292,9 +292,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       fetchMyActivities(),
       fetchAllActivities(),
       fetchMyRequests(),
-      selectedActingPosition
-        ? fetchSubordinatesActivities(selectedActingPosition.positionId)
-        : Promise.resolve(),
+      fetchSubordinatesActivities(),
       selectedActingPosition
         ? fetchSuperiorActivities(selectedActingPosition.positionId)
         : Promise.resolve(),
@@ -413,14 +411,42 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
 
       <KpiTableToolbar
         leading={needsPosition ? (
-          <div className="w-72">
-            <ActingPositionSelector
-              positions={positions}
-              value={selectedPositionId}
-              onChange={setSelectedPositionId}
-              disabled={isLoadingPositions || Boolean(positionsError)}
-            />
-          </div>
+          <Dropdown>
+            <Button variant="tertiary" aria-label="Filter Posisi" isDisabled={isLoadingPositions || Boolean(positionsError)}>
+              <SlidersHorizontal className="h-4 w-4" />
+              Filter
+              {selectedPositionId && (
+                <>
+                  <span className="mx-0.5 h-4 w-px bg-border" />
+                  <span className="text-sm font-medium text-foreground">1</span>
+                </>
+              )}
+            </Button>
+            <Dropdown.Popover className="min-w-[220px]">
+              <Dropdown.Menu
+                selectedKeys={new Set([selectedPositionId ?? 'all'])}
+                selectionMode="single"
+                onSelectionChange={(selection) => {
+                  const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
+                  tableState.setPositionId(String(selected ?? 'all') === 'all' ? '' : String(selected));
+                }}
+              >
+                <Dropdown.Section>
+                  <Header>Posisi</Header>
+                  <Dropdown.Item key="all" id="all" textValue="Semua Posisi">
+                    <Dropdown.ItemIndicator />
+                    <Label>Semua Posisi</Label>
+                  </Dropdown.Item>
+                  {positions.map((position) => (
+                    <Dropdown.Item key={position.positionId} id={position.positionId} textValue={position.positionName}>
+                      <Dropdown.ItemIndicator />
+                      <Label>{position.positionName}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Section>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
         ) : undefined}
         searchValue={searchInput}
         onSearchChange={setSearchInput}
@@ -439,7 +465,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc'];
           if (field && direction) tableState.setSort(field, direction);
         }}
-        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.positionId || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
         onReset={() => { setSearchInput(''); tableState.reset(); }}
       />
 
@@ -492,8 +518,8 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
               isLoading={isLoadingSubordinates || tableState.isQueryLoading || isLoadingPositions}
               error={positionsError || subordinatesError}
               onViewDetail={openActivityDetail}
-              onRetry={() => { if (selectedActingPosition) void fetchSubordinatesActivities(selectedActingPosition.positionId); }}
-              emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Pilih posisi aktif untuk melihat aktivitas bawahan.'}
+              onRetry={() => { void fetchSubordinatesActivities(undefined, allActivitiesQuery); }}
+              emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Belum ada aktivitas bawahan.'}
               totalItems={pagedSubordinates.totalItems}
               currentPage={pagedSubordinates.page}
               totalPages={pagedSubordinates.totalPages}

@@ -29,7 +29,15 @@ export function useKpiTableState(config: KpiTableStateConfig) {
     const pageValue = Number(searchParams.get('page'));
     const page = Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1;
     const filter = searchParams.get('status') ?? '';
-    return { search: searchParams.get('search') ?? '', filter: config.filterOptions?.includes(filter) ? filter : '', sortBy, direction, page, size: 10 };
+    return {
+      search: searchParams.get('search') ?? '',
+      filter: config.filterOptions?.includes(filter) ? filter : '',
+      positionId: searchParams.get('positionId') ?? '',
+      sortBy,
+      direction,
+      page,
+      size: 10,
+    };
   }, [config, searchParams]);
 
   const updateUrl = useCallback((patch: Partial<typeof filters>) => {
@@ -37,6 +45,7 @@ export function useKpiTableState(config: KpiTableStateConfig) {
     const params = new URLSearchParams();
     if (next.search) params.set('search', next.search);
     if (next.filter) params.set('status', next.filter);
+    if (next.positionId) params.set('positionId', next.positionId);
     if (next.sortBy !== config.defaultSort || next.direction !== (config.defaultDirection ?? 'asc')) {
       params.set('sortBy', next.sortBy);
       params.set('sortDirection', next.direction);
@@ -50,9 +59,10 @@ export function useKpiTableState(config: KpiTableStateConfig) {
 
   const setSearch = useCallback((search: string) => updateUrl({ search, page: 1 }), [updateUrl]);
   const setFilter = useCallback((filter: string) => updateUrl({ filter, page: 1 }), [updateUrl]);
+  const setPositionId = useCallback((positionId: string) => updateUrl({ positionId, page: 1 }), [updateUrl]);
   const setSort = useCallback((sortBy: string, direction: 'asc' | 'desc') => updateUrl({ sortBy, direction, page: 1 }), [updateUrl]);
   const setPage = useCallback((page: number) => updateUrl({ page }), [updateUrl]);
-  const reset = useCallback(() => updateUrl({ search: '', filter: '', sortBy: config.defaultSort, direction: config.defaultDirection ?? 'asc', page: 1 }), [config, updateUrl]);
+  const reset = useCallback(() => updateUrl({ search: '', filter: '', positionId: '', sortBy: config.defaultSort, direction: config.defaultDirection ?? 'asc', page: 1 }), [config, updateUrl]);
 
   // The URL is the acknowledgement that the new query is active. Rows remain
   // hidden while Next applies it, matching the Pegawai transition behavior.
@@ -62,7 +72,7 @@ export function useKpiTableState(config: KpiTableStateConfig) {
     setIsQueryLoading(false);
   }, [searchParams]);
 
-  return { filters, isQueryLoading, setSearch, setFilter, setSort, setPage, reset };
+  return { filters, isQueryLoading, setSearch, setFilter, setPositionId, setSort, setPage, reset };
 }
 
 export function paginateKpiItems<T>(items: T[], page: number, size = 10) {
