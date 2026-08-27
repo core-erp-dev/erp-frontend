@@ -181,8 +181,11 @@ export function ActivityChangeModal({
   ]);
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <Modal.Backdrop isDismissable={false}>
+    <Modal.Backdrop
+      isOpen={isOpen}
+      isDismissable={false}
+      onOpenChange={(o) => { if (!o) onClose(); }}
+    >
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[560px]">
             <Modal.Header>
@@ -266,6 +269,5 @@ export function ActivityChangeModal({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </Modal>
   );
 }

@@ -6,12 +6,13 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Breadcrumbs, BreadcrumbsItem, Button, Chip, toast, type Selection } from '@heroui/react';
+import { Breadcrumbs, BreadcrumbsItem, Button, Chip, type Selection } from '@heroui/react';
 import {
   ArrowsClockwise,
   House,
   Plus,
 } from '@phosphor-icons/react';
+import { useRouter } from 'next/navigation';
 
 import { PERM } from '@/constants/permissions';
 import { usePermission } from '@/hooks/use-permission';
@@ -22,10 +23,6 @@ import { RequestTable } from '@/modules/kpi/activity/request-table';
 import { ActivityRequestModal } from '@/modules/kpi/activity/activity-request-modal';
 import { ActivityChangeModal } from '@/modules/kpi/activity/activity-change-modal';
 import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
-import { AdminCreateActivityModal } from '@/modules/kpi/admin/admin-create-activity-modal';
-import { AdminUpdateActivityModal } from '@/modules/kpi/admin/admin-update-activity-modal';
-import { kpiAdminV1Api } from '@/modules/kpi/admin/kpi-admin-v1-api';
-import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
 import { useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
@@ -86,6 +83,7 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
 }
 
 function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
+  const router = useRouter();
   const { hasPerm } = usePermission();
   // T4 root request — exactly `kpi_activity:root_request` (never read_all/manage).
   const canRequestRoot = hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST);
@@ -287,8 +285,12 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   }>({ isOpen: false, mode: 'ACTIVITY', entityId: null });
 
   const openActivityDetail = useCallback((id: string) => {
+    if (view === 'all-activities') {
+      router.push(`/kpi/activities/${id}`);
+      return;
+    }
     setDetailModal({ isOpen: true, mode: 'ACTIVITY', entityId: id });
-  }, []);
+  }, [router, view]);
 
   const openRequestDetail = useCallback((id: string) => {
     setDetailModal({ isOpen: true, mode: 'REQUEST', entityId: id });
@@ -297,9 +299,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   const closeDetail = useCallback(() => {
     setDetailModal({ isOpen: false, mode: 'ACTIVITY', entityId: null });
   }, []);
-
-  /* ── T10 admin create modal ── */
-  const [adminCreateOpen, setAdminCreateOpen] = useState(false);
 
   /* ── T4 request modal (root | child) ── */
   const [requestModal, setRequestModal] = useState<{
@@ -317,15 +316,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     mode: 'update' | 'cancel';
     activity: KpiActivityResponse | null;
   }>({ isOpen: false, mode: 'update', activity: null });
-
-  /* ── T11 admin update modal ── */
-  const [adminEditModal, setAdminEditModal] = useState<{
-    isOpen: boolean;
-    activity: KpiActivityResponse | null;
-    initialAction: 'UPDATE' | 'CANCEL';
-  }>({ isOpen: false, activity: null, initialAction: 'UPDATE' });
-  const [adminCancelTarget, setAdminCancelTarget] = useState<KpiActivityResponse | null>(null);
-  const [isAdminCancelling, setIsAdminCancelling] = useState(false);
 
   /* Eligible parents for child create: the actor's own ACTIVE activities
    * (exact-assignment ownership — backend requires parent-assignee or self). */
@@ -348,25 +338,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         : Promise.resolve(),
     ]);
   }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities, selectedActingPosition]);
-
-  const handleAdminCancel = useCallback(async () => {
-    if (!adminCancelTarget || adminCancelTarget.version == null) return;
-    setIsAdminCancelling(true);
-    try {
-      await kpiAdminV1Api.adminUpdateActivity(adminCancelTarget.id, {
-        action: 'CANCEL',
-        reason: 'Pembatalan administratif dari menu Semua Aktivitas.',
-        expectedVersion: adminCancelTarget.version,
-      });
-      toast.success('Aktivitas berhasil dibatalkan.');
-      setAdminCancelTarget(null);
-      refetchAll();
-    } catch (error) {
-      toast.danger(error instanceof Error ? error.message : 'Gagal membatalkan aktivitas.');
-    } finally {
-      setIsAdminCancelling(false);
-    }
-  }, [adminCancelTarget, refetchAll]);
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -450,7 +421,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           {view === 'all-activities' && canAdminManage && (
             <Button
               variant="primary"
-              onPress={() => setAdminCreateOpen(true)}
+              onPress={() => router.push('/kpi/activities/create')}
             >
               <Plus className="h-4 w-4" />
               Buat Aktivitas
@@ -517,8 +488,8 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             onViewDetail={openActivityDetail}
             onRetry={fetchAllActivities}
             canAdminEdit={canAdminManage}
-            onAdminEdit={canAdminManage ? (item) => setAdminEditModal({ isOpen: true, activity: item, initialAction: 'UPDATE' }) : undefined}
-            onAdminCancel={canAdminManage ? setAdminCancelTarget : undefined}
+            onAdminEdit={canAdminManage ? (item) => router.push(`/kpi/activities/${item.id}/edit?from=all&action=UPDATE`) : undefined}
+            onAdminCancel={canAdminManage ? (item) => router.push(`/kpi/activities/${item.id}/edit?from=all&action=CANCEL`) : undefined}
             totalItems={pagedAllActivities.totalItems}
             currentPage={pagedAllActivities.page}
             totalPages={pagedAllActivities.totalPages}
@@ -555,13 +526,15 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         )}
       </div>
 
-      <KpiActivityDetailModal
-        key={detailModal.entityId ?? 'detail-closed'}
-        isOpen={detailModal.isOpen}
-        onClose={closeDetail}
-        mode={detailModal.mode}
-        entityId={detailModal.entityId}
-      />
+      {view !== 'all-activities' && (
+        <KpiActivityDetailModal
+          key={detailModal.entityId ?? 'detail-closed'}
+          isOpen={detailModal.isOpen}
+          onClose={closeDetail}
+          mode={detailModal.mode}
+          entityId={detailModal.entityId}
+        />
+      )}
 
       {/* T4 — root/child CREATE request */}
       {selectedActingPosition && (
@@ -590,38 +563,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         />
       )}
 
-      {/* T10 — administrative Activity create */}
-      <AdminCreateActivityModal
-        isOpen={adminCreateOpen}
-        onClose={() => setAdminCreateOpen(false)}
-        onSuccess={refetchAll}
-      />
-
-      {/* T11 — administrative Activity update (authoritative expectedVersion) */}
-      {adminEditModal.activity && (
-        <AdminUpdateActivityModal
-          isOpen={adminEditModal.isOpen}
-          onClose={() => setAdminEditModal({ isOpen: false, activity: null, initialAction: 'UPDATE' })}
-          activity={adminEditModal.activity}
-          onSuccess={refetchAll}
-          onConflict={refetchAll}
-          initialAction={adminEditModal.initialAction}
-        />
-      )}
-
-      <DeleteConfirmDialog
-        isOpen={Boolean(adminCancelTarget)}
-        onClose={() => setAdminCancelTarget(null)}
-        onConfirm={handleAdminCancel}
-        name={adminCancelTarget?.activityName ?? ''}
-        entityLabel="aktivitas"
-        title="Konfirmasi Pembatalan"
-        actionVerb="membatalkan"
-        confirmLabel="Batalkan Aktivitas"
-        pendingLabel="Membatalkan..."
-        warning="Aktivitas yang dibatalkan tidak dapat digunakan untuk pengajuan atau persetujuan baru."
-        isDeleting={isAdminCancelling}
-      />
     </div>
   );
 }

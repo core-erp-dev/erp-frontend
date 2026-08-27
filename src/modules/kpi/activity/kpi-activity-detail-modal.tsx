@@ -189,8 +189,11 @@ export function KpiActivityDetailModal({
   const Icon = mode === 'ACTIVITY' ? ClipboardText : Checks;
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
-      <Modal.Backdrop isDismissable={false}>
+    <Modal.Backdrop
+      isOpen={isOpen}
+      isDismissable={false}
+      onOpenChange={(open) => { if (!open) handleClose(); }}
+    >
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[600px]">
             <Modal.Header>
@@ -216,7 +219,6 @@ export function KpiActivityDetailModal({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </Modal>
   );
 }
 

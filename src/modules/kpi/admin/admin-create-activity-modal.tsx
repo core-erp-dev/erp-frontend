@@ -1,17 +1,32 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, Button, Input, TextField, TextArea, Select, ListBox, Label, Spinner } from '@heroui/react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import {
+  Button,
+  ComboBox,
+  EmptyState,
+  FieldError,
+  Form,
+  Input,
+  Label,
+  ListBox,
+  Modal,
+  Select,
+  Spinner,
+  TextArea,
+  TextField,
+  toast,
+  useFilter,
+} from '@heroui/react';
 import { X } from '@phosphor-icons/react';
-import { toast } from '@heroui/react';
-import { employeeApi } from '@/modules/organization/employees/services/employee-api';
-import type { CoreUser, UserPositionResponse } from '@/modules/organization/employees/types';
 import { kpiAdminV1Api } from './kpi-admin-v1-api';
-import { activityV1Api } from '@/modules/kpi/activity/activity-v1-api';
-import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
-import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
-import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
-import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
+import type {
+  KpiActivityManageAssigneeOption,
+  KpiActivityManageOptions,
+} from '@/modules/kpi/activity/activity-v1.types';
 import { ActivityIndicatorMultiSelect } from '@/modules/kpi/activity/activity-indicator-multi-select';
 
 interface AdminCreateActivityModalProps {
@@ -21,342 +36,489 @@ interface AdminCreateActivityModalProps {
   onSuccess: () => void;
 }
 
-/**
- * T10 — administrative Activity create for anyone (no approval flow).
- * Action-level guard: the caller must hold `kpi_activity:manage` (enforced at
- * the trigger site AND by the backend @PreAuthorize). A mandatory `reason` is
- * the administrative audit trail.
- *
- * Root vs child is decided by the optional Parent selector:
- *   - no parent → root: Corporate KPI indicator + period required;
- *   - parent selected → child: indicator/period inherited (omitted from body).
- */
+const MONTH_OPTIONS = [
+  { value: 1, label: 'Januari' },
+  { value: 2, label: 'Februari' },
+  { value: 3, label: 'Maret' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'Mei' },
+  { value: 6, label: 'Juni' },
+  { value: 7, label: 'Juli' },
+  { value: 8, label: 'Agustus' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'Oktober' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'Desember' },
+];
+
+const createSchema = z.object({
+  assignedToUserPositionId: z.string().min(1, 'Penanggung jawab wajib dipilih'),
+  parentId: z.string(),
+  periodYear: z.number().int().positive('Tahun periode wajib dipilih'),
+  periodMonth: z.number().int().min(1).max(12, 'Bulan periode wajib dipilih'),
+  corporateKpiIds: z.array(z.string()),
+  activityName: z.string().trim().min(1, 'Nama aktivitas wajib diisi'),
+  description: z.string(),
+  unit: z.string().trim().min(1, 'Satuan wajib diisi'),
+  targetValue: z.string().refine((value) => {
+    const parsed = Number(value);
+    return value.trim() !== '' && Number.isFinite(parsed) && parsed > 0;
+  }, 'Target harus berupa angka positif'),
+  reason: z.string().trim().min(1, 'Alasan administratif wajib diisi'),
+}).superRefine((values, context) => {
+  if (!values.parentId && values.corporateKpiIds.length === 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['corporateKpiIds'],
+      message: 'Pilih minimal satu indikator KPI Perusahaan',
+    });
+  }
+});
+
+type CreateFormValues = z.infer<typeof createSchema>;
+
+function assigneeText(option: KpiActivityManageAssigneeOption): string {
+  return `${option.userFullName} • ${option.positionName}`;
+}
+
 export function AdminCreateActivityModal({ isOpen, onClose, onSuccess }: AdminCreateActivityModalProps) {
   const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - 1 + i);
-
-  /* Data sources */
-  const [users, setUsers] = useState<CoreUser[]>([]);
-  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [parents, setParents] = useState<KpiActivityResponse[]>([]);
-  const [ckTree, setCkTree] = useState<CorporateKpiNode[]>([]);
-  const [isLoadingCk, setIsLoadingCk] = useState(false);
-
-  /* Form state */
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedUserPositionId, setSelectedUserPositionId] = useState('');
-  const [parentId, setParentId] = useState('');
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
-  const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedCkIds, setSelectedCkIds] = useState<string[]>([]);
-  const [activityName, setActivityName] = useState('');
-  const [description, setDescription] = useState('');
-  const [unit, setUnit] = useState('');
-  const [targetValue, setTargetValue] = useState('');
-  const [reason, setReason] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const { contains } = useFilter({ sensitivity: 'base' });
+  const [options, setOptions] = useState<KpiActivityManageOptions | null>(null);
+  const [loadedYear, setLoadedYear] = useState<number | null>(null);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const yearOptions = options?.periodYears ?? [];
 
-  const selectedUser = users.find((u) => u.id === selectedUserId) ?? null;
-  const activePositions: UserPositionResponse[] = selectedUser
-    ? selectedUser.positions.filter((p) => p.isActive)
-    : [];
-  const isRoot = !parentId;
+  const form = useForm<CreateFormValues>({
+    resolver: zodResolver(createSchema),
+    defaultValues: {
+      assignedToUserPositionId: '',
+      parentId: '',
+      periodYear: currentYear,
+      periodMonth: new Date().getMonth() + 1,
+      corporateKpiIds: [],
+      activityName: '',
+      description: '',
+      unit: '',
+      targetValue: '',
+      reason: '',
+    },
+  });
 
-  /* Load users + parent activities on open */
-  const loadData = useCallback(async () => {
-    setIsLoadingUsers(true);
+  const selectedAssigneeId = useWatch({ control: form.control, name: 'assignedToUserPositionId' });
+  const selectedParentId = useWatch({ control: form.control, name: 'parentId' });
+  const selectedYear = useWatch({ control: form.control, name: 'periodYear' });
+  const isRoot = !selectedParentId;
+  const parentOptions = useMemo(
+    () => (options?.parentActivities ?? []).filter(
+      (parent) => parent.assigneeUserPositionId === selectedAssigneeId,
+    ),
+    [options?.parentActivities, selectedAssigneeId],
+  );
+  const showLoading = isOpen && (isLoadingOptions || options === null || loadedYear !== selectedYear);
+
+  const loadOptions = useCallback(async (year: number) => {
+    setIsLoadingOptions(true);
     try {
-      const page = await employeeApi.getUsers({ size: 100 });
-      setUsers(page.content);
+      const data = await kpiAdminV1Api.getManageOptions(year);
+      setOptions(data);
+      setLoadedYear(year);
+      const fallbackYear = data.periodYears.includes(year) ? year : data.periodYears[0];
+      if (fallbackYear && fallbackYear !== form.getValues('periodYear')) {
+        form.setValue('periodYear', fallbackYear, { shouldValidate: false });
+        form.setValue('corporateKpiIds', [], { shouldValidate: false });
+        form.clearErrors('corporateKpiIds');
+      }
     } catch {
-      setUsers([]);
+      setOptions({ assignees: [], parentActivities: [], indicators: [], periodYears: [] });
+      setLoadedYear(year);
+      toast.danger('Gagal memuat opsi pengelolaan aktivitas.');
     } finally {
-      setIsLoadingUsers(false);
+      setIsLoadingOptions(false);
     }
-    try {
-      const all = await activityV1Api.getActivities('all');
-      setParents(all.filter((a) => a.status === 'ACTIVE'));
-    } catch {
-      setParents([]);
-    }
-  }, []);
-
-  /* Load CK tree when year changes (root only) */
-  const fetchCkTree = useCallback(async (year: number) => {
-    setIsLoadingCk(true);
-    try {
-      const tree = await corporateKpiApi.getTreeByYear(year);
-      // Lifecycle lives on the yearly structure: only ACTIVE structures'
-      // indicators are bindable for Activities.
-      const structures = await corporateKpiStructuresApi.list();
-      const activeStructureIds = new Set(
-        structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id),
-      );
-      const indicators: CorporateKpiNode[] = [];
-      const collect = (nodes: CorporateKpiNode[]) => {
-        for (const node of nodes) {
-          if (node.nodeType === 'INDICATOR' && activeStructureIds.has(node.structureId)) {
-            indicators.push(node);
-          }
-          if (node.children.length > 0) collect(node.children);
-        }
-      };
-      collect(tree);
-      setCkTree(indicators);
-    } catch {
-      setCkTree([]);
-    } finally {
-      setIsLoadingCk(false);
-    }
-  }, []);
+  }, [form]);
 
   useEffect(() => {
-    if (isOpen) {
-      loadData();
-      setSelectedUserId('');
-      setSelectedUserPositionId('');
-      setParentId('');
-      setSelectedCkIds([]);
-      setActivityName('');
-      setDescription('');
-      setUnit('');
-      setTargetValue('');
-      setReason('');
-      setValidationError(null);
+    if (!isOpen) {
+      setOptions(null);
+      setLoadedYear(null);
+      return;
     }
-  }, [isOpen, loadData]);
+    void loadOptions(selectedYear);
+  }, [isOpen, loadOptions, selectedYear]);
 
   useEffect(() => {
-    if (isOpen && isRoot) fetchCkTree(selectedYear);
-  }, [isOpen, isRoot, selectedYear, fetchCkTree]);
+    if (!isOpen) return;
+    form.reset({
+      assignedToUserPositionId: '',
+      parentId: '',
+      periodYear: form.getValues('periodYear') || currentYear,
+      periodMonth: new Date().getMonth() + 1,
+      corporateKpiIds: [],
+      activityName: '',
+      description: '',
+      unit: '',
+      targetValue: '',
+      reason: '',
+    });
+  }, [currentYear, form, isOpen]);
 
-  /* User change clears position selection */
-  const handleUserChange = useCallback((userId: string) => {
-    setSelectedUserId(userId);
-    setSelectedUserPositionId('');
-  }, []);
-
-  const handleSubmit = useCallback(async () => {
-    setValidationError(null);
-    if (!selectedUserPositionId) {
-      setValidationError('Pilih posisi penanggung jawab.');
-      return;
-    }
-    if (!activityName.trim()) {
-      setValidationError('Nama aktivitas wajib diisi.');
-      return;
-    }
-    if (!unit.trim()) {
-      setValidationError('Unit wajib diisi.');
-      return;
-    }
-    const tv = parseFloat(targetValue);
-    if (!targetValue || isNaN(tv) || tv <= 0) {
-      setValidationError('Nilai target harus berupa angka positif.');
-      return;
-    }
-    if (isRoot && selectedCkIds.length === 0) {
-      setValidationError('Pilih minimal satu indikator KPI Perusahaan untuk aktivitas induk.');
-      return;
-    }
-    if (!reason.trim()) {
-      setValidationError('Alasan administratif wajib diisi.');
-      return;
-    }
-
+  const handleSubmit = useCallback(async (values: CreateFormValues) => {
     setIsSubmitting(true);
     try {
       await kpiAdminV1Api.adminCreateActivity({
-        assignedToUserPositionId: selectedUserPositionId,
-        parentId: isRoot ? undefined : parentId,
-        corporateKpiIds: isRoot ? selectedCkIds : undefined,
-        periodYear: isRoot ? selectedYear : undefined,
-        periodMonth: isRoot ? periodMonth : undefined,
-        activityName: activityName.trim(),
-        description: description.trim() || undefined,
-        unit: unit.trim(),
-        targetValue: tv,
-        reason: reason.trim(),
+        assignedToUserPositionId: values.assignedToUserPositionId,
+        parentId: values.parentId || undefined,
+        corporateKpiIds: values.parentId ? undefined : values.corporateKpiIds,
+        periodYear: values.parentId ? undefined : values.periodYear,
+        periodMonth: values.parentId ? undefined : values.periodMonth,
+        activityName: values.activityName.trim(),
+        description: values.description.trim() || undefined,
+        unit: values.unit.trim(),
+        targetValue: Number(values.targetValue),
+        reason: values.reason.trim(),
       });
       toast.success('Aktivitas berhasil dibuat.');
       onSuccess();
       onClose();
-    } catch (err) {
-      toast.danger(err instanceof Error ? err.message : 'Gagal membuat aktivitas.');
+    } catch (error) {
+      toast.danger(error instanceof Error ? error.message : 'Gagal membuat aktivitas.');
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedUserPositionId, activityName, unit, targetValue, isRoot, selectedCkIds, reason, parentId, selectedYear, periodMonth, description, onSuccess, onClose]);
+  }, [onClose, onSuccess]);
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <Modal.Backdrop isDismissable={false}>
-        <Modal.Container>
+    <Modal.Backdrop
+      isOpen={isOpen}
+      isDismissable={!isSubmitting && !showLoading}
+      onOpenChange={(open: boolean) => { if (!open) onClose(); }}
+    >
+        <Modal.Container scroll="outside">
           <Modal.Dialog className="sm:max-w-[600px]">
-            <Modal.Header>
-            <Modal.Heading>Buat Aktivitas</Modal.Heading>
-              <Modal.CloseTrigger />
-            </Modal.Header>
-            <Modal.Body>
-              <div className="flex flex-col gap-4">
-                {validationError && (
-                  <div className="rounded-lg bg-danger-soft p-3 text-sm text-danger-soft-foreground">
-                    {validationError}
-                  </div>
-                )}
-
-                {isLoadingUsers ? (
-                  <div className="flex items-center justify-center py-4"><Spinner size="sm" /></div>
-                ) : (
-                  <Select
-                    variant="secondary"
-                    selectedKey={selectedUserId || null}
-                    onSelectionChange={(k) => handleUserChange(String(k || ''))}
-                    placeholder="Pilih pengguna penanggung jawab..."
+            {showLoading ? (
+              <div className="flex min-h-64 items-center justify-center">
+                <Spinner size="md" />
+              </div>
+            ) : (
+              <>
+                <Modal.Header className="relative flex items-center justify-center">
+                  <Modal.Heading className="text-center">Buat Aktivitas</Modal.Heading>
+                  <Modal.CloseTrigger className="absolute right-0" />
+                </Modal.Header>
+                <Modal.Body className="p-6">
+                  <Form
+                    id="admin-create-activity-form"
+                    validationBehavior="aria"
+                    onSubmit={form.handleSubmit(handleSubmit)}
+                    className="flex flex-col gap-4"
                   >
-                    <Label>Pengguna Penanggung Jawab</Label>
-                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {users.map((u) => (
-                          <ListBox.Item key={u.id} id={u.id} textValue={u.fullName}>
-                            <span className="text-sm text-foreground">{u.fullName}</span>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                )}
+                    <Controller
+                      control={form.control}
+                      name="assignedToUserPositionId"
+                      render={({ field, fieldState }) => (
+                        <ComboBox
+                          className="w-full"
+                          variant="secondary"
+                          selectedKey={field.value || null}
+                          onSelectionChange={(key) => {
+                            field.onChange(key ? String(key) : '');
+                            form.setValue('parentId', '', { shouldValidate: false });
+                            form.setValue('corporateKpiIds', [], { shouldValidate: false });
+                            form.clearErrors('corporateKpiIds');
+                          }}
+                          isRequired
+                          isInvalid={fieldState.invalid}
+                          isDisabled={isSubmitting}
+                          allowsEmptyCollection
+                          menuTrigger="input"
+                          defaultFilter={contains}
+                        >
+                          <Label>Penanggung Jawab</Label>
+                          <ComboBox.InputGroup>
+                            <Input variant="secondary" placeholder="Pilih penanggung jawab" />
+                            <ComboBox.Trigger />
+                          </ComboBox.InputGroup>
+                          <ComboBox.Popover>
+                            <ListBox renderEmptyState={() => (
+                              <EmptyState>
+                                {options?.assignees?.length ? 'Penanggung jawab tidak ditemukan' : 'Tidak ada data penanggung jawab'}
+                              </EmptyState>
+                            )}>
+                              {(options?.assignees ?? []).map((assignee) => (
+                                <ListBox.Item
+                                  key={assignee.userPositionId}
+                                  id={assignee.userPositionId}
+                                  textValue={assigneeText(assignee)}
+                                >
+                                  <span>{assignee.userFullName}</span>
+                                  <span className="text-muted-foreground"> • {assignee.positionName}</span>
+                                  <ListBox.ItemIndicator />
+                                </ListBox.Item>
+                              ))}
+                            </ListBox>
+                          </ComboBox.Popover>
+                          <FieldError>{fieldState.error?.message}</FieldError>
+                        </ComboBox>
+                      )}
+                    />
 
-                {selectedUser && (
-                  <Select
-                    variant="secondary"
-                    selectedKey={selectedUserPositionId || null}
-                    onSelectionChange={(k) => setSelectedUserPositionId(String(k || ''))}
-                    placeholder="Pilih posisi penanggung jawab..."
-                  >
-                    <Label>Posisi Penanggung Jawab</Label>
-                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {activePositions.map((p) => (
-                          <ListBox.Item key={p.id} id={p.id} textValue={p.positionName}>
-                            <span className="text-sm text-foreground">{p.positionName}</span>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
-                )}
+                    <Controller
+                      control={form.control}
+                      name="parentId"
+                      render={({ field, fieldState }) => (
+                        <ComboBox
+                          className="w-full"
+                          variant="secondary"
+                          selectedKey={field.value || null}
+                          onSelectionChange={(key) => {
+                            field.onChange(key ? String(key) : '');
+                            form.setValue('corporateKpiIds', [], { shouldValidate: false });
+                            form.clearErrors('corporateKpiIds');
+                          }}
+                          isInvalid={fieldState.invalid}
+                          isDisabled={isSubmitting || !selectedAssigneeId}
+                          allowsEmptyCollection
+                          menuTrigger="input"
+                          defaultFilter={contains}
+                        >
+                          <Label>Aktivitas Induk</Label>
+                          <ComboBox.InputGroup>
+                            <Input variant="secondary" placeholder="Pilih aktivitas induk" />
+                            <ComboBox.Trigger />
+                          </ComboBox.InputGroup>
+                          <ComboBox.Popover>
+                            <ListBox renderEmptyState={() => <EmptyState>Aktivitas induk tidak ditemukan</EmptyState>}>
+                              <ListBox.Item id="" textValue="Tanpa induk">Tanpa induk</ListBox.Item>
+                              {parentOptions.map((parent) => (
+                                <ListBox.Item key={parent.id} id={parent.id} textValue={parent.activityName}>
+                                  {parent.activityName}
+                                  <ListBox.ItemIndicator />
+                                </ListBox.Item>
+                              ))}
+                            </ListBox>
+                          </ComboBox.Popover>
+                          <FieldError>{fieldState.error?.message}</FieldError>
+                        </ComboBox>
+                      )}
+                    />
 
-                {/* Parent selector — empty = root create */}
-                <Select
-                  variant="secondary"
-                  selectedKey={parentId || null}
-                  onSelectionChange={(k) => { setParentId(String(k || '')); setSelectedCkIds([]); }}
-                  placeholder="Tanpa induk — aktivitas utama"
-                >
-                  <Label>Aktivitas Induk (opsional)</Label>
-                  <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                  <Select.Popover>
-                    <ListBox>
-                      {parents.map((p) => (
-                        <ListBox.Item key={p.id} id={p.id} textValue={p.activityName}>
-                          <span className="text-sm text-foreground">{p.activityName}</span>
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
+                    {isRoot && (
+                      <>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <Controller
+                            control={form.control}
+                            name="periodYear"
+                            render={({ field, fieldState }) => (
+                              <Select
+                                className="w-full"
+                                variant="secondary"
+                                selectedKey={String(field.value)}
+                                onSelectionChange={(key) => {
+                                  field.onChange(Number(key));
+                                  form.setValue('corporateKpiIds', [], { shouldValidate: false });
+                                  form.clearErrors('corporateKpiIds');
+                                }}
+                                isRequired
+                                isInvalid={fieldState.invalid}
+                                isDisabled={isSubmitting}
+                              >
+                                <Label>Tahun Periode</Label>
+                                <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                                <Select.Popover>
+                                  <ListBox renderEmptyState={() => <EmptyState>Tidak ada periode KPI yang tersedia</EmptyState>}>
+                                    {yearOptions.map((year) => (
+                                      <ListBox.Item key={year} id={String(year)} textValue={String(year)}>{year}</ListBox.Item>
+                                    ))}
+                                  </ListBox>
+                                </Select.Popover>
+                                <FieldError>{fieldState.error?.message}</FieldError>
+                              </Select>
+                            )}
+                          />
+                          <Controller
+                            control={form.control}
+                            name="periodMonth"
+                            render={({ field, fieldState }) => (
+                              <Select
+                                className="w-full"
+                                variant="secondary"
+                                selectedKey={String(field.value)}
+                                onSelectionChange={(key) => field.onChange(Number(key))}
+                                isRequired
+                                isInvalid={fieldState.invalid}
+                                isDisabled={isSubmitting}
+                              >
+                                <Label>Bulan Periode</Label>
+                                <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                                <Select.Popover>
+                                  <ListBox>
+                                    {MONTH_OPTIONS.map((month) => (
+                                      <ListBox.Item key={month.value} id={String(month.value)} textValue={month.label}>
+                                        {month.label}
+                                      </ListBox.Item>
+                                    ))}
+                                  </ListBox>
+                                </Select.Popover>
+                                <FieldError>{fieldState.error?.message}</FieldError>
+                              </Select>
+                            )}
+                          />
+                        </div>
 
-                {isRoot && (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <Select
-                        variant="secondary"
-                        selectedKey={String(selectedYear)}
-                        onSelectionChange={(k) => { setSelectedYear(Number(k)); setSelectedCkIds([]); }}
-                      >
-                        <Label>Tahun Periode</Label>
-                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                        <Select.Popover>
-                          <ListBox>
-                            {yearOptions.map((y) => (
-                              <ListBox.Item key={String(y)} id={String(y)} textValue={String(y)}>
-                                {y}
-                              </ListBox.Item>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
-                      <Select
-                        variant="secondary"
-                        selectedKey={String(periodMonth)}
-                        onSelectionChange={(k) => setPeriodMonth(Number(k))}
-                      >
-                        <Label>Bulan Periode</Label>
-                        <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                        <Select.Popover>
-                          <ListBox>
-                            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                              <ListBox.Item key={String(m)} id={String(m)} textValue={String(m).padStart(2, '0')}>
-                                {String(m).padStart(2, '0')}
-                              </ListBox.Item>
-                            ))}
-                          </ListBox>
-                        </Select.Popover>
-                      </Select>
+                        <Controller
+                          control={form.control}
+                          name="corporateKpiIds"
+                          render={({ field, fieldState }) => (
+                            <ActivityIndicatorMultiSelect
+                              indicators={options?.indicators ?? []}
+                              selectedIds={field.value}
+                              onChange={field.onChange}
+                              isRequired
+                              isInvalid={form.formState.isSubmitted && fieldState.invalid}
+                              errorMessage={form.formState.isSubmitted ? fieldState.error?.message : undefined}
+                            />
+                          )}
+                        />
+                      </>
+                    )}
+
+                    <Controller
+                      control={form.control}
+                      name="activityName"
+                      render={({ field, fieldState }) => (
+                        <TextField
+                          isRequired
+                          validationBehavior="aria"
+                          className="w-full"
+                          name={field.name}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          isInvalid={fieldState.invalid}
+                          isDisabled={isSubmitting}
+                        >
+                          <Label>Nama Aktivitas</Label>
+                          <Input variant="secondary" placeholder="Masukkan nama aktivitas" />
+                          <FieldError>{fieldState.error?.message}</FieldError>
+                        </TextField>
+                      )}
+                    />
+
+                    <Controller
+                      control={form.control}
+                      name="description"
+                      render={({ field, fieldState }) => (
+                        <TextField
+                          validationBehavior="aria"
+                          className="w-full"
+                          name={field.name}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          isInvalid={fieldState.invalid}
+                          isDisabled={isSubmitting}
+                        >
+                          <Label>Deskripsi</Label>
+                          <TextArea variant="secondary" placeholder="Masukkan deskripsi" rows={2} />
+                          <FieldError>{fieldState.error?.message}</FieldError>
+                        </TextField>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Controller
+                        control={form.control}
+                        name="targetValue"
+                        render={({ field, fieldState }) => (
+                          <TextField
+                            isRequired
+                            validationBehavior="aria"
+                            className="w-full"
+                            name={field.name}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            ref={field.ref}
+                            isInvalid={fieldState.invalid}
+                            isDisabled={isSubmitting}
+                          >
+                            <Label>Target</Label>
+                            <Input variant="secondary" placeholder="Masukkan target" type="number" />
+                            <FieldError>{fieldState.error?.message}</FieldError>
+                          </TextField>
+                        )}
+                      />
+                      <Controller
+                        control={form.control}
+                        name="unit"
+                        render={({ field, fieldState }) => (
+                          <TextField
+                            isRequired
+                            validationBehavior="aria"
+                            className="w-full"
+                            name={field.name}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            ref={field.ref}
+                            isInvalid={fieldState.invalid}
+                            isDisabled={isSubmitting}
+                          >
+                            <Label>Satuan</Label>
+                            <Input variant="secondary" placeholder="Masukkan satuan" />
+                            <FieldError>{fieldState.error?.message}</FieldError>
+                          </TextField>
+                        )}
+                      />
                     </div>
 
-                    <ActivityIndicatorMultiSelect
-                      indicators={ckTree}
-                      selectedIds={selectedCkIds}
-                      onChange={setSelectedCkIds}
-                      isLoading={isLoadingCk}
+                    <Controller
+                      control={form.control}
+                      name="reason"
+                      render={({ field, fieldState }) => (
+                        <TextField
+                          isRequired
+                          validationBehavior="aria"
+                          className="w-full"
+                          name={field.name}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          isInvalid={fieldState.invalid}
+                          isDisabled={isSubmitting}
+                        >
+                          <Label>Alasan</Label>
+                          <TextArea variant="secondary" placeholder="Masukkan alasan administratif" rows={2} />
+                          <FieldError>{fieldState.error?.message}</FieldError>
+                        </TextField>
+                      )}
                     />
-                  </>
-                )}
-
-                <TextField isRequired value={activityName} onChange={setActivityName}>
-                  <Label>Nama Aktivitas</Label>
-                  <Input variant="secondary" placeholder="Masukkan nama aktivitas..." />
-                </TextField>
-
-                <TextField value={description} onChange={setDescription}>
-                  <Label>Deskripsi</Label>
-                  <TextArea variant="secondary" placeholder="Deskripsi opsional..." rows={2} />
-                </TextField>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <TextField isRequired value={unit} onChange={setUnit}>
-                    <Label>Unit</Label>
-                    <Input variant="secondary" placeholder="Contoh: %, IDR, unit" />
-                  </TextField>
-                  <TextField isRequired value={targetValue} onChange={setTargetValue} type="number">
-                    <Label>Nilai Target</Label>
-                    <Input variant="secondary" placeholder="Contoh: 100" />
-                  </TextField>
-                </div>
-
-                <TextField value={reason} onChange={setReason}>
-                  <Label>Alasan</Label>
-                  <TextArea variant="secondary" placeholder="Alasan audit administratif wajib diisi..." rows={2} />
-                </TextField>
-              </div>
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
-                <X className="h-4 w-4" />
-                Batal
-              </Button>
-              <Button variant="primary" onPress={handleSubmit} isDisabled={isSubmitting} isPending={isSubmitting}>
-                Buat Aktivitas
-              </Button>
-            </Modal.Footer>
+                  </Form>
+                </Modal.Body>
+                <Modal.Footer className="flex justify-end gap-2">
+                  <Button variant="secondary" onPress={onClose} isDisabled={isSubmitting}>
+                    <X className="h-4 w-4" />
+                    Batal
+                  </Button>
+                  <Button
+                    variant="primary"
+                    type="submit"
+                    form="admin-create-activity-form"
+                    isDisabled={isSubmitting}
+                    isPending={isSubmitting}
+                  >
+                    Buat Aktivitas
+                  </Button>
+                </Modal.Footer>
+              </>
+            )}
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </Modal>
   );
 }

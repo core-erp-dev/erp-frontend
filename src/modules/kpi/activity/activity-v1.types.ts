@@ -126,6 +126,34 @@ export interface AssignableUserPositionResponse {
   isSelf: boolean;
 }
 
+/* ── Manage form bootstrap options ── */
+
+export interface KpiActivityManageAssigneeOption {
+  userPositionId: string;
+  userFullName: string;
+  positionName: string;
+}
+
+export interface KpiActivityManageParentOption {
+  id: string;
+  activityName: string;
+  /** Assignee UserPosition for which this parent belongs to the direct superior. */
+  assigneeUserPositionId: string;
+}
+
+export interface KpiActivityManageIndicatorOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface KpiActivityManageOptions {
+  assignees: KpiActivityManageAssigneeOption[];
+  parentActivities: KpiActivityManageParentOption[];
+  indicators: KpiActivityManageIndicatorOption[];
+  periodYears: number[];
+}
+
 /* ── Create (T4) — root vs child discriminated ── */
 
 interface CreateActivityBase {

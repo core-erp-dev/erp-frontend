@@ -5,11 +5,12 @@ import type {
   AdminReassignReviewerRequest,
   AdminUpdateActivityRequest,
   KpiActivityResponse,
+  KpiActivityManageOptions,
 } from '@/modules/kpi/activity/activity-v1.types';
 import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
 
 /**
- * KPI administrative client — 3 endpoints (T10/T11/T18).
+ * KPI administrative client — manage form bootstrap plus mutation endpoints.
  *
  * Access is action-level: T10/T11 require `kpi_activity:manage`; T18
  * requires `kpi_report:manage` (all enforced by backend @PreAuthorize).
@@ -20,6 +21,15 @@ import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
  * never fabricates or derives a version.
  */
 export const kpiAdminV1Api = {
+  /** Minimal manage-form projection; the endpoint requires only kpi_activity:manage. */
+  getManageOptions: async (year: number): Promise<KpiActivityManageOptions> => {
+    const response = await api.get<ApiResponse<KpiActivityManageOptions>>(
+      '/api/v1/kpi-activities/manage-options',
+      { params: { year } },
+    );
+    return response.data.data;
+  },
+
   /** T10 — administrative Activity create for anyone (no approval flow). */
   adminCreateActivity: async (body: AdminCreateActivityRequest): Promise<KpiActivityResponse> => {
     const response = await api.post<ApiResponse<KpiActivityResponse>>(

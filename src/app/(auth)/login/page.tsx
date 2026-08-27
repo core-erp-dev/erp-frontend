@@ -115,6 +115,15 @@ export default function LoginPage() {
           style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }}
         />
 
+        <Image
+          src="/logo/pdam-batiwakkal.png"
+          alt="PDAM Batiwakkal"
+          width={180}
+          height={180}
+          className="absolute bottom-6 left-6 h-auto w-28 object-contain brightness-0 invert xl:bottom-8 xl:left-12 xl:w-36"
+          priority
+        />
+
         <div className="relative z-10 flex max-w-lg flex-col gap-4">
           <Image
             src="/logo/text-logo-white.svg"

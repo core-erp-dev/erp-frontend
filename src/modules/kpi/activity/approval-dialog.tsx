@@ -62,8 +62,11 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
 
   if (mode === 'APPROVE') {
     return (
-      <Modal isOpen={isOpen} onOpenChange={(o) => { if (!o) handleClose(); }}>
-        <Modal.Backdrop isDismissable={false}>
+      <Modal.Backdrop
+        isOpen={isOpen}
+        isDismissable={false}
+        onOpenChange={(o) => { if (!o) handleClose(); }}
+      >
           <Modal.Container>
             <Modal.Dialog className="sm:max-w-[420px]">
               <Modal.Header className="items-center text-center">
@@ -93,13 +96,15 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
             </Modal.Dialog>
           </Modal.Container>
         </Modal.Backdrop>
-      </Modal>
     );
   }
 
   return (
-    <Modal isOpen={isOpen} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <Modal.Backdrop isDismissable={false}>
+    <Modal.Backdrop
+      isOpen={isOpen}
+      isDismissable={false}
+      onOpenChange={(o) => { if (!o) handleClose(); }}
+    >
         <Modal.Container>
           <Modal.Dialog className="sm:max-w-[480px]">
             <Modal.Header className="items-center text-center">
@@ -137,6 +142,5 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </Modal>
   );
 }

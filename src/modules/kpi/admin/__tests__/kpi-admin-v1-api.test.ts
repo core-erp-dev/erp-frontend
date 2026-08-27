@@ -6,7 +6,7 @@
 import { api } from '@/lib/axios';
 import { kpiAdminV1Api } from '../kpi-admin-v1-api';
 import type { ApiResponse } from '@/types/api';
-import type { KpiActivityResponse, KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity-v1.types';
+import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
 
 jest.mock('@/lib/axios');
@@ -35,6 +35,20 @@ const report: KpiReportResponse = {
 };
 
 const wrap = <T>(data: T): ApiResponse<T> => ({ status: 200, message: 'ok', data });
+
+describe('kpiAdminV1Api.getManageOptions', () => {
+  it('GETs the single manage-only form projection for the selected year', async () => {
+    const options = { assignees: [], parentActivities: [], indicators: [], periodYears: [] };
+    mockedApi.get.mockResolvedValueOnce({ data: wrap(options) });
+
+    const result = await kpiAdminV1Api.getManageOptions(2026);
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/manage-options', {
+      params: { year: 2026 },
+    });
+    expect(result).toEqual(options);
+  });
+});
 
 describe('kpiAdminV1Api.adminCreateActivity (T10)', () => {
   it('POST /api/v1/admin/kpi-activities with assignee, root fields and reason', async () => {
@@ -106,8 +120,9 @@ describe('kpiAdminV1Api.adminUpdateActivity (T11)', () => {
 });
 
 describe('kpiAdminV1Api surface', () => {
-  it('exposes exactly the three remaining administrative client functions (T10/T11/T18)', () => {
+  it('exposes the manage bootstrap and administrative client functions', () => {
     const surface = kpiAdminV1Api as Record<string, unknown>;
+    expect(typeof surface.getManageOptions).toBe('function');
     expect(typeof surface.adminCreateActivity).toBe('function');
     expect(typeof surface.adminUpdateActivity).toBe('function');
     expect(typeof surface.adminReassignReportReviewer).toBe('function');
