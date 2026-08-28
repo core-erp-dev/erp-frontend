@@ -26,6 +26,7 @@ interface ActivityTableProps {
   onRequestChange?: (item: KpiActivityResponse, mode: 'update' | 'cancel') => void;
   canAdminEdit?: boolean;
   onAdminEdit?: (item: KpiActivityResponse) => void;
+  onAdminReassign?: (item: KpiActivityResponse) => void;
   onAdminCancel?: (item: KpiActivityResponse) => void;
 }
 
@@ -52,7 +53,7 @@ function formatPeriod(year: number, month: number): string {
 export function ActivityTable({
   items, isLoading, error, onViewDetail, onRetry, emptyLabel = 'Tidak ada aktivitas.',
   totalItems, currentPage, totalPages, onPageChange,
-  ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit, onAdminCancel,
+  ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit, onAdminReassign, onAdminCancel,
 }: ActivityTableProps) {
   return (
     <KpiTable
@@ -82,7 +83,7 @@ export function ActivityTable({
       {items.map((item) => {
         const owned = isOwned(item, ownAssignmentUserPositionId);
         const canChange = owned && item.status === 'ACTIVE' && Boolean(onRequestChange);
-        const canManage = Boolean(canAdminEdit && onAdminEdit && item.version != null);
+        const canManage = Boolean(canAdminEdit && item.status === 'ACTIVE' && item.version != null);
         const indicators = item.corporateKpis ?? (item.corporateKpiId ? [{ id: item.corporateKpiId, code: item.corporateKpiCode, name: item.corporateKpiName }] : []);
         const firstIndicator = indicators[0];
 
@@ -139,7 +140,8 @@ export function ActivityTable({
                       if (key === 'add-child') onAddChild?.(item);
                       if (key === 'update') onRequestChange?.(item, 'update');
                       if (key === 'cancel') onRequestChange?.(item, 'cancel');
-                      if (key === 'manage') onAdminEdit?.(item);
+                      if (key === 'edit') onAdminEdit?.(item);
+                      if (key === 'reassign') onAdminReassign?.(item);
                       if (key === 'admin-cancel') onAdminCancel?.(item);
                     }}>
                       <Dropdown.Item id="view" textValue="Lihat detail">
@@ -160,12 +162,17 @@ export function ActivityTable({
                           </Dropdown.Item>
                         </>
                       )}
-                      {canManage && (
-                        <Dropdown.Item id="manage" textValue="Kelola aktivitas">
-                          <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Kelola aktivitas</span></div>
+                      {canManage && onAdminEdit && (
+                        <Dropdown.Item id="edit" textValue="Edit aktivitas">
+                          <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Edit aktivitas</span></div>
                         </Dropdown.Item>
                       )}
-                      {canManage && item.status === 'ACTIVE' && onAdminCancel && (
+                      {canManage && onAdminReassign && (
+                        <Dropdown.Item id="reassign" textValue="Alihkan Penanggung Jawab">
+                          <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Alihkan Penanggung Jawab</span></div>
+                        </Dropdown.Item>
+                      )}
+                      {canManage && onAdminCancel && (
                         <Dropdown.Item id="admin-cancel" textValue="Batalkan Aktivitas" variant="danger">
                           <Trash className="h-4 w-4 text-danger" />
                           <span className="text-danger">Batalkan Aktivitas</span>

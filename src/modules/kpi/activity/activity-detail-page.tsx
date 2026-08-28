@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -13,6 +14,7 @@ import {
   Separator,
   Spinner,
   TextField,
+  toast,
 } from '@heroui/react';
 import { ArrowLeft, DotsThreeVertical, House, PencilSimple, Prohibit } from '@phosphor-icons/react';
 import {
@@ -21,6 +23,9 @@ import {
 import { useActivityDetail } from './use-activity-detail';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
+import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
+import { AdminReassignActivityModal } from '@/modules/kpi/admin/admin-reassign-activity-modal';
+import { kpiAdminV1Api } from '@/modules/kpi/admin/kpi-admin-v1-api';
 
 interface ActivityDetailPageProps {
   id: string;
@@ -29,7 +34,10 @@ interface ActivityDetailPageProps {
 export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
   const router = useRouter();
   const { hasPerm } = usePermission();
-  const { activity, isLoading, error } = useActivityDetail(id);
+  const { activity, isLoading, error, refresh } = useActivityDetail(id);
+  const [isReassignOpen, setIsReassignOpen] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   if (isLoading) {
     return (
@@ -66,8 +74,23 @@ export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
   const indicatorText = indicators.length > 0
     ? indicators.map((indicator) => `${indicator.code} · ${indicator.name}`).join('; ')
     : '-';
-  const openManage = (action: 'UPDATE' | 'CANCEL') => {
-    router.push(`/kpi/activities/${id}/edit?from=detail&action=${action}`);
+  const handleCancel = async () => {
+    if (!activity) return;
+    setIsCancelling(true);
+    try {
+      await kpiAdminV1Api.adminUpdateActivity(activity.id, {
+        action: 'CANCEL',
+        reason: 'Pembatalan administratif dari detail aktivitas.',
+        expectedVersion: activity.version,
+      });
+      toast.success('Aktivitas berhasil dibatalkan.');
+      setIsCancelOpen(false);
+      await refresh();
+    } catch (error: unknown) {
+      toast.danger(error instanceof Error ? error.message : 'Gagal membatalkan aktivitas.');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   return (
@@ -86,30 +109,35 @@ export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
           </Button>
           <h1 className="truncate text-xl font-semibold text-foreground">{activity.activityName}</h1>
         </div>
-        {hasPerm(PERM.KPI_ACTIVITY_MANAGE) && (
+        {hasPerm(PERM.KPI_ACTIVITY_MANAGE) && activity.status === 'ACTIVE' && (
           <Dropdown>
             <Button isIconOnly variant="tertiary" aria-label="Opsi aktivitas">
               <DotsThreeVertical className="h-5 w-5" />
             </Button>
             <Dropdown.Popover>
               <Dropdown.Menu onAction={(key) => {
-                if (key === 'manage') openManage('UPDATE');
-                if (key === 'cancel') openManage('CANCEL');
+                if (key === 'edit') router.push(`/kpi/activities/${id}/edit?from=detail`);
+                if (key === 'reassign') setIsReassignOpen(true);
+                if (key === 'cancel') setIsCancelOpen(true);
               }}>
-                <Dropdown.Item id="manage" textValue="Kelola aktivitas">
+                <Dropdown.Item id="edit" textValue="Edit aktivitas">
                   <div className="flex items-center gap-2">
                     <PencilSimple className="h-4 w-4 text-muted-foreground" />
-                    <span>Kelola aktivitas</span>
+                    <span>Edit aktivitas</span>
                   </div>
                 </Dropdown.Item>
-                {activity.status === 'ACTIVE' && (
-                  <Dropdown.Item id="cancel" textValue="Batalkan aktivitas" variant="danger">
-                    <div className="flex items-center gap-2 text-danger">
-                      <Prohibit className="h-4 w-4" />
-                      <span>Batalkan aktivitas</span>
-                    </div>
-                  </Dropdown.Item>
-                )}
+                <Dropdown.Item id="reassign" textValue="Alihkan Penanggung Jawab">
+                  <div className="flex items-center gap-2">
+                    <PencilSimple className="h-4 w-4 text-muted-foreground" />
+                    <span>Alihkan Penanggung Jawab</span>
+                  </div>
+                </Dropdown.Item>
+                <Dropdown.Item id="cancel" textValue="Batalkan Aktivitas" variant="danger">
+                  <div className="flex items-center gap-2 text-danger">
+                    <Prohibit className="h-4 w-4" />
+                    <span>Batalkan Aktivitas</span>
+                  </div>
+                </Dropdown.Item>
               </Dropdown.Menu>
             </Dropdown.Popover>
           </Dropdown>
@@ -201,6 +229,31 @@ export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
           Kembali
         </Button>
       </div>
+
+      {hasPerm(PERM.KPI_ACTIVITY_MANAGE) && activity.status === 'ACTIVE' && (
+        <>
+          <AdminReassignActivityModal
+            isOpen={isReassignOpen}
+            onClose={() => setIsReassignOpen(false)}
+            activity={activity}
+            onSuccess={() => { void refresh(); }}
+            onConflict={() => { void refresh(); }}
+          />
+          <DeleteConfirmDialog
+            isOpen={isCancelOpen}
+            onClose={() => setIsCancelOpen(false)}
+            onConfirm={handleCancel}
+            name={activity.activityName}
+            entityLabel="aktivitas"
+            title="Konfirmasi Pembatalan"
+            actionVerb="membatalkan"
+            confirmLabel="Batalkan Aktivitas"
+            pendingLabel="Membatalkan..."
+            warning="Aktivitas yang dibatalkan tidak dapat digunakan untuk pengajuan atau persetujuan baru."
+            isDeleting={isCancelling}
+          />
+        </>
+      )}
 
     </div>
   );

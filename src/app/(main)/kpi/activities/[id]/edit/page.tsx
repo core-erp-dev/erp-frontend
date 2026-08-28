@@ -7,7 +7,7 @@ import { ForbiddenAccess } from '@/components/shared/forbidden-access';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { useActivityDetail } from '@/modules/kpi/activity/use-activity-detail';
-import { AdminUpdateActivityPage, type AdminActivityAction } from '@/modules/kpi/admin/admin-update-activity-page';
+import { AdminEditActivityPage } from '@/modules/kpi/admin/admin-edit-activity-page';
 
 export default function EditActivityRoute() {
   const router = useRouter();
@@ -16,8 +16,6 @@ export default function EditActivityRoute() {
   const id = params.id as string;
   const { hasPerm } = usePermission();
   const canManage = hasPerm(PERM.KPI_ACTIVITY_MANAGE);
-  const actionParam = searchParams.get('action');
-  const initialAction: AdminActivityAction = actionParam === 'CANCEL' ? 'CANCEL' : 'UPDATE';
   const { activity, isLoading, error, refresh } = useActivityDetail(id, canManage);
 
   if (!canManage) return <ForbiddenAccess />;
@@ -50,9 +48,8 @@ export default function EditActivityRoute() {
   };
 
   return (
-    <AdminUpdateActivityPage
+    <AdminEditActivityPage
       activity={activity}
-      initialAction={initialAction}
       onBack={() => router.back()}
       onSuccess={handleSuccess}
       onConflict={() => { void refresh(); }}

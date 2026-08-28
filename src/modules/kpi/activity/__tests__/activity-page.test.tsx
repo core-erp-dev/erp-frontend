@@ -15,6 +15,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { ActivityWorkspace } from '@/modules/kpi/activity/activity-workspace';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
+}));
+
 type PermSet = Record<string, boolean>;
 
 let mockPermissions: PermSet = {};
@@ -103,8 +107,6 @@ jest.mock('@/modules/kpi/activity/activity-table', () => ({
 }));
 jest.mock('@/modules/kpi/activity/request-table', () => ({ RequestTable: () => null }));
 jest.mock('@/modules/kpi/activity/kpi-activity-detail-modal', () => ({ KpiActivityDetailModal: () => null }));
-jest.mock('@/modules/kpi/admin/admin-create-activity-modal', () => ({ AdminCreateActivityModal: () => null }));
-jest.mock('@/modules/kpi/admin/admin-update-activity-modal', () => ({ AdminUpdateActivityModal: () => null }));
 jest.mock('@/modules/kpi/activity/activity-change-modal', () => ({ ActivityChangeModal: () => null }));
 
 /* Capturing ActivityRequestModal mock: asserts the child modal's parents and mode. */
@@ -163,14 +165,14 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     expect(allText()).not.toMatch(/All Activities/);
   });
 
-  it('shows the T10 admin create button only for kpi_activity:manage', () => {
+  it('keeps all-scope admin actions out of My Activities', () => {
     const { unmount } = render(<ActivityWorkspace view="my-activities" />);
-    expect(allText()).not.toMatch(/Admin Create Activity/);
+    expect(allText()).not.toMatch(/Buat Aktivitas/);
     unmount();
 
     mockPermissions = { 'kpi_activity:manage': true };
     render(<ActivityWorkspace view="my-activities" />);
-    expect(allText()).toMatch(/Admin Create Activity/);
+    expect(allText()).not.toMatch(/Buat Aktivitas/);
   });
 
   it('gates the T4 root-request button on kpi_activity:root_request AND an explicit acting Position', () => {
@@ -207,14 +209,14 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     expect(tableProps.ownAssignmentUserPositionId).not.toBe('pos-1');
   });
 
-  it('passes the T11 admin-edit capability only to kpi_activity:manage holders', () => {
+  it('keeps admin edit capability scoped to All Activities', () => {
     const { unmount } = render(<ActivityWorkspace view="my-activities" />);
     expect(tableProps.canAdminEdit).toBe(false);
     unmount();
 
     mockPermissions = { 'kpi_activity:manage': true };
     render(<ActivityWorkspace view="my-activities" />);
-    expect(tableProps.canAdminEdit).toBe(true);
+    expect(tableProps.canAdminEdit).toBe(false);
   });
 
   it('keeps ordinary reads visible when Position loading fails (recoverable error panel)', () => {
@@ -283,14 +285,14 @@ describe('Activity workspace — All Activities view (scope=all, read_all|manage
 
   it('shows Access Denied without read_all or manage and does not fetch', () => {
     render(<ActivityWorkspace view="all-activities" />);
-    expect(screen.getByText('Access Denied')).toBeInTheDocument();
+    expect(screen.getByText('Akses Ditolak')).toBeInTheDocument();
     expect(fetchAll).not.toHaveBeenCalled();
   });
 
   it('renders and fetches scope=all for kpi_activity:read_all holders', () => {
     mockPermissions = { 'kpi_activity:read_all': true };
     render(<ActivityWorkspace view="all-activities" />);
-    expect(screen.getByRole('heading', { name: 'All Activities' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Semua Aktivitas' })).toBeInTheDocument();
     expect(fetchAll).toHaveBeenCalledTimes(1);
     expect(allText()).not.toMatch(/Access Denied/i);
   });
@@ -298,7 +300,7 @@ describe('Activity workspace — All Activities view (scope=all, read_all|manage
   it('renders for kpi_activity:manage holders too (manage implies the all scope)', () => {
     mockPermissions = { 'kpi_activity:manage': true };
     render(<ActivityWorkspace view="all-activities" />);
-    expect(screen.getByRole('heading', { name: 'All Activities' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Semua Aktivitas' })).toBeInTheDocument();
     expect(fetchAll).toHaveBeenCalledTimes(1);
   });
 });
