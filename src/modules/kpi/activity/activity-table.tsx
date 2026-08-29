@@ -60,6 +60,7 @@ export function ActivityTable({
   ownAssignmentUserPositionIds, onRequestChange, canAdminEdit, onAdminEdit, onAdminReassign, onAdminCancel,
 }: ActivityTableProps) {
   const { hasAnyPerm } = usePermission();
+  const canReadEmployeeDetail = hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE);
 
   return (
     <KpiTable
@@ -115,8 +116,12 @@ export function ActivityTable({
               )}
             </Table.Cell>
             <Table.Cell>
-              {item.assignedToUserId && hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE) ? (
-                <Link href={`/organization/employees/${item.assignedToUserId}`} className="text-foreground hover:underline">
+              {item.assignedToUserId && canReadEmployeeDetail ? (
+                <Link
+                  href={`/organization/employees/${item.assignedToUserId}`}
+                  className="font-medium text-foreground hover:underline"
+                  aria-label={`Lihat penanggung jawab ${item.assignedToUserName}`}
+                >
                   {item.assignedToUserName}
                 </Link>
               ) : (
