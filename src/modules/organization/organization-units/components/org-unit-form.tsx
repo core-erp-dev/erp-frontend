@@ -279,7 +279,7 @@ export function OrgUnitForm({ mode, initialData, onSuccess }: OrgUnitFormProps) 
                     isDisabled={isSubmitting}
                     isInvalid={fieldState.invalid}
                     allowsEmptyCollection
-                    menuTrigger="input"
+                    menuTrigger="focus"
                     defaultFilter={(text, inputValue) => {
                       if (!inputValue) return true;
                       const q = inputValue.toLowerCase();

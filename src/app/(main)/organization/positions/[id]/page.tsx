@@ -368,7 +368,7 @@ function PositionDetailPageInner() {
               isDisabled={isAssigning}
               allowsEmptyCollection
               defaultFilter={() => true}
-              menuTrigger="input"
+              menuTrigger="focus"
             >
               <ComboBox.InputGroup>
                 <Input placeholder="Cari nama, NIP, atau email" />

@@ -66,6 +66,7 @@ export function ActivityIndicatorMultiSelect({
     <Autocomplete
       className="w-full"
       variant={variant}
+      aria-label="Indikator KPI Perusahaan"
       placeholder="Pilih indikator KPI Perusahaan"
       selectionMode="multiple"
       allowsEmptyCollection
@@ -111,7 +112,7 @@ export function ActivityIndicatorMultiSelect({
           <SearchField autoFocus name="search" aria-label="Cari indikator KPI Perusahaan">
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input placeholder="Cari indikator KPI Perusahaan" />
+              <SearchField.Input placeholder="Cari indikator KPI Perusahaan" aria-label="Cari indikator KPI Perusahaan" />
               <SearchField.ClearButton />
             </SearchField.Group>
           </SearchField>

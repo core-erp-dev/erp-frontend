@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
-  Modal, Chip, Button, Spinner, Surface,
+  Modal, Chip, Button, Spinner, Surface, Input, Label, TextField,
 } from '@heroui/react';
 import { X, ClipboardText, Checks } from '@phosphor-icons/react';
 import { useActivityData } from './use-activity-data';
@@ -17,6 +18,8 @@ import {
   type KpiActivityRequestType,
   type KpiActivityRequestStatus,
 } from './activity-v1.types';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 
 type DetailMode = 'ACTIVITY' | 'REQUEST';
 
@@ -25,6 +28,7 @@ interface KpiActivityDetailModalProps {
   onClose: () => void;
   mode: DetailMode;
   entityId: string | null;
+  actingPositionId?: string;
 }
 
 /* ── Chip color maps ── */
@@ -53,8 +57,10 @@ const REQUEST_STATUS_CHIP_COLOR: Record<KpiActivityRequestStatus, 'success' | 'd
  */
 export function KpiActivityDetailModal({
   isOpen, onClose, mode, entityId,
+  actingPositionId,
 }: KpiActivityDetailModalProps) {
   const { fetchActivityDetail, fetchRequestDetail } = useActivityData();
+  const { hasAnyPerm } = usePermission();
   const [activity, setActivity] = useState<KpiActivityResponse | null>(null);
   const [request, setRequest] = useState<KpiActivityChangeRequestResponse | null>(null);
   const [currentActivity, setCurrentActivity] = useState<KpiActivityResponse | null>(null);
@@ -63,13 +69,15 @@ export function KpiActivityDetailModal({
 
   useEffect(() => {
     if (!entityId) return;
+    // The modal must clear stale content before loading the newly selected entity.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
     setCurrentActivity(null);
     setLoadError(null);
 
     const load = async () => {
       if (mode === 'ACTIVITY') {
-        const result = await fetchActivityDetail(entityId);
+        const result = await fetchActivityDetail(entityId, actingPositionId);
         if (result) setActivity(result);
         else setLoadError('Gagal memuat detail aktivitas.');
       } else {
@@ -90,8 +98,7 @@ export function KpiActivityDetailModal({
     };
 
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityId, mode]);
+  }, [entityId, mode, actingPositionId, fetchActivityDetail, fetchRequestDetail]);
 
   const handleClose = useCallback(() => {
     setActivity(null);
@@ -110,7 +117,14 @@ export function KpiActivityDetailModal({
           <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">Activity Information</h2>
           <DetailRow label="Nama Aktivitas" value={activity.activityName} />
           <DetailRow label="Deskripsi" value={activity.description || '-'} />
-          <DetailRow label="Aktivitas Induk" value={activity.parentActivityName || '-'} />
+          <ReadOnlyField
+            label="Aktivitas Induk"
+            value={activity.parentId ? (
+              <Link href={`/kpi/activities/${activity.parentId}${actingPositionId ? `?actingPositionId=${actingPositionId}` : ''}`} className="font-medium text-foreground hover:underline">
+                {activity.parentActivityName || '-'}
+              </Link>
+            ) : (activity.parentActivityName || '-')}
+          />
           <DetailRow label="KPI Perusahaan" value={<div className="flex flex-col gap-1">{indicators.map((kpi) => <span key={kpi.id}>{kpi.code} · {kpi.name}</span>)}</div>} />
           <DetailRow label="Periode" value={new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(new Date(activity.periodYear, activity.periodMonth - 1, 1))} />
           <DetailRow label="Unit" value={activity.unit} />
@@ -122,8 +136,22 @@ export function KpiActivityDetailModal({
               {ACTIVITY_STATUS_LABEL[activity.status]}
             </Chip>
           } />
-          <DetailRow label="Penanggung Jawab" value={activity.assignedToUserName} />
-          <DetailRow label="Position" value={activity.assignedToPositionName} />
+          <ReadOnlyField
+            label="Penanggung Jawab"
+            value={activity.assignedToUserId && hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE) ? (
+              <Link href={`/organization/employees/${activity.assignedToUserId}`} className="font-medium text-foreground hover:underline">
+                {activity.assignedToUserName}
+              </Link>
+            ) : (activity.assignedToUserName || '-')}
+          />
+          <ReadOnlyField
+            label="Jabatan"
+            value={activity.assignedToPositionId && hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) ? (
+              <Link href={`/organization/positions/${activity.assignedToPositionId}`} className="font-medium text-foreground hover:underline">
+                {activity.assignedToPositionName}
+              </Link>
+            ) : (activity.assignedToPositionName || '-')}
+          />
         </Surface>
       </div>
     );
@@ -172,9 +200,31 @@ export function KpiActivityDetailModal({
           } />
           <DetailRow label="Nama Aktivitas" value={request.activityName || '-'} />
           {isCancel && request.cancellationReason ? <DetailRow label="Alasan Pembatalan" value={request.cancellationReason} /> : null}
-          <DetailRow label="Aktivitas Induk" value={request.parentActivityName || '-'} />
+          <ReadOnlyField
+            label="Aktivitas Induk"
+            value={request.parentId ? (
+              <Link href={`/kpi/activities/${request.parentId}`} className="font-medium text-foreground hover:underline">
+                {request.parentActivityName || '-'}
+              </Link>
+            ) : (request.parentActivityName || '-')}
+          />
           <DetailRow label="KPI Perusahaan" value={indicators.length > 0 ? <div className="flex flex-col gap-1">{indicators.map((kpi) => <span key={kpi.id}>{kpi.code ? `${kpi.code} · ` : ''}{kpi.name}</span>)}</div> : '-'} />
-          <DetailRow label="Penanggung Jawab" value={request.assignedToUserName || '-'} />
+          <ReadOnlyField
+            label="Penanggung Jawab"
+            value={request.assignedToUserId && hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE) ? (
+              <Link href={`/organization/employees/${request.assignedToUserId}`} className="font-medium text-foreground hover:underline">
+                {request.assignedToUserName}
+              </Link>
+            ) : (request.assignedToUserName || '-')}
+          />
+          <ReadOnlyField
+            label="Jabatan"
+            value={request.assignedToPositionId && hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) ? (
+              <Link href={`/organization/positions/${request.assignedToPositionId}`} className="font-medium text-foreground hover:underline">
+                {request.assignedToPositionName}
+              </Link>
+            ) : (request.assignedToPositionName || '-')}
+          />
           <DetailRow label="Periode" value={request.periodYear && request.periodMonth ? new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(new Date(request.periodYear, request.periodMonth - 1, 1)) : '-'} />
           <DetailRow label="Unit" value={request.unit || '-'} />
           <DetailRow label="Nilai Target" value={request.targetValue != null ? String(request.targetValue) : '-'} />
@@ -228,5 +278,18 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
       <span className="w-36 shrink-0 text-sm font-medium text-muted-foreground">{label}</span>
       <span className="text-sm text-foreground">{value}</span>
     </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <TextField isReadOnly className="w-full">
+      <Label>{label}</Label>
+      {typeof value === 'string' ? <Input value={value} readOnly /> : (
+        <div className="min-h-10 rounded-lg border border-default bg-surface-secondary px-3 py-2 text-sm text-foreground">
+          {value}
+        </div>
+      )}
+    </TextField>
   );
 }

@@ -15,7 +15,7 @@ const mockedApi = jest.mocked(api);
 const activity: KpiActivityResponse = {
   id: 'act-1', parentId: null, parentActivityName: null,
   corporateKpiId: 'ck-1', corporateKpiName: 'CK', corporateKpiCode: 'C1',
-  assignedToUserPositionId: 'up-1', assignedToUserName: 'A', assignedToPositionName: 'P1',
+  assignedToUserPositionId: 'up-1', assignedToUserId: 'u-1', assignedToUserName: 'A', assignedToPositionId: 'p-1', assignedToPositionName: 'P1',
   activityName: 'A1', description: null, unit: '%', targetValue: 100,
   periodYear: 2026, periodMonth: 6, status: 'ACTIVE', realizedValue: 50,
   progressPercent: 50, version: 3, createdAt: '', updatedAt: '',
@@ -24,8 +24,8 @@ const activity: KpiActivityResponse = {
 const request: KpiActivityChangeRequestResponse = {
   id: 'req-1', requestType: 'CREATE', status: 'PENDING', activityId: null,
   parentId: null, parentActivityName: null, corporateKpiId: 'ck-1',
-  corporateKpiName: 'CK', assignedToUserPositionId: 'up-2',
-  assignedToUserName: 'B', activityName: 'A2', description: null, unit: '%',
+  corporateKpiName: 'CK', assignedToUserPositionId: 'up-2', assignedToUserId: 'u-2',
+  assignedToUserName: 'B', assignedToPositionId: 'p-2', assignedToPositionName: 'P-2', activityName: 'A2', description: null, unit: '%',
   targetValue: 10, periodYear: 2026, periodMonth: 7, requestedByUser: 'u-1',
   requestedByUserName: 'A',
   reviewedBy: null, reviewedAt: null, rejectionReason: null,
@@ -180,7 +180,7 @@ describe('activityV1Api.getAssignableAssignees (T3)', () => {
   });
 });
 
-describe('activityV1Api.submitCreateRequest (T4 — root vs child discriminated)', () => {
+describe('activityV1Api.submitCreateRequest (T4 — independent vs child discriminated)', () => {
   it('POST /api/v1/kpi-activity-requests with the exact ROOT body (no parentId key)', async () => {
     mockedApi.post.mockResolvedValueOnce({ data: wrap(request) });
     await activityV1Api.submitCreateRequest({
@@ -189,8 +189,8 @@ describe('activityV1Api.submitCreateRequest (T4 — root vs child discriminated)
       corporateKpiId: 'ck-1',
       periodYear: 2026,
       periodMonth: 6,
-      activityName: 'Root Activity',
-      description: 'root desc',
+      activityName: 'Independent Activity',
+      description: 'independent desc',
       unit: '%',
       targetValue: 100,
     });
@@ -200,8 +200,8 @@ describe('activityV1Api.submitCreateRequest (T4 — root vs child discriminated)
       corporateKpiId: 'ck-1',
       periodYear: 2026,
       periodMonth: 6,
-      activityName: 'Root Activity',
-      description: 'root desc',
+      activityName: 'Independent Activity',
+      description: 'independent desc',
       unit: '%',
       targetValue: 100,
     });

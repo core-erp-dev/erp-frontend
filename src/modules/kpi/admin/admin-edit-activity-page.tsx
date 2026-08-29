@@ -49,6 +49,7 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const indicators = activity.corporateKpis
     ?? (activity.corporateKpiId ? [{ id: activity.corporateKpiId }] : []);
+  const isChild = Boolean(activity.parentId);
 
   const form = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
@@ -101,7 +102,7 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
         description: values.description.trim() || undefined,
         unit: values.unit.trim(),
         targetValue: Number(values.targetValue),
-        corporateKpiIds: values.corporateKpiIds,
+      corporateKpiIds: isChild ? undefined : values.corporateKpiIds,
       });
       toast.success('Aktivitas berhasil diperbarui.');
       onSuccess();
@@ -133,31 +134,51 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
       ) : (
         <Form validationBehavior="aria" onSubmit={(event) => { form.handleSubmit(handleSubmit)(event); }} className="flex flex-col gap-6">
           {conflict && <Alert status="warning"><Alert.Indicator /><Alert.Content><Alert.Title>{conflict.message}</Alert.Title></Alert.Content></Alert>}
-          <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
-            <div>Aktivitas: <span className="font-medium text-foreground">{activity.activityName}</span></div>
-            <div>Versi: <span className="font-medium text-foreground">{activity.version}</span></div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField isDisabled className="w-full">
+              <Label>Aktivitas</Label>
+              <Input variant="secondary" value={activity.activityName} readOnly aria-label="Aktivitas" />
+            </TextField>
+            <TextField isDisabled className="w-full">
+              <Label>Versi</Label>
+              <Input variant="secondary" value={String(activity.version)} readOnly aria-label="Versi" />
+            </TextField>
           </div>
-          <Controller
-            control={form.control}
-            name="corporateKpiIds"
-            render={({ field, fieldState }) => (
-              <ActivityIndicatorMultiSelect
-                indicators={options.indicators}
-                selectedIds={field.value}
-                onChange={field.onChange}
-                isRequired
-                variant="primary"
-                isInvalid={form.formState.isSubmitted && fieldState.invalid}
-                errorMessage={form.formState.isSubmitted ? fieldState.error?.message : undefined}
-              />
-            )}
-          />
+          {isChild ? (
+            <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
+              <div className="font-medium text-foreground">Indicator diwariskan dari aktivitas induk</div>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {(activity.corporateKpis ?? []).map((indicator) => (
+                  <span key={indicator.id}>{indicator.code} — {indicator.name}</span>
+                ))}
+                {(!activity.corporateKpis || activity.corporateKpis.length === 0) && activity.corporateKpiName && (
+                  <span>{activity.corporateKpiCode} — {activity.corporateKpiName}</span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <Controller
+              control={form.control}
+              name="corporateKpiIds"
+              render={({ field, fieldState }) => (
+                <ActivityIndicatorMultiSelect
+                  indicators={options.indicators}
+                  selectedIds={field.value}
+                  onChange={field.onChange}
+                  isRequired
+                  variant="primary"
+                  isInvalid={form.formState.isSubmitted && fieldState.invalid}
+                  errorMessage={form.formState.isSubmitted ? fieldState.error?.message : undefined}
+                />
+              )}
+            />
+          )}
           <Controller
             control={form.control}
             name="activityName"
             render={({ field, fieldState }) => (
               <TextField isRequired validationBehavior="native" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                <Label>Nama Aktivitas</Label><Input variant="primary" placeholder="Masukkan nama aktivitas" /><FieldError>{fieldState.error?.message}</FieldError>
+                <Label>Nama Aktivitas</Label><Input variant="primary" placeholder="Masukkan nama aktivitas" aria-label="Nama Aktivitas" /><FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )}
           />
@@ -166,7 +187,7 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
             name="description"
             render={({ field, fieldState }) => (
               <TextField validationBehavior="native" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                <Label>Deskripsi</Label><TextArea variant="primary" placeholder="Masukkan deskripsi" rows={2} /><FieldError>{fieldState.error?.message}</FieldError>
+                <Label>Deskripsi</Label><TextArea variant="primary" placeholder="Masukkan deskripsi" rows={2} aria-label="Deskripsi" /><FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )}
           />
@@ -176,7 +197,7 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
               name="targetValue"
               render={({ field, fieldState }) => (
                 <TextField isRequired validationBehavior="native" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                  <Label>Target</Label><Input variant="primary" placeholder="Masukkan target" type="number" /><FieldError>{fieldState.error?.message}</FieldError>
+                  <Label>Target</Label><Input variant="primary" placeholder="Masukkan target" type="number" aria-label="Target" /><FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
             />
@@ -185,7 +206,7 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
               name="unit"
               render={({ field, fieldState }) => (
                 <TextField isRequired validationBehavior="native" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                  <Label>Satuan</Label><Input variant="primary" placeholder="Masukkan satuan" /><FieldError>{fieldState.error?.message}</FieldError>
+                  <Label>Satuan</Label><Input variant="primary" placeholder="Masukkan satuan" aria-label="Satuan" /><FieldError>{fieldState.error?.message}</FieldError>
                 </TextField>
               )}
             />
@@ -195,7 +216,7 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
             name="reason"
             render={({ field, fieldState }) => (
               <TextField isRequired validationBehavior="native" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
-                <Label>Alasan</Label><TextArea variant="primary" placeholder="Masukkan alasan administratif" rows={2} /><FieldError>{fieldState.error?.message}</FieldError>
+                <Label>Alasan</Label><TextArea variant="primary" placeholder="Masukkan alasan administratif" rows={2} aria-label="Alasan" /><FieldError>{fieldState.error?.message}</FieldError>
               </TextField>
             )}
           />

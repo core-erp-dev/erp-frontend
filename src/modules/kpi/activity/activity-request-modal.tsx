@@ -22,8 +22,8 @@ import { ActivityIndicatorMultiSelect } from './activity-indicator-multi-select'
 interface ActivityRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** root = new root Activity (indicator + period); child = under a selected parent. */
-  mode: 'root' | 'child';
+  /** independent = no parent (indicator + period); child = under a selected parent. */
+  mode: 'independent' | 'child';
   /** The explicitly selected acting Position (`positionId` is sent as `actingPositionId`). */
   actingPosition: ActingPosition;
   /** Child mode: eligible parents — the actor's own ACTIVE activities. */
@@ -37,9 +37,9 @@ interface ActivityRequestModalProps {
 }
 
 /**
- * T4 — unified CREATE Activity request (root vs child discriminated).
+ * T4 — unified CREATE Activity request (independent vs child discriminated).
  *
- * Root body: `{ assignedToUserPositionId, actingPositionId, corporateKpiId,
+ * Independent body: `{ assignedToUserPositionId, actingPositionId, corporateKpiId,
  * periodYear, periodMonth, activityName, description?, unit, targetValue }`
  * Child body: `{ assignedToUserPositionId, actingPositionId, parentId,
  * activityName, description?, unit, targetValue }` — indicator/period are
@@ -61,8 +61,8 @@ export function ActivityRequestModal({
   const [isLoadingAssignees, setIsLoadingAssignees] = useState(false);
   const [assigneeId, setAssigneeId] = useState('');
   const [parentId, setParentId] = useState('');
-  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
-  const [periodMonth, setPeriodMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [periodMonth, setPeriodMonth] = useState<number | null>(null);
   const [ckTree, setCkTree] = useState<CorporateKpiNode[]>([]);
   const [isLoadingCk, setIsLoadingCk] = useState(false);
   const [ckIds, setCkIds] = useState<string[]>([]);
@@ -73,12 +73,15 @@ export function ActivityRequestModal({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<RecoverableConflict | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedParent = parents.find((parent) => parent.id === parentId) ?? null;
 
   /* Reset on open; load assignable assignees for the acting Position. */
   useEffect(() => {
     if (!isOpen) return;
     setAssigneeId('');
     setParentId(mode === 'child' && initialParentId ? initialParentId : '');
+    setSelectedYear(null);
+    setPeriodMonth(null);
     setCkIds([]);
     setActivityName('');
     setDescription('');
@@ -119,7 +122,7 @@ export function ActivityRequestModal({
       .finally(() => setIsLoadingAssignees(false));
   }, [isOpen, mode, parentId, actingPosition.positionId]);
 
-  /* Root mode: CK indicators for the selected year. */
+  /* Independent mode: CK indicators for the selected year. */
   const fetchCkTree = useCallback(async (year: number) => {
     setIsLoadingCk(true);
     try {
@@ -149,7 +152,7 @@ export function ActivityRequestModal({
   }, []);
 
   useEffect(() => {
-    if (isOpen && mode === 'root') void fetchCkTree(selectedYear);
+    if (isOpen && mode === 'independent' && selectedYear !== null) void fetchCkTree(selectedYear);
   }, [isOpen, mode, selectedYear, fetchCkTree]);
 
   const handleSubmit = useCallback(async () => {
@@ -157,6 +160,14 @@ export function ActivityRequestModal({
     setConflict(null);
     if (!assigneeId) {
       setValidationError('Pilih posisi penanggung jawab.');
+      return;
+    }
+    if (mode === 'independent' && selectedYear === null) {
+      setValidationError('Pilih tahun periode.');
+      return;
+    }
+    if (mode === 'independent' && periodMonth === null) {
+      setValidationError('Pilih bulan periode.');
       return;
     }
     if (!activityName.trim()) {
@@ -172,8 +183,8 @@ export function ActivityRequestModal({
       setValidationError('Nilai target harus berupa angka positif.');
       return;
     }
-    if (mode === 'root' && ckIds.length === 0) {
-      setValidationError('Pilih minimal satu indikator KPI Perusahaan untuk aktivitas induk.');
+    if (mode === 'independent' && ckIds.length === 0) {
+      setValidationError('Pilih minimal satu indikator KPI Perusahaan untuk aktivitas independen.');
       return;
     }
     if (mode === 'child' && !parentId) {
@@ -181,13 +192,13 @@ export function ActivityRequestModal({
       return;
     }
 
-    const body: CreateActivityRequest = mode === 'root'
+    const body: CreateActivityRequest = mode === 'independent'
       ? {
           assignedToUserPositionId: assigneeId,
           actingPositionId: actingPosition.positionId,
           corporateKpiIds: ckIds,
-          periodYear: selectedYear,
-          periodMonth,
+          periodYear: selectedYear as number,
+          periodMonth: periodMonth as number,
           activityName: activityName.trim(),
           description: description.trim() || undefined,
           unit: unit.trim(),
@@ -235,7 +246,7 @@ export function ActivityRequestModal({
           <Modal.Dialog className="sm:max-w-[600px]">
             <Modal.Header>
               <Modal.Heading>
-                {mode === 'root' ? 'Ajukan Aktivitas' : 'Ajukan Aktivitas Turunan'}
+                {mode === 'independent' ? 'Ajukan Aktivitas Independen' : 'Ajukan Aktivitas Turunan'}
               </Modal.Heading>
               <Modal.CloseTrigger />
             </Modal.Header>
@@ -286,33 +297,46 @@ export function ActivityRequestModal({
                 )}
 
                 {mode === 'child' && (
-                  <Select
-                    variant="secondary"
-                    selectedKey={parentId || null}
-                    onSelectionChange={(k) => { setParentId(String(k || '')); setAssigneeId(''); }}
-                    placeholder={parents.length === 0 ? 'Tidak ada aktivitas induk yang tersedia' : 'Pilih aktivitas induk...'}
-                  >
-                    <Label>Aktivitas Induk</Label>
-                    <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
-                    <Select.Popover>
-                      <ListBox>
-                        {parents.map((p) => (
-                          <ListBox.Item key={p.id} id={p.id} textValue={p.activityName}>
-                            <span className="text-sm text-foreground">{p.activityName}</span>
-                          </ListBox.Item>
-                        ))}
-                      </ListBox>
-                    </Select.Popover>
-                  </Select>
+                  <>
+                    <Select
+                      variant="secondary"
+                      selectedKey={parentId || null}
+                      onSelectionChange={(k) => { setParentId(String(k || '')); setAssigneeId(''); }}
+                      placeholder={parents.length === 0 ? 'Tidak ada aktivitas induk yang tersedia' : 'Pilih aktivitas induk...'}
+                    >
+                      <Label>Aktivitas Induk</Label>
+                      <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
+                      <Select.Popover>
+                        <ListBox>
+                          {parents.map((p) => (
+                            <ListBox.Item key={p.id} id={p.id} textValue={p.activityName}>
+                              <span className="text-sm text-foreground">{p.activityName}</span>
+                            </ListBox.Item>
+                          ))}
+                        </ListBox>
+                      </Select.Popover>
+                    </Select>
+                    {selectedParent && (
+                      <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
+                        <div className="font-medium text-foreground">Indicator diwariskan dari aktivitas induk</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(selectedParent.corporateKpis ?? (selectedParent.corporateKpiId ? [{ id: selectedParent.corporateKpiId, code: selectedParent.corporateKpiCode, name: selectedParent.corporateKpiName }] : [])).map((indicator) => (
+                            <span key={indicator.id}>{indicator.code} — {indicator.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
-                {mode === 'root' && (
+                {mode === 'independent' && (
                   <>
                     <div className="grid grid-cols-2 gap-4">
                       <Select
                         variant="secondary"
-                        selectedKey={String(selectedYear)}
-                        onSelectionChange={(k) => { setSelectedYear(Number(k)); setCkIds([]); }}
+                        selectedKey={selectedYear === null ? null : String(selectedYear)}
+                        onSelectionChange={(k) => { setSelectedYear(k == null ? null : Number(k)); setCkIds([]); }}
+                        isRequired
                       >
                         <Label>Tahun Periode</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
@@ -328,8 +352,9 @@ export function ActivityRequestModal({
                       </Select>
                       <Select
                         variant="secondary"
-                        selectedKey={String(periodMonth)}
-                        onSelectionChange={(k) => setPeriodMonth(Number(k))}
+                        selectedKey={periodMonth === null ? null : String(periodMonth)}
+                        onSelectionChange={(k) => setPeriodMonth(k == null ? null : Number(k))}
+                        isRequired
                       >
                         <Label>Bulan Periode</Label>
                         <Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>

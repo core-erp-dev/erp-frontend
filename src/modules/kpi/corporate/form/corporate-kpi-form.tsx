@@ -779,7 +779,7 @@ export function CorporateKpiForm({
                     isInvalid={fieldState.invalid}
                     isDisabled={isMutating || (!isEditMode && !!preselectedParentId)}
                     aria-label="Aspek induk"
-                    menuTrigger="input"
+                    menuTrigger="focus"
                     defaultFilter={(text, inputValue) => {
                       if (!inputValue) return true;
                       const option = aspectOptions.find((aspect) => `${aspect.name} • ${aspect.code}` === text);

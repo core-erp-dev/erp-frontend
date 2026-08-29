@@ -6,11 +6,11 @@
  * optimistic-lock version (backend 2a71107) — the only valid source for
  * `expectedVersion` in T11. Never fabricate or derive a version.
  * Request types are PRECISE DISCRIMINATED UNIONS:
- *   - root vs child create (different required/forbidden fields);
+ *   - independent vs child create (different required/forbidden fields);
  *   - UPDATE vs CANCEL change requests;
  *   - APPROVE vs REJECT decisions.
- * Forbidden fields are typed `never` so they cannot be serialized by callers —
- * the backend `@Null` omission discipline becomes a compile-time guarantee.
+ * Canonical child callers omit inherited fields; compatibility fields remain
+ * optional and are checked authoritatively by the backend.
  */
 
 /* ── Response types ── */
@@ -31,7 +31,9 @@ export interface KpiActivityResponse {
   corporateKpiName: string;
   corporateKpiCode: string;
   assignedToUserPositionId: string;
+  assignedToUserId: string;
   assignedToUserName: string;
+  assignedToPositionId: string;
   assignedToPositionName: string;
   activityName: string;
   description: string | null;
@@ -65,7 +67,10 @@ export interface KpiActivityChangeRequestResponse {
   corporateKpiId: string | null;
   corporateKpiName: string | null;
   assignedToUserPositionId: string | null;
+  assignedToUserId: string | null;
   assignedToUserName: string | null;
+  assignedToPositionId: string | null;
+  assignedToPositionName: string | null;
   activityName: string | null;
   description: string | null;
   unit: string | null;
@@ -122,7 +127,7 @@ export interface AssignableUserPositionResponse {
   positionId: string;
   positionName: string;
   isPrimary: boolean;
-  /** True only for the requester's own acting UserPosition (root selector). */
+  /** True only for the requester's own acting UserPosition (independent selector). */
   isSelf: boolean;
 }
 
@@ -154,7 +159,7 @@ export interface KpiActivityManageOptions {
   periodYears: number[];
 }
 
-/* ── Create (T4) — root vs child discriminated ── */
+/* ── Create (T4) — independent vs child discriminated ── */
 
 interface CreateActivityBase {
   /** `core_user_positions.id` of the assignee. */
@@ -167,7 +172,11 @@ interface CreateActivityBase {
   targetValue: number;
 }
 
-/** Root create: indicator + period required; `parentId` forbidden. */
+/**
+ * Independent create: indicator + period required; `parentId` forbidden.
+ * The historical export name is retained for source compatibility.
+ */
+/** @deprecated Use the independent Activity semantics; this type name remains for compatibility. */
 export interface CreateRootActivityV1Request extends CreateActivityBase {
   parentId?: never;
   corporateKpiIds?: string[];
@@ -177,11 +186,15 @@ export interface CreateRootActivityV1Request extends CreateActivityBase {
   periodMonth: number;
 }
 
-/** Child create: `parentId` required; indicator/period inherited (forbidden on the wire). */
+/** Child create: `parentId` required; indicator/period inherited. Indicator fields
+ * remain optional for compatibility with older callers, but canonical clients omit
+ * them and the backend rejects a set that differs from the parent. */
 export interface CreateChildActivityV1Request extends CreateActivityBase {
   parentId: string;
-  corporateKpiIds?: never;
-  corporateKpiId?: never;
+  /** @deprecated compatibility-only; backend compares to the parent and never trusts it. */
+  corporateKpiIds?: string[];
+  /** @deprecated compatibility-only singular alias. */
+  corporateKpiId?: string;
   periodYear?: never;
   periodMonth?: never;
 }
@@ -237,7 +250,7 @@ export type RequestDecisionRequest = ApproveDecision | RejectDecision;
 
 /* ── Admin (P5) — T9/T10/T11/T18 ── */
 
-/** Administrative Activity create (T10, `kpi_activity:manage`). Root vs child decided by `parentId`. */
+/** Administrative Activity create (T10, `kpi_activity:manage`). Independent vs child decided by `parentId`. */
 export interface AdminCreateActivityRequest {
   assignedToUserPositionId: string;
   parentId?: string;

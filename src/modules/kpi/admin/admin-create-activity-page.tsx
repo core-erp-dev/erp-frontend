@@ -47,8 +47,8 @@ const MONTH_OPTIONS = [
 const createSchema = z.object({
   assignedToUserPositionId: z.string().min(1, 'Penanggung jawab wajib dipilih'),
   parentId: z.string(),
-  periodYear: z.number().int().positive('Tahun periode wajib dipilih'),
-  periodMonth: z.number().int().min(1).max(12, 'Bulan periode wajib dipilih'),
+  periodYear: z.number().int().positive('Tahun periode wajib dipilih').nullable(),
+  periodMonth: z.number().int().min(1).max(12, 'Bulan periode wajib dipilih').nullable(),
   corporateKpiIds: z.array(z.string()),
   activityName: z.string().trim().min(1, 'Nama aktivitas wajib diisi'),
   description: z.string(),
@@ -64,6 +64,20 @@ const createSchema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['corporateKpiIds'],
       message: 'Pilih minimal satu indikator KPI Perusahaan',
+    });
+  }
+  if (!values.parentId && values.periodYear === null) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['periodYear'],
+      message: 'Pilih tahun periode',
+    });
+  }
+  if (!values.parentId && values.periodMonth === null) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['periodMonth'],
+      message: 'Pilih bulan periode',
     });
   }
 });
@@ -85,8 +99,8 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
   const form = useForm<CreateFormValues>({
     resolver: zodResolver(createSchema),
     defaultValues: {
-      assignedToUserPositionId: '', parentId: '', periodYear: currentYear,
-      periodMonth: new Date().getMonth() + 1, corporateKpiIds: [],
+      assignedToUserPositionId: '', parentId: '', periodYear: null,
+      periodMonth: null, corporateKpiIds: [],
       activityName: '', description: '', unit: '', targetValue: '', reason: '',
     },
   });
@@ -94,7 +108,8 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
   const selectedAssigneeId = useWatch({ control: form.control, name: 'assignedToUserPositionId' });
   const selectedParentId = useWatch({ control: form.control, name: 'parentId' });
   const selectedYear = useWatch({ control: form.control, name: 'periodYear' });
-  const isRoot = !selectedParentId;
+  const optionLookupYear = selectedYear ?? currentYear;
+  const isIndependent = !selectedParentId;
   const parentOptions = useMemo(
     () => (options?.parentActivities ?? []).filter((parent) => parent.assigneeUserPositionId === selectedAssigneeId),
     [options?.parentActivities, selectedAssigneeId],
@@ -107,12 +122,6 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
       const data = await kpiAdminV1Api.getManageOptions(year);
       setOptions(data);
       setLoadedYear(year);
-      const fallbackYear = data.periodYears.includes(year) ? year : data.periodYears[0];
-      if (fallbackYear && fallbackYear !== form.getValues('periodYear')) {
-        form.setValue('periodYear', fallbackYear, { shouldValidate: false });
-        form.setValue('corporateKpiIds', [], { shouldValidate: false });
-        form.clearErrors('corporateKpiIds');
-      }
     } catch (error: unknown) {
       setOptions({ assignees: [], parentActivities: [], indicators: [], periodYears: [] });
       setLoadedYear(year);
@@ -120,11 +129,11 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
     } finally {
       setIsLoadingOptions(false);
     }
-  }, [form]);
+  }, []);
 
   useEffect(() => {
-    void loadOptions(selectedYear);
-  }, [loadOptions, selectedYear]);
+    void loadOptions(optionLookupYear);
+  }, [loadOptions, optionLookupYear]);
 
   const handleSubmit = useCallback(async (values: CreateFormValues) => {
     setIsSubmitting(true);
@@ -133,8 +142,8 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
         assignedToUserPositionId: values.assignedToUserPositionId,
         parentId: values.parentId || undefined,
         corporateKpiIds: values.parentId ? undefined : values.corporateKpiIds,
-        periodYear: values.parentId ? undefined : values.periodYear,
-        periodMonth: values.parentId ? undefined : values.periodMonth,
+        periodYear: values.parentId ? undefined : values.periodYear ?? undefined,
+        periodMonth: values.parentId ? undefined : values.periodMonth ?? undefined,
         activityName: values.activityName.trim(),
         description: values.description.trim() || undefined,
         unit: values.unit.trim(),
@@ -150,7 +159,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
     }
   }, [onSuccess]);
 
-  const isLoadingPage = isLoadingOptions || options === null || loadedYear !== selectedYear;
+  const isLoadingPage = isLoadingOptions || options === null || loadedYear !== optionLookupYear;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -199,7 +208,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
                   isInvalid={fieldState.invalid}
                   isDisabled={isSubmitting}
                   allowsEmptyCollection
-                  menuTrigger="input"
+                  menuTrigger="focus"
                   defaultFilter={contains}
                 >
                   <Label>Penanggung Jawab</Label>
@@ -241,7 +250,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
                   isInvalid={fieldState.invalid}
                   isDisabled={isSubmitting || !selectedAssigneeId}
                   allowsEmptyCollection
-                  menuTrigger="input"
+                  menuTrigger="focus"
                   defaultFilter={contains}
                 >
                   <Label>Aktivitas Induk</Label>
@@ -265,7 +274,13 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
               )}
             />
 
-            {isRoot && (
+            {!isIndependent && (
+              <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
+                Indicator dan periode akan diwariskan otomatis dari aktivitas induk.
+              </div>
+            )}
+
+            {isIndependent && (
               <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Controller
@@ -275,7 +290,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
                       <Select
                         className="w-full"
                         variant="primary"
-                        selectedKey={String(field.value)}
+                        selectedKey={field.value === null ? null : String(field.value)}
                         onSelectionChange={(key) => {
                           field.onChange(Number(key));
                           form.setValue('corporateKpiIds', [], { shouldValidate: false });
@@ -303,7 +318,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
                       <Select
                         className="w-full"
                         variant="primary"
-                        selectedKey={String(field.value)}
+                        selectedKey={field.value === null ? null : String(field.value)}
                         onSelectionChange={(key) => field.onChange(Number(key))}
                         isRequired
                         isInvalid={fieldState.invalid}
@@ -327,7 +342,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
                   name="corporateKpiIds"
                   render={({ field, fieldState }) => (
                     <ActivityIndicatorMultiSelect
-                      indicators={options.indicators}
+                      indicators={selectedYear === null ? [] : options.indicators}
                       selectedIds={field.value}
                       onChange={field.onChange}
                       isRequired

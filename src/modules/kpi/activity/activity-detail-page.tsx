@@ -16,7 +16,7 @@ import {
   TextField,
   toast,
 } from '@heroui/react';
-import { ArrowLeft, DotsThreeVertical, House, PencilSimple, Prohibit } from '@phosphor-icons/react';
+import { ArrowLeft, DotsThreeVertical, House, PencilSimple, Trash, UserSwitch } from '@phosphor-icons/react';
 import {
   ACTIVITY_STATUS_LABEL,
 } from './activity-v1.types';
@@ -29,12 +29,13 @@ import { kpiAdminV1Api } from '@/modules/kpi/admin/kpi-admin-v1-api';
 
 interface ActivityDetailPageProps {
   id: string;
+  actingPositionId?: string;
 }
 
-export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
+export function ActivityDetailPage({ id, actingPositionId }: ActivityDetailPageProps) {
   const router = useRouter();
-  const { hasPerm } = usePermission();
-  const { activity, isLoading, error, refresh } = useActivityDetail(id);
+  const { hasPerm, hasAnyPerm } = usePermission();
+  const { activity, isLoading, error, refresh } = useActivityDetail(id, true, actingPositionId);
   const [isReassignOpen, setIsReassignOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -128,13 +129,13 @@ export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
                 </Dropdown.Item>
                 <Dropdown.Item id="reassign" textValue="Alihkan Penanggung Jawab">
                   <div className="flex items-center gap-2">
-                    <PencilSimple className="h-4 w-4 text-muted-foreground" />
+                    <UserSwitch className="h-4 w-4 text-muted-foreground" />
                     <span>Alihkan Penanggung Jawab</span>
                   </div>
                 </Dropdown.Item>
                 <Dropdown.Item id="cancel" textValue="Batalkan Aktivitas" variant="danger">
                   <div className="flex items-center gap-2 text-danger">
-                    <Prohibit className="h-4 w-4" />
+                    <Trash className="h-4 w-4" />
                     <span>Batalkan Aktivitas</span>
                   </div>
                 </Dropdown.Item>
@@ -147,7 +148,7 @@ export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
       <div className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold text-foreground">Informasi Aktivitas</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField isReadOnly className="pointer-events-none w-full">
+          <TextField isReadOnly className="w-full">
             <Label>Nama Aktivitas</Label>
             <Input value={activity.activityName} readOnly />
           </TextField>
@@ -163,8 +164,8 @@ export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
             <Label>Aktivitas Induk</Label>
             {activity.parentId ? (
               <Link
-                href={`/kpi/activities/${activity.parentId}`}
-                className="block truncate font-medium text-foreground hover:underline"
+                href={`/kpi/activities/${activity.parentId}${actingPositionId ? `?actingPositionId=${actingPositionId}` : ''}`}
+                className="block truncate font-medium text-foreground hover:underline pointer-events-auto"
               >
                 {activity.parentActivityName || '-'}
               </Link>
@@ -212,13 +213,25 @@ export function ActivityDetailPage({ id }: ActivityDetailPageProps) {
       <div className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold text-foreground">Penanggung Jawab</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField isReadOnly className="pointer-events-none w-full">
+          <TextField isReadOnly className="w-full">
             <Label>Nama</Label>
-            <Input value={activity.assignedToUserName} readOnly />
+            {activity.assignedToUserId && hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE) ? (
+              <Link href={`/organization/employees/${activity.assignedToUserId}`} className="block truncate font-medium text-foreground hover:underline">
+                {activity.assignedToUserName}
+              </Link>
+            ) : (
+              <Input value={activity.assignedToUserName} readOnly />
+            )}
           </TextField>
-          <TextField isReadOnly className="pointer-events-none w-full">
+          <TextField isReadOnly className="w-full">
             <Label>Jabatan</Label>
-            <Input value={activity.assignedToPositionName} readOnly />
+            {activity.assignedToPositionId && hasAnyPerm(PERM.POSITION_READ, PERM.POSITION_MANAGE) ? (
+              <Link href={`/organization/positions/${activity.assignedToPositionId}`} className="block truncate font-medium text-foreground hover:underline">
+                {activity.assignedToPositionName}
+              </Link>
+            ) : (
+              <Input value={activity.assignedToPositionName} readOnly />
+            )}
           </TextField>
         </div>
       </div>

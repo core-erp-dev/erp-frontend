@@ -126,7 +126,7 @@ function activity(overrides: Partial<KpiActivityResponse> = {}): KpiActivityResp
   return {
     id: 'act-1', parentId: null, parentActivityName: null,
     corporateKpiId: 'ck-1', corporateKpiName: 'CK', corporateKpiCode: 'C1',
-    assignedToUserPositionId: 'up-1', assignedToUserName: 'A', assignedToPositionName: 'P-A',
+    assignedToUserPositionId: 'up-1', assignedToUserId: 'u-1', assignedToUserName: 'A', assignedToPositionId: 'p-1', assignedToPositionName: 'P-A',
     activityName: 'Activity', description: null, unit: '%', targetValue: 10,
     periodYear: 2026, periodMonth: 1, status: 'ACTIVE', realizedValue: 0,
     progressPercent: 0, version: 1, createdAt: '', updatedAt: '',
@@ -148,13 +148,19 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
 
   it('renders for a user with NO activity permissions (responsibility-based access)', () => {
     render(<ActivityWorkspace view="my-activities" />);
-    expect(screen.getByRole('heading', { name: 'My Activities' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Aktivitas Saya' })).toBeInTheDocument();
     expect(allText()).not.toMatch(/Access Denied/i);
   });
 
   it('fetches scope=mine on mount', () => {
     render(<ActivityWorkspace view="my-activities" />);
     expect(fetchMy).toHaveBeenCalledTimes(1);
+  });
+
+  it('provides the activity detail hyperlink to the My Activities table', () => {
+    render(<ActivityWorkspace view="my-activities" />);
+    const getHref = tableProps.getActivityHref as (item: KpiActivityResponse) => string;
+    expect(getHref(activity())).toBe('/kpi/activities/act-1');
   });
 
   it('does NOT render the legacy tab toggle nor an Approval surface', () => {
@@ -175,11 +181,9 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     expect(allText()).not.toMatch(/Buat Aktivitas/);
   });
 
-  it('gates the T4 root-request button on kpi_activity:root_request AND an explicit acting Position', () => {
-    mockPermissions = { 'kpi_activity:root_request': true };
+  it('shows the independent request button for any selected acting Position without a root privilege', () => {
     const { unmount } = render(<ActivityWorkspace view="my-activities" />);
-    const disabledButton = screen.getByRole('button', { name: /Request Activity/ });
-    expect(disabledButton).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Ajukan Aktivitas/ })).not.toBeInTheDocument();
     unmount();
 
     mockPositions = [
@@ -187,16 +191,16 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     ];
     render(<ActivityWorkspace view="my-activities" />);
     fireEvent.click(screen.getByText('choose-pos-1'));
-    expect(screen.getByRole('button', { name: /Request Activity/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Ajukan Aktivitas Independen/ })).toBeEnabled();
   });
 
-  it('does NOT show the root-request button without kpi_activity:root_request, even with a position', () => {
+  it('does show independent request without kpi_activity:root_request when a position is selected', () => {
     mockPositions = [
       { positionId: 'pos-1', positionName: 'Manager', userPositionId: 'up-1', userId: 'u-1', isPrimary: true },
     ];
     render(<ActivityWorkspace view="my-activities" />);
     fireEvent.click(screen.getByText('choose-pos-1'));
-    expect(allText()).not.toMatch(/Request Activity/);
+    expect(screen.getByRole('button', { name: /Ajukan Aktivitas Independen/ })).toBeInTheDocument();
   });
 
   it('wires exact-assignment ownership: ownAssignmentUserPositionId = the selected Position userPositionId', () => {
@@ -223,7 +227,7 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     mockPositionsError = 'Failed to load your active positions.';
     render(<ActivityWorkspace view="my-activities" />);
     expect(screen.getByText(/Failed to load your active positions/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'My Activities' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Aktivitas Saya' })).toBeInTheDocument();
     expect(allText()).not.toMatch(/Access Denied/i);
   });
 
@@ -235,9 +239,7 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
 
   it('shows the self-child button disabled with an explanation without an acting position', () => {
     render(<ActivityWorkspace view="my-activities" />);
-    const button = screen.getByRole('button', { name: /Request Child Activity/ });
-    expect(button).toBeDisabled();
-    expect(allText()).toMatch(/Select an acting position above/);
+    expect(screen.queryByRole('button', { name: /Ajukan Aktivitas Turunan/ })).not.toBeInTheDocument();
   });
 
   it('fetches scope=superior for the selected acting Position on My Activities', () => {
@@ -255,9 +257,7 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     ];
     render(<ActivityWorkspace view="my-activities" />);
     fireEvent.click(screen.getByText('choose-pos-1'));
-    const button = screen.getByRole('button', { name: /Request Child Activity/ });
-    expect(button).toBeDisabled();
-    expect(allText()).toMatch(/No eligible parent activities from your superior/);
+    expect(screen.queryByRole('button', { name: /Ajukan Aktivitas Turunan/ })).not.toBeInTheDocument();
   });
 
   it('enables the self-child button and opens the child modal with the superior ACTIVE parents', () => {
@@ -267,7 +267,7 @@ describe('Activity workspace — My Activities view (scope=mine)', () => {
     mockSuperiorActivities = [activity({ id: 'boss-act', assignedToUserPositionId: 'up-boss', activityName: 'Boss Activity' })];
     render(<ActivityWorkspace view="my-activities" />);
     fireEvent.click(screen.getByText('choose-pos-1'));
-    const button = screen.getByRole('button', { name: /Request Child Activity/ });
+    const button = screen.getByRole('button', { name: /Ajukan Aktivitas Turunan/ });
     expect(button).toBeEnabled();
     fireEvent.click(button);
     expect(requestModalProps).toMatchObject({ isOpen: true, mode: 'child' });
@@ -303,6 +303,13 @@ describe('Activity workspace — All Activities view (scope=all, read_all|manage
     expect(screen.getByRole('heading', { name: 'Semua Aktivitas' })).toBeInTheDocument();
     expect(fetchAll).toHaveBeenCalledTimes(1);
   });
+
+  it('provides the same activity detail hyperlink to the All Activities table', () => {
+    mockPermissions = { 'kpi_activity:read_all': true };
+    render(<ActivityWorkspace view="all-activities" />);
+    const getHref = tableProps.getActivityHref as (item: KpiActivityResponse) => string;
+    expect(getHref(activity())).toBe('/kpi/activities/act-1');
+  });
 });
 
 describe('Activity workspace — Subordinate view (scope=subordinates + actingPositionId)', () => {
@@ -319,8 +326,7 @@ describe('Activity workspace — Subordinate view (scope=subordinates + actingPo
 
   it('shows the acting-position prompt and does not fetch without a selection', () => {
     render(<ActivityWorkspace view="subordinates" />);
-    // The empty-table prompt and the child-subordinate button explanation share the phrase.
-    expect(screen.getAllByText(/Select an acting position above/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/You have no active Position/i)).toBeInTheDocument();
     expect(fetchSubordinates).not.toHaveBeenCalled();
   });
 
@@ -330,10 +336,20 @@ describe('Activity workspace — Subordinate view (scope=subordinates + actingPo
     ];
     render(<ActivityWorkspace view="subordinates" />);
     fireEvent.click(screen.getByText('choose-pos-1'));
-    expect(fetchSubordinates).toHaveBeenCalledWith('pos-9');
+    expect(fetchSubordinates).toHaveBeenCalledWith(undefined, expect.objectContaining({ positionId: 'pos-9' }));
   });
 
-  it('disables the child-subordinate button with an explanation when the acting Position has no ACTIVE parent activities', () => {
+  it('provides the activity detail hyperlink with actingPositionId to the Subordinates table', () => {
+    mockPositions = [
+      { positionId: 'pos-9', positionName: 'Manager', userPositionId: 'up-9', userId: 'u-1', isPrimary: true },
+    ];
+    render(<ActivityWorkspace view="subordinates" />);
+    fireEvent.click(screen.getByText('choose-pos-1'));
+    const getHref = tableProps.getActivityHref as (item: KpiActivityResponse) => string;
+    expect(getHref(activity())).toBe('/kpi/activities/act-1?actingPositionId=pos-9');
+  });
+
+  it('keeps the independent action available even when there are no parent activities', () => {
     mockPositions = [
       { positionId: 'pos-9', positionName: 'Manager', userPositionId: 'up-9', userId: 'u-1', isPrimary: true },
     ];
@@ -341,9 +357,8 @@ describe('Activity workspace — Subordinate view (scope=subordinates + actingPo
     fireEvent.click(screen.getByText('choose-pos-1'));
     // ownActiveParents is fed by scope=mine — fetched together with subordinates.
     expect(fetchMy).toHaveBeenCalled();
-    const button = screen.getByRole('button', { name: /Request Child Activity/ });
-    expect(button).toBeDisabled();
-    expect(allText()).toMatch(/No eligible parent activities from your position/);
+    expect(screen.getByRole('button', { name: /Ajukan Aktivitas Independen/ })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /Ajukan Aktivitas Bawahan/ })).not.toBeInTheDocument();
   });
 
   it('enables the child-subordinate button and opens the child modal with the acting Position OWN ACTIVE parents', () => {
@@ -353,7 +368,7 @@ describe('Activity workspace — Subordinate view (scope=subordinates + actingPo
     mockMyActivities = [activity({ id: 'own-act', assignedToUserPositionId: 'up-9', activityName: 'Own Activity' })];
     render(<ActivityWorkspace view="subordinates" />);
     fireEvent.click(screen.getByText('choose-pos-1'));
-    const button = screen.getByRole('button', { name: /Request Child Activity/ });
+    const button = screen.getByRole('button', { name: /Ajukan Aktivitas Bawahan/ });
     expect(button).toBeEnabled();
     fireEvent.click(button);
     expect(requestModalProps).toMatchObject({ isOpen: true, mode: 'child' });
@@ -371,7 +386,7 @@ describe('Activity workspace — My Request view (requests?scope=mine)', () => {
 
   it('renders with its own title and fetches the submitted-request history', () => {
     render(<ActivityWorkspace view="my-requests" />);
-    expect(screen.getByRole('heading', { name: 'My Request' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pengajuan Saya' })).toBeInTheDocument();
     expect(fetchRequests).toHaveBeenCalledTimes(1);
     expect(allText()).not.toMatch(/Access Denied/i);
   });

@@ -282,7 +282,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                   isDisabled={isSubmitting}
                   isInvalid={fieldState.invalid}
                   allowsEmptyCollection
-                  menuTrigger="input"
+                  menuTrigger="focus"
                   defaultFilter={(text, inputValue) => {
                     if (!inputValue) return true;
                     const q = inputValue.toLowerCase();
@@ -321,7 +321,7 @@ export function PositionForm({ mode, initialData, onSuccess }: PositionFormProps
                     isInvalid={!!fieldState.error}
                     isDisabled={isSubmitting}
                     allowsEmptyCollection
-                    menuTrigger="input"
+                    menuTrigger="focus"
                     defaultFilter={(text, inputValue) => {
                       if (!inputValue) return true;
                       const q = inputValue.toLowerCase();

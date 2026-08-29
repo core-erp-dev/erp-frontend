@@ -62,6 +62,7 @@ export function ActivityChangeModal({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<RecoverableConflict | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isChild = Boolean(activity.parentId);
 
   /* Prefill from the authoritative Activity response whenever the modal opens. */
   useEffect(() => {
@@ -77,7 +78,11 @@ export function ActivityChangeModal({
   }, [isOpen, activity]);
 
   useEffect(() => {
-    if (!isOpen || mode !== 'update') return;
+    if (!isOpen || mode !== 'update' || isChild) {
+      setIndicators([]);
+      setIsLoadingIndicators(false);
+      return;
+    }
     let active = true;
     setIsLoadingIndicators(true);
     Promise.all([corporateKpiApi.getTreeByYear(activity.periodYear), corporateKpiStructuresApi.list()])
@@ -95,7 +100,7 @@ export function ActivityChangeModal({
       .catch(() => { if (active) setIndicators([]); })
       .finally(() => { if (active) setIsLoadingIndicators(false); });
     return () => { active = false; };
-  }, [isOpen, mode, activity.periodYear]);
+  }, [isOpen, mode, activity.periodYear, isChild]);
 
   const handleSubmit = useCallback(async () => {
     setValidationError(null);
@@ -139,7 +144,7 @@ export function ActivityChangeModal({
       setValidationError('Unit wajib diisi.');
       return;
     }
-    if (corporateKpiIds.length === 0) {
+    if (!isChild && corporateKpiIds.length === 0) {
       setValidationError('Pilih minimal satu indikator KPI Perusahaan.');
       return;
     }
@@ -156,7 +161,7 @@ export function ActivityChangeModal({
       description: description.trim() || null,
       unit: unit.trim(),
       targetValue: tv,
-      corporateKpiIds,
+      ...(isChild ? {} : { corporateKpiIds }),
     };
     setIsSubmitting(true);
     try {
@@ -175,7 +180,7 @@ export function ActivityChangeModal({
       setIsSubmitting(false);
     }
   }, [
-    mode, cancellationReason, activityName, unit, targetValue, description, corporateKpiIds,
+    mode, cancellationReason, activityName, unit, targetValue, description, corporateKpiIds, isChild,
     actingPosition.positionId, activity.id, submitChangeRequest,
     onSuccess, onClose, onConflict,
   ]);
@@ -217,12 +222,23 @@ export function ActivityChangeModal({
 
                 {mode === 'update' ? (
                   <>
-                    <ActivityIndicatorMultiSelect
-                      indicators={indicators}
-                      selectedIds={corporateKpiIds}
-                      onChange={setCorporateKpiIds}
-                      isLoading={isLoadingIndicators}
-                    />
+                    {isChild ? (
+                      <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
+                        <div className="font-medium text-foreground">Indicator diwariskan dari aktivitas induk</div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(activity.corporateKpis ?? (activity.corporateKpiId ? [{ id: activity.corporateKpiId, code: activity.corporateKpiCode, name: activity.corporateKpiName }] : [])).map((indicator) => (
+                            <span key={indicator.id}>{indicator.code} — {indicator.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <ActivityIndicatorMultiSelect
+                        indicators={indicators}
+                        selectedIds={corporateKpiIds}
+                        onChange={setCorporateKpiIds}
+                        isLoading={isLoadingIndicators}
+                      />
+                    )}
                     <TextField isRequired value={activityName} onChange={setActivityName}>
                       <Label>Nama Aktivitas</Label>
                       <Input variant="secondary" placeholder="Masukkan nama aktivitas..." />

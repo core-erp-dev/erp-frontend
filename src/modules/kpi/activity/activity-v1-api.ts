@@ -99,8 +99,8 @@ export const activityV1Api = {
   },
 
   /**
-   * T4 — unified CREATE request submission (root vs child by `parentId`).
-   * The body is the discriminated `CreateActivityRequest`: root sends
+   * T4 — unified CREATE request submission (independent vs child by `parentId`).
+   * The body is the discriminated `CreateActivityRequest`: independent sends
    * indicator + period (parentId forbidden); child sends `parentId`
    * (indicator/period forbidden — inherited from the parent).
    */

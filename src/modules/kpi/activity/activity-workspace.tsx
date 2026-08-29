@@ -26,7 +26,7 @@ import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
 import { AdminReassignActivityModal } from '@/modules/kpi/admin/admin-reassign-activity-modal';
 import { kpiAdminV1Api } from '@/modules/kpi/admin/kpi-admin-v1-api';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
+import { ActingPositionPanel, useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v1.types';
@@ -88,8 +88,6 @@ export function ActivityWorkspace({ view }: { view: ActivityViewId }) {
 function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   const router = useRouter();
   const { hasPerm } = usePermission();
-  // T4 root request — exactly `kpi_activity:root_request` (never read_all/manage).
-  const canRequestRoot = hasPerm(PERM.KPI_ACTIVITY_ROOT_REQUEST);
   // T10/T11 administrative tools — exactly `kpi_activity:manage` (never an approval bypass).
   const canAdminManage = hasPerm(PERM.KPI_ACTIVITY_MANAGE);
 
@@ -231,8 +229,10 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       if (selectedActingPosition) void fetchSuperiorActivities(selectedActingPosition.positionId);
     }
     if (view === 'subordinates') {
-      void fetchSubordinatesActivities(undefined, allActivitiesQuery);
-      if (selectedActingPosition) void fetchMyActivities(parentActivityQuery);
+      if (selectedActingPosition) {
+        void fetchSubordinatesActivities(undefined, allActivitiesQuery);
+        void fetchMyActivities(parentActivityQuery);
+      }
     }
     if (view === 'my-requests') void fetchMyRequests(requestQuery);
   }, [view, selectedActingPosition, allActivitiesQuery, parentActivityQuery, requestQuery, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities]);
@@ -295,6 +295,11 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     setDetailModal({ isOpen: true, mode: 'ACTIVITY', entityId: id });
   }, [router, view]);
 
+  const getActivityHref = useCallback((item: KpiActivityResponse) => {
+    const actingPositionId = view === 'subordinates' ? selectedActingPosition?.positionId : undefined;
+    return `/kpi/activities/${item.id}${actingPositionId ? `?actingPositionId=${actingPositionId}` : ''}`;
+  }, [selectedActingPosition?.positionId, view]);
+
   const openRequestDetail = useCallback((id: string) => {
     setDetailModal({ isOpen: true, mode: 'REQUEST', entityId: id });
   }, []);
@@ -303,15 +308,15 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     setDetailModal({ isOpen: false, mode: 'ACTIVITY', entityId: null });
   }, []);
 
-  /* ── T4 request modal (root | child) ── */
+  /* ── T4 request modal (independent | child) ── */
   const [requestModal, setRequestModal] = useState<{
     isOpen: boolean;
-    mode: 'root' | 'child';
+    mode: 'independent' | 'child';
     /** `own` = the acting Position's OWN ACTIVE activities; `superior` = the
      *  direct superior's ACTIVE activities (self-child parent source). */
     parentsSource: 'own' | 'superior';
     initialParentId?: string | null;
-  }>({ isOpen: false, mode: 'root', parentsSource: 'own', initialParentId: null });
+  }>({ isOpen: false, mode: 'independent', parentsSource: 'own', initialParentId: null });
 
   /* ── T5 change modal (update | cancel) ── */
   const [changeModal, setChangeModal] = useState<{
@@ -404,13 +409,23 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             />
           </Button>
 
-          {view === 'my-activities' && canRequestRoot && selectedActingPosition && (
+          {view === 'my-activities' && selectedActingPosition && (
             <Button
               variant="primary"
-              onPress={() => setRequestModal({ isOpen: true, mode: 'root', parentsSource: 'own' })}
+              onPress={() => setRequestModal({ isOpen: true, mode: 'independent', parentsSource: 'own' })}
             >
               <Plus className="h-4 w-4" />
-              Ajukan Aktivitas
+              Ajukan Aktivitas Independen
+            </Button>
+          )}
+
+          {view === 'subordinates' && selectedActingPosition && (
+            <Button
+              variant="primary"
+              onPress={() => setRequestModal({ isOpen: true, mode: 'independent', parentsSource: 'own' })}
+            >
+              <Plus className="h-4 w-4" />
+              Ajukan Aktivitas Independen
             </Button>
           )}
 
@@ -456,6 +471,17 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         </div>
       </div>
 
+      {needsPosition && (
+        <ActingPositionPanel
+          positions={positions}
+          isLoading={isLoadingPositions}
+          error={positionsError}
+          onRetry={refetchPositions}
+          value={selectedPositionId}
+          onChange={(positionId) => tableState.setPositionId(positionId)}
+        />
+      )}
+
       <KpiTableToolbar
         searchValue={searchInput}
         onSearchChange={setSearchInput}
@@ -488,6 +514,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             isLoading={isLoadingMy || tableState.isQueryLoading || isLoadingPositions}
             error={positionsError || myError}
             onViewDetail={openActivityDetail}
+            getActivityHref={getActivityHref}
             onRetry={positionsError ? refetchPositions : fetchMyActivities}
             ownAssignmentUserPositionId={selectedActingPosition?.userPositionId ?? null}
             onAddChild={selectedActingPosition
@@ -512,6 +539,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             isLoading={isLoadingAll || tableState.isQueryLoading}
             error={allError}
             onViewDetail={openActivityDetail}
+            getActivityHref={getActivityHref}
             onRetry={fetchAllActivities}
             canAdminEdit={canAdminManage}
             onAdminEdit={canAdminManage ? (item) => router.push(`/kpi/activities/${item.id}/edit?from=all`) : undefined}
@@ -530,6 +558,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
               isLoading={isLoadingSubordinates || tableState.isQueryLoading || isLoadingPositions}
               error={positionsError || subordinatesError}
               onViewDetail={openActivityDetail}
+              getActivityHref={getActivityHref}
               onRetry={() => { void fetchSubordinatesActivities(undefined, allActivitiesQuery); }}
               emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Belum ada aktivitas bawahan.'}
               totalItems={pagedSubordinates.totalItems}
@@ -560,6 +589,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           onClose={closeDetail}
           mode={detailModal.mode}
           entityId={detailModal.entityId}
+          actingPositionId={selectedActingPosition?.positionId}
         />
       )}
 
@@ -589,11 +619,11 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         />
       )}
 
-      {/* T4 — root/child CREATE request */}
+      {/* T4 — independent/child CREATE request */}
       {selectedActingPosition && (
         <ActivityRequestModal
           isOpen={requestModal.isOpen}
-          onClose={() => setRequestModal({ isOpen: false, mode: 'root', parentsSource: 'own', initialParentId: null })}
+          onClose={() => setRequestModal({ isOpen: false, mode: 'independent', parentsSource: 'own', initialParentId: null })}
           mode={requestModal.mode}
           actingPosition={selectedActingPosition}
           parents={requestModal.parentsSource === 'superior' ? superiorActivities : ownActiveParents}

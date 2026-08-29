@@ -42,6 +42,7 @@ declare module "@phosphor-icons/react" {
   export const UploadSimple: FC<IconProps>;
   export const DownloadSimple: FC<IconProps>;
   export const UserPlus: FC<IconProps>;
+  export const UserSwitch: FC<IconProps>;
   export const Users: FC<IconProps>;
   export const User: FC<IconProps>;
   export const X: FC<IconProps>;

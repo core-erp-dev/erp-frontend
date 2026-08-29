@@ -12,7 +12,7 @@ interface UseActivityDetailReturn {
 }
 
 /** Detail data hook following the same load/refresh pattern as Position detail. */
-export function useActivityDetail(id: string, enabled = true): UseActivityDetailReturn {
+export function useActivityDetail(id: string, enabled = true, actingPositionId?: string): UseActivityDetailReturn {
   const [activity, setActivity] = useState<KpiActivityResponse | null>(null);
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,7 @@ export function useActivityDetail(id: string, enabled = true): UseActivityDetail
       setIsLoading(true);
       setError(null);
       try {
-        const result = await activityV1Api.getActivityById(id);
+        const result = await activityV1Api.getActivityById(id, actingPositionId);
         if (!cancelled) setActivity(result);
       } catch (err: unknown) {
         if (!cancelled) {
@@ -36,17 +36,17 @@ export function useActivityDetail(id: string, enabled = true): UseActivityDetail
       }
     })();
     return () => { cancelled = true; };
-  }, [id, enabled]);
+  }, [id, enabled, actingPositionId]);
 
   const refresh = useCallback(async (): Promise<void> => {
     try {
-      const result = await activityV1Api.getActivityById(id);
+      const result = await activityV1Api.getActivityById(id, actingPositionId);
       setActivity(result);
       setError(null);
     } catch (err: unknown) {
       setError(extractActivityV1Error(err));
     }
-  }, [id]);
+  }, [id, actingPositionId]);
 
   return { activity, isLoading, error, refresh };
 }

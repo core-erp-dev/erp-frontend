@@ -82,7 +82,7 @@ export interface UseActivityDataReturn {
   fetchMyRequests: (query?: ActivityRequestListQuery) => Promise<void>;
 
   /* Detail fetches (lazy) */
-  fetchActivityDetail: (id: string) => Promise<KpiActivityResponse | null>;
+  fetchActivityDetail: (id: string, actingPositionId?: string) => Promise<KpiActivityResponse | null>;
   fetchRequestDetail: (id: string) => Promise<KpiActivityChangeRequestResponse | null>;
   isLoadingDetail: boolean;
 
@@ -263,10 +263,10 @@ export function useActivityData(): UseActivityDataReturn {
     }
   }, []);
 
-  const fetchActivityDetail = useCallback(async (id: string): Promise<KpiActivityResponse | null> => {
+  const fetchActivityDetail = useCallback(async (id: string, actingPositionId?: string): Promise<KpiActivityResponse | null> => {
     setIsLoadingDetail(true);
     try {
-      return await activityV1Api.getActivityById(id);
+      return await activityV1Api.getActivityById(id, actingPositionId);
     } catch (err: unknown) {
       toast.danger(extractActivityV1Error(err));
       return null;

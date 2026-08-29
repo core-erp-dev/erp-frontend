@@ -30,6 +30,7 @@ export const PERM = {
   CORPORATE_KPI_MANAGE: 'corporate_kpi:manage',
 
   // KPI Activity
+  /** @deprecated Legacy alias; independent Activity visibility is responsibility-based. */
   KPI_ACTIVITY_ROOT_REQUEST: 'kpi_activity:root_request',
   KPI_ACTIVITY_APPROVE: 'kpi_activity:approve',
   KPI_ACTIVITY_MANAGE: 'kpi_activity:manage',

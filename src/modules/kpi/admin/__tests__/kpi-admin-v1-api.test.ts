@@ -15,7 +15,7 @@ const mockedApi = jest.mocked(api);
 const activity: KpiActivityResponse = {
   id: 'act-1', parentId: null, parentActivityName: null,
   corporateKpiId: 'ck-1', corporateKpiName: 'CK', corporateKpiCode: 'C1',
-  assignedToUserPositionId: 'up-1', assignedToUserName: 'A', assignedToPositionName: 'P1',
+  assignedToUserPositionId: 'up-1', assignedToUserId: 'u-1', assignedToUserName: 'A', assignedToPositionId: 'p-1', assignedToPositionName: 'P1',
   activityName: 'A1', description: null, unit: '%', targetValue: 100,
   periodYear: 2026, periodMonth: 6, status: 'ACTIVE', realizedValue: 0,
   progressPercent: 0, version: 3, createdAt: '', updatedAt: '',

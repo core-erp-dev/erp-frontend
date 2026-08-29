@@ -23,7 +23,7 @@ const wrap = <T,>(data: T): ApiResponse<T> => ({ status: 200, message: 'ok', dat
 const activityA: KpiActivityResponse = {
   id: 'act-a', parentId: null, parentActivityName: null,
   corporateKpiId: 'ck-1', corporateKpiName: 'CK', corporateKpiCode: 'C1',
-  assignedToUserPositionId: 'up-a', assignedToUserName: 'A', assignedToPositionName: 'P-A',
+  assignedToUserPositionId: 'up-a', assignedToUserId: 'u-a', assignedToUserName: 'A', assignedToPositionId: 'p-a', assignedToPositionName: 'P-A',
   activityName: 'A', description: null, unit: '%', targetValue: 10,
   periodYear: 2026, periodMonth: 6, status: 'ACTIVE', realizedValue: 0,
   progressPercent: 0, version: 1, createdAt: '', updatedAt: '',
@@ -37,8 +37,8 @@ const activityB: KpiActivityResponse = {
 const request: KpiActivityChangeRequestResponse = {
   id: 'req-1', requestType: 'CREATE', status: 'PENDING', activityId: null,
   parentId: null, parentActivityName: null, corporateKpiId: 'ck-1',
-  corporateKpiName: 'CK', assignedToUserPositionId: 'up-2',
-  assignedToUserName: 'B', activityName: 'A2', description: null, unit: '%',
+  corporateKpiName: 'CK', assignedToUserPositionId: 'up-2', assignedToUserId: 'u-2',
+  assignedToUserName: 'B', assignedToPositionId: 'p-2', assignedToPositionName: 'P-2', activityName: 'A2', description: null, unit: '%',
   targetValue: 10, periodYear: 2026, periodMonth: 7, requestedByUser: 'u-1',
   requestedByUserName: 'A',
   reviewedBy: null, reviewedAt: null, rejectionReason: null,

@@ -28,6 +28,7 @@ export const ArrowCounterClockwise = createIcon('ArrowCounterClockwise');
 export const Check = createIcon('Check');
 export const Trash = createIcon('Trash');
 export const CheckCircle = createIcon('CheckCircle');
+export const UserSwitch = createIcon('UserSwitch');
 export const Briefcase = createIcon('Briefcase');
 export const Crown = createIcon('Crown');
 export const UploadSimple = createIcon('UploadSimple');

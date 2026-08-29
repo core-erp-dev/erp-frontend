@@ -1,8 +1,11 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Chip, Button, Dropdown, Table, Tooltip } from '@heroui/react';
-import { DotsThreeVertical, Eye, PencilLine, PencilSimple, Plus, Prohibit, Trash } from '@phosphor-icons/react';
+import { DotsThreeVertical, Eye, PencilLine, PencilSimple, Plus, Prohibit, Trash, UserSwitch } from '@phosphor-icons/react';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
 import { KpiTable } from '@/modules/kpi/shared/kpi-table';
 import {
   ACTIVITY_STATUS_LABEL,
@@ -15,6 +18,7 @@ interface ActivityTableProps {
   isLoading: boolean;
   error: string | null;
   onViewDetail: (id: string) => void;
+  getActivityHref: (item: KpiActivityResponse) => string;
   onRetry?: () => void;
   emptyLabel?: React.ReactNode;
   totalItems: number;
@@ -52,9 +56,12 @@ function formatPeriod(year: number, month: number): string {
 /** Activity table using the shared Pegawai-style table shell and row actions. */
 export function ActivityTable({
   items, isLoading, error, onViewDetail, onRetry, emptyLabel = 'Tidak ada aktivitas.',
+  getActivityHref,
   totalItems, currentPage, totalPages, onPageChange,
   ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit, onAdminReassign, onAdminCancel,
 }: ActivityTableProps) {
+  const { hasAnyPerm } = usePermission();
+
   return (
     <KpiTable
       ariaLabel="Data Aktivitas"
@@ -90,12 +97,9 @@ export function ActivityTable({
         return (
           <Table.Row key={item.id} id={item.id}>
             <Table.Cell className="font-medium text-foreground">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span>{item.activityName}</span>
-                {item.parentActivityName && (
-                  <span className="text-xs font-normal text-muted-foreground">{item.parentActivityName}</span>
-                )}
-              </div>
+              <Link href={getActivityHref(item)} className="text-foreground hover:underline">
+                {item.activityName}
+              </Link>
             </Table.Cell>
             <Table.Cell>
               {indicators.length <= 1 ? (
@@ -112,10 +116,13 @@ export function ActivityTable({
               )}
             </Table.Cell>
             <Table.Cell>
-              <div className="flex min-w-0 flex-col gap-0.5">
+              {item.assignedToUserId && hasAnyPerm(PERM.USER_READ, PERM.USER_MANAGE) ? (
+                <Link href={`/organization/employees/${item.assignedToUserId}`} className="text-foreground hover:underline">
+                  {item.assignedToUserName}
+                </Link>
+              ) : (
                 <span className="text-foreground">{item.assignedToUserName}</span>
-                <span className="text-xs text-muted-foreground">{item.assignedToPositionName}</span>
-              </div>
+              )}
             </Table.Cell>
             <Table.Cell className="text-muted-foreground">
               {formatPeriod(item.periodYear, item.periodMonth)}
@@ -169,7 +176,7 @@ export function ActivityTable({
                       )}
                       {canManage && onAdminReassign && (
                         <Dropdown.Item id="reassign" textValue="Alihkan Penanggung Jawab">
-                          <div className="flex items-center gap-2"><PencilSimple className="h-4 w-4 text-muted-foreground" /><span>Alihkan Penanggung Jawab</span></div>
+                          <div className="flex items-center gap-2"><UserSwitch className="h-4 w-4 text-muted-foreground" /><span>Alihkan Penanggung Jawab</span></div>
                         </Dropdown.Item>
                       )}
                       {canManage && onAdminCancel && (

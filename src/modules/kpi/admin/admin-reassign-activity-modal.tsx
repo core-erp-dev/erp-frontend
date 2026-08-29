@@ -115,7 +115,7 @@ export function AdminReassignActivityModal({
       onOpenChange={(open) => { if (!open) onClose(); }}
     >
       <Modal.Container scroll="outside">
-        <Modal.Dialog className="sm:max-w-[600px]">
+        <Modal.Dialog className="sm:max-w-[600px]" aria-label="Alihkan Penanggung Jawab">
           {isLoadingOptions || options === null ? (
             <div className="flex min-h-64 items-center justify-center"><Spinner size="md" /></div>
           ) : (
@@ -131,9 +131,10 @@ export function AdminReassignActivityModal({
                   onSubmit={form.handleSubmit(handleSubmit)}
                   className="flex flex-col gap-4"
                 >
-                  <div className="rounded-lg bg-secondary-soft p-3 text-sm text-muted-foreground">
-                    Aktivitas: <span className="font-medium text-foreground">{activity.activityName}</span>
-                  </div>
+                  <TextField isDisabled className="w-full">
+                    <Label>Aktivitas</Label>
+                    <Input variant="secondary" value={activity.activityName} readOnly aria-label="Aktivitas" />
+                  </TextField>
                   <Controller
                     control={form.control}
                     name="assignedToUserPositionId"
@@ -141,18 +142,19 @@ export function AdminReassignActivityModal({
                       <ComboBox
                         className="w-full"
                         variant="secondary"
+                        aria-label="Penanggung Jawab Baru"
                         selectedKey={field.value || null}
                         onSelectionChange={(key) => field.onChange(key ? String(key) : '')}
                         isRequired
                         isInvalid={fieldState.invalid}
                         isDisabled={isSubmitting}
                         allowsEmptyCollection
-                        menuTrigger="input"
+                        menuTrigger="focus"
                         defaultFilter={contains}
                       >
                         <Label>Penanggung Jawab Baru</Label>
                         <ComboBox.InputGroup>
-                          <Input variant="secondary" placeholder="Pilih penanggung jawab baru" />
+                          <Input variant="secondary" placeholder="Pilih penanggung jawab baru" aria-label="Penanggung Jawab Baru" />
                           <ComboBox.Trigger />
                         </ComboBox.InputGroup>
                         <ComboBox.Popover>
@@ -176,7 +178,7 @@ export function AdminReassignActivityModal({
                     render={({ field, fieldState }) => (
                       <TextField isRequired validationBehavior="native" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
                         <Label>Alasan</Label>
-                        <TextArea variant="secondary" placeholder="Masukkan alasan administratif" rows={2} />
+                        <TextArea variant="secondary" placeholder="Masukkan alasan administratif" rows={2} aria-label="Alasan" />
                         <FieldError>{fieldState.error?.message}</FieldError>
                       </TextField>
                     )}

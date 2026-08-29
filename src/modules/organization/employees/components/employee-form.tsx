@@ -445,7 +445,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
                   if (!inputValue) return true;
                   return text.toLowerCase().includes(inputValue.toLowerCase());
                 }}
-                menuTrigger="input"
+                menuTrigger="focus"
               >
                 <ComboBox.InputGroup>
                   <Input placeholder="Cari posisi" />
