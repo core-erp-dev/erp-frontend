@@ -244,13 +244,6 @@ export function ActivityDetailPage({ id, actingPositionId }: ActivityDetailPageP
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <Button variant="secondary" onPress={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-          Kembali
-        </Button>
-      </div>
-
       {hasPerm(PERM.KPI_ACTIVITY_MANAGE) && activity.status === 'ACTIVE' && (
         <>
           <AdminReassignActivityModal
