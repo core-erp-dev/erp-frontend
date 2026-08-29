@@ -69,7 +69,7 @@ export function ActingPositionSelector({
 }: ActingPositionSelectorProps) {
   return (
     <Select
-      variant="secondary"
+      variant="primary"
       selectedKey={value}
       onSelectionChange={(key) => {
         if (key !== null && key !== undefined) onChange(String(key));

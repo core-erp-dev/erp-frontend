@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { Modal, Button, TextField, TextArea, Label } from '@heroui/react';
+import React, { useCallback } from 'react';
+import { Modal, Button } from '@heroui/react';
 import { Warning } from '@phosphor-icons/react';
 import { useReportData } from './use-report-data';
 import type { KpiReportResponse } from './report-v1.types';
+import { KpiRejectionDialog } from '@/modules/kpi/shared/kpi-rejection-dialog';
 
 type ReviewMode = 'APPROVE' | 'REJECT';
 
@@ -20,44 +21,19 @@ export function ReportReviewDialog({
   isOpen, onClose, report, mode, onSuccess,
 }: ReportReviewDialogProps) {
   const { approveReport, rejectReport, isApproving, isRejecting } = useReportData();
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
-
   const isApproval = mode === 'APPROVE';
   const isPending = isApproving || isRejecting;
 
   const handleConfirm = useCallback(async () => {
-    setValidationError(null);
-
-    if (!isApproval) {
-      if (!rejectionReason.trim()) {
-        setValidationError('Alasan penolakan wajib diisi.');
-        return;
-      }
-      if (rejectionReason.length > 1000) {
-        setValidationError('Alasan penolakan maksimal 1.000 karakter.');
-        return;
-      }
-    }
-
-    let success = false;
-    if (isApproval) {
-      success = await approveReport(report.id);
-    } else {
-      success = await rejectReport(report.id, { rejectionReason: rejectionReason.trim() });
-    }
-
-    if (success) {
-      setRejectionReason('');
-      onSuccess();
-    }
-  }, [isApproval, rejectionReason, approveReport, rejectReport, report.id, onSuccess]);
+    const success = await approveReport(report.id);
+    if (success) onSuccess();
+  }, [approveReport, report.id, onSuccess]);
 
   const handleClose = useCallback(() => {
-    setRejectionReason('');
-    setValidationError(null);
     onClose();
   }, [onClose]);
+
+  if (!isApproval) return <KpiRejectionDialog isOpen={isOpen} title="Tolak Laporan" description={<>Anda akan menolak laporan pelaksanaan dari <strong>{report.submittedByUserName}</strong> untuk <strong className="text-foreground">{report.activityName}</strong>.</>} onClose={handleClose} onSubmit={async (reason) => { const success = await rejectReport(report.id, { rejectionReason: reason }); if (success) onSuccess(); return success; }} />;
 
   return (
     <Modal isOpen={isOpen} onOpenChange={(o) => { if (!o) handleClose(); }}>
@@ -84,21 +60,6 @@ export function ReportReviewDialog({
                   </p>
                 </div>
 
-                {!isApproval && (
-                  <div className="text-left">
-                    <TextField
-                      isRequired
-                      value={rejectionReason}
-                      onChange={(e) => { setRejectionReason(e); setValidationError(null); }}
-                      isInvalid={!!validationError}
-                    >
-                      <Label>Alasan Penolakan</Label>
-                      <TextArea variant="secondary" placeholder="Berikan alasan penolakan..." rows={3} />
-                    </TextField>
-                    {validationError && <p className="mt-1 text-xs text-danger">{validationError}</p>}
-                    <p className="mt-1 text-right text-xs text-muted-foreground">{rejectionReason.length}/1000</p>
-                  </div>
-                )}
               </div>
             </Modal.Body>
             <Modal.Footer className="flex-col-reverse">

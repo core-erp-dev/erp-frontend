@@ -31,7 +31,6 @@ jest.mock('@/modules/kpi/activity/activity-table', () => ({
 }));
 jest.mock('@/modules/kpi/activity/request-table', () => ({ RequestTable: () => null }));
 jest.mock('@/modules/kpi/activity/activity-change-modal', () => ({ ActivityChangeModal: () => null }));
-jest.mock('@/modules/kpi/activity/kpi-activity-detail-modal', () => ({ KpiActivityDetailModal: () => null }));
 jest.mock('@/modules/kpi/admin/admin-reassign-activity-modal', () => ({ AdminReassignActivityModal: () => null }));
 
 describe('Activity workspace simplified position flow', () => {

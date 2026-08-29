@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Alert, Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
 import { ArrowsClockwise, House, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
@@ -10,7 +11,6 @@ import { useApprovalData } from '@/modules/kpi/activity/use-approval-data';
 import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
 import { ApprovalTable } from '@/modules/kpi/activity/approval-table';
 import { ApprovalDialog } from '@/modules/kpi/activity/approval-dialog';
-import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
 import type { KpiActivityChangeRequestResponse } from '@/modules/kpi/activity/activity-v1.types';
 import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v1.types';
 import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
@@ -34,6 +34,7 @@ const APPROVAL_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], defau
  * T9 was removed.
  */
 export default function KpiApprovalsPage() {
+  const router = useRouter();
   const { hasPerm } = usePermission();
   const canApprove = hasPerm(PERM.KPI_ACTIVITY_APPROVE);
 
@@ -71,20 +72,6 @@ export default function KpiApprovalsPage() {
       fetchMyRequests();
     }
   }, [canApprove, fetchToReview, fetchMyRequests, approvalQuery]);
-
-  // ── Detail modal state ──
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-
-  const openDetail = useCallback((id: string) => {
-    setDetailId(id);
-    setDetailOpen(true);
-  }, []);
-
-  const closeDetail = useCallback(() => {
-    setDetailId(null);
-    setDetailOpen(false);
-  }, []);
 
   // ── Approval dialog state ──
   const [dialogMode, setDialogMode] = useState<'APPROVE' | 'REJECT' | null>(null);
@@ -180,7 +167,8 @@ export default function KpiApprovalsPage() {
         items={toReview}
         isLoading={isLoading || tableState.isQueryLoading}
         error={error}
-        onViewDetail={openDetail}
+        getDetailHref={(item) => `/kpi/activity-requests/${item.id}?from=approval`}
+        onViewDetail={(item) => router.push(`/kpi/activity-requests/${item.id}?from=approval`)}
         onApprove={openApprove}
         onReject={openReject}
         ownRequestIds={ownRequestIds}
@@ -189,15 +177,6 @@ export default function KpiApprovalsPage() {
         currentPage={pagination?.page ?? tableFilters.page}
         totalPages={pagination?.totalPages ?? 1}
         onPageChange={tableState.setPage}
-      />
-
-      {/* Detail Modal — shared with /kpi/activities */}
-      <KpiActivityDetailModal
-        key={detailId || 'closed'}
-        isOpen={detailOpen}
-        onClose={closeDetail}
-        mode="REQUEST"
-        entityId={detailId}
       />
 
       {/* Approve / Reject Dialog — unified decision */}

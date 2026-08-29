@@ -29,7 +29,7 @@ const MONTHS = [
 ];
 
 export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequestPageProps) {
-  const { positions, isLoading: isLoadingPositions, error: positionsError } = useMyPositions();
+  const { positions, isLoading: isLoadingPositions, error: positionsError, refetch: refetchPositions } = useMyPositions();
   const [actingPositionId, setActingPositionId] = useState('');
   const [assignees, setAssignees] = useState<AssignableUserPositionResponse[]>([]);
   const [parents, setParents] = useState<KpiActivityResponse[]>([]);
@@ -45,6 +45,7 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
   const [targetValue, setTargetValue] = useState('');
   const [isLoadingTargets, setIsLoadingTargets] = useState(false);
   const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
+  const [dependencyError, setDependencyError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,6 +64,7 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
     setParentId('');
     setParents([]);
     setAssignees([]);
+    setDependencyError(null);
     if (!actingPositionId || context !== 'subordinate') return;
     let active = true;
     setIsLoadingTargets(true);
@@ -77,13 +79,14 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
       setAssignees(targetOptions.filter((option) => !option.isSelf));
       setParents(parentPage.content.filter((activity) => activity.assignedToUserPositionId === actingPosition?.userPositionId));
     }).catch((error: unknown) => {
-      if (active) toast.danger(extractActivityV1Error(error));
+      if (active) setDependencyError(extractActivityV1Error(error));
     }).finally(() => { if (active) setIsLoadingTargets(false); });
     return () => { active = false; };
   }, [actingPosition?.userPositionId, actingPositionId, context]);
 
   const loadIndicators = useCallback(async (selectedYear: number) => {
     setIsLoadingIndicators(true);
+    setDependencyError(null);
     try {
       const [tree, structures] = await Promise.all([
         corporateKpiApi.getTreeByYear(selectedYear),
@@ -99,7 +102,7 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
       setIndicators(result);
     } catch (error: unknown) {
       setIndicators([]);
-      toast.danger(extractActivityV1Error(error));
+      setDependencyError(extractActivityV1Error(error));
     } finally {
       setIsLoadingIndicators(false);
     }
@@ -152,6 +155,9 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
   const cannotSubmit = isLoadingPositions || !actingPosition || (context === 'subordinate' && isLoadingTargets);
   const isPositionless = !isLoadingPositions && !positionsError && positions.length === 0;
 
+  if (isLoadingPositions || isLoadingTargets || isLoadingIndicators) return <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>;
+  if (positionsError || dependencyError) return <div className="mx-auto flex w-full max-w-4xl flex-col gap-5"><Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{positionsError || dependencyError}</Alert.Title></Alert.Content></Alert><div className="flex gap-2"><Button variant="primary" onPress={() => { if (positionsError) void refetchPositions(); else { setDependencyError(null); setActingPositionId(''); } }}>{positionsError ? 'Coba Lagi' : 'Pilih Ulang Posisi'}</Button><Button variant="secondary" onPress={onBack}>Kembali</Button></div></div>;
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
       <Breadcrumbs>
@@ -165,7 +171,6 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
         <h1 className="text-xl font-semibold text-foreground">{title}</h1>
       </div>
 
-      {positionsError && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{positionsError}</Alert.Title></Alert.Content></Alert>}
       {!isLoadingPositions && !positionsError && positions.length === 0 && <Alert status="warning"><Alert.Indicator /><Alert.Content><Alert.Title>{NO_ACTIVE_POSITION}</Alert.Title></Alert.Content></Alert>}
       {validationError && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{validationError}</Alert.Title></Alert.Content></Alert>}
 
@@ -173,12 +178,10 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
         <ActingPositionSelector positions={positions} value={actingPositionId || null} onChange={setActingPositionId} disabled={isSubmitting} label="Posisi Saya" />
         {context === 'subordinate' && (
           <>
-            {isLoadingTargets ? <div className="flex justify-center py-3"><Spinner size="sm" /></div> : (
-              <Select variant="primary" selectedKey={assigneeId || null} onSelectionChange={(key) => setAssigneeId(key == null ? '' : String(key))} isDisabled={!actingPosition || isSubmitting}>
+            <Select variant="primary" selectedKey={assigneeId || null} onSelectionChange={(key) => setAssigneeId(key == null ? '' : String(key))} isDisabled={!actingPosition || isSubmitting}>
                 <Label>Posisi Penanggung Jawab</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
                 <Select.Popover><ListBox>{assignees.map((option) => <ListBox.Item key={option.userPositionId} id={option.userPositionId} textValue={`${option.userFullName} ${option.positionName}`}><span>{option.userFullName}</span><span className="text-muted-foreground"> • {option.positionName}</span></ListBox.Item>)}</ListBox></Select.Popover>
               </Select>
-            )}
             <Select variant="primary" selectedKey={parentId || '__none__'} onSelectionChange={(key) => setParentId(key == null || String(key) === '__none__' ? '' : String(key))} isDisabled={!actingPosition || isLoadingTargets || isSubmitting}>
               <Label>Aktivitas Induk / Referensi (Opsional)</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger>
               <Select.Popover><ListBox><ListBox.Item id="__none__" textValue="Tanpa aktivitas induk">Tanpa aktivitas induk</ListBox.Item>{parents.map((parent) => <ListBox.Item key={parent.id} id={parent.id} textValue={parent.activityName}>{parent.activityName}</ListBox.Item>)}</ListBox></Select.Popover>

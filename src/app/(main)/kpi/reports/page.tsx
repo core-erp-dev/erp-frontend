@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
 import { Plus, ArrowsClockwise, House } from '@phosphor-icons/react';
 import { KPI_LABELS } from '@/modules/kpi/constants';
 import { useReportData } from '@/modules/kpi/report/use-report-data';
 import { ReportTable } from '@/modules/kpi/report/report-table';
-import { ReportDetailModal } from '@/modules/kpi/report/report-detail-modal';
-import { ReportSubmitModal } from '@/modules/kpi/report/report-submit-modal';
-import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
 import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
 import { paginateKpiItems, useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
 import { useDebounce } from '@/hooks/use-debounce';
@@ -24,6 +22,7 @@ const REPORT_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], default
  * Any authenticated user may open this page (responsibility-based access).
  */
 export default function KpiMyReportsPage() {
+  const router = useRouter();
   const { myReports, isLoadingMy, myError, fetchMyReports, isSubmitting } = useReportData();
   const tableState = useKpiTableState(REPORT_TABLE_STATE);
   const { filters: tableFilters, setSearch } = tableState;
@@ -35,29 +34,6 @@ export default function KpiMyReportsPage() {
 
   // Fetch on mount (direct-load / refresh safe)
   useEffect(() => {
-    fetchMyReports();
-  }, [fetchMyReports]);
-
-  // ── Detail modal ──
-  const [detailModal, setDetailModal] = useState<{
-    isOpen: boolean;
-    mode: 'MY';
-    report: KpiReportResponse | null;
-  }>({ isOpen: false, mode: 'MY', report: null });
-
-  const openDetail = useCallback((id: string) => {
-    const found = myReports.find((r) => r.id === id);
-    if (found) setDetailModal({ isOpen: true, mode: 'MY', report: found });
-  }, [myReports]);
-
-  const closeDetail = useCallback(() => {
-    setDetailModal({ isOpen: false, mode: 'MY', report: null });
-  }, []);
-
-  // ── Submit modal ──
-  const [submitModalOpen, setSubmitModalOpen] = useState(false);
-
-  const handleSubmitSuccess = useCallback(() => {
     fetchMyReports();
   }, [fetchMyReports]);
 
@@ -86,7 +62,7 @@ export default function KpiMyReportsPage() {
           <Button isIconOnly variant="tertiary" onPress={fetchMyReports} isDisabled={isLoadingMy} aria-label="Muat ulang laporan">
             <ArrowsClockwise className={`h-4 w-4 ${isLoadingMy ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="primary" size="sm" onPress={() => setSubmitModalOpen(true)}>
+          <Button variant="primary" size="sm" onPress={() => router.push('/kpi/reports/create')}>
             <Plus className="h-4 w-4" />
             Ajukan Laporan
           </Button>
@@ -113,27 +89,12 @@ export default function KpiMyReportsPage() {
         isLoading={isLoadingMy || tableState.isQueryLoading}
         error={myError}
         mode="MY"
-        onViewDetail={openDetail}
+        getDetailHref={(item) => `/kpi/reports/${item.id}?from=mine`}
+        onViewDetail={(item) => router.push(`/kpi/reports/${item.id}?from=mine`)}
         totalItems={pagedReports.totalItems}
         currentPage={pagedReports.page}
         totalPages={pagedReports.totalPages}
         onPageChange={tableState.setPage}
-      />
-
-      {/* Detail Modal — read-only, never shows approve/reject */}
-      <ReportDetailModal
-        key={detailModal.isOpen ? detailModal.report?.id || 'detail' : 'closed'}
-        isOpen={detailModal.isOpen}
-        onClose={closeDetail}
-        report={detailModal.report}
-        mode={detailModal.mode}
-      />
-
-      {/* Submit Modal */}
-      <ReportSubmitModal
-        isOpen={submitModalOpen}
-        onClose={() => setSubmitModalOpen(false)}
-        onSuccess={handleSubmitSuccess}
       />
 
       {isSubmitting && (

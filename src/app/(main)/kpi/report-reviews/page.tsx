@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Alert, Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
 import { ArrowsClockwise, House, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
@@ -8,7 +9,6 @@ import { PERM } from '@/constants/permissions';
 import { KPI_LABELS } from '@/modules/kpi/constants';
 import { useReportData } from '@/modules/kpi/report/use-report-data';
 import { ReportTable } from '@/modules/kpi/report/report-table';
-import { ReportDetailModal } from '@/modules/kpi/report/report-detail-modal';
 import { ReportReviewDialog } from '@/modules/kpi/report/report-review-dialog';
 import { ReassignReviewerDialog } from '@/modules/kpi/admin/reassign-reviewer-dialog';
 import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
@@ -33,6 +33,7 @@ const REPORT_REVIEW_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], 
  * non-root reports; users with nothing get an empty queue, not a 403).
  */
 export default function KpiReportReviewsPage() {
+  const router = useRouter();
   const { hasPerm } = usePermission();
   // T18 administrative tool — `kpi_report:manage` gates only this, never the page.
   const canReassignReviewer = hasPerm(PERM.KPI_REPORT_MANAGE);
@@ -54,22 +55,6 @@ export default function KpiReportReviewsPage() {
   useEffect(() => {
     fetchToReview();
   }, [fetchToReview]);
-
-  // ── Detail modal (REVIEW mode) ──
-  const [detailModal, setDetailModal] = useState<{
-    isOpen: boolean;
-    mode: 'REVIEW';
-    report: KpiReportResponse | null;
-  }>({ isOpen: false, mode: 'REVIEW', report: null });
-
-  const openDetail = useCallback((id: string) => {
-    const found = toReview.find((r) => r.id === id);
-    if (found) setDetailModal({ isOpen: true, mode: 'REVIEW', report: found });
-  }, [toReview]);
-
-  const closeDetail = useCallback(() => {
-    setDetailModal({ isOpen: false, mode: 'REVIEW', report: null });
-  }, []);
 
   // ── Review dialog (approve/reject confirmation) ──
   const [reviewDialog, setReviewDialog] = useState<{
@@ -93,10 +78,9 @@ export default function KpiReportReviewsPage() {
   }, []);
 
   const handleReviewSuccess = useCallback(() => {
-    closeDetail();
     closeReviewDialog();
     fetchToReview();
-  }, [closeDetail, closeReviewDialog, fetchToReview]);
+  }, [closeReviewDialog, fetchToReview]);
 
   // ── Reassign reviewer dialog (T18, kpi_report:manage) ──
   const [reassignReport, setReassignReport] = useState<KpiReportResponse | null>(null);
@@ -143,7 +127,7 @@ export default function KpiReportReviewsPage() {
           <Alert status="warning">
             <Alert.Indicator />
             <Alert.Content>
-              <Alert.Title>Report Already Processed</Alert.Title>
+              <Alert.Title>Laporan Sudah Diproses</Alert.Title>
               <Alert.Description>{recoverable.message}</Alert.Description>
             </Alert.Content>
           </Alert>
@@ -153,7 +137,7 @@ export default function KpiReportReviewsPage() {
             size="sm"
             className="absolute right-2 top-2"
             onPress={clearRecoverable}
-            aria-label="Dismiss"
+            aria-label="Tutup pesan"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -180,23 +164,13 @@ export default function KpiReportReviewsPage() {
         isLoading={isLoadingReview || tableState.isQueryLoading}
         error={reviewError}
         mode="TO_REVIEW"
-        onViewDetail={openDetail}
+        getDetailHref={(item) => `/kpi/reports/${item.id}?from=review`}
+        onViewDetail={(item) => router.push(`/kpi/reports/${item.id}?from=review`)}
         onReassignReviewer={canReassignReviewer ? openReassignReviewer : undefined}
         totalItems={pagedReports.totalItems}
         currentPage={pagedReports.page}
         totalPages={pagedReports.totalPages}
         onPageChange={tableState.setPage}
-      />
-
-      {/* Detail Modal — REVIEW mode exposes approve/reject */}
-      <ReportDetailModal
-        key={detailModal.isOpen ? detailModal.report?.id || 'detail' : 'closed'}
-        isOpen={detailModal.isOpen}
-        onClose={closeDetail}
-        report={detailModal.report}
-        mode={detailModal.mode}
-        onApprove={detailModal.mode === 'REVIEW' ? openApprove : undefined}
-        onReject={detailModal.mode === 'REVIEW' ? openReject : undefined}
       />
 
       {/* Review Dialog */}

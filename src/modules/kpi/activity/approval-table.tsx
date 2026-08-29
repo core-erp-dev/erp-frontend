@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Table, Chip, Button } from '@heroui/react';
 import { Eye, Check, X } from '@phosphor-icons/react';
 import { KpiTable } from '@/modules/kpi/shared/kpi-table';
@@ -24,7 +25,8 @@ interface ApprovalTableProps {
   items: KpiActivityChangeRequestResponse[];
   isLoading: boolean;
   error: string | null;
-  onViewDetail: (id: string) => void;
+  getDetailHref?: (item: KpiActivityChangeRequestResponse) => string;
+  onViewDetail?: (item: KpiActivityChangeRequestResponse) => void;
   onApprove: (request: KpiActivityChangeRequestResponse) => void;
   onReject: (request: KpiActivityChangeRequestResponse) => void;
   /**
@@ -53,7 +55,7 @@ function formatDate(dateStr: string | null): string {
  * Every `kpi_activity:approve` holder sees the SAME company-wide PENDING
  * queue; there is no stored approver and no reassignment UI.
  */
-export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove, onReject, ownRequestIds, onRetry, totalItems, currentPage, totalPages, onPageChange }: ApprovalTableProps) {
+export function ApprovalTable({ items, isLoading, error, getDetailHref = (item) => `/kpi/activity-requests/${item.id}?from=approval`, onViewDetail, onApprove, onReject, ownRequestIds, onRetry, totalItems, currentPage, totalPages, onPageChange }: ApprovalTableProps) {
   return (
     <KpiTable
       ariaLabel="Data Persetujuan Aktivitas"
@@ -90,7 +92,7 @@ export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove
                     </Chip>
                   </Table.Cell>
                   <Table.Cell className="text-muted-foreground">{item.requestedByUserName}</Table.Cell>
-                  <Table.Cell className="font-medium text-foreground">{item.activityName || '-'}</Table.Cell>
+                  <Table.Cell><Link href={getDetailHref(item)} className="font-medium text-foreground hover:underline">{item.activityName || '-'}</Link></Table.Cell>
                   <Table.Cell className="text-muted-foreground">{item.parentActivityName || '-'}</Table.Cell>
                   <Table.Cell className="text-muted-foreground">{item.assignedToUserName || '-'}</Table.Cell>
                   <Table.Cell className="text-muted-foreground">
@@ -102,7 +104,7 @@ export function ApprovalTable({ items, isLoading, error, onViewDetail, onApprove
                   <Table.Cell className="text-muted-foreground">{formatDate(item.createdAt)}</Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
-                      <Button isIconOnly variant="tertiary" size="sm" aria-label="Lihat detail pengajuan" onPress={() => onViewDetail(item.id)}>
+                      <Button isIconOnly variant="tertiary" size="sm" aria-label="Lihat detail pengajuan" onPress={() => onViewDetail?.(item)}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       {!isOwn && <Button isIconOnly variant="primary" size="sm" aria-label="Setujui pengajuan" onPress={() => onApprove(item)}><Check className="h-4 w-4" /></Button>}

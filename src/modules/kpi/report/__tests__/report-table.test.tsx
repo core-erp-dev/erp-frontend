@@ -44,7 +44,7 @@ describe('ReportTable — root review queue presentation', () => {
     );
 
     expect(screen.getByText('Parent Reviewer')).toBeInTheDocument();
-    expect(screen.getByText('Company queue')).toBeInTheDocument();
+    expect(screen.getByText('Antrean perusahaan')).toBeInTheDocument();
   });
 
   it('renders the reassign action only for hierarchy-assigned reports in TO_REVIEW mode', () => {
@@ -62,7 +62,7 @@ describe('ReportTable — root review queue presentation', () => {
       />,
     );
 
-    const reassignButtons = screen.getAllByRole('button', { name: 'Reassign reviewer' });
+    const reassignButtons = screen.getAllByRole('button', { name: 'Alihkan peninjau' });
     // Exactly one — the top-level root report must not be reassignable
     expect(reassignButtons).toHaveLength(1);
   });

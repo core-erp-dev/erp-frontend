@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Table, Chip, Button } from '@heroui/react';
 import { Eye } from '@phosphor-icons/react';
 import { KpiTable } from '@/modules/kpi/shared/kpi-table';
@@ -32,7 +33,8 @@ interface RequestTableProps {
   items: KpiActivityChangeRequestResponse[];
   isLoading: boolean;
   error: string | null;
-  onViewDetail: (id: string) => void;
+  getDetailHref?: (item: KpiActivityChangeRequestResponse) => string;
+  onViewDetail?: (item: KpiActivityChangeRequestResponse) => void;
   onRetry?: () => void;
   totalItems: number;
   currentPage: number;
@@ -55,7 +57,7 @@ function formatDate(dateStr: string | null): string {
 
 /* ── Component ── */
 
-export function RequestTable({ items, isLoading, error, onViewDetail, onRetry, totalItems, currentPage, totalPages, onPageChange }: RequestTableProps) {
+export function RequestTable({ items, isLoading, error, getDetailHref = (item) => `/kpi/activity-requests/${item.id}?from=mine`, onViewDetail, onRetry, totalItems, currentPage, totalPages, onPageChange }: RequestTableProps) {
   return (
     <KpiTable
       ariaLabel="Data Pengajuan Aktivitas"
@@ -86,8 +88,10 @@ export function RequestTable({ items, isLoading, error, onViewDetail, onRetry, t
                     {REQUEST_TYPE_LABEL[item.requestType]}
                   </Chip>
                 </Table.Cell>
-                <Table.Cell className="text-muted-foreground">
-                  {item.activityName || '-'}
+                <Table.Cell>
+                  <Link href={getDetailHref(item)} className="font-medium text-foreground hover:underline">
+                    {item.activityName || '-'}
+                  </Link>
                 </Table.Cell>
                 <Table.Cell className="text-muted-foreground">
                   <Chip size="sm" color={REQUEST_STATUS_CHIP_COLOR[item.status]} variant="soft">
@@ -110,7 +114,7 @@ export function RequestTable({ items, isLoading, error, onViewDetail, onRetry, t
                       variant="tertiary"
                       size="sm"
                       aria-label="Lihat detail pengajuan"
-                      onPress={() => onViewDetail(item.id)}
+                      onPress={() => onViewDetail?.(item)}
                     >
                       <Eye className="h-4 w-4" />
                     </Button>

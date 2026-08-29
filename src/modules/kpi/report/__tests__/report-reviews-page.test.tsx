@@ -31,6 +31,7 @@ jest.mock('@/hooks/use-permission', () => ({
 
 const fetchMy = jest.fn();
 const fetchReview = jest.fn();
+const routerPush = jest.fn();
 
 let mockToReview: KpiReportResponse[] = [];
 let mockRecoverable: { kind: string; message: string; refetch: boolean } | null = null;
@@ -46,17 +47,7 @@ jest.mock('@/modules/kpi/report/use-report-data', () => ({
   }),
 }));
 
-// Detail modal captured as a probe: REVIEW mode must carry decision callbacks.
-jest.mock('@/modules/kpi/report/report-detail-modal', () => ({
-  ReportDetailModal: (props: { mode: string; onApprove?: () => void; onReject?: () => void }) => (
-    <div
-      data-testid="detail-modal"
-      data-mode={props.mode}
-      data-has-approve={props.onApprove ? 'true' : 'false'}
-      data-has-reject={props.onReject ? 'true' : 'false'}
-    />
-  ),
-}));
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush, replace: jest.fn() }) }));
 jest.mock('@/modules/kpi/report/report-review-dialog', () => ({ ReportReviewDialog: () => null }));
 jest.mock('@/modules/kpi/admin/reassign-reviewer-dialog', () => ({ ReassignReviewerDialog: () => null }));
 
@@ -89,8 +80,8 @@ describe('Report Reviews page (/kpi/report-reviews)', () => {
 
   it('renders directly with its own header and breadcrumb (direct-load safe)', () => {
     render(<KpiReportReviewsPage />);
-    expect(screen.getByRole('heading', { name: 'Report Reviews' })).toBeInTheDocument();
-    expect(allText()).toMatch(/Report Reviews/);
+    expect(screen.getByRole('heading', { name: 'Persetujuan Laporan' })).toBeInTheDocument();
+    expect(allText()).toMatch(/Persetujuan Laporan/);
   });
 
   it('fetches scope=to-review and never scope=mine', () => {
@@ -109,31 +100,28 @@ describe('Report Reviews page (/kpi/report-reviews)', () => {
     mockToReview = [report('assigned', 'u-reviewer', 'Parent Reviewer')];
     render(<KpiReportReviewsPage />);
     expect(allText()).not.toMatch(/Access Denied/i);
-    expect(screen.queryByRole('button', { name: 'Reassign reviewer' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Alihkan peninjau' })).not.toBeInTheDocument();
   });
 
   it('shows the empty state instead of a permission error for an empty queue', () => {
     render(<KpiReportReviewsPage />);
-    expect(screen.getByText('No reports to review.')).toBeInTheDocument();
+    expect(screen.getByText('Tidak ada laporan untuk ditinjau.')).toBeInTheDocument();
     expect(allText()).not.toMatch(/Access Denied/i);
   });
 
-  it('keeps approve/reject — the detail modal opens in REVIEW mode with decision callbacks', () => {
+  it('routes detail to the review context', () => {
     mockToReview = [report('assigned', 'u-reviewer', 'Parent Reviewer')];
     render(<KpiReportReviewsPage />);
 
-    screen.getByRole('button', { name: 'View detail' }).click();
-    const modal = screen.getByTestId('detail-modal');
-    expect(modal).toHaveAttribute('data-mode', 'REVIEW');
-    expect(modal).toHaveAttribute('data-has-approve', 'true');
-    expect(modal).toHaveAttribute('data-has-reject', 'true');
+    screen.getByRole('button', { name: 'Lihat detail laporan' }).click();
+    expect(routerPush).toHaveBeenCalledWith('/kpi/reports/assigned?from=review');
   });
 
   it('shows reassignment for hierarchy-assigned reports when kpi_report:manage is held', () => {
     mockPermissions = { 'kpi_report:manage': true };
     mockToReview = [report('assigned', 'u-reviewer', 'Parent Reviewer')];
     render(<KpiReportReviewsPage />);
-    expect(screen.getByRole('button', { name: 'Reassign reviewer' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Alihkan peninjau' })).toBeInTheDocument();
   });
 
   it('never shows reassignment for top-level root reports (no stored reviewer)', () => {
@@ -143,7 +131,7 @@ describe('Report Reviews page (/kpi/report-reviews)', () => {
       report('root', null, null),
     ];
     render(<KpiReportReviewsPage />);
-    const reassignButtons = screen.getAllByRole('button', { name: 'Reassign reviewer' });
+    const reassignButtons = screen.getAllByRole('button', { name: 'Alihkan peninjau' });
     expect(reassignButtons).toHaveLength(1); // exactly the hierarchy-assigned report
   });
 

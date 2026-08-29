@@ -16,6 +16,9 @@ type PermSet = Record<string, boolean>;
 let mockPermissions: PermSet = {};
 let mockToReview: KpiActivityChangeRequestResponse[] = [];
 let mockMyRequests: KpiActivityChangeRequestResponse[] = [];
+const routerPush = jest.fn();
+
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush, replace: jest.fn() }) }));
 
 jest.mock('@/hooks/use-permission', () => ({
   usePermission: () => {

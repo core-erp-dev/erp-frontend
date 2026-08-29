@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Table, Chip, Button } from '@heroui/react';
 import { Eye, ArrowsClockwise } from '@phosphor-icons/react';
 import { KpiTable } from '@/modules/kpi/shared/kpi-table';
@@ -17,7 +18,8 @@ interface ReportTableProps {
   isLoading: boolean;
   error: string | null;
   mode: TableMode;
-  onViewDetail: (id: string) => void;
+  getDetailHref?: (item: KpiReportResponse) => string;
+  onViewDetail?: (item: KpiReportResponse) => void;
   /** T18 — administrative reviewer reassignment; provided only for `kpi_report:manage` holders. */
   onReassignReviewer?: (report: KpiReportResponse) => void;
   totalItems: number;
@@ -27,7 +29,7 @@ interface ReportTableProps {
 }
 
 export function ReportTable({
-  items, isLoading, error, mode, onViewDetail, onReassignReviewer, totalItems, currentPage, totalPages, onPageChange,
+  items, isLoading, error, mode, getDetailHref = (item) => `/kpi/reports/${item.id}?from=${mode === 'MY' ? 'mine' : 'review'}`, onViewDetail, onReassignReviewer, totalItems, currentPage, totalPages, onPageChange,
 }: ReportTableProps) {
   const showReviewer = mode === 'MY';
 
@@ -56,7 +58,7 @@ export function ReportTable({
     >
       {items.map((item) => (
               <Table.Row key={item.id} id={item.id}>
-                <Table.Cell className="font-medium text-foreground">{item.activityName}</Table.Cell>
+                <Table.Cell><Link href={getDetailHref(item)} className="font-medium text-foreground hover:underline">{item.activityName}</Link></Table.Cell>
                 <Table.Cell>{item.reportDate}</Table.Cell>
                 <Table.Cell>{item.realizedValue} {item.unit}</Table.Cell>
                 {mode === 'TO_REVIEW' && (
@@ -77,7 +79,7 @@ export function ReportTable({
                 </Table.Cell>
                   <Table.Cell>
                     <div className="flex items-center justify-end gap-1">
-                    <Button isIconOnly variant="tertiary" size="sm" aria-label="Lihat detail laporan" onPress={() => onViewDetail(item.id)}>
+                    <Button isIconOnly variant="tertiary" size="sm" aria-label="Lihat detail laporan" onPress={() => onViewDetail?.(item)}>
                       <Eye className="h-4 w-4" />
                     </Button>
                     {/* T18 reassignment applies to hierarchy-assigned reports only —

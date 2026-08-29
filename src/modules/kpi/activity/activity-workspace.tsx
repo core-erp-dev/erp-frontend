@@ -18,7 +18,6 @@ import { PERM } from '@/constants/permissions';
 import { usePermission } from '@/hooks/use-permission';
 import { KPI_LABELS } from '@/modules/kpi/constants';
 import { ActivityTable } from '@/modules/kpi/activity/activity-table';
-import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
 import { RequestTable } from '@/modules/kpi/activity/request-table';
 import { ActivityChangeModal } from '@/modules/kpi/activity/activity-change-modal';
 import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
@@ -264,9 +263,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     return `/kpi/activities/${item.id}?from=${from}`;
   }, [view]);
 
-  const openRequestDetail = useCallback((id: string) => {
-    setRequestDetailId(id);
-  }, []);
+  const getRequestHref = useCallback((id: string) => `/kpi/activity-requests/${id}?from=mine`, []);
 
   /* ── T5 change modal (update | cancel) ── */
   const [changeModal, setChangeModal] = useState<{
@@ -275,7 +272,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     activity: KpiActivityResponse | null;
     actingPosition: ActingPosition | null;
   }>({ isOpen: false, mode: 'update', activity: null, actingPosition: null });
-  const [requestDetailId, setRequestDetailId] = useState<string | null>(null);
 
   const [adminReassignTarget, setAdminReassignTarget] = useState<KpiActivityResponse | null>(null);
   const [adminCancelTarget, setAdminCancelTarget] = useState<KpiActivityResponse | null>(null);
@@ -483,7 +479,8 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             items={pagedMyRequests.items}
             isLoading={isLoadingRequests || tableState.isQueryLoading}
             error={requestsError}
-            onViewDetail={openRequestDetail}
+            getDetailHref={(item) => getRequestHref(item.id)}
+            onViewDetail={(item) => router.push(getRequestHref(item.id))}
             totalItems={pagedMyRequests.totalItems}
             currentPage={pagedMyRequests.page}
             totalPages={pagedMyRequests.totalPages}
@@ -491,16 +488,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           />
         )}
       </div>
-
-      {view === 'my-requests' && requestDetailId && (
-        <KpiActivityDetailModal
-          key={requestDetailId}
-          isOpen
-          onClose={() => setRequestDetailId(null)}
-          mode="REQUEST"
-          entityId={requestDetailId}
-        />
-      )}
 
       {view === 'all-activities' && adminReassignTarget && (
         <AdminReassignActivityModal

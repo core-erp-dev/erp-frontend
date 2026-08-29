@@ -13,6 +13,7 @@ import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
 
 const fetchMy = jest.fn();
 const fetchReview = jest.fn();
+const routerPush = jest.fn();
 
 let mockMyReports: KpiReportResponse[] = [];
 
@@ -27,18 +28,7 @@ jest.mock('@/modules/kpi/report/use-report-data', () => ({
   }),
 }));
 
-// Detail modal captured as a probe: MY mode must never receive decision callbacks.
-jest.mock('@/modules/kpi/report/report-detail-modal', () => ({
-  ReportDetailModal: (props: { mode: string; onApprove?: () => void; onReject?: () => void }) => (
-    <div
-      data-testid="detail-modal"
-      data-mode={props.mode}
-      data-has-approve={props.onApprove ? 'true' : 'false'}
-      data-has-reject={props.onReject ? 'true' : 'false'}
-    />
-  ),
-}));
-jest.mock('@/modules/kpi/report/report-submit-modal', () => ({ ReportSubmitModal: () => null }));
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush, replace: jest.fn() }) }));
 jest.mock('@/modules/kpi/report/report-review-dialog', () => ({ ReportReviewDialog: () => null }));
 jest.mock('@/modules/kpi/admin/reassign-reviewer-dialog', () => ({ ReassignReviewerDialog: () => null }));
 
@@ -69,8 +59,8 @@ describe('My Reports page (/kpi/reports)', () => {
 
   it('renders directly with its own header and breadcrumb (direct-load safe)', () => {
     render(<KpiMyReportsPage />);
-    expect(screen.getByRole('heading', { name: 'My Report' })).toBeInTheDocument();
-    expect(allText()).toMatch(/My Report/);
+    expect(screen.getByRole('heading', { name: 'Laporan Saya' })).toBeInTheDocument();
+    expect(allText()).toMatch(/Laporan Saya/);
   });
 
   it('fetches scope=mine and never scope=to-review', () => {
@@ -81,7 +71,7 @@ describe('My Reports page (/kpi/reports)', () => {
 
   it('shows the empty state instead of a permission error when there are no reports', () => {
     render(<KpiMyReportsPage />);
-    expect(screen.getByText('No reports submitted yet.')).toBeInTheDocument();
+    expect(screen.getByText('Belum ada laporan yang diajukan.')).toBeInTheDocument();
     expect(allText()).not.toMatch(/Access Denied/i);
   });
 
@@ -93,20 +83,17 @@ describe('My Reports page (/kpi/reports)', () => {
     render(<KpiMyReportsPage />);
     expect(screen.getByText('Activity assigned')).toBeInTheDocument();
     expect(screen.getByText('Parent Reviewer')).toBeInTheDocument();
-    expect(screen.getByText('Company queue')).toBeInTheDocument();
+    expect(screen.getByText('Antrean perusahaan')).toBeInTheDocument();
   });
 
-  it('does NOT expose approve/reject — the detail modal opens in read-only MY mode', () => {
+  it('does NOT expose approve/reject and routes detail to the mine context', () => {
     mockMyReports = [report('assigned', 'u-reviewer', 'Parent Reviewer')];
     render(<KpiMyReportsPage />);
-    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Setujui' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tolak' })).not.toBeInTheDocument();
 
-    screen.getByRole('button', { name: 'View detail' }).click();
-    const modal = screen.getByTestId('detail-modal');
-    expect(modal).toHaveAttribute('data-mode', 'MY');
-    expect(modal).toHaveAttribute('data-has-approve', 'false');
-    expect(modal).toHaveAttribute('data-has-reject', 'false');
+    screen.getByRole('button', { name: 'Lihat detail laporan' }).click();
+    expect(routerPush).toHaveBeenCalledWith('/kpi/reports/assigned?from=mine');
   });
 
   it('does not render the legacy My Reports / Review Queue tab toggle', () => {

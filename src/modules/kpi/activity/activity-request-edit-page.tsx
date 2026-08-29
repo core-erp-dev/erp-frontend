@@ -27,6 +27,8 @@ export function ActivityRequestEditPage({ id, onBack, onSuccess }: ActivityReque
   const [indicatorIds, setIndicatorIds] = useState<string[]>([]);
   const [indicators, setIndicators] = useState<CorporateKpiNode[]>([]);
   const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
+  const [indicatorsLoaded, setIndicatorsLoaded] = useState(false);
+  const [indicatorsError, setIndicatorsError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isChild = Boolean(activity?.parentId);
@@ -43,11 +45,13 @@ export function ActivityRequestEditPage({ id, onBack, onSuccess }: ActivityReque
     setTargetValue(String(activity.targetValue));
     setIndicatorIds(activity.corporateKpis?.map((indicator) => indicator.id) ?? (activity.corporateKpiId ? [activity.corporateKpiId] : []));
     setValidationError(null);
+    setIndicatorsLoaded(Boolean(activity.parentId));
   }, [activity]);
 
   const loadIndicators = useCallback(async () => {
     if (!activity || isChild) return;
     setIsLoadingIndicators(true);
+    setIndicatorsError(null);
     try {
       const [tree, structures] = await Promise.all([corporateKpiApi.getTreeByYear(activity.periodYear), corporateKpiStructuresApi.list()]);
       const activeStructureIds = new Set(structures.filter((structure) => structure.status === 'ACTIVE').map((structure) => structure.id));
@@ -59,9 +63,10 @@ export function ActivityRequestEditPage({ id, onBack, onSuccess }: ActivityReque
       collect(tree);
       setIndicators(result);
     } catch (loadError: unknown) {
-      toast.danger(extractActivityV1Error(loadError));
+      setIndicatorsError(extractActivityV1Error(loadError));
     } finally {
       setIsLoadingIndicators(false);
+      setIndicatorsLoaded(true);
     }
   }, [activity, isChild]);
 
@@ -93,8 +98,9 @@ export function ActivityRequestEditPage({ id, onBack, onSuccess }: ActivityReque
     }
   }, [activity, actingPosition, activityName, description, indicatorIds, isChild, onSuccess, refresh, targetValue, unit]);
 
-  if (isLoading || isLoadingPositions) return <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>;
+  if (isLoading || isLoadingPositions || (!isChild && !indicatorsLoaded)) return <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>;
   if (error || !activity) return <div className="flex flex-col gap-5"><Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{error || 'Aktivitas tidak ditemukan.'}</Alert.Title></Alert.Content></Alert><Button variant="secondary" className="self-start" onPress={onBack}>Kembali</Button></div>;
+  if (indicatorsError) return <div className="flex flex-col gap-5"><Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{indicatorsError}</Alert.Title></Alert.Content></Alert><Button variant="secondary" className="self-start" onPress={onBack}>Kembali</Button></div>;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">

@@ -83,5 +83,5 @@ export const reportV1Api = {
 
 /** Error extractor (read). */
 export function extractReportV1Error(error: unknown): string {
-  return extractErrorMessage(error, 'Failed to load report data.');
+  return extractErrorMessage(error, 'Gagal memuat data laporan.');
 }
