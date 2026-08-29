@@ -18,10 +18,6 @@ interface UnitPerformanceResultsTableProps {
   getDetailHref: (rowId: string) => string;
 }
 
-function formatNumber(value: number | null): string {
-  return value == null ? '-' : new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(value);
-}
-
 function formatPercent(value: number | null): string {
   return value == null ? '-' : `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)}%`;
 }
@@ -100,7 +96,7 @@ export const UnitPerformanceResultsTable: React.FC<UnitPerformanceResultsTablePr
                 </div>
               </Table.Cell>
               <Table.Cell className="text-muted-foreground">{formatPercent(row.weight)}</Table.Cell>
-              <Table.Cell className="text-muted-foreground">{formatNumber(row.realization)}</Table.Cell>
+              <Table.Cell className="text-muted-foreground">{formatPercent(row.performance)}</Table.Cell>
               <Table.Cell>
                 <div className="flex items-center justify-end gap-1">
                   <Button

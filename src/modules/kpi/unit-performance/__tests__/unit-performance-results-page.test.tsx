@@ -54,6 +54,7 @@ it('fetches and renders the result contract without exposing matrix editing', as
   expect(screen.getByText('Bobot')).toBeInTheDocument();
   expect(screen.getByText('Kode')).toBeInTheDocument();
   expect(screen.getByText('Hasil')).toBeInTheDocument();
+  expect(screen.getByText('78,25%')).toBeInTheDocument();
   const detailLink = screen.getByRole('link', { name: 'Unit Satu' });
   expect(detailLink).toHaveAttribute('href', expect.stringContaining('/kpi/unit-performance/up-1?'));
   expect(detailLink.getAttribute('href')).toContain(`year=${new Date().getFullYear()}`);
