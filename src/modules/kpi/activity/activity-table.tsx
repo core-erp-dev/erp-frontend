@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Chip, Button, Dropdown, Table, Tooltip } from '@heroui/react';
-import { DotsThreeVertical, Eye, PencilLine, PencilSimple, Plus, Prohibit, Trash, UserSwitch } from '@phosphor-icons/react';
+import { DotsThreeVertical, Eye, PencilLine, PencilSimple, Prohibit, Trash, UserSwitch } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KpiTable } from '@/modules/kpi/shared/kpi-table';
@@ -25,8 +25,7 @@ interface ActivityTableProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
-  ownAssignmentUserPositionId?: string | null;
-  onAddChild?: (item: KpiActivityResponse) => void;
+  ownAssignmentUserPositionIds?: string[];
   onRequestChange?: (item: KpiActivityResponse, mode: 'update' | 'cancel') => void;
   canAdminEdit?: boolean;
   onAdminEdit?: (item: KpiActivityResponse) => void;
@@ -39,9 +38,9 @@ const ACTIVITY_STATUS_CHIP_COLOR: Record<KpiActivityStatus, 'default' | 'success
   CANCELLED: 'default',
 };
 
-function isOwned(item: KpiActivityResponse, ownAssignmentUserPositionId: string | null | undefined): boolean {
-  return Boolean(ownAssignmentUserPositionId)
-    && item.assignedToUserPositionId === ownAssignmentUserPositionId;
+function isOwned(item: KpiActivityResponse, ownAssignmentUserPositionIds: string[] | undefined): boolean {
+  return (ownAssignmentUserPositionIds?.length ?? 0) > 0
+    && Boolean(ownAssignmentUserPositionIds?.includes(item.assignedToUserPositionId));
 }
 
 function formatNumber(value: number): string {
@@ -58,7 +57,7 @@ export function ActivityTable({
   items, isLoading, error, onViewDetail, onRetry, emptyLabel = 'Tidak ada aktivitas.',
   getActivityHref,
   totalItems, currentPage, totalPages, onPageChange,
-  ownAssignmentUserPositionId, onAddChild, onRequestChange, canAdminEdit, onAdminEdit, onAdminReassign, onAdminCancel,
+  ownAssignmentUserPositionIds, onRequestChange, canAdminEdit, onAdminEdit, onAdminReassign, onAdminCancel,
 }: ActivityTableProps) {
   const { hasAnyPerm } = usePermission();
 
@@ -88,7 +87,7 @@ export function ActivityTable({
       onPageChange={onPageChange}
     >
       {items.map((item) => {
-        const owned = isOwned(item, ownAssignmentUserPositionId);
+        const owned = isOwned(item, ownAssignmentUserPositionIds);
         const canChange = owned && item.status === 'ACTIVE' && Boolean(onRequestChange);
         const canManage = Boolean(canAdminEdit && item.status === 'ACTIVE' && item.version != null);
         const indicators = item.corporateKpis ?? (item.corporateKpiId ? [{ id: item.corporateKpiId, code: item.corporateKpiCode, name: item.corporateKpiName }] : []);
@@ -144,7 +143,6 @@ export function ActivityTable({
                   <Dropdown.Popover placement="top">
                     <Dropdown.Menu onAction={(key) => {
                       if (key === 'view') onViewDetail(item.id);
-                      if (key === 'add-child') onAddChild?.(item);
                       if (key === 'update') onRequestChange?.(item, 'update');
                       if (key === 'cancel') onRequestChange?.(item, 'cancel');
                       if (key === 'edit') onAdminEdit?.(item);
@@ -154,11 +152,6 @@ export function ActivityTable({
                       <Dropdown.Item id="view" textValue="Lihat detail">
                         <div className="flex items-center gap-2"><Eye className="h-4 w-4 text-muted-foreground" /><span>Lihat detail</span></div>
                       </Dropdown.Item>
-                      {canChange && onAddChild && (
-                        <Dropdown.Item id="add-child" textValue="Tambah aktivitas turunan">
-                          <div className="flex items-center gap-2"><Plus className="h-4 w-4 text-muted-foreground" /><span>Tambah aktivitas turunan</span></div>
-                        </Dropdown.Item>
-                      )}
                       {canChange && onRequestChange && (
                         <>
                           <Dropdown.Item id="update" textValue="Ajukan perubahan">

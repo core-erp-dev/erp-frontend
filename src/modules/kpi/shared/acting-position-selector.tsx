@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { Button, Chip, Label, ListBox, Select, Spinner } from '@heroui/react';
-import { ArrowsClockwise, Warning } from '@phosphor-icons/react';
+import { useCallback, useEffect, useState } from 'react';
+import { Chip, Label, ListBox, Select } from '@heroui/react';
 import type { ActingPosition } from './acting-position';
 import { extractPositionsError, getMyPositions, toActingPositions } from './my-positions';
 
@@ -40,7 +39,6 @@ export function useMyPositions(enabled = true) {
 
   return { positions, isLoading, error, refetch };
 }
-
 export interface ActingPositionSelectorProps {
   positions: ActingPosition[];
   /** Selected `core_positions.id` (null until the user explicitly chooses). */
@@ -100,64 +98,3 @@ export function ActingPositionSelector({
   );
 }
 
-export interface ActingPositionPanelProps {
-  positions: ActingPosition[];
-  isLoading: boolean;
-  error: string | null;
-  onRetry: () => void;
-  value: string | null;
-  onChange: (positionId: string) => void;
-  disabled?: boolean;
-}
-
-/**
- * Full acting-Position panel: loading / recoverable-error / empty / selector
- * states. Ordinary Activity reads must remain usable regardless of this
- * panel's state — Position-dependent actions are simply gated on it.
- */
-export function ActingPositionPanel({
-  positions, isLoading, error, onRetry, value, onChange, disabled,
-}: ActingPositionPanelProps) {
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner size="sm" />
-        <span>Memuat posisi aktif...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center gap-3 rounded-lg bg-danger-soft p-3 text-sm text-danger-soft-foreground">
-        <Warning className="h-4 w-4 shrink-0" />
-        <span className="min-w-0 flex-1">{error}</span>
-          <Button variant="secondary" size="sm" onPress={onRetry}>
-            <ArrowsClockwise className="h-3.5 w-3.5" />
-          Coba Lagi
-        </Button>
-      </div>
-    );
-  }
-
-  if (positions.length === 0) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg bg-warning-soft p-3 text-sm text-warning-soft-foreground">
-        <Warning className="h-4 w-4 shrink-0" />
-        <span>
-          Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan,
-          aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <ActingPositionSelector
-      positions={positions}
-      value={value}
-      onChange={onChange}
-      disabled={disabled}
-    />
-  );
-}

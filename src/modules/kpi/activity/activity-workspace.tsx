@@ -20,13 +20,12 @@ import { KPI_LABELS } from '@/modules/kpi/constants';
 import { ActivityTable } from '@/modules/kpi/activity/activity-table';
 import { KpiActivityDetailModal } from '@/modules/kpi/activity/kpi-activity-detail-modal';
 import { RequestTable } from '@/modules/kpi/activity/request-table';
-import { ActivityRequestModal } from '@/modules/kpi/activity/activity-request-modal';
 import { ActivityChangeModal } from '@/modules/kpi/activity/activity-change-modal';
 import { useActivityData } from '@/modules/kpi/activity/use-activity-data';
 import { AdminReassignActivityModal } from '@/modules/kpi/admin/admin-reassign-activity-modal';
 import { kpiAdminV1Api } from '@/modules/kpi/admin/kpi-admin-v1-api';
 import { DeleteConfirmDialog } from '@/components/shared/delete-confirm-dialog';
-import { ActingPositionPanel, useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
+import { useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v1.types';
@@ -68,9 +67,8 @@ const REQUEST_TABLE_STATE = {
  *   - my-requests → GET /api/v1/kpi-activity-requests?scope=mine
  *
  * Position filter rules: mine/subordinates default to all active positions
- * owned by the user; an optional URL `positionId` narrows the dataset. Actions
- * that create or change activities still require an explicitly selected position.
- * A Position-loading failure never hides ordinary Activity reads.
+ * owned by the user; an optional URL `positionId` narrows the dataset. Position
+ * selection required for submission lives on the dedicated form pages.
  *
  * Deliberately NOT here:
  *   - No Approval / To Review tab — the Activity Approval queue lives only
@@ -96,13 +94,9 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
 
   /* ── Position filter (URL-controlled; default is all active positions) ── */
   const needsPosition = view === 'my-activities' || view === 'subordinates';
-  const { positions, isLoading: isLoadingPositions, error: positionsError, refetch: refetchPositions } = useMyPositions(needsPosition);
+  const { positions, isLoading: isLoadingPositions, error: positionsError } = useMyPositions(needsPosition);
   const selectedPositionId = tableFilters.positionId || null;
   const subordinateScope = tableFilters.subordinateScope as 'all' | 'direct';
-  const selectedActingPosition: ActingPosition | null = useMemo(
-    () => positions.find((p) => p.positionId === selectedPositionId) ?? null,
-    [positions, selectedPositionId],
-  );
 
   const title = VIEW_TITLES[view];
 
@@ -124,10 +118,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     isLoadingSubordinates,
     subordinatesError,
     fetchSubordinatesActivities,
-
-    superiorActivities,
-    isLoadingSuperior,
-    fetchSuperiorActivities,
 
     myRequests,
     myRequestsPagination,
@@ -152,14 +142,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     sortBy: tableFilters.sortBy as 'activityName' | 'createdAt',
     sortDirection: tableFilters.direction as 'asc' | 'desc',
   }), [needsPosition, subordinateScope, tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.positionId, tableFilters.search, tableFilters.size, tableFilters.sortBy, view]);
-
-  const parentActivityQuery = useMemo(() => ({
-    ...allActivitiesQuery,
-    page: 1,
-    size: 100,
-    search: '',
-    status: 'ACTIVE' as const,
-  }), [allActivitiesQuery]);
 
   const activityFilterSections = useMemo<KpiTableFilterSection[]>(() => [
     {
@@ -224,18 +206,10 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   }, [view, fetchAllActivities, allActivitiesQuery]);
 
   useEffect(() => {
-    if (view === 'my-activities') {
-      void fetchMyActivities(allActivitiesQuery);
-      if (selectedActingPosition) void fetchSuperiorActivities(selectedActingPosition.positionId);
-    }
-    if (view === 'subordinates') {
-      if (selectedActingPosition) {
-        void fetchSubordinatesActivities(undefined, allActivitiesQuery);
-        void fetchMyActivities(parentActivityQuery);
-      }
-    }
+    if (view === 'my-activities') void fetchMyActivities(allActivitiesQuery);
+    if (view === 'subordinates') void fetchSubordinatesActivities(undefined, allActivitiesQuery);
     if (view === 'my-requests') void fetchMyRequests(requestQuery);
-  }, [view, selectedActingPosition, allActivitiesQuery, parentActivityQuery, requestQuery, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities]);
+  }, [view, allActivitiesQuery, requestQuery, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities]);
   const pagedMyActivities = useMemo(() => ({
     items: myActivities,
     totalItems: myPagination?.totalElements ?? 0,
@@ -271,7 +245,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     }
   }, [view, myPagination, allPagination, subordinatesPagination, myRequestsPagination]);
 
-  const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingSuperior || isLoadingRequests || tableState.isQueryLoading || isLoadingPositions;
+  const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingRequests || tableState.isQueryLoading;
 
   const handleRefresh = useCallback(() => {
     if (view === 'my-activities') void fetchMyActivities();
@@ -280,63 +254,32 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     if (view === 'my-requests') void fetchMyRequests();
   }, [view, fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities]);
 
-  /* ── Detail modal ── */
-  const [detailModal, setDetailModal] = useState<{
-    isOpen: boolean;
-    mode: 'ACTIVITY' | 'REQUEST';
-    entityId: string | null;
-  }>({ isOpen: false, mode: 'ACTIVITY', entityId: null });
-
   const openActivityDetail = useCallback((id: string) => {
-    if (view === 'all-activities') {
-      router.push(`/kpi/activities/${id}`);
-      return;
-    }
-    setDetailModal({ isOpen: true, mode: 'ACTIVITY', entityId: id });
+    const from = view === 'subordinates' ? 'subordinate' : view === 'my-activities' ? 'mine' : 'all';
+    router.push(`/kpi/activities/${id}?from=${from}`);
   }, [router, view]);
 
   const getActivityHref = useCallback((item: KpiActivityResponse) => {
-    const actingPositionId = view === 'subordinates' ? selectedActingPosition?.positionId : undefined;
-    return `/kpi/activities/${item.id}${actingPositionId ? `?actingPositionId=${actingPositionId}` : ''}`;
-  }, [selectedActingPosition?.positionId, view]);
+    const from = view === 'subordinates' ? 'subordinate' : view === 'my-activities' ? 'mine' : 'all';
+    return `/kpi/activities/${item.id}?from=${from}`;
+  }, [view]);
 
   const openRequestDetail = useCallback((id: string) => {
-    setDetailModal({ isOpen: true, mode: 'REQUEST', entityId: id });
+    setRequestDetailId(id);
   }, []);
-
-  const closeDetail = useCallback(() => {
-    setDetailModal({ isOpen: false, mode: 'ACTIVITY', entityId: null });
-  }, []);
-
-  /* ── T4 request modal (independent | child) ── */
-  const [requestModal, setRequestModal] = useState<{
-    isOpen: boolean;
-    mode: 'independent' | 'child';
-    /** `own` = the acting Position's OWN ACTIVE activities; `superior` = the
-     *  direct superior's ACTIVE activities (self-child parent source). */
-    parentsSource: 'own' | 'superior';
-    initialParentId?: string | null;
-  }>({ isOpen: false, mode: 'independent', parentsSource: 'own', initialParentId: null });
 
   /* ── T5 change modal (update | cancel) ── */
   const [changeModal, setChangeModal] = useState<{
     isOpen: boolean;
     mode: 'update' | 'cancel';
     activity: KpiActivityResponse | null;
-  }>({ isOpen: false, mode: 'update', activity: null });
+    actingPosition: ActingPosition | null;
+  }>({ isOpen: false, mode: 'update', activity: null, actingPosition: null });
+  const [requestDetailId, setRequestDetailId] = useState<string | null>(null);
 
   const [adminReassignTarget, setAdminReassignTarget] = useState<KpiActivityResponse | null>(null);
   const [adminCancelTarget, setAdminCancelTarget] = useState<KpiActivityResponse | null>(null);
   const [isAdminCancelling, setIsAdminCancelling] = useState(false);
-
-  /* Eligible parents for child create: the actor's own ACTIVE activities
-   * (exact-assignment ownership — backend requires parent-assignee or self). */
-  const ownActiveParents = useMemo(() => {
-    if (!selectedActingPosition) return [];
-    return (myActivities ?? []).filter(
-      (a) => a.status === 'ACTIVE' && a.assignedToUserPositionId === selectedActingPosition.userPositionId,
-    );
-  }, [myActivities, selectedActingPosition]);
 
   /** Refetch every relevant dataset after a successful mutation or conflict. */
   const refetchAll = useCallback(() => {
@@ -345,11 +288,14 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       fetchAllActivities(),
       fetchMyRequests(),
       fetchSubordinatesActivities(),
-      selectedActingPosition
-        ? fetchSuperiorActivities(selectedActingPosition.positionId)
-        : Promise.resolve(),
     ]);
-  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities, fetchSuperiorActivities, selectedActingPosition]);
+  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities]);
+
+  const refetchCurrent = useCallback(() => {
+    if (view === 'my-activities') void fetchMyActivities();
+    if (view === 'subordinates') void fetchSubordinatesActivities();
+    if (view === 'my-requests') void fetchMyRequests();
+  }, [fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, view]);
 
   const handleAdminCancel = useCallback(async () => {
     if (!adminCancelTarget) return;
@@ -409,54 +355,26 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             />
           </Button>
 
-          {view === 'my-activities' && selectedActingPosition && (
+          {view === 'my-activities' && (
             <Button
               variant="primary"
-              onPress={() => setRequestModal({ isOpen: true, mode: 'independent', parentsSource: 'own' })}
+              onPress={() => router.push('/kpi/activities/mine/create')}
+              isDisabled={isLoadingPositions || (!positionsError && positions.length === 0)}
             >
               <Plus className="h-4 w-4" />
-              Ajukan Aktivitas Independen
+              Ajukan Aktivitas
             </Button>
           )}
 
-          {view === 'subordinates' && selectedActingPosition && (
+          {view === 'subordinates' && (
             <Button
               variant="primary"
-              onPress={() => setRequestModal({ isOpen: true, mode: 'independent', parentsSource: 'own' })}
+              onPress={() => router.push('/kpi/activities/subordinate/create')}
+              isDisabled={isLoadingPositions || (!positionsError && positions.length === 0)}
             >
               <Plus className="h-4 w-4" />
-              Ajukan Aktivitas Independen
+              Ajukan Aktivitas Bawahan
             </Button>
-          )}
-
-          {/* Self-child request (My Activities): parent = the direct superior's
-              ACTIVE activities (scope=superior); assignee = the actor (T3
-              self-child returns only the actor's own assignment). No permission. */}
-          {view === 'my-activities' && selectedActingPosition && superiorActivities.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onPress={() => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'superior', initialParentId: null })}
-              >
-                <Plus className="h-4 w-4" />
-                Ajukan Aktivitas Turunan
-              </Button>
-            </div>
-          )}
-
-          {/* Child-for-subordinate request (Subordinate): parent = the acting
-              Position's OWN ACTIVE activities; assignee = a direct subordinate
-              chosen from assignable-assignees. No permission. */}
-          {view === 'subordinates' && selectedActingPosition && ownActiveParents.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onPress={() => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'own', initialParentId: null })}
-              >
-                <Plus className="h-4 w-4" />
-                Ajukan Aktivitas Bawahan
-              </Button>
-            </div>
           )}
 
           {view === 'all-activities' && canAdminManage && (
@@ -470,17 +388,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           )}
         </div>
       </div>
-
-      {needsPosition && (
-        <ActingPositionPanel
-          positions={positions}
-          isLoading={isLoadingPositions}
-          error={positionsError}
-          onRetry={refetchPositions}
-          value={selectedPositionId}
-          onChange={(positionId) => tableState.setPositionId(positionId)}
-        />
-      )}
 
       <KpiTableToolbar
         searchValue={searchInput}
@@ -511,21 +418,24 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         {view === 'my-activities' && (
           <ActivityTable
             items={pagedMyActivities.items}
-            isLoading={isLoadingMy || tableState.isQueryLoading || isLoadingPositions}
-            error={positionsError || myError}
+            isLoading={isLoadingMy || tableState.isQueryLoading}
+            error={myError}
             onViewDetail={openActivityDetail}
             getActivityHref={getActivityHref}
-            onRetry={positionsError ? refetchPositions : fetchMyActivities}
-            ownAssignmentUserPositionId={selectedActingPosition?.userPositionId ?? null}
-            onAddChild={selectedActingPosition
-              ? (item) => setRequestModal({ isOpen: true, mode: 'child', parentsSource: 'own', initialParentId: item.id })
-              : undefined}
-            onRequestChange={selectedActingPosition
-              ? (item, mode) => setChangeModal({ isOpen: true, mode, activity: item })
-              : undefined}
+            onRetry={fetchMyActivities}
+            ownAssignmentUserPositionIds={positions.map((position) => position.userPositionId)}
+            onRequestChange={(item, mode) => {
+              if (mode === 'update') router.push(`/kpi/activities/${item.id}/request-edit?from=mine`);
+              else setChangeModal({
+                isOpen: true,
+                mode,
+                activity: item,
+                actingPosition: positions.find((position) => position.userPositionId === item.assignedToUserPositionId) ?? null,
+              });
+            }}
             canAdminEdit={false}
             onAdminEdit={undefined}
-            emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Belum ada aktivitas.'}
+            emptyLabel={positions.length === 0 && !isLoadingPositions && !positionsError ? 'Anda tidak memiliki posisi aktif. Hubungi administrator jika ini tidak terduga.' : 'Belum ada aktivitas.'}
             totalItems={pagedMyActivities.totalItems}
             currentPage={pagedMyActivities.page}
             totalPages={pagedMyActivities.totalPages}
@@ -555,12 +465,12 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         {view === 'subordinates' && (
             <ActivityTable
               items={pagedSubordinates.items}
-              isLoading={isLoadingSubordinates || tableState.isQueryLoading || isLoadingPositions}
-              error={positionsError || subordinatesError}
+              isLoading={isLoadingSubordinates || tableState.isQueryLoading}
+              error={subordinatesError}
               onViewDetail={openActivityDetail}
               getActivityHref={getActivityHref}
               onRetry={() => { void fetchSubordinatesActivities(undefined, allActivitiesQuery); }}
-              emptyLabel={positions.length === 0 && !isLoadingPositions ? 'Anda tidak memiliki posisi aktif — tindakan yang bergantung pada posisi (pengajuan, aktivitas bawahan, dan persetujuan) tidak tersedia. Hubungi administrator jika ini tidak terduga.' : 'Belum ada aktivitas bawahan.'}
+              emptyLabel={positions.length === 0 && !isLoadingPositions && !positionsError ? 'Anda tidak memiliki posisi aktif. Hubungi administrator jika ini tidak terduga.' : 'Belum ada aktivitas bawahan.'}
               totalItems={pagedSubordinates.totalItems}
               currentPage={pagedSubordinates.page}
               totalPages={pagedSubordinates.totalPages}
@@ -582,14 +492,13 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         )}
       </div>
 
-      {view !== 'all-activities' && (
+      {view === 'my-requests' && requestDetailId && (
         <KpiActivityDetailModal
-          key={detailModal.entityId ?? 'detail-closed'}
-          isOpen={detailModal.isOpen}
-          onClose={closeDetail}
-          mode={detailModal.mode}
-          entityId={detailModal.entityId}
-          actingPositionId={selectedActingPosition?.positionId}
+          key={requestDetailId}
+          isOpen
+          onClose={() => setRequestDetailId(null)}
+          mode="REQUEST"
+          entityId={requestDetailId}
         />
       )}
 
@@ -619,30 +528,15 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
         />
       )}
 
-      {/* T4 — independent/child CREATE request */}
-      {selectedActingPosition && (
-        <ActivityRequestModal
-          isOpen={requestModal.isOpen}
-          onClose={() => setRequestModal({ isOpen: false, mode: 'independent', parentsSource: 'own', initialParentId: null })}
-          mode={requestModal.mode}
-          actingPosition={selectedActingPosition}
-          parents={requestModal.parentsSource === 'superior' ? superiorActivities : ownActiveParents}
-          initialParentId={requestModal.initialParentId}
-          onSuccess={refetchAll}
-          onConflict={refetchAll}
-        />
-      )}
-
-      {/* T5 — UPDATE/CANCEL change request */}
-      {selectedActingPosition && changeModal.activity && (
+      {changeModal.activity && changeModal.actingPosition && (
         <ActivityChangeModal
           isOpen={changeModal.isOpen}
-          onClose={() => setChangeModal({ isOpen: false, mode: 'update', activity: null })}
-          mode={changeModal.mode}
+          onClose={() => setChangeModal({ isOpen: false, mode: 'cancel', activity: null, actingPosition: null })}
+          mode="cancel"
           activity={changeModal.activity}
-          actingPosition={selectedActingPosition}
-          onSuccess={refetchAll}
-          onConflict={refetchAll}
+          actingPosition={changeModal.actingPosition}
+          onSuccess={refetchCurrent}
+          onConflict={refetchCurrent}
         />
       )}
 

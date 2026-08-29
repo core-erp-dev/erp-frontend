@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Alert,
@@ -34,11 +34,19 @@ interface ActivityDetailPageProps {
 
 export function ActivityDetailPage({ id, actingPositionId }: ActivityDetailPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { hasPerm, hasAnyPerm } = usePermission();
   const { activity, isLoading, error, refresh } = useActivityDetail(id, true, actingPositionId);
   const [isReassignOpen, setIsReassignOpen] = useState(false);
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const from = searchParams.get('from');
+  const listHref = from === 'mine'
+    ? '/kpi/activities/mine'
+    : from === 'subordinate'
+      ? '/kpi/activities/subordinate'
+      : '/kpi/activities/all';
+  const listLabel = from === 'mine' ? 'Aktivitas Saya' : from === 'subordinate' ? 'Aktivitas Bawahan' : 'Semua Aktivitas';
 
   if (isLoading) {
     return (
@@ -99,7 +107,7 @@ export function ActivityDetailPage({ id, actingPositionId }: ActivityDetailPageP
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
-        <BreadcrumbsItem href="/kpi/activities/all">Semua Aktivitas</BreadcrumbsItem>
+        <BreadcrumbsItem href={listHref}>{listLabel}</BreadcrumbsItem>
         <BreadcrumbsItem>{activity.activityName}</BreadcrumbsItem>
       </Breadcrumbs>
 
