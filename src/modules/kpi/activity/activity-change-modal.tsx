@@ -6,9 +6,8 @@ import {
 } from '@heroui/react';
 import { X as XIcon } from '@phosphor-icons/react';
 import { useActivityData } from './use-activity-data';
-import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
-import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
-import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
+import { loadActivityFormKpiOptions } from './activity-form-options';
+import type { KpiActivityManageIndicatorOption } from './activity-v1.types';
 import { ActivityIndicatorMultiSelect } from './activity-indicator-multi-select';
 import type { ActingPosition } from '@/modules/kpi/shared/acting-position';
 import type { RecoverableConflict } from '@/modules/kpi/shared/domain-errors';
@@ -56,7 +55,7 @@ export function ActivityChangeModal({
   const [unit, setUnit] = useState(activity.unit);
   const [targetValue, setTargetValue] = useState(String(activity.targetValue));
   const [corporateKpiIds, setCorporateKpiIds] = useState<string[]>([]);
-  const [indicators, setIndicators] = useState<CorporateKpiNode[]>([]);
+  const [indicators, setIndicators] = useState<KpiActivityManageIndicatorOption[]>([]);
   const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -85,17 +84,10 @@ export function ActivityChangeModal({
     }
     let active = true;
     setIsLoadingIndicators(true);
-    Promise.all([corporateKpiApi.getTreeByYear(activity.periodYear), corporateKpiStructuresApi.list()])
-      .then(([tree, structures]) => {
+    loadActivityFormKpiOptions(activity.periodYear)
+      .then((options) => {
         if (!active) return;
-        const activeStructures = new Set(structures.filter((s) => s.status === 'ACTIVE').map((s) => s.id));
-        const result: CorporateKpiNode[] = [];
-        const collect = (nodes: CorporateKpiNode[]) => nodes.forEach((node) => {
-          if (node.nodeType === 'INDICATOR' && activeStructures.has(node.structureId)) result.push(node);
-          if (node.children.length > 0) collect(node.children);
-        });
-        collect(tree);
-        setIndicators(result);
+        setIndicators(options.indicators);
       })
       .catch(() => { if (active) setIndicators([]); })
       .finally(() => { if (active) setIsLoadingIndicators(false); });
@@ -237,6 +229,11 @@ export function ActivityChangeModal({
                         selectedIds={corporateKpiIds}
                         onChange={setCorporateKpiIds}
                         isLoading={isLoadingIndicators}
+                        isRequired
+                        isDisabled={isSubmitting}
+                        isInvalid={validationError === 'Pilih minimal satu indikator KPI Perusahaan.'}
+                        errorMessage={validationError === 'Pilih minimal satu indikator KPI Perusahaan.' ? validationError : undefined}
+                        variant="secondary"
                       />
                     )}
                     <TextField isRequired value={activityName} onChange={setActivityName}>

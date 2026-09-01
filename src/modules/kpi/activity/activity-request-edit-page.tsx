@@ -6,10 +6,9 @@ import { ArrowLeft, FloppyDisk, House } from '@phosphor-icons/react';
 import { useActivityDetail } from './use-activity-detail';
 import { useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
 import { activityV1Api, extractActivityV1Error } from './activity-v1-api';
-import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
-import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import { ActivityIndicatorMultiSelect } from './activity-indicator-multi-select';
-import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
+import { loadActivityFormKpiOptions } from './activity-form-options';
+import type { KpiActivityManageIndicatorOption } from './activity-v1.types';
 
 interface ActivityRequestEditPageProps {
   id: string;
@@ -25,7 +24,7 @@ export function ActivityRequestEditPage({ id, onBack, onSuccess }: ActivityReque
   const [unit, setUnit] = useState('');
   const [targetValue, setTargetValue] = useState('');
   const [indicatorIds, setIndicatorIds] = useState<string[]>([]);
-  const [indicators, setIndicators] = useState<CorporateKpiNode[]>([]);
+  const [indicators, setIndicators] = useState<KpiActivityManageIndicatorOption[]>([]);
   const [isLoadingIndicators, setIsLoadingIndicators] = useState(false);
   const [indicatorsLoaded, setIndicatorsLoaded] = useState(false);
   const [indicatorsError, setIndicatorsError] = useState<string | null>(null);
@@ -53,15 +52,8 @@ export function ActivityRequestEditPage({ id, onBack, onSuccess }: ActivityReque
     setIsLoadingIndicators(true);
     setIndicatorsError(null);
     try {
-      const [tree, structures] = await Promise.all([corporateKpiApi.getTreeByYear(activity.periodYear), corporateKpiStructuresApi.list()]);
-      const activeStructureIds = new Set(structures.filter((structure) => structure.status === 'ACTIVE').map((structure) => structure.id));
-      const result: CorporateKpiNode[] = [];
-      const collect = (nodes: CorporateKpiNode[]) => nodes.forEach((node) => {
-        if (node.nodeType === 'INDICATOR' && activeStructureIds.has(node.structureId)) result.push(node);
-        if (node.children.length) collect(node.children);
-      });
-      collect(tree);
-      setIndicators(result);
+      const options = await loadActivityFormKpiOptions(activity.periodYear);
+      setIndicators(options.indicators);
     } catch (loadError: unknown) {
       setIndicatorsError(extractActivityV1Error(loadError));
     } finally {
@@ -109,7 +101,17 @@ export function ActivityRequestEditPage({ id, onBack, onSuccess }: ActivityReque
       {validationError && <Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{validationError}</Alert.Title></Alert.Content></Alert>}
       {isChild && <Alert status="accent"><Alert.Indicator /><Alert.Content><Alert.Title>KPI Perusahaan diwarisi dari aktivitas induk.</Alert.Title></Alert.Content></Alert>}
       <div className="flex flex-col gap-5">
-        {!isChild && <ActivityIndicatorMultiSelect indicators={indicators} selectedIds={indicatorIds} onChange={setIndicatorIds} isLoading={isLoadingIndicators} variant="primary" />}
+        {!isChild && <ActivityIndicatorMultiSelect
+          indicators={indicators}
+          selectedIds={indicatorIds}
+          onChange={setIndicatorIds}
+          isLoading={isLoadingIndicators}
+          isRequired
+          isDisabled={isSubmitting}
+          isInvalid={validationError === 'Pilih minimal satu indikator KPI Perusahaan.'}
+          errorMessage={validationError === 'Pilih minimal satu indikator KPI Perusahaan.' ? validationError : undefined}
+          variant="primary"
+        />}
         <TextField isRequired value={activityName} onChange={setActivityName}><Label>Nama Aktivitas</Label><Input variant="primary" /></TextField>
         <TextField value={description} onChange={setDescription}><Label>Deskripsi</Label><TextArea variant="primary" rows={3} /></TextField>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><TextField isRequired value={targetValue} onChange={setTargetValue}><Label>Target</Label><Input variant="primary" type="number" /></TextField><TextField isRequired value={unit} onChange={setUnit}><Label>Satuan</Label><Input variant="primary" /></TextField></div>

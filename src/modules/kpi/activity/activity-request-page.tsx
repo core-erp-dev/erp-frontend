@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Breadcrumbs, BreadcrumbsItem, Button, Input, Label,
   ListBox, Modal, Select, Spinner, TextArea, TextField, toast,
@@ -8,10 +8,9 @@ import {
 import { ArrowLeft, FloppyDisk, House } from '@phosphor-icons/react';
 import { ActingPositionSelector, useMyPositions } from '@/modules/kpi/shared/acting-position-selector';
 import { activityV1Api, extractActivityV1Error } from './activity-v1-api';
-import { corporateKpiApi } from '@/modules/kpi/corporate/corporate-kpi-api';
-import { corporateKpiStructuresApi } from '@/modules/kpi/corporate/corporate-kpi-structures-api';
 import { ActivityIndicatorMultiSelect } from './activity-indicator-multi-select';
-import type { CorporateKpiNode } from '@/modules/kpi/corporate/corporate-kpi.types';
+import { loadActivityFormKpiOptions } from './activity-form-options';
+import type { KpiActivityManageIndicatorOption } from './activity-v1.types';
 import type { AssignableUserPositionResponse, KpiActivityResponse } from './activity-v1.types';
 
 type RequestContext = 'mine' | 'subordinate';
@@ -37,8 +36,10 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
   const [parentId, setParentId] = useState('');
   const [year, setYear] = useState<number | null>(null);
   const [month, setMonth] = useState<number | null>(null);
-  const [indicators, setIndicators] = useState<CorporateKpiNode[]>([]);
+  const [indicators, setIndicators] = useState<KpiActivityManageIndicatorOption[]>([]);
   const [indicatorIds, setIndicatorIds] = useState<string[]>([]);
+  const [yearOptions, setYearOptions] = useState<number[]>([]);
+  const [isLoadingYears, setIsLoadingYears] = useState(true);
   const [activityName, setActivityName] = useState('');
   const [description, setDescription] = useState('');
   const [unit, setUnit] = useState('');
@@ -48,16 +49,33 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
   const [dependencyError, setDependencyError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const indicatorRequestId = useRef(0);
 
   const actingPosition = useMemo(
     () => positions.find((position) => position.positionId === actingPositionId) ?? null,
     [positions, actingPositionId],
   );
   const isChild = context === 'subordinate' && Boolean(parentId);
-  const yearOptions = useMemo(() => {
-    const current = new Date().getFullYear();
-    return Array.from({ length: 5 }, (_, index) => current - 1 + index);
+  const loadYears = useCallback(async () => {
+    setIsLoadingYears(true);
+    setDependencyError(null);
+    try {
+      const options = await loadActivityFormKpiOptions();
+      setYearOptions(options.periodYears);
+    } catch (error: unknown) {
+      setDependencyError(extractActivityV1Error(error));
+    } finally {
+      setIsLoadingYears(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (isLoadingPositions || positionsError || positions.length === 0) {
+      if (!isLoadingPositions) setIsLoadingYears(false);
+      return;
+    }
+    void loadYears();
+  }, [isLoadingPositions, loadYears, positions.length, positionsError]);
 
   useEffect(() => {
     setAssigneeId('');
@@ -85,30 +103,24 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
   }, [actingPosition?.userPositionId, actingPositionId, context]);
 
   const loadIndicators = useCallback(async (selectedYear: number) => {
+    const requestId = ++indicatorRequestId.current;
     setIsLoadingIndicators(true);
     setDependencyError(null);
     try {
-      const [tree, structures] = await Promise.all([
-        corporateKpiApi.getTreeByYear(selectedYear),
-        corporateKpiStructuresApi.list(),
-      ]);
-      const activeStructureIds = new Set(structures.filter((structure) => structure.status === 'ACTIVE').map((structure) => structure.id));
-      const result: CorporateKpiNode[] = [];
-      const collect = (nodes: CorporateKpiNode[]) => nodes.forEach((node) => {
-        if (node.nodeType === 'INDICATOR' && activeStructureIds.has(node.structureId)) result.push(node);
-        if (node.children.length) collect(node.children);
-      });
-      collect(tree);
-      setIndicators(result);
+      const options = await loadActivityFormKpiOptions(selectedYear);
+      if (requestId !== indicatorRequestId.current) return;
+      setIndicators(options.indicators);
     } catch (error: unknown) {
+      if (requestId !== indicatorRequestId.current) return;
       setIndicators([]);
       setDependencyError(extractActivityV1Error(error));
     } finally {
-      setIsLoadingIndicators(false);
+      if (requestId === indicatorRequestId.current) setIsLoadingIndicators(false);
     }
   }, []);
 
   useEffect(() => {
+    indicatorRequestId.current += 1;
     setIndicatorIds([]);
     if (!isChild && year !== null) void loadIndicators(year);
     if (isChild) setIndicators([]);
@@ -155,8 +167,8 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
   const cannotSubmit = isLoadingPositions || !actingPosition || (context === 'subordinate' && isLoadingTargets);
   const isPositionless = !isLoadingPositions && !positionsError && positions.length === 0;
 
-  if (isLoadingPositions || isLoadingTargets || isLoadingIndicators) return <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>;
-  if (positionsError || dependencyError) return <div className="mx-auto flex w-full max-w-4xl flex-col gap-5"><Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{positionsError || dependencyError}</Alert.Title></Alert.Content></Alert><div className="flex gap-2"><Button variant="primary" onPress={() => { if (positionsError) void refetchPositions(); else { setDependencyError(null); setActingPositionId(''); } }}>{positionsError ? 'Coba Lagi' : 'Pilih Ulang Posisi'}</Button><Button variant="secondary" onPress={onBack}>Kembali</Button></div></div>;
+  if (isLoadingPositions || isLoadingTargets || isLoadingIndicators || isLoadingYears) return <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>;
+  if (positionsError || dependencyError) return <div className="mx-auto flex w-full max-w-4xl flex-col gap-5"><Alert status="danger"><Alert.Indicator /><Alert.Content><Alert.Title>{positionsError || dependencyError}</Alert.Title></Alert.Content></Alert><div className="flex gap-2"><Button variant="primary" onPress={() => { if (positionsError) void refetchPositions(); else void loadYears(); }}>{positionsError ? 'Coba Lagi' : 'Coba Lagi'}</Button><Button variant="secondary" onPress={onBack}>Kembali</Button></div></div>;
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -199,7 +211,17 @@ export function ActivityRequestPage({ context, onBack, onSuccess }: ActivityRequ
                 <Label>Bulan Periode</Label><Select.Trigger><Select.Value /><Select.Indicator /></Select.Trigger><Select.Popover><ListBox>{MONTHS.map((label, index) => <ListBox.Item key={index + 1} id={String(index + 1)} textValue={label}>{label}</ListBox.Item>)}</ListBox></Select.Popover>
               </Select>
             </div>
-            <ActivityIndicatorMultiSelect indicators={indicators} selectedIds={indicatorIds} onChange={setIndicatorIds} isLoading={isLoadingIndicators} variant="primary" />
+            <ActivityIndicatorMultiSelect
+              indicators={indicators}
+              selectedIds={indicatorIds}
+              onChange={setIndicatorIds}
+              isLoading={isLoadingIndicators}
+              isRequired
+              isDisabled={isSubmitting}
+              isInvalid={validationError === 'Pilih minimal satu indikator KPI Perusahaan.'}
+              errorMessage={validationError === 'Pilih minimal satu indikator KPI Perusahaan.' ? validationError : undefined}
+              variant="primary"
+            />
           </>
         )}
         {isChild && <Alert status="accent"><Alert.Indicator /><Alert.Content><Alert.Title>KPI Perusahaan dan periode diwarisi dari aktivitas induk.</Alert.Title></Alert.Content></Alert>}

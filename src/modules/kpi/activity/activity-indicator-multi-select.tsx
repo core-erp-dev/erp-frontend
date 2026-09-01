@@ -21,12 +21,22 @@ export interface ActivityIndicatorOption {
   name: string;
 }
 
+function normalizeSelectionKeys(keys: unknown): string[] {
+  if (keys == null || keys === 'all') return [];
+  if (Array.isArray(keys)) return keys.map(String);
+  if (keys instanceof Set) return Array.from(keys).map(String);
+  return [String(keys)];
+}
+
 interface ActivityIndicatorMultiSelectProps {
   indicators: ActivityIndicatorOption[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  label?: string;
+  placeholder?: string;
   isLoading?: boolean;
   isRequired?: boolean;
+  isDisabled?: boolean;
   isInvalid?: boolean;
   errorMessage?: string;
   variant?: 'primary' | 'secondary';
@@ -37,8 +47,11 @@ export function ActivityIndicatorMultiSelect({
   indicators,
   selectedIds,
   onChange,
+  label = 'Indikator KPI Perusahaan',
+  placeholder = 'Pilih indikator KPI Perusahaan',
   isLoading = false,
   isRequired,
+  isDisabled,
   isInvalid,
   errorMessage,
   variant = 'secondary',
@@ -66,20 +79,29 @@ export function ActivityIndicatorMultiSelect({
     <Autocomplete
       className="w-full"
       variant={variant}
-      aria-label="Indikator KPI Perusahaan"
-      placeholder="Pilih indikator KPI Perusahaan"
+      aria-label={label}
+      placeholder={placeholder}
       selectionMode="multiple"
       allowsEmptyCollection
       validationBehavior="aria"
       isRequired={isRequired}
       value={selectedKeys}
       onChange={(keys) => {
-        const values = Array.isArray(keys) ? keys : keys != null ? [keys] : [];
-        onChange(values.map(String));
+        // HeroUI's multiple Autocomplete currently emits an array in normal
+        // operation, but older builds emitted a Set. Normalize both shapes so
+        // the form state always receives the actual KPI ids.
+        onChange(normalizeSelectionKeys(keys));
+      }}
+      // Multiple Autocomplete versions have differed in which selection
+      // callback they expose. Keep the RoleMultiSelect `onChange` contract as
+      // canonical, while accepting the selection callback as a safe fallback.
+      onSelectionChange={(keys) => {
+        onChange(normalizeSelectionKeys(keys));
       }}
       isInvalid={isInvalid}
+      isDisabled={isDisabled}
     >
-      <Label>Indikator KPI Perusahaan</Label>
+      <Label>{label}</Label>
       <Autocomplete.Trigger>
         <Autocomplete.Value>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}

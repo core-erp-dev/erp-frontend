@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,6 +24,7 @@ import {
 } from '@heroui/react';
 import { ArrowLeft, FloppyDisk, House } from '@phosphor-icons/react';
 import { ActivityIndicatorMultiSelect } from '@/modules/kpi/activity/activity-indicator-multi-select';
+import { loadActivityFormKpiOptions } from '@/modules/kpi/activity/activity-form-options';
 import type {
   KpiActivityManageAssigneeOption,
   KpiActivityManageOptions,
@@ -94,7 +95,9 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
   const [options, setOptions] = useState<KpiActivityManageOptions | null>(null);
   const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const loadRequestId = useRef(0);
 
   const form = useForm<CreateFormValues>({
     resolver: zodResolver(createSchema),
@@ -117,17 +120,24 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
   const yearOptions = options?.periodYears ?? [];
 
   const loadOptions = useCallback(async (year: number) => {
+    const requestId = ++loadRequestId.current;
     setIsLoadingOptions(true);
+    setOptionsError(null);
     try {
-      const data = await kpiAdminV1Api.getManageOptions(year);
-      setOptions(data);
+      const [data, kpiOptions] = await Promise.all([
+        kpiAdminV1Api.getManageOptions(year),
+        loadActivityFormKpiOptions(year),
+      ]);
+      if (requestId !== loadRequestId.current) return;
+      setOptions({ ...data, periodYears: kpiOptions.periodYears, indicators: kpiOptions.indicators });
       setLoadedYear(year);
     } catch (error: unknown) {
-      setOptions({ assignees: [], parentActivities: [], indicators: [], periodYears: [] });
-      setLoadedYear(year);
-      toast.danger(error instanceof Error ? error.message : 'Gagal memuat opsi pengelolaan aktivitas.');
+      if (requestId !== loadRequestId.current) return;
+      setOptions(null);
+      setLoadedYear(null);
+      setOptionsError(error instanceof Error ? error.message : 'Gagal memuat opsi pengelolaan aktivitas.');
     } finally {
-      setIsLoadingOptions(false);
+      if (requestId === loadRequestId.current) setIsLoadingOptions(false);
     }
   }, []);
 
@@ -159,7 +169,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
     }
   }, [onSuccess]);
 
-  const isLoadingPage = isLoadingOptions || options === null || loadedYear !== optionLookupYear;
+  const isLoadingPage = isLoadingOptions || (!optionsError && loadedYear !== optionLookupYear);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -180,6 +190,16 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
       {isLoadingPage ? (
         <div className="flex h-64 items-center justify-center">
           <Spinner size="md" />
+        </div>
+      ) : optionsError || !options ? (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger-soft-foreground" role="alert">
+            {optionsError ?? 'Opsi pengelolaan aktivitas tidak tersedia.'}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="primary" onPress={() => void loadOptions(optionLookupYear)}>Coba Lagi</Button>
+            <Button variant="secondary" onPress={onBack}>Kembali</Button>
+          </div>
         </div>
       ) : (
         <Form
@@ -346,6 +366,7 @@ export function AdminCreateActivityPage({ onSuccess, onBack }: AdminCreateActivi
                       selectedIds={field.value}
                       onChange={field.onChange}
                       isRequired
+                      isDisabled={isSubmitting}
                       variant="primary"
                       isInvalid={form.formState.isSubmitted && fieldState.invalid}
                       errorMessage={form.formState.isSubmitted ? fieldState.error?.message : undefined}

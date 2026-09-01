@@ -20,6 +20,7 @@ import {
 } from '@heroui/react';
 import { ArrowLeft, FloppyDisk, House } from '@phosphor-icons/react';
 import { ActivityIndicatorMultiSelect } from '@/modules/kpi/activity/activity-indicator-multi-select';
+import { loadActivityFormKpiOptions } from '@/modules/kpi/activity/activity-form-options';
 import type { RecoverableConflict } from '@/modules/kpi/shared/domain-errors';
 import type { KpiActivityManageOptions, KpiActivityResponse } from '@/modules/kpi/activity/activity-v1.types';
 import { kpiAdminV1Api } from './kpi-admin-v1-api';
@@ -45,6 +46,7 @@ type EditFormValues = z.infer<typeof editSchema>;
 export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict }: AdminEditActivityPageProps) {
   const [options, setOptions] = useState<KpiActivityManageOptions | null>(null);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
+  const [optionsError, setOptionsError] = useState<string | null>(null);
   const [conflict, setConflict] = useState<RecoverableConflict | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const indicators = activity.corporateKpis
@@ -65,11 +67,16 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
 
   const loadOptions = useCallback(async () => {
     setIsLoadingOptions(true);
+    setOptionsError(null);
     try {
-      setOptions(await kpiAdminV1Api.getManageOptions(activity.periodYear));
+      const [data, kpiOptions] = await Promise.all([
+        kpiAdminV1Api.getManageOptions(activity.periodYear),
+        loadActivityFormKpiOptions(activity.periodYear),
+      ]);
+      setOptions({ ...data, periodYears: kpiOptions.periodYears, indicators: kpiOptions.indicators });
     } catch (error: unknown) {
-      setOptions({ assignees: [], parentActivities: [], indicators: [], periodYears: [] });
-      toast.danger(error instanceof Error ? error.message : 'Gagal memuat opsi pengelolaan aktivitas.');
+      setOptions(null);
+      setOptionsError(error instanceof Error ? error.message : 'Gagal memuat opsi pengelolaan aktivitas.');
     } finally {
       setIsLoadingOptions(false);
     }
@@ -129,8 +136,18 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
         <Button isIconOnly variant="tertiary" onPress={onBack} aria-label="Kembali"><ArrowLeft className="h-5 w-5" /></Button>
         <h1 className="truncate text-xl font-semibold text-foreground">Edit Aktivitas</h1>
       </div>
-      {isLoadingOptions || options === null ? (
+      {isLoadingOptions ? (
         <div className="flex h-64 items-center justify-center"><Spinner size="md" /></div>
+      ) : optionsError || options === null ? (
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-danger/30 bg-danger-soft p-4 text-sm text-danger-soft-foreground" role="alert">
+            {optionsError ?? 'Opsi pengelolaan aktivitas tidak tersedia.'}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="primary" onPress={() => void loadOptions()}>Coba Lagi</Button>
+            <Button variant="secondary" onPress={onBack}>Kembali</Button>
+          </div>
+        </div>
       ) : (
         <Form validationBehavior="aria" onSubmit={(event) => { form.handleSubmit(handleSubmit)(event); }} className="flex flex-col gap-6">
           {conflict && <Alert status="warning"><Alert.Indicator /><Alert.Content><Alert.Title>{conflict.message}</Alert.Title></Alert.Content></Alert>}
@@ -166,6 +183,7 @@ export function AdminEditActivityPage({ activity, onBack, onSuccess, onConflict 
                   selectedIds={field.value}
                   onChange={field.onChange}
                   isRequired
+                  isDisabled={isSubmitting}
                   variant="primary"
                   isInvalid={form.formState.isSubmitted && fieldState.invalid}
                   errorMessage={form.formState.isSubmitted ? fieldState.error?.message : undefined}
