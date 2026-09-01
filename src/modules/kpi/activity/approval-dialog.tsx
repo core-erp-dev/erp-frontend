@@ -15,6 +15,8 @@ type DialogMode = 'APPROVE' | 'REJECT';
 interface ApprovalDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Called after the decision succeeds so the owning page can refresh its queue. */
+  onSuccess?: () => void;
   mode: DialogMode;
   request: KpiActivityChangeRequestResponse;
 }
@@ -25,7 +27,7 @@ interface ApprovalDialogProps {
  * REJECT requires a non-blank `rejectionReason` (≤1000) and sends
  * `{ decision: 'REJECT', rejectionReason }`.
  */
-export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialogProps) {
+export function ApprovalDialog({ isOpen, onClose, onSuccess, mode, request }: ApprovalDialogProps) {
   const { decide, isDeciding } = useApprovalData();
   const handleClose = useCallback(() => {
     onClose();
@@ -34,9 +36,12 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
   const handleConfirm = useCallback(async () => {
     if (mode === 'APPROVE') {
       const ok = await decide(request.id, { decision: 'APPROVE' });
-      if (ok) handleClose();
+      if (ok) {
+        handleClose();
+        onSuccess?.();
+      }
     }
-  }, [mode, request.id, decide, handleClose]);
+  }, [mode, request.id, decide, handleClose, onSuccess]);
 
   const typeLabel = REQUEST_TYPE_LABEL[request.requestType];
 
@@ -78,5 +83,5 @@ export function ApprovalDialog({ isOpen, onClose, mode, request }: ApprovalDialo
     );
   }
 
-  return <KpiRejectionDialog isOpen={isOpen} title="Tolak Pengajuan" description={<>Anda akan menolak pengajuan <strong>{typeLabel}</strong> untuk <strong className="text-foreground">{request.activityName || '-'}</strong> yang diajukan oleh <strong>{request.requestedByUserName}</strong>.</>} onClose={handleClose} onSubmit={(reason) => decide(request.id, { decision: 'REJECT', rejectionReason: reason })} />;
+  return <KpiRejectionDialog isOpen={isOpen} title="Tolak Pengajuan" description={<>Anda akan menolak pengajuan <strong>{typeLabel}</strong> untuk <strong className="text-foreground">{request.activityName || '-'}</strong> yang diajukan oleh <strong>{request.requestedByUserName}</strong>.</>} onClose={handleClose} onSubmit={async (reason) => { const ok = await decide(request.id, { decision: 'REJECT', rejectionReason: reason }); if (ok) onSuccess?.(); return ok; }} />;
 }

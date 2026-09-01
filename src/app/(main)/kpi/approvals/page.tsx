@@ -92,6 +92,14 @@ export default function KpiApprovalsPage() {
     setDialogRequest(null);
   }, []);
 
+  const handleDecisionSuccess = useCallback(() => {
+    closeDialog();
+    // ApprovalDialog owns the mutation hook instance, so explicitly refresh
+    // this page's queue after a successful decision.
+    void fetchToReview(approvalQuery);
+    void fetchMyRequests();
+  }, [approvalQuery, closeDialog, fetchMyRequests, fetchToReview]);
+
   // ── Permission guard ──
   if (!canApprove) {
     return (
@@ -185,6 +193,7 @@ export default function KpiApprovalsPage() {
           key={`${dialogMode}-${dialogRequest.id}`}
           isOpen={true}
           onClose={closeDialog}
+          onSuccess={handleDecisionSuccess}
           mode={dialogMode}
           request={dialogRequest}
         />
