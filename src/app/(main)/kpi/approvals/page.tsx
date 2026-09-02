@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Chip, Dropdown, Label } from '@heroui/react';
+import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Dropdown, Label } from '@heroui/react';
 import { ArrowsClockwise, CaretDown, House, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
@@ -257,9 +257,6 @@ export default function KpiApprovalsPage() {
                 </Dropdown.Menu>
               </Dropdown.Popover>
             </Dropdown>
-            <Chip size="sm" variant="soft">
-              Periode: {MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth} {periodYear}
-            </Chip>
           </div>
         }
         searchValue={searchInput}

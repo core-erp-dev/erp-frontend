@@ -481,7 +481,6 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
                 </Dropdown.Menu>
               </Dropdown.Popover>
             </Dropdown>
-            <Chip size="sm" variant="soft">Periode: {MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth} {periodYear}</Chip>
           </div>
         }
         searchValue={searchInput}
