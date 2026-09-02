@@ -48,8 +48,24 @@ describe('Activity workspace simplified position flow', () => {
     expect(screen.queryByText(/Pilih posisi aktif/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Coba Lagi/i)).not.toBeInTheDocument();
     expect(fetchMy).toHaveBeenCalled();
+    expect(fetchMy).toHaveBeenCalledWith(expect.objectContaining({
+      periodYear: new Date().getFullYear(),
+      periodMonth: new Date().getMonth() + 1,
+    }));
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Aktivitas' }));
     expect(routerPush).toHaveBeenCalledWith('/kpi/activities/mine/create');
+  });
+
+  it('passes the selected URL period to the activity list query', () => {
+    window.history.replaceState({}, '', '/kpi/activities/mine?year=2025&month=2');
+    positions = [{ positionId: 'position-a', positionName: 'A', userPositionId: 'assignment-a', userId: 'u', isPrimary: true }];
+
+    render(<ActivityWorkspace view="my-activities" />);
+
+    expect(fetchMy).toHaveBeenCalledWith(expect.objectContaining({
+      periodYear: 2025,
+      periodMonth: 2,
+    }));
   });
 
   it('keeps the personal CTA visible but disabled without an active position', () => {

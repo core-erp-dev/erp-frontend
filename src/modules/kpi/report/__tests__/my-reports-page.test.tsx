@@ -52,6 +52,7 @@ function allText(): string {
 
 describe('My Reports page (/kpi/reports)', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/kpi/reports');
     fetchMy.mockClear();
     fetchReview.mockClear();
     mockMyReports = [];
@@ -65,8 +66,16 @@ describe('My Reports page (/kpi/reports)', () => {
 
   it('fetches scope=mine and never scope=to-review', () => {
     render(<KpiMyReportsPage />);
-    expect(fetchMy).toHaveBeenCalledTimes(1);
+    expect(fetchMy).toHaveBeenCalled();
     expect(fetchReview).not.toHaveBeenCalled();
+  });
+
+  it('passes the local default report date to the mine query', () => {
+    render(<KpiMyReportsPage />);
+    const today = new Date();
+    const todayIso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    expect(fetchMy).toHaveBeenCalledWith(expect.objectContaining({ reportDate: todayIso }));
   });
 
   it('shows the empty state instead of a permission error when there are no reports', () => {

@@ -152,8 +152,8 @@ export function KpiTableToolbar({
   onReset,
 }: KpiTableToolbarProps) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         {leading}
         {(filterOptions.length > 0 || filterSections.length > 0) && onFilterChange && (
           <Dropdown>
@@ -205,7 +205,7 @@ export function KpiTableToolbar({
         {hasActiveFilters && onReset && <Button isIconOnly variant="tertiary" aria-label="Hapus filter" onPress={onReset}><X className="h-4 w-4" /></Button>}
       </div>
 
-      <SearchField name="search" value={searchValue} onChange={onSearchChange} className="w-72" aria-label={searchLabel}>
+      <SearchField name="search" value={searchValue} onChange={onSearchChange} className="w-full sm:w-72" aria-label={searchLabel}>
         <SearchField.Group>
           <SearchField.SearchIcon />
           <SearchField.Input placeholder="Cari" />

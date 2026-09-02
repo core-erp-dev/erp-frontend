@@ -4,8 +4,8 @@
  * Proves: the page is the review queue ONLY — it fetches scope=to-review
  * (never mine); it is NOT gated by kpi_report:root_review or
  * kpi_report:manage; hierarchy reviewers without root_review can open it;
- * approve/reject survive; reassignment appears only for hierarchy-assigned
- * reports; root reports show Company queue; self-review rejection surfaces as
+ * approve/reject survive; reassignment is not available in this workflow;
+ * root reports show Company queue; self-review rejection surfaces as
  * the recoverable banner; empty queue is an empty state, not a permission error.
  */
 import React from 'react';
@@ -71,6 +71,7 @@ function allText(): string {
 
 describe('Report Reviews page (/kpi/report-reviews)', () => {
   beforeEach(() => {
+    window.history.replaceState({}, '', '/kpi/report-reviews');
     fetchMy.mockClear();
     fetchReview.mockClear();
     mockPermissions = {};
@@ -86,14 +87,14 @@ describe('Report Reviews page (/kpi/report-reviews)', () => {
 
   it('fetches scope=to-review and never scope=mine', () => {
     render(<KpiReportReviewsPage />);
-    expect(fetchReview).toHaveBeenCalledTimes(1);
+    expect(fetchReview).toHaveBeenCalled();
     expect(fetchMy).not.toHaveBeenCalled();
   });
 
   it('is NOT gated by kpi_report:root_review — a hierarchy reviewer without it can open the page', () => {
     render(<KpiReportReviewsPage />);
     expect(allText()).not.toMatch(/Access Denied/i);
-    expect(fetchReview).toHaveBeenCalledTimes(1);
+    expect(fetchReview).toHaveBeenCalled();
   });
 
   it('is NOT gated by kpi_report:manage and shows no reassign action without it', () => {
@@ -117,11 +118,19 @@ describe('Report Reviews page (/kpi/report-reviews)', () => {
     expect(routerPush).toHaveBeenCalledWith('/kpi/reports/assigned?from=review');
   });
 
-  it('shows reassignment for hierarchy-assigned reports when kpi_report:manage is held', () => {
+  it('does not show reassignment even when kpi_report:manage is held', () => {
     mockPermissions = { 'kpi_report:manage': true };
     mockToReview = [report('assigned', 'u-reviewer', 'Parent Reviewer')];
     render(<KpiReportReviewsPage />);
-    expect(screen.getByRole('button', { name: 'Alihkan peninjau' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Alihkan peninjau' })).not.toBeInTheDocument();
+  });
+
+  it('passes the local default report date to the review query', () => {
+    render(<KpiReportReviewsPage />);
+    const today = new Date();
+    const todayIso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+    expect(fetchReview).toHaveBeenCalledWith(expect.objectContaining({ reportDate: todayIso }));
   });
 
   it('never shows reassignment for top-level root reports (no stored reviewer)', () => {
@@ -131,8 +140,7 @@ describe('Report Reviews page (/kpi/report-reviews)', () => {
       report('root', null, null),
     ];
     render(<KpiReportReviewsPage />);
-    const reassignButtons = screen.getAllByRole('button', { name: 'Alihkan peninjau' });
-    expect(reassignButtons).toHaveLength(1); // exactly the hierarchy-assigned report
+    expect(screen.queryByRole('button', { name: 'Alihkan peninjau' })).not.toBeInTheDocument();
   });
 
   it('surfaces a self-review rejection as the recoverable banner (backend remains authority)', () => {

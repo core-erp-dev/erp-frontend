@@ -5,6 +5,8 @@ import { assertReportScope } from '@/modules/kpi/shared/scope.types';
 import type { KpiReportScope } from '@/modules/kpi/shared/scope.types';
 import type {
   KpiReportResponse,
+  PaginatedReportResponse,
+  ReportListQuery,
   SubmitReportPayload,
   RejectReportPayload,
 } from './report-v1.types';
@@ -21,10 +23,22 @@ import type {
 export const reportV1Api = {
   /* ── T13: scoped list ── */
 
-  getReports: async (scope: KpiReportScope): Promise<KpiReportResponse[]> => {
+  getReports: async (
+    scope: KpiReportScope,
+    query: ReportListQuery,
+  ): Promise<PaginatedReportResponse> => {
     assertReportScope(scope, 'GET /api/v1/kpi-reports');
-    const response = await api.get<ApiResponse<KpiReportResponse[]>>('/api/v1/kpi-reports', {
-      params: { scope },
+    const response = await api.get<ApiResponse<PaginatedReportResponse>>('/api/v1/kpi-reports', {
+      params: {
+        scope,
+        page: query.page,
+        size: query.size,
+        ...(query.search ? { search: query.search } : {}),
+        ...(query.status ? { status: query.status } : {}),
+        ...(query.reportDate ? { reportDate: query.reportDate } : {}),
+        sortBy: query.sortBy,
+        sortDirection: query.sortDirection,
+      },
     });
     return response.data.data;
   },

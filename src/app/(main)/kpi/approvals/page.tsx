@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
-import { ArrowsClockwise, House, X } from '@phosphor-icons/react';
+import { Alert, Breadcrumbs, BreadcrumbsItem, Button, Chip, Dropdown, Label } from '@heroui/react';
+import { ArrowsClockwise, CaretDown, House, X } from '@phosphor-icons/react';
 import { usePermission } from '@/hooks/use-permission';
 import { PERM } from '@/constants/permissions';
 import { KPI_LABELS } from '@/modules/kpi/constants';
@@ -16,8 +16,10 @@ import type { ActivityRequestListQuery } from '@/modules/kpi/activity/activity-v
 import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
 import { useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
 import { useDebounce } from '@/hooks/use-debounce';
+import { activityV1Api } from '@/modules/kpi/activity/activity-v1-api';
+import { MONTH_NAMES_ID } from '@/modules/kpi/corporate/period-label';
 
-const APPROVAL_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], defaultSort: 'activityName', defaultDirection: 'asc' as const, filterOptions: [] as string[] };
+const APPROVAL_TABLE_STATE = { sortOptions: ['activityName', 'createdAt'], defaultSort: 'activityName', defaultDirection: 'asc' as const, filterOptions: [] as string[], periodFilter: 'month' as const };
 
 /**
  * Activity Approvals — standalone page (`/kpi/approvals`).
@@ -46,11 +48,36 @@ export default function KpiApprovalsPage() {
   const { myRequests, fetchMyRequests } = useActivityData();
   const tableState = useKpiTableState(APPROVAL_TABLE_STATE);
   const { filters: tableFilters, setSearch } = tableState;
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+  const periodYear = tableFilters.periodYear ?? currentYear;
+  const periodMonth = tableFilters.periodMonth ?? currentMonth;
+  const [periodYears, setPeriodYears] = useState<number[]>([currentYear]);
+  const [isLoadingPeriodOptions, setIsLoadingPeriodOptions] = useState(false);
   const [searchInput, setSearchInput] = useState(tableState.filters.search);
   const debouncedSearch = useDebounce(searchInput, 400);
   useEffect(() => { if (debouncedSearch !== tableFilters.search) setSearch(debouncedSearch); }, [debouncedSearch, tableFilters.search, setSearch]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setSearchInput(tableFilters.search); }, [tableFilters.search]);
+
+  useEffect(() => {
+    let active = true;
+    // The loading flag represents the external period-options request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLoadingPeriodOptions(true);
+    void activityV1Api.getRequestPeriodOptions('to-review')
+      .then((options) => {
+        if (active) setPeriodYears(options.years.length > 0 ? options.years : [currentYear]);
+      })
+      .catch(() => {
+        if (active) setPeriodYears([currentYear]);
+      })
+      .finally(() => {
+        if (active) setIsLoadingPeriodOptions(false);
+      });
+    return () => { active = false; };
+  }, [currentYear]);
 
   const approvalQuery: ActivityRequestListQuery = useMemo(() => ({
     page: tableFilters.page,
@@ -59,7 +86,20 @@ export default function KpiApprovalsPage() {
     status: '',
     sortBy: tableFilters.sortBy as ActivityRequestListQuery['sortBy'],
     sortDirection: tableFilters.direction as ActivityRequestListQuery['sortDirection'],
-  }), [tableFilters.direction, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+    periodYear,
+    periodMonth,
+  }), [periodMonth, periodYear, tableFilters.direction, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+
+  const ownRequestsQuery: ActivityRequestListQuery = useMemo(() => ({
+    page: 1,
+    size: 100,
+    search: '',
+    status: '',
+    sortBy: 'createdAt',
+    sortDirection: 'desc',
+    periodYear,
+    periodMonth,
+  }), [periodMonth, periodYear]);
 
   // Own request ids (scope=mine) — used only to disable self-processing UI;
   // the backend is the authoritative self-approval ban.
@@ -69,9 +109,9 @@ export default function KpiApprovalsPage() {
   useEffect(() => {
     if (canApprove) {
       fetchToReview(approvalQuery);
-      fetchMyRequests();
+      fetchMyRequests(ownRequestsQuery);
     }
-  }, [canApprove, fetchToReview, fetchMyRequests, approvalQuery]);
+  }, [approvalQuery, canApprove, fetchMyRequests, fetchToReview, ownRequestsQuery]);
 
   // ── Approval dialog state ──
   const [dialogMode, setDialogMode] = useState<'APPROVE' | 'REJECT' | null>(null);
@@ -97,8 +137,8 @@ export default function KpiApprovalsPage() {
     // ApprovalDialog owns the mutation hook instance, so explicitly refresh
     // this page's queue after a successful decision.
     void fetchToReview(approvalQuery);
-    void fetchMyRequests();
-  }, [approvalQuery, closeDialog, fetchMyRequests, fetchToReview]);
+    void fetchMyRequests(ownRequestsQuery);
+  }, [approvalQuery, closeDialog, fetchMyRequests, fetchToReview, ownRequestsQuery]);
 
   // ── Permission guard ──
   if (!canApprove) {
@@ -161,13 +201,74 @@ export default function KpiApprovalsPage() {
       )}
 
       <KpiTableToolbar
+        leading={
+          <div className="flex flex-wrap items-center gap-2">
+            <Dropdown>
+              <Button
+                variant="tertiary"
+                aria-label="Pilih tahun periode aktivitas"
+                isDisabled={isLoadingPeriodOptions || tableState.isQueryLoading}
+              >
+                {periodYear}
+                <CaretDown className="h-4 w-4" />
+              </Button>
+              <Dropdown.Popover>
+                <Dropdown.Menu
+                  selectedKeys={new Set([String(periodYear)])}
+                  selectionMode="single"
+                  onSelectionChange={(selection) => {
+                    const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
+                    if (selected != null) tableState.setPeriod(Number(selected), periodMonth);
+                  }}
+                >
+                  {periodYears.map((year) => (
+                    <Dropdown.Item key={year} id={String(year)} textValue={String(year)}>
+                      <Dropdown.ItemIndicator />
+                      <Label>{year}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+            <Dropdown>
+              <Button
+                variant="tertiary"
+                aria-label="Pilih bulan periode aktivitas"
+                isDisabled={isLoadingPeriodOptions || tableState.isQueryLoading}
+              >
+                {MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth}
+                <CaretDown className="h-4 w-4" />
+              </Button>
+              <Dropdown.Popover>
+                <Dropdown.Menu
+                  selectedKeys={new Set([String(periodMonth)])}
+                  selectionMode="single"
+                  onSelectionChange={(selection) => {
+                    const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
+                    if (selected != null) tableState.setPeriod(periodYear, Number(selected));
+                  }}
+                >
+                  {MONTH_NAMES_ID.map((month, index) => (
+                    <Dropdown.Item key={month} id={String(index + 1)} textValue={month}>
+                      <Dropdown.ItemIndicator />
+                      <Label>{month}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+            <Chip size="sm" variant="soft">
+              Periode: {MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth} {periodYear}
+            </Chip>
+          </div>
+        }
         searchValue={searchInput}
         onSearchChange={setSearchInput}
         searchLabel="Cari pengajuan aktivitas"
         sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
         selectedSortId={`${tableState.filters.sortBy}:${tableState.filters.direction}`}
         onSortChange={(selection) => { const selected = selection instanceof Set ? String(Array.from(selection)[0] ?? '') : ''; const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc']; if (field && direction) tableState.setSort(field, direction); }}
-        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.sortBy !== APPROVAL_TABLE_STATE.defaultSort || tableState.filters.direction !== 'asc')}
+        hasActiveFilters={Boolean(tableState.filters.search || periodYear !== currentYear || periodMonth !== currentMonth || tableState.filters.sortBy !== APPROVAL_TABLE_STATE.defaultSort || tableState.filters.direction !== 'asc')}
         onReset={() => { setSearchInput(''); tableState.reset(); }}
       />
 

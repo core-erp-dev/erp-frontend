@@ -6,11 +6,12 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Breadcrumbs, BreadcrumbsItem, Button, Chip, toast, type Selection } from '@heroui/react';
+import { Breadcrumbs, BreadcrumbsItem, Button, Chip, Dropdown, Label, toast, type Selection } from '@heroui/react';
 import {
   ArrowsClockwise,
   House,
   Plus,
+  CaretDown,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 
@@ -32,6 +33,8 @@ import { KpiTableToolbar, type KpiTableFilterSection } from '@/modules/kpi/share
 import { useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
 import { useDebounce } from '@/hooks/use-debounce';
 import { ForbiddenAccess } from '@/components/shared/forbidden-access';
+import { activityV1Api } from '@/modules/kpi/activity/activity-v1-api';
+import { MONTH_NAMES_ID } from '@/modules/kpi/corporate/period-label';
 
 export type ActivityViewId = 'my-activities' | 'all-activities' | 'subordinates' | 'my-requests';
 
@@ -47,12 +50,14 @@ const ACTIVITY_TABLE_STATE = {
   defaultSort: 'activityName',
   defaultDirection: 'asc' as const,
   filterOptions: ['ACTIVE', 'CANCELLED'],
+  periodFilter: 'month' as const,
 };
 const REQUEST_TABLE_STATE = {
   sortOptions: ['activityName', 'createdAt'],
   defaultSort: 'activityName',
   defaultDirection: 'asc' as const,
   filterOptions: ['PENDING', 'APPROVED', 'REJECTED'],
+  periodFilter: 'month' as const,
 };
 
 /**
@@ -90,12 +95,42 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
 
   const tableState = useKpiTableState(view === 'my-requests' ? REQUEST_TABLE_STATE : ACTIVITY_TABLE_STATE);
   const { filters: tableFilters, setSearch } = tableState;
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+  const periodYear = tableFilters.periodYear ?? currentYear;
+  const periodMonth = tableFilters.periodMonth ?? currentMonth;
+  const [periodYears, setPeriodYears] = useState<number[]>([currentYear]);
+  const [isLoadingPeriodOptions, setIsLoadingPeriodOptions] = useState(false);
 
   /* ── Position filter (URL-controlled; default is all active positions) ── */
   const needsPosition = view === 'my-activities' || view === 'subordinates';
   const { positions, isLoading: isLoadingPositions, error: positionsError } = useMyPositions(needsPosition);
   const selectedPositionId = tableFilters.positionId || null;
   const subordinateScope = tableFilters.subordinateScope as 'all' | 'direct';
+
+  useEffect(() => {
+    let active = true;
+    setIsLoadingPeriodOptions(true);
+    const loadPeriodOptions = async () => {
+      try {
+        const options = view === 'my-requests'
+          ? await activityV1Api.getRequestPeriodOptions('mine')
+          : await activityV1Api.getActivityPeriodOptions(
+              view === 'all-activities' ? 'all' : view === 'subordinates' ? 'subordinates' : 'mine',
+              undefined,
+              { positionId: selectedPositionId ?? undefined, subordinateScope },
+            );
+        if (active) setPeriodYears(options.years.length > 0 ? options.years : [currentYear]);
+      } catch {
+        if (active) setPeriodYears([currentYear]);
+      } finally {
+        if (active) setIsLoadingPeriodOptions(false);
+      }
+    };
+    void loadPeriodOptions();
+    return () => { active = false; };
+  }, [currentYear, selectedPositionId, subordinateScope, view]);
 
   const title = VIEW_TITLES[view];
 
@@ -138,9 +173,11 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     status: tableFilters.filter as 'ACTIVE' | 'CANCELLED' | '',
     positionId: needsPosition ? (tableFilters.positionId || undefined) : undefined,
     subordinateScope: view === 'subordinates' ? subordinateScope : undefined,
+    periodYear,
+    periodMonth,
     sortBy: tableFilters.sortBy as 'activityName' | 'createdAt',
     sortDirection: tableFilters.direction as 'asc' | 'desc',
-  }), [needsPosition, subordinateScope, tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.positionId, tableFilters.search, tableFilters.size, tableFilters.sortBy, view]);
+  }), [needsPosition, periodMonth, periodYear, subordinateScope, tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.positionId, tableFilters.search, tableFilters.size, tableFilters.sortBy, view]);
 
   const activityFilterSections = useMemo<KpiTableFilterSection[]>(() => [
     {
@@ -196,9 +233,11 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
     size: tableFilters.size,
     search: tableFilters.search,
     status: tableFilters.filter as ActivityRequestListQuery['status'],
+    periodYear,
+    periodMonth,
     sortBy: tableFilters.sortBy as ActivityRequestListQuery['sortBy'],
     sortDirection: tableFilters.direction as ActivityRequestListQuery['sortDirection'],
-  }), [tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
+  }), [periodMonth, periodYear, tableFilters.direction, tableFilters.filter, tableFilters.page, tableFilters.search, tableFilters.size, tableFilters.sortBy]);
 
   useEffect(() => {
     if (view === 'all-activities') void fetchAllActivities(allActivitiesQuery);
@@ -247,11 +286,11 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   const isAnyLoading = isLoadingMy || isLoadingAll || isLoadingSubordinates || isLoadingRequests || tableState.isQueryLoading;
 
   const handleRefresh = useCallback(() => {
-    if (view === 'my-activities') void fetchMyActivities();
-    if (view === 'all-activities') void fetchAllActivities();
-    if (view === 'subordinates') void fetchSubordinatesActivities();
-    if (view === 'my-requests') void fetchMyRequests();
-  }, [view, fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities]);
+    if (view === 'my-activities') void fetchMyActivities(allActivitiesQuery);
+    if (view === 'all-activities') void fetchAllActivities(allActivitiesQuery);
+    if (view === 'subordinates') void fetchSubordinatesActivities(undefined, allActivitiesQuery);
+    if (view === 'my-requests') void fetchMyRequests(requestQuery);
+  }, [allActivitiesQuery, fetchAllActivities, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, requestQuery, view]);
 
   const openActivityDetail = useCallback((id: string) => {
     const from = view === 'subordinates' ? 'subordinate' : view === 'my-activities' ? 'mine' : 'all';
@@ -280,18 +319,18 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   /** Refetch every relevant dataset after a successful mutation or conflict. */
   const refetchAll = useCallback(() => {
     void Promise.allSettled([
-      fetchMyActivities(),
-      fetchAllActivities(),
-      fetchMyRequests(),
-      fetchSubordinatesActivities(),
+      fetchMyActivities(allActivitiesQuery),
+      fetchAllActivities(allActivitiesQuery),
+      fetchMyRequests(requestQuery),
+      fetchSubordinatesActivities(undefined, allActivitiesQuery),
     ]);
-  }, [fetchMyActivities, fetchAllActivities, fetchMyRequests, fetchSubordinatesActivities]);
+  }, [allActivitiesQuery, fetchAllActivities, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, requestQuery]);
 
   const refetchCurrent = useCallback(() => {
-    if (view === 'my-activities') void fetchMyActivities();
-    if (view === 'subordinates') void fetchSubordinatesActivities();
-    if (view === 'my-requests') void fetchMyRequests();
-  }, [fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, view]);
+    if (view === 'my-activities') void fetchMyActivities(allActivitiesQuery);
+    if (view === 'subordinates') void fetchSubordinatesActivities(undefined, allActivitiesQuery);
+    if (view === 'my-requests') void fetchMyRequests(requestQuery);
+  }, [allActivitiesQuery, fetchMyActivities, fetchMyRequests, fetchSubordinatesActivities, requestQuery, view]);
 
   const handleAdminCancel = useCallback(async () => {
     if (!adminCancelTarget) return;
@@ -386,6 +425,65 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
       </div>
 
       <KpiTableToolbar
+        leading={
+          <div className="flex flex-wrap items-center gap-2">
+            <Dropdown>
+              <Button
+                variant="tertiary"
+                aria-label="Pilih tahun periode aktivitas"
+                isDisabled={isLoadingPeriodOptions || tableState.isQueryLoading}
+              >
+                {periodYear}
+                <CaretDown className="h-4 w-4" />
+              </Button>
+              <Dropdown.Popover>
+                <Dropdown.Menu
+                  selectedKeys={new Set([String(periodYear)])}
+                  selectionMode="single"
+                  onSelectionChange={(selection) => {
+                    const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
+                    if (selected != null) tableState.setPeriod(Number(selected), periodMonth);
+                  }}
+                >
+                  {periodYears.map((year) => (
+                    <Dropdown.Item key={year} id={String(year)} textValue={String(year)}>
+                      <Dropdown.ItemIndicator />
+                      <Label>{year}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+            <Dropdown>
+              <Button
+                variant="tertiary"
+                aria-label="Pilih bulan periode aktivitas"
+                isDisabled={isLoadingPeriodOptions || tableState.isQueryLoading}
+              >
+                {MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth}
+                <CaretDown className="h-4 w-4" />
+              </Button>
+              <Dropdown.Popover>
+                <Dropdown.Menu
+                  selectedKeys={new Set([String(periodMonth)])}
+                  selectionMode="single"
+                  onSelectionChange={(selection) => {
+                    const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
+                    if (selected != null) tableState.setPeriod(periodYear, Number(selected));
+                  }}
+                >
+                  {MONTH_NAMES_ID.map((month, index) => (
+                    <Dropdown.Item key={month} id={String(index + 1)} textValue={month}>
+                      <Dropdown.ItemIndicator />
+                      <Label>{month}</Label>
+                    </Dropdown.Item>
+                  ))}
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+            <Chip size="sm" variant="soft">Periode: {MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth} {periodYear}</Chip>
+          </div>
+        }
         searchValue={searchInput}
         onSearchChange={setSearchInput}
         searchLabel="Cari aktivitas"
@@ -405,7 +503,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc'];
           if (field && direction) tableState.setSort(field, direction);
         }}
-        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.positionId || (view === 'subordinates' && subordinateScope === 'direct') || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.positionId || (view === 'subordinates' && subordinateScope === 'direct') || periodYear !== currentYear || periodMonth !== currentMonth || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
         onReset={() => { setSearchInput(''); tableState.reset(); }}
       />
 
@@ -418,7 +516,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             error={myError}
             onViewDetail={openActivityDetail}
             getActivityHref={getActivityHref}
-            onRetry={fetchMyActivities}
+            onRetry={() => { void fetchMyActivities(allActivitiesQuery); }}
             ownAssignmentUserPositionIds={positions.map((position) => position.userPositionId)}
             onRequestChange={(item, mode) => {
               if (mode === 'update') router.push(`/kpi/activities/${item.id}/request-edit?from=mine`);
@@ -446,7 +544,7 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
             error={allError}
             onViewDetail={openActivityDetail}
             getActivityHref={getActivityHref}
-            onRetry={fetchAllActivities}
+            onRetry={() => { void fetchAllActivities(allActivitiesQuery); }}
             canAdminEdit={canAdminManage}
             onAdminEdit={canAdminManage ? (item) => router.push(`/kpi/activities/${item.id}/edit?from=all`) : undefined}
             onAdminReassign={canAdminManage ? setAdminReassignTarget : undefined}

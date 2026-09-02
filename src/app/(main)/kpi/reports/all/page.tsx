@@ -2,18 +2,21 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
-import { Plus, ArrowsClockwise, House } from '@phosphor-icons/react';
-import { KPI_LABELS, KPI_ROUTES } from '@/modules/kpi/constants';
+import { Alert, Breadcrumbs, BreadcrumbsItem, Button } from '@heroui/react';
+import { ArrowsClockwise, House } from '@phosphor-icons/react';
+import { usePermission } from '@/hooks/use-permission';
+import { PERM } from '@/constants/permissions';
+import { KPI_LABELS } from '@/modules/kpi/constants';
 import { useReportData } from '@/modules/kpi/report/use-report-data';
-import type { ReportListQuery } from '@/modules/kpi/report/report-v1.types';
+import type { KpiReportResponse, ReportListQuery } from '@/modules/kpi/report/report-v1.types';
 import { ReportTable } from '@/modules/kpi/report/report-table';
+import { ReassignReviewerDialog } from '@/modules/kpi/admin/reassign-reviewer-dialog';
 import { KpiTableToolbar } from '@/modules/kpi/shared/kpi-table';
 import { getLocalTodayIso, useKpiTableState } from '@/modules/kpi/shared/use-kpi-table-state';
 import { useDebounce } from '@/hooks/use-debounce';
 import { DateFieldPicker } from '@/components/shared/date-field-picker';
 
-const REPORT_TABLE_STATE = {
+const ALL_REPORTS_TABLE_STATE = {
   sortOptions: ['activityName', 'createdAt'],
   defaultSort: 'activityName',
   defaultDirection: 'asc' as const,
@@ -21,15 +24,24 @@ const REPORT_TABLE_STATE = {
   periodFilter: 'date' as const,
 };
 
-/** My Reports — server-side scoped Report list. */
-export default function KpiMyReportsPage() {
+/** All Reports — administrative Report list. */
+export default function KpiAllReportsPage() {
   const router = useRouter();
-  const { myReports, myPagination, isLoadingMy, myError, fetchMyReports, isSubmitting } = useReportData();
-  const tableState = useKpiTableState(REPORT_TABLE_STATE);
+  const { hasPerm } = usePermission();
+  const canManage = hasPerm(PERM.KPI_REPORT_MANAGE);
+  const {
+    allReports,
+    allPagination,
+    isLoadingAll,
+    allError,
+    fetchAllReports,
+  } = useReportData();
+  const tableState = useKpiTableState(ALL_REPORTS_TABLE_STATE);
   const { filters: tableFilters, setSearch } = tableState;
   const reportDate = tableFilters.reportDate ?? getLocalTodayIso();
   const todayIso = getLocalTodayIso();
   const [searchInput, setSearchInput] = useState(tableState.filters.search);
+  const [reassignReport, setReassignReport] = useState<KpiReportResponse | null>(null);
   const debouncedSearch = useDebounce(searchInput, 400);
 
   useEffect(() => {
@@ -50,27 +62,42 @@ export default function KpiMyReportsPage() {
     reportDate,
   }), [reportDate, tableFilters]);
 
-  useEffect(() => { void fetchMyReports(query); }, [fetchMyReports, query]);
+  useEffect(() => {
+    if (canManage) void fetchAllReports(query);
+  }, [canManage, fetchAllReports, query]);
+
+  if (!canManage) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        <Breadcrumbs>
+          <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
+          <BreadcrumbsItem>KPI</BreadcrumbsItem>
+          <BreadcrumbsItem>{KPI_LABELS.allReports}</BreadcrumbsItem>
+        </Breadcrumbs>
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Akses ditolak</Alert.Title>
+            <Alert.Description>Anda tidak memiliki izin untuk mengelola semua laporan.</Alert.Description>
+          </Alert.Content>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="flex w-full flex-col gap-6">
       <Breadcrumbs>
         <BreadcrumbsItem href="/"><House className="h-4 w-4" /></BreadcrumbsItem>
         <BreadcrumbsItem>KPI</BreadcrumbsItem>
-        <BreadcrumbsItem>{KPI_LABELS.reports}</BreadcrumbsItem>
+        <BreadcrumbsItem>{KPI_LABELS.allReports}</BreadcrumbsItem>
       </Breadcrumbs>
 
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.reports}</h1>
-        <div className="flex items-center gap-2">
-          <Button isIconOnly variant="tertiary" onPress={() => void fetchMyReports(query)} isDisabled={isLoadingMy} aria-label="Muat ulang laporan">
-            <ArrowsClockwise className={`h-4 w-4 ${isLoadingMy ? 'animate-spin' : ''}`} />
-          </Button>
-          <Button variant="primary" size="sm" onPress={() => router.push(`${KPI_ROUTES.reports}/create`)}>
-            <Plus className="h-4 w-4" />
-            Ajukan Laporan
-          </Button>
-        </div>
+        <h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.allReports}</h1>
+        <Button isIconOnly variant="tertiary" onPress={() => void fetchAllReports(query)} isDisabled={isLoadingAll} aria-label="Muat ulang laporan">
+          <ArrowsClockwise className={`h-4 w-4 ${isLoadingAll ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
 
       <KpiTableToolbar
@@ -80,7 +107,7 @@ export default function KpiMyReportsPage() {
               label="Tanggal laporan"
               value={reportDate}
               onChange={tableState.setReportDate}
-              isDisabled={isLoadingMy || tableState.isQueryLoading}
+              isDisabled={isLoadingAll || tableState.isQueryLoading}
             />
           </div>
         }
@@ -94,24 +121,33 @@ export default function KpiMyReportsPage() {
         sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
         selectedSortId={`${tableState.filters.sortBy}:${tableState.filters.direction}`}
         onSortChange={(selection) => { const selected = selection instanceof Set ? String(Array.from(selection)[0] ?? '') : ''; const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc']; if (field && direction) tableState.setSort(field, direction); }}
-        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || reportDate !== todayIso || tableState.filters.sortBy !== REPORT_TABLE_STATE.defaultSort || tableState.filters.direction !== 'asc')}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || reportDate !== todayIso || tableState.filters.sortBy !== ALL_REPORTS_TABLE_STATE.defaultSort || tableState.filters.direction !== 'asc')}
         onReset={() => { setSearchInput(''); tableState.reset(); }}
       />
 
       <ReportTable
-        items={myReports}
-        isLoading={isLoadingMy || tableState.isQueryLoading}
-        error={myError}
-        mode="MY"
-        getDetailHref={(item) => `/kpi/reports/${item.id}?from=mine`}
-        onViewDetail={(item) => router.push(`/kpi/reports/${item.id}?from=mine`)}
-        totalItems={myPagination?.totalElements ?? 0}
-        currentPage={myPagination?.page ?? query.page}
-        totalPages={myPagination?.totalPages ?? 0}
+        items={allReports}
+        isLoading={isLoadingAll || tableState.isQueryLoading}
+        error={allError}
+        mode="ALL"
+        getDetailHref={(item) => `/kpi/reports/${item.id}?from=all`}
+        onViewDetail={(item) => router.push(`/kpi/reports/${item.id}?from=all`)}
+        onReassignReviewer={setReassignReport}
+        totalItems={allPagination?.totalElements ?? 0}
+        currentPage={allPagination?.page ?? query.page}
+        totalPages={allPagination?.totalPages ?? 0}
         onPageChange={tableState.setPage}
       />
 
-      {isSubmitting && <div className="sr-only" aria-live="polite">Memproses laporan...</div>}
+      {reassignReport && (
+        <ReassignReviewerDialog
+          key={reassignReport.id}
+          isOpen
+          onClose={() => setReassignReport(null)}
+          report={reassignReport}
+          onSuccess={() => { setReassignReport(null); void fetchAllReports(query); }}
+        />
+      )}
     </div>
   );
 }

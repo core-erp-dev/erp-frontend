@@ -7,6 +7,29 @@ export interface KpiTableStateConfig {
   defaultSort: string;
   defaultDirection?: 'asc' | 'desc';
   filterOptions?: readonly string[];
+  periodFilter?: 'month' | 'date';
+}
+
+export function getLocalTodayIso() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function parsePositiveYear(value: string | null, fallback: number) {
+  const year = Number(value);
+  return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : fallback;
+}
+
+function parseMonth(value: string | null, fallback: number) {
+  const month = Number(value);
+  return Number.isInteger(month) && month >= 1 && month <= 12 ? month : fallback;
+}
+
+function isValidIsoDate(value: string | null): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 export function useKpiTableState(config: KpiTableStateConfig) {
@@ -20,6 +43,10 @@ export function useKpiTableState(config: KpiTableStateConfig) {
   );
   const pathname = typeof window === 'undefined' ? '' : window.location.pathname;
   const searchParams = useMemo(() => new URLSearchParams(urlSearch), [urlSearch]);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const todayIso = getLocalTodayIso();
   const [isQueryLoading, setIsQueryLoading] = useState(false);
   const filters = useMemo(() => {
     const sortBy = config.sortOptions.includes(searchParams.get('sortBy') ?? '')
@@ -29,6 +56,15 @@ export function useKpiTableState(config: KpiTableStateConfig) {
     const pageValue = Number(searchParams.get('page'));
     const page = Number.isInteger(pageValue) && pageValue > 0 ? pageValue : 1;
     const filter = searchParams.get('status') ?? '';
+    const periodYear = config.periodFilter === 'month'
+      ? parsePositiveYear(searchParams.get('year'), currentYear)
+      : undefined;
+    const periodMonth = config.periodFilter === 'month'
+      ? parseMonth(searchParams.get('month'), currentMonth)
+      : undefined;
+    const reportDate = config.periodFilter === 'date'
+      ? (isValidIsoDate(searchParams.get('reportDate')) ? searchParams.get('reportDate')! : todayIso)
+      : undefined;
     return {
       search: searchParams.get('search') ?? '',
       filter: config.filterOptions?.includes(filter) ? filter : '',
@@ -38,34 +74,77 @@ export function useKpiTableState(config: KpiTableStateConfig) {
       direction,
       page,
       size: 10,
+      periodYear,
+      periodMonth,
+      reportDate,
     };
-  }, [config, searchParams]);
+  }, [config, currentMonth, currentYear, searchParams, todayIso]);
 
-  const updateUrl = useCallback((patch: Partial<typeof filters>) => {
+  const updateUrl = useCallback((patch: Partial<typeof filters>, replace = false) => {
     const next = { ...filters, ...patch };
     const params = new URLSearchParams();
     if (next.search) params.set('search', next.search);
     if (next.filter) params.set('status', next.filter);
     if (next.positionId) params.set('positionId', next.positionId);
     if (next.subordinateScope && next.subordinateScope !== 'all') params.set('subordinateScope', next.subordinateScope);
+    if (config.periodFilter === 'month') {
+      params.set('year', String(next.periodYear ?? currentYear));
+      params.set('month', String(next.periodMonth ?? currentMonth));
+    }
+    if (config.periodFilter === 'date') {
+      params.set('reportDate', next.reportDate ?? todayIso);
+    }
     if (next.sortBy !== config.defaultSort || next.direction !== (config.defaultDirection ?? 'asc')) {
       params.set('sortBy', next.sortBy);
       params.set('sortDirection', next.direction);
     }
     if (next.page > 1) params.set('page', String(next.page));
     const nextUrl = params.toString() ? `${pathname}?${params}` : pathname;
-    window.history.replaceState(window.history.state, '', nextUrl);
+    if (replace) {
+      window.history.replaceState(window.history.state, '', nextUrl);
+    } else {
+      window.history.pushState(window.history.state, '', nextUrl);
+    }
     window.dispatchEvent(new Event('popstate'));
     setIsQueryLoading(true);
-  }, [config, filters, pathname]);
+  }, [config, currentMonth, currentYear, filters, pathname, todayIso]);
 
   const setSearch = useCallback((search: string) => updateUrl({ search, page: 1 }), [updateUrl]);
   const setFilter = useCallback((filter: string) => updateUrl({ filter, page: 1 }), [updateUrl]);
   const setPositionId = useCallback((positionId: string) => updateUrl({ positionId, page: 1 }), [updateUrl]);
   const setSubordinateScope = useCallback((subordinateScope: 'all' | 'direct') => updateUrl({ subordinateScope, page: 1 }), [updateUrl]);
   const setSort = useCallback((sortBy: string, direction: 'asc' | 'desc') => updateUrl({ sortBy, direction, page: 1 }), [updateUrl]);
+  const setPeriod = useCallback((periodYear: number, periodMonth: number) => updateUrl({ periodYear, periodMonth, page: 1 }), [updateUrl]);
+  const setReportDate = useCallback((reportDate: string) => updateUrl({ reportDate, page: 1 }), [updateUrl]);
   const setPage = useCallback((page: number) => updateUrl({ page }), [updateUrl]);
-  const reset = useCallback(() => updateUrl({ search: '', filter: '', positionId: '', subordinateScope: 'all', sortBy: config.defaultSort, direction: config.defaultDirection ?? 'asc', page: 1 }), [config, updateUrl]);
+  const reset = useCallback(() => updateUrl({
+    search: '',
+    filter: '',
+    positionId: '',
+    subordinateScope: 'all',
+    sortBy: config.defaultSort,
+    direction: config.defaultDirection ?? 'asc',
+    periodYear: currentYear,
+    periodMonth: currentMonth,
+    reportDate: todayIso,
+    page: 1,
+  }), [config, currentMonth, currentYear, todayIso, updateUrl]);
+
+  const shouldCanonicalizePeriod = config.periodFilter === 'month'
+    ? searchParams.get('year') !== String(filters.periodYear) || searchParams.get('month') !== String(filters.periodMonth)
+    : config.periodFilter === 'date' && searchParams.get('reportDate') !== filters.reportDate;
+
+  useEffect(() => {
+    if (!shouldCanonicalizePeriod) return;
+    // Canonicalization writes the normalized period into browser history.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    updateUrl({
+      periodYear: filters.periodYear,
+      periodMonth: filters.periodMonth,
+      reportDate: filters.reportDate,
+      page: filters.page,
+    }, true);
+  }, [filters.page, filters.periodMonth, filters.periodYear, filters.reportDate, shouldCanonicalizePeriod, updateUrl]);
 
   // The URL is the acknowledgement that the new query is active. Rows remain
   // hidden while Next applies it, matching the Pegawai transition behavior.
@@ -75,7 +154,7 @@ export function useKpiTableState(config: KpiTableStateConfig) {
     setIsQueryLoading(false);
   }, [searchParams]);
 
-  return { filters, isQueryLoading, setSearch, setFilter, setPositionId, setSubordinateScope, setSort, setPage, reset };
+  return { filters, isQueryLoading, setSearch, setFilter, setPositionId, setSubordinateScope, setSort, setPeriod, setReportDate, setPage, reset };
 }
 
 export function paginateKpiItems<T>(items: T[], page: number, size = 10) {

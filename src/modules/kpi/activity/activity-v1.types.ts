@@ -94,6 +94,8 @@ export type ActivityListQuery = {
   size: number;
   search: string;
   status: KpiActivityStatus | '';
+  periodYear?: number;
+  periodMonth?: number;
   /** Optional position filter for mine/subordinates; omitted means all relevant positions. */
   positionId?: string;
   /** Subordinate depth for the subordinates scope; defaults to all descendants. */
@@ -109,11 +111,17 @@ export type ActivityRequestListQuery = {
   size: number;
   search: string;
   status: KpiActivityRequestStatus | '';
+  periodYear?: number;
+  periodMonth?: number;
   sortBy: 'activityName' | 'createdAt';
   sortDirection: 'asc' | 'desc';
 };
 
 export type PaginatedActivityRequestResponse = PaginatedResponse<KpiActivityChangeRequestResponse>;
+
+export interface KpiPeriodOptionsResponse {
+  years: number[];
+}
 
 export type KpiActivityRequestType = 'CREATE' | 'UPDATE' | 'CANCEL';
 export type KpiActivityRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

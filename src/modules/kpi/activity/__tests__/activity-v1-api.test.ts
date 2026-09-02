@@ -67,10 +67,27 @@ describe('activityV1Api.getActivities (T1)', () => {
   it('sends the active server-side page, filters, search, and sort', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap({ content: [activity], page: 2, size: 10, totalElements: 17, totalPages: 2, last: true }) });
     await activityV1Api.getActivitiesPage('all', undefined, {
-      page: 2, size: 10, search: 'laporan', status: 'ACTIVE', sortBy: 'createdAt', sortDirection: 'desc',
+      page: 2, size: 10, search: 'laporan', status: 'ACTIVE', periodYear: 2026, periodMonth: 9,
+      sortBy: 'createdAt', sortDirection: 'desc',
     });
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities', {
-      params: { scope: 'all', page: 2, size: 10, search: 'laporan', status: 'ACTIVE', sortBy: 'createdAt', sortDirection: 'desc' },
+      params: {
+        scope: 'all', page: 2, size: 10, search: 'laporan', status: 'ACTIVE',
+        periodYear: 2026, periodMonth: 9, sortBy: 'createdAt', sortDirection: 'desc',
+      },
+    });
+  });
+
+  it('sends the selected period to period-options with the same scope filters', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({ years: [2026, 2025] }) });
+    await activityV1Api.getActivityPeriodOptions('subordinates', 'pos-1', {
+      positionId: 'pos-2', subordinateScope: 'direct',
+    });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/period-options', {
+      params: {
+        scope: 'subordinates', actingPositionId: 'pos-1', positionId: 'pos-2',
+        subordinateScope: 'direct',
+      },
     });
   });
 
@@ -126,13 +143,22 @@ describe('activityV1Api.getRequests (T6)', () => {
       content: [request], page: 2, size: 10, totalElements: 11, totalPages: 2, last: true,
     }) });
     await activityV1Api.getRequestsPage('mine', {
-      page: 2, size: 10, search: 'laporan', status: 'REJECTED', sortBy: 'createdAt', sortDirection: 'desc',
+      page: 2, size: 10, search: 'laporan', status: 'REJECTED', periodYear: 2026, periodMonth: 9,
+      sortBy: 'createdAt', sortDirection: 'desc',
     });
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests', {
       params: {
         scope: 'mine', page: 2, size: 10, search: 'laporan', status: 'REJECTED',
-        sortBy: 'createdAt', sortDirection: 'desc',
+        periodYear: 2026, periodMonth: 9, sortBy: 'createdAt', sortDirection: 'desc',
       },
+    });
+  });
+
+  it('gets request period-options with the requested queue scope', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({ years: [2026] }) });
+    await activityV1Api.getRequestPeriodOptions('to-review');
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activity-requests/period-options', {
+      params: { scope: 'to-review' },
     });
   });
 });

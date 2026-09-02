@@ -11,7 +11,8 @@ const NON_DOM_PROPS = new Set([
   'isDismissable', 'placement', 'slot', 'onOpenChange', 'allowsEmptyCollection',
   'defaultFilter', 'isLoading', 'validationBehavior', 'isHeaderSticky',
   'classNames', 'isOpen', 'isDisabled', 'isRowHeader', 'isActive',
-  'renderEmptyState',
+  'renderEmptyState', 'fullWidth', 'value', 'onChange', 'segment', 'date', 'year',
+  'selectedKeys', 'selectionMode',
 ]);
 
 function stripNonDomProps(props: Record<string, unknown>): Record<string, unknown> {
@@ -91,6 +92,59 @@ export const ComboBox = Object.assign(mk('ComboBox'), {
   Popover: mk('ComboBox.Popover'),
 });
 export const FieldError = mk('FieldError');
+
+/* ── DatePicker / DateField / Calendar compounds ── */
+
+export const I18nProvider = ({ children }: MockProps) => <>{children}</>;
+
+const DateFieldInput: React.FC<MockProps> = ({ children, ...props }) => {
+  const content = typeof children === 'function'
+    ? (children as (segment: { type: string }) => React.ReactNode)({ type: 'day' })
+    : children;
+  return React.createElement('div', { ...stripNonDomProps(props), 'data-mock': 'DateField.Input' }, content);
+};
+
+export const DateField = Object.assign(mk('DateField'), {
+  Group: mk('DateField.Group'),
+  Input: DateFieldInput,
+  Segment: mk('DateField.Segment'),
+  Suffix: mk('DateField.Suffix'),
+});
+
+export const DatePicker = Object.assign(mk('DatePicker'), {
+  Trigger: mk('DatePicker.Trigger'),
+  TriggerIndicator: mk('DatePicker.TriggerIndicator'),
+  Popover: mk('DatePicker.Popover'),
+});
+
+const DateRender = (name: string, children: React.ReactNode, props: Record<string, unknown>, value: unknown) => {
+  const content = typeof children === 'function'
+    ? (children as (renderValue: unknown) => React.ReactNode)(value)
+    : children;
+  return React.createElement('div', { ...stripNonDomProps(props), 'data-mock': name }, content);
+};
+
+const CalendarHeader = mk('Calendar.Header');
+const CalendarGrid = mk('Calendar.Grid');
+const CalendarGridHeader: React.FC<MockProps> = ({ children, ...props }) => DateRender('Calendar.GridHeader', children, props, 'Mon');
+const CalendarGridBody: React.FC<MockProps> = ({ children, ...props }) => DateRender('Calendar.GridBody', children, props, '2026-09-01');
+const CalendarYearPickerGridBody: React.FC<MockProps> = ({ children, ...props }) => DateRender('Calendar.YearPickerGridBody', children, props, { year: 2026 });
+
+export const Calendar = Object.assign(mk('Calendar'), {
+  Header: CalendarHeader,
+  YearPickerTrigger: mk('Calendar.YearPickerTrigger'),
+  YearPickerTriggerHeading: mk('Calendar.YearPickerTriggerHeading'),
+  YearPickerTriggerIndicator: mk('Calendar.YearPickerTriggerIndicator'),
+  NavButton: mk('Calendar.NavButton'),
+  Grid: CalendarGrid,
+  GridHeader: CalendarGridHeader,
+  HeaderCell: mk('Calendar.HeaderCell'),
+  GridBody: CalendarGridBody,
+  Cell: mk('Calendar.Cell'),
+  YearPickerGrid: mk('Calendar.YearPickerGrid'),
+  YearPickerGridBody: CalendarYearPickerGridBody,
+  YearPickerCell: mk('Calendar.YearPickerCell'),
+});
 
 /* ── TextField: forwards control props to the inner Input/TextArea and
    normalizes onChange to the VALUE STRING (HeroUI v3 contract). The control

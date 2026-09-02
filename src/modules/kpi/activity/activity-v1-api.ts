@@ -13,6 +13,7 @@ import type {
   PaginatedActivityResponse,
   ActivityRequestListQuery,
   PaginatedActivityRequestResponse,
+  KpiPeriodOptionsResponse,
   RequestDecisionRequest,
 } from './activity-v1.types';
 
@@ -64,6 +65,8 @@ export const activityV1Api = {
         size: query.size,
         ...(query.search ? { search: query.search } : {}),
         ...(query.status ? { status: query.status } : {}),
+        ...(query.periodYear != null ? { periodYear: query.periodYear } : {}),
+        ...(query.periodMonth != null ? { periodMonth: query.periodMonth } : {}),
         sortBy: query.sortBy,
         sortDirection: query.sortDirection,
       },
@@ -72,6 +75,26 @@ export const activityV1Api = {
     return Array.isArray(data)
       ? { content: data, page: 1, size: data.length, totalElements: data.length, totalPages: data.length > 0 ? 1 : 0, last: true }
       : data;
+  },
+
+  getActivityPeriodOptions: async (
+    scope: KpiActivityScope,
+    actingPositionId?: string,
+    query?: Pick<ActivityListQuery, 'positionId' | 'subordinateScope'>,
+  ): Promise<KpiPeriodOptionsResponse> => {
+    assertActivityScope(scope, 'GET /api/v1/kpi-activities/period-options');
+    const response = await api.get<ApiResponse<KpiPeriodOptionsResponse>>(
+      '/api/v1/kpi-activities/period-options',
+      {
+        params: {
+          scope,
+          ...(actingPositionId && (scope === 'subordinates' || scope === 'superior') ? { actingPositionId } : {}),
+          ...(query?.positionId && (scope === 'mine' || scope === 'subordinates') ? { positionId: query.positionId } : {}),
+          ...(query?.subordinateScope && scope === 'subordinates' ? { subordinateScope: query.subordinateScope } : {}),
+        },
+      },
+    );
+    return response.data.data;
   },
 
   /** T2 — Activity detail. `actingPositionId` is optional (direct-superior access only). */
@@ -151,6 +174,8 @@ export const activityV1Api = {
           size: query.size,
           ...(query.search ? { search: query.search } : {}),
           ...(query.status ? { status: query.status } : {}),
+          ...(query.periodYear != null ? { periodYear: query.periodYear } : {}),
+          ...(query.periodMonth != null ? { periodMonth: query.periodMonth } : {}),
           sortBy: query.sortBy,
           sortDirection: query.sortDirection,
         },
@@ -160,6 +185,15 @@ export const activityV1Api = {
     return Array.isArray(data)
       ? { content: data, page: 1, size: data.length, totalElements: data.length, totalPages: data.length > 0 ? 1 : 0, last: true }
       : data;
+  },
+
+  getRequestPeriodOptions: async (scope: KpiRequestScope): Promise<KpiPeriodOptionsResponse> => {
+    assertRequestScope(scope, 'GET /api/v1/kpi-activity-requests/period-options');
+    const response = await api.get<ApiResponse<KpiPeriodOptionsResponse>>(
+      '/api/v1/kpi-activity-requests/period-options',
+      { params: { scope } },
+    );
+    return response.data.data;
   },
 
   /** T7 — Activity-request detail. */

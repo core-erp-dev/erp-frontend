@@ -7,7 +7,7 @@
 import { api } from '@/lib/axios';
 import { reportV1Api } from '../report-v1-api';
 import type { ApiResponse } from '@/types/api';
-import type { KpiReportResponse } from '../report-v1.types';
+import type { KpiReportResponse, ReportListQuery } from '../report-v1.types';
 
 jest.mock('@/lib/axios');
 const mockedApi = jest.mocked(api);
@@ -26,19 +26,36 @@ const report: KpiReportResponse = {
 };
 
 const wrap = <T>(data: T): ApiResponse<T> => ({ status: 200, message: 'ok', data });
+const query: ReportListQuery = { page: 1, size: 10, search: '', status: '', sortBy: 'activityName', sortDirection: 'asc' };
+const page = { content: [report], page: 1, size: 10, totalElements: 1, totalPages: 1, first: true, last: true };
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 describe('reportV1Api.getReports (T13)', () => {
   it('GET /api/v1/kpi-reports with scope=mine', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: wrap([report]) });
-    const result = await reportV1Api.getReports('mine');
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-reports', { params: { scope: 'mine' } });
-    expect(result).toEqual([report]);
+    mockedApi.get.mockResolvedValueOnce({ data: wrap(page) });
+    const result = await reportV1Api.getReports('mine', query);
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-reports', { params: { scope: 'mine', page: 1, size: 10, sortBy: 'activityName', sortDirection: 'asc' } });
+    expect(result).toEqual(page);
   });
 
   it('GET with scope=to-review (stored reviewer)', async () => {
-    mockedApi.get.mockResolvedValueOnce({ data: wrap([]) });
-    await reportV1Api.getReports('to-review');
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-reports', { params: { scope: 'to-review' } });
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({ ...page, content: [] }) });
+    await reportV1Api.getReports('to-review', query);
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-reports', { params: { scope: 'to-review', page: 1, size: 10, sortBy: 'activityName', sortDirection: 'asc' } });
+  });
+
+  it('sends reportDate as the exact YYYY-MM-DD query value', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap(page) });
+    await reportV1Api.getReports('all', { ...query, reportDate: '2026-06-15' });
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-reports', {
+      params: {
+        scope: 'all', page: 1, size: 10, reportDate: '2026-06-15',
+        sortBy: 'activityName', sortDirection: 'asc',
+      },
+    });
   });
 
   it('throws MissingScopeError when scope is missing', async () => {

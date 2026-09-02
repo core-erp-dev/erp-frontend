@@ -1,11 +1,12 @@
 /**
  * KPI Report — V1 contract types (erp-backend @ d06ff13).
  *
- * KpiReportResponse: reviewerUserId/reviewerUserName are the CANONICAL
- * reviewer identity (always present); reviewerUserPositionId/reviewerPositionName
- * are optional organisational context (null for positionless reviewers).
+ * KpiReportResponse: reviewerUserId/reviewerUserName are the canonical
+ * reviewer identity and are nullable for top-level root central-queue reports.
  * No evidence path/URL is exposed — only safe metadata.
  */
+
+import type { PaginatedResponse } from '@/types/api';
 
 export type KpiReportStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -57,6 +58,32 @@ export interface KpiReportResponse {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ReportListQuery = {
+  page: number;
+  size: number;
+  search: string;
+  status: KpiReportStatus | '';
+  reportDate?: string;
+  sortBy: 'activityName' | 'createdAt';
+  sortDirection: 'asc' | 'desc';
+};
+
+export type PaginatedReportResponse = PaginatedResponse<KpiReportResponse>;
+
+export interface KpiReportReviewerOption {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
+export type ReportReviewerOptionsQuery = {
+  page: number;
+  size: number;
+  search: string;
+  sortBy: 'fullName' | 'createdAt' | 'email';
+  sortDirection: 'asc' | 'desc';
+};
 
 /* ── Request DTOs ── */
 
