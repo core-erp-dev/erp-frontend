@@ -28,7 +28,7 @@ const report: KpiReportResponse = {
   reviewerUserId: 'u-2', reviewerUserName: 'C',
   reviewerUserPositionId: null, reviewerPositionName: null,
   reportDate: '2026-06-15', executionDescription: 'done', realizedValue: 40,
-  note: null, status: 'PENDING', reviewedBy: null, reviewedAt: null,
+  note: null, status: 'PENDING', reviewedBy: null, reviewedAt: null, approvalReason: null,
   rejectionReason: null, evidenceOriginalFilename: 'e.jpg',
   evidenceContentType: 'image/jpeg', evidenceFileSize: 1024,
   createdAt: '', updatedAt: '',

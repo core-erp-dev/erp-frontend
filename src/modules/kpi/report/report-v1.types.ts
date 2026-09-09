@@ -51,6 +51,7 @@ export interface KpiReportResponse {
   status: KpiReportStatus;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  approvalReason: string | null;
   rejectionReason: string | null;
   evidenceOriginalFilename: string;
   evidenceContentType: string;
@@ -93,6 +94,10 @@ export interface SubmitReportPayload {
   executionDescription: string;
   realizedValue: number;
   note?: string;
+}
+
+export interface ApproveReportPayload {
+  approvalReason: string;
 }
 
 export interface RejectReportPayload {

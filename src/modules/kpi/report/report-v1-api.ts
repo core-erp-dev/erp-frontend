@@ -8,6 +8,7 @@ import type {
   PaginatedReportResponse,
   ReportListQuery,
   SubmitReportPayload,
+  ApproveReportPayload,
   RejectReportPayload,
 } from './report-v1.types';
 
@@ -79,9 +80,10 @@ export const reportV1Api = {
 
   /* ── T16/T17: stored-reviewer decisions (separate) ── */
 
-  approveReport: async (reportId: string): Promise<KpiReportResponse> => {
+  approveReport: async (reportId: string, payload: ApproveReportPayload): Promise<KpiReportResponse> => {
     const response = await api.patch<ApiResponse<KpiReportResponse>>(
       `/api/v1/kpi-reports/${reportId}/approve`,
+      payload,
     );
     return response.data.data;
   },

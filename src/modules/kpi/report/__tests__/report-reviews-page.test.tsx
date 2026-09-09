@@ -58,7 +58,7 @@ function report(id: string, reviewerUserId: string | null, reviewerUserName: str
     submittedByUserName: 'Staff', submittedByPositionName: 'Staff Pos',
     reviewerUserId, reviewerUserName, reviewerUserPositionId: null, reviewerPositionName: null,
     reportDate: '2026-07-15', executionDescription: 'done', realizedValue: 40,
-    note: null, status: 'PENDING', reviewedBy: null, reviewedAt: null,
+    note: null, status: 'PENDING', reviewedBy: null, reviewedAt: null, approvalReason: null,
     rejectionReason: null, evidenceOriginalFilename: 'e.jpg',
     evidenceContentType: 'image/jpeg', evidenceFileSize: 1024,
     createdAt: '2026-08-01T10:00:00', updatedAt: '2026-08-01T10:00:00',

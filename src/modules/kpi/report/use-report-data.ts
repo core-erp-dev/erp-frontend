@@ -14,6 +14,7 @@ import type {
   PaginatedReportResponse,
   ReportListQuery,
   SubmitReportPayload,
+  ApproveReportPayload,
   RejectReportPayload,
 } from './report-v1.types';
 
@@ -153,10 +154,10 @@ export function useReportData() {
   /* ── Approve ── */
   const [isApproving, setIsApproving] = useState(false);
 
-  const approveReport = useCallback(async (id: string): Promise<boolean> => {
+  const approveReport = useCallback(async (id: string, payload: ApproveReportPayload): Promise<boolean> => {
     setIsApproving(true);
     try {
-      await reportV1Api.approveReport(id);
+      await reportV1Api.approveReport(id, payload);
       toast.success('Laporan berhasil disetujui.');
       await fetchToReview(latestQueryRef.current.review);
       return true;

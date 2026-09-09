@@ -19,7 +19,7 @@ const report: KpiReportResponse = {
   reviewerUserId: 'u-2', reviewerUserName: 'C',
   reviewerUserPositionId: null, reviewerPositionName: null,
   reportDate: '2026-06-15', executionDescription: 'done', realizedValue: 40,
-  note: null, status: 'PENDING', reviewedBy: null, reviewedAt: null,
+  note: null, status: 'PENDING', reviewedBy: null, reviewedAt: null, approvalReason: null,
   rejectionReason: null, evidenceOriginalFilename: 'e.jpg',
   evidenceContentType: 'image/jpeg', evidenceFileSize: 1024,
   createdAt: '', updatedAt: '',
@@ -101,10 +101,10 @@ describe('reportV1Api detail/evidence (T14/T15)', () => {
 });
 
 describe('reportV1Api decisions (T16/T17 — separate endpoints)', () => {
-  it('approve: PATCH /api/v1/kpi-reports/{reportId}/approve with no body', async () => {
+  it('approve: PATCH /api/v1/kpi-reports/{reportId}/approve with approvalReason', async () => {
     mockedApi.patch.mockResolvedValueOnce({ data: wrap(report) });
-    await reportV1Api.approveReport('rep-1');
-    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/kpi-reports/rep-1/approve');
+    await reportV1Api.approveReport('rep-1', { approvalReason: 'Verified against evidence' });
+    expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/kpi-reports/rep-1/approve', { approvalReason: 'Verified against evidence' });
   });
 
   it('reject: PATCH /api/v1/kpi-reports/{reportId}/reject with rejectionReason', async () => {
