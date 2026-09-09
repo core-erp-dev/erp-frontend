@@ -3,7 +3,7 @@
 export interface AssignedUser {
   id: string;
   fullName: string;
-  email: string;
+  email: string | null;
   nip: string;
 }
 

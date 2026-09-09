@@ -53,11 +53,11 @@ const ACTIVITY_TABLE_STATE = {
   periodFilter: 'month' as const,
 };
 const REQUEST_TABLE_STATE = {
-  sortOptions: ['activityName', 'createdAt'],
-  defaultSort: 'activityName',
-  defaultDirection: 'asc' as const,
+  sortOptions: ['createdAt', 'activityName'],
+  defaultSort: 'createdAt',
+  defaultDirection: 'desc' as const,
   filterOptions: ['PENDING', 'APPROVED', 'REJECTED'],
-  periodFilter: 'month' as const,
+  periodFilter: 'optional-month' as const,
 };
 
 /**
@@ -98,8 +98,9 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1;
-  const periodYear = tableFilters.periodYear ?? currentYear;
-  const periodMonth = tableFilters.periodMonth ?? currentMonth;
+  const isOptionalPeriod = view === 'my-requests';
+  const periodYear = isOptionalPeriod ? tableFilters.periodYear : tableFilters.periodYear ?? currentYear;
+  const periodMonth = isOptionalPeriod ? tableFilters.periodMonth : tableFilters.periodMonth ?? currentMonth;
   const [periodYears, setPeriodYears] = useState<number[]>([currentYear]);
   const [isLoadingPeriodOptions, setIsLoadingPeriodOptions] = useState(false);
 
@@ -433,18 +434,29 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
                 aria-label="Pilih tahun periode aktivitas"
                 isDisabled={isLoadingPeriodOptions || tableState.isQueryLoading}
               >
-                {periodYear}
+                {periodYear ?? 'Semua tahun'}
                 <CaretDown className="h-4 w-4" />
               </Button>
               <Dropdown.Popover>
                 <Dropdown.Menu
-                  selectedKeys={new Set([String(periodYear)])}
+                  selectedKeys={periodYear == null ? new Set() : new Set([String(periodYear)])}
                   selectionMode="single"
                   onSelectionChange={(selection) => {
                     const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
-                    if (selected != null) tableState.setPeriod(Number(selected), periodMonth);
+                    if (selected == null) return;
+                    if (isOptionalPeriod) {
+                      tableState.setPeriodYear(String(selected) === 'all' ? undefined : Number(selected));
+                    } else {
+                      tableState.setPeriod(Number(selected), periodMonth ?? currentMonth);
+                    }
                   }}
                 >
+                  {isOptionalPeriod && (
+                    <Dropdown.Item id="all" textValue="Semua tahun">
+                      <Dropdown.ItemIndicator />
+                      <Label>Semua tahun</Label>
+                    </Dropdown.Item>
+                  )}
                   {periodYears.map((year) => (
                     <Dropdown.Item key={year} id={String(year)} textValue={String(year)}>
                       <Dropdown.ItemIndicator />
@@ -458,20 +470,31 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
               <Button
                 variant="tertiary"
                 aria-label="Pilih bulan periode aktivitas"
-                isDisabled={isLoadingPeriodOptions || tableState.isQueryLoading}
+                isDisabled={isLoadingPeriodOptions || tableState.isQueryLoading || (isOptionalPeriod && periodYear == null)}
               >
-                {MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth}
+                {periodMonth == null ? 'Semua bulan' : MONTH_NAMES_ID[periodMonth - 1] ?? periodMonth}
                 <CaretDown className="h-4 w-4" />
               </Button>
               <Dropdown.Popover>
                 <Dropdown.Menu
-                  selectedKeys={new Set([String(periodMonth)])}
+                  selectedKeys={periodMonth == null ? new Set() : new Set([String(periodMonth)])}
                   selectionMode="single"
                   onSelectionChange={(selection) => {
                     const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
-                    if (selected != null) tableState.setPeriod(periodYear, Number(selected));
+                    if (selected == null) return;
+                    if (isOptionalPeriod) {
+                      tableState.setPeriodMonth(String(selected) === 'all' ? undefined : Number(selected));
+                    } else {
+                      tableState.setPeriod(periodYear ?? currentYear, Number(selected));
+                    }
                   }}
                 >
+                  {isOptionalPeriod && (
+                    <Dropdown.Item id="all" textValue="Semua bulan">
+                      <Dropdown.ItemIndicator />
+                      <Label>Semua bulan</Label>
+                    </Dropdown.Item>
+                  )}
                   {MONTH_NAMES_ID.map((month, index) => (
                     <Dropdown.Item key={month} id={String(index + 1)} textValue={month}>
                       <Dropdown.ItemIndicator />
@@ -495,15 +518,17 @@ function ActivityWorkspaceContent({ view }: { view: ActivityViewId }) {
           const selected = selection instanceof Set ? Array.from(selection)[0] : undefined;
           tableState.setFilter(String(selected ?? ''));
         }}
-        sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
+        sortOptions={isOptionalPeriod
+          ? [{ id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }, { id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }]
+          : [{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
         selectedSortId={`${tableState.filters.sortBy}:${tableState.filters.direction}`}
         onSortChange={(selection) => {
           const selected = selection instanceof Set ? String(Array.from(selection)[0] ?? '') : '';
           const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc'];
           if (field && direction) tableState.setSort(field, direction);
         }}
-        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.positionId || (view === 'subordinates' && subordinateScope === 'direct') || periodYear !== currentYear || periodMonth !== currentMonth || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== 'asc')}
-        onReset={() => { setSearchInput(''); tableState.reset(); }}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.filter || tableState.filters.positionId || (view === 'subordinates' && subordinateScope === 'direct') || tableState.filters.sortBy !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultSort : ACTIVITY_TABLE_STATE.defaultSort) || tableState.filters.direction !== (view === 'my-requests' ? REQUEST_TABLE_STATE.defaultDirection : ACTIVITY_TABLE_STATE.defaultDirection))}
+        onReset={() => { setSearchInput(''); tableState.reset({ preservePeriod: true }); }}
       />
 
       {/* Active view table */}

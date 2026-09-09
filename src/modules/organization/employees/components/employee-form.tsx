@@ -58,8 +58,8 @@ const getFormSchema = (isEditMode: boolean) =>
     }),
     email: z
       .string()
-      .min(1, 'Email wajib diisi')
-      .email('Format email tidak valid'),
+      .email('Format email tidak valid')
+      .or(z.literal('')),
     address: z.string().optional(),
     nip: z.string().optional(),
     joinDate: z.string().min(1, 'Tanggal bergabung wajib diisi'),
@@ -148,7 +148,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
         birthDate: initialData.birthDate || '',
         gender: initialData.gender || '',
         phoneNumber: initialData.phoneNumber || '',
-        email: initialData.email,
+        email: initialData.email || '',
         address: initialData.address || '',
         nip: initialData.nip || '',
         joinDate: initialData.joinDate || '',
@@ -238,7 +238,7 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
 
     setIsSubmitting(true);
     const base: UserUpdateRequest = {
-      email: values.email, fullName: values.fullName,
+      email: values.email.trim(), fullName: values.fullName,
       nip: values.nip || undefined,
       joinDate: values.joinDate, phoneNumber: values.phoneNumber || undefined,
       gender: values.gender || undefined, birthDate: values.birthDate || undefined,
@@ -354,9 +354,9 @@ export function EmployeeForm({ mode, initialData, onSuccess }: EmployeeFormProps
             )} />
           </div>
           <Controller control={form.control} name="email" render={({ field, fieldState }) => (
-            <TextField isRequired validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
+            <TextField validationBehavior="aria" className="w-full" name={field.name} value={field.value} onChange={field.onChange} onBlur={field.onBlur} ref={field.ref} isInvalid={fieldState.invalid} isDisabled={isSubmitting}>
               <Label>Email</Label>
-              <Input placeholder="Masukkan email" type="email" />
+              <Input placeholder="Masukkan email (opsional)" type="email" />
               <FieldError>{fieldState.error?.message}</FieldError>
             </TextField>
           )} />

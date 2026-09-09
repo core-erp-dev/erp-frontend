@@ -3,7 +3,7 @@ export interface CoreUser {
   authServiceId: string | null;
   nip: string;
   fullName: string;
-  email: string;
+  email: string | null;
   deletedAt: string | null;
   joinDate: string;
   phoneNumber: string | null;
@@ -37,7 +37,7 @@ export interface PrimaryPosition {
   id: string;
   userId: string;
   userName: string;
-  userEmail: string;
+  userEmail: string | null;
   positionId: string;
   positionName: string;
   positionCode: string;
@@ -50,7 +50,7 @@ export interface PrimaryPosition {
 }
 
 export interface UserCreateRequest {
-  email: string;
+  email?: string;
   fullName: string;
   nip?: string;
   password?: string;
@@ -99,7 +99,7 @@ export interface UserPositionResponse {
   id: string;
   userId: string;
   userName: string;
-  userEmail: string;
+  userEmail: string | null;
   positionId: string;
   positionName: string;
   positionCode: string;

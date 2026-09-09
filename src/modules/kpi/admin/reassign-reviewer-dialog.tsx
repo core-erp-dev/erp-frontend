@@ -4,17 +4,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, TextField, TextArea, Select, ListBox, Label, Spinner } from '@heroui/react';
 import { X, ArrowsClockwise } from '@phosphor-icons/react';
 import { toast } from '@heroui/react';
-import { employeeApi } from '@/modules/organization/employees/services/employee-api';
-import type { CoreUser } from '@/modules/organization/employees/types';
 import { kpiAdminV1Api } from './kpi-admin-v1-api';
-import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
+import type { KpiReportResponse, KpiReportReviewerOption } from '@/modules/kpi/report/report-v1.types';
 
 interface ReassignReviewerDialogProps {
   isOpen: boolean;
   onClose: () => void;
   report: KpiReportResponse;
-  /** Called after successful reassignment (refetch to-review). */
-  onSuccess: () => void;
+  /** Called after successful reassignment. */
+  onSuccess: (updated?: KpiReportResponse) => void;
 }
 
 /**
@@ -24,7 +22,7 @@ interface ReassignReviewerDialogProps {
  * become the reviewer (backend-enforced).
  */
 export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: ReassignReviewerDialogProps) {
-  const [users, setUsers] = useState<CoreUser[]>([]);
+  const [users, setUsers] = useState<KpiReportReviewerOption[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [reason, setReason] = useState('');
@@ -34,7 +32,13 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
   const loadUsers = useCallback(async () => {
     setIsLoadingUsers(true);
     try {
-      const page = await employeeApi.getUsers({ size: 100 });
+      const page = await kpiAdminV1Api.getReportReviewerOptions({
+        page: 1,
+        size: 100,
+        search: '',
+        sortBy: 'fullName',
+        sortDirection: 'asc',
+      });
       setUsers(page.content);
     } catch {
       setUsers([]);
@@ -68,12 +72,12 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
     }
     setIsSubmitting(true);
     try {
-      await kpiAdminV1Api.adminReassignReportReviewer(report.id, {
+      const updated = await kpiAdminV1Api.adminReassignReportReviewer(report.id, {
         newReviewerUserId: selectedUserId,
         reason: reason.trim(),
       });
       toast.success('Peninjau berhasil dialihkan.');
-      onSuccess();
+      onSuccess(updated);
       onClose();
     } catch (err) {
       toast.danger(err instanceof Error ? err.message : 'Gagal mengalihkan peninjau.');
@@ -119,7 +123,7 @@ export function ReassignReviewerDialog({ isOpen, onClose, report, onSuccess }: R
                             <ListBox.Item key={u.id} id={u.id} textValue={u.fullName}>
                               <div className="flex flex-col">
                                 <span className="text-sm font-medium text-foreground">{u.fullName}</span>
-                                <span className="text-xs text-muted-foreground">{u.email}</span>
+                                <span className="text-xs text-muted-foreground">{u.email || '-'}</span>
                               </div>
                             </ListBox.Item>
                           ))}

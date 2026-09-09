@@ -1,6 +1,6 @@
 export interface User {
   username: string;
-  email: string;
+  email: string | null;
   roles: string[];
   permissions: string[];
 }
@@ -12,7 +12,7 @@ export interface AuthResponse {
     accessToken: string;
     refreshToken: string;
     username: string;
-    email: string;
+    email: string | null;
     roles: string[];
     permissions: string[];
   };

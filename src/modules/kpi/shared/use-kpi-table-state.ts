@@ -7,7 +7,11 @@ export interface KpiTableStateConfig {
   defaultSort: string;
   defaultDirection?: 'asc' | 'desc';
   filterOptions?: readonly string[];
-  periodFilter?: 'month' | 'date';
+  periodFilter?: 'month' | 'optional-month' | 'date';
+}
+
+export interface KpiTableResetOptions {
+  preservePeriod?: boolean;
 }
 
 export function getLocalTodayIso() {
@@ -23,6 +27,18 @@ function parsePositiveYear(value: string | null, fallback: number) {
 function parseMonth(value: string | null, fallback: number) {
   const month = Number(value);
   return Number.isInteger(month) && month >= 1 && month <= 12 ? month : fallback;
+}
+
+function parseOptionalYear(value: string | null) {
+  if (value == null || value === '') return undefined;
+  const year = Number(value);
+  return Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : undefined;
+}
+
+function parseOptionalMonth(value: string | null) {
+  if (value == null || value === '') return undefined;
+  const month = Number(value);
+  return Number.isInteger(month) && month >= 1 && month <= 12 ? month : undefined;
 }
 
 function isValidIsoDate(value: string | null): value is string {
@@ -58,10 +74,17 @@ export function useKpiTableState(config: KpiTableStateConfig) {
     const filter = searchParams.get('status') ?? '';
     const periodYear = config.periodFilter === 'month'
       ? parsePositiveYear(searchParams.get('year'), currentYear)
+      : config.periodFilter === 'optional-month'
+        ? parseOptionalYear(searchParams.get('year'))
+        : undefined;
+    const parsedOptionalMonth = config.periodFilter === 'optional-month'
+      ? parseOptionalMonth(searchParams.get('month'))
       : undefined;
     const periodMonth = config.periodFilter === 'month'
       ? parseMonth(searchParams.get('month'), currentMonth)
-      : undefined;
+      : config.periodFilter === 'optional-month' && periodYear != null
+        ? parsedOptionalMonth
+        : undefined;
     const reportDate = config.periodFilter === 'date'
       ? (isValidIsoDate(searchParams.get('reportDate')) ? searchParams.get('reportDate')! : todayIso)
       : undefined;
@@ -91,6 +114,10 @@ export function useKpiTableState(config: KpiTableStateConfig) {
       params.set('year', String(next.periodYear ?? currentYear));
       params.set('month', String(next.periodMonth ?? currentMonth));
     }
+    if (config.periodFilter === 'optional-month') {
+      if (next.periodYear != null) params.set('year', String(next.periodYear));
+      if (next.periodYear != null && next.periodMonth != null) params.set('month', String(next.periodMonth));
+    }
     if (config.periodFilter === 'date') {
       params.set('reportDate', next.reportDate ?? todayIso);
     }
@@ -115,24 +142,41 @@ export function useKpiTableState(config: KpiTableStateConfig) {
   const setSubordinateScope = useCallback((subordinateScope: 'all' | 'direct') => updateUrl({ subordinateScope, page: 1 }), [updateUrl]);
   const setSort = useCallback((sortBy: string, direction: 'asc' | 'desc') => updateUrl({ sortBy, direction, page: 1 }), [updateUrl]);
   const setPeriod = useCallback((periodYear: number, periodMonth: number) => updateUrl({ periodYear, periodMonth, page: 1 }), [updateUrl]);
+  const setPeriodYear = useCallback((periodYear: number | undefined) => updateUrl({
+    periodYear,
+    periodMonth: periodYear == null ? undefined : filters.periodMonth,
+    page: 1,
+  }), [filters.periodMonth, updateUrl]);
+  const setPeriodMonth = useCallback((periodMonth: number | undefined) => updateUrl({ periodMonth, page: 1 }), [updateUrl]);
   const setReportDate = useCallback((reportDate: string) => updateUrl({ reportDate, page: 1 }), [updateUrl]);
   const setPage = useCallback((page: number) => updateUrl({ page }), [updateUrl]);
-  const reset = useCallback(() => updateUrl({
-    search: '',
-    filter: '',
-    positionId: '',
-    subordinateScope: 'all',
-    sortBy: config.defaultSort,
-    direction: config.defaultDirection ?? 'asc',
-    periodYear: currentYear,
-    periodMonth: currentMonth,
-    reportDate: todayIso,
-    page: 1,
-  }), [config, currentMonth, currentYear, todayIso, updateUrl]);
+  const reset = useCallback((options: KpiTableResetOptions = {}) => {
+    const period = options.preservePeriod
+      ? { periodYear: filters.periodYear, periodMonth: filters.periodMonth, reportDate: filters.reportDate }
+      : config.periodFilter === 'month'
+        ? { periodYear: currentYear, periodMonth: currentMonth, reportDate: undefined }
+        : config.periodFilter === 'date'
+          ? { periodYear: undefined, periodMonth: undefined, reportDate: todayIso }
+          : { periodYear: undefined, periodMonth: undefined, reportDate: undefined };
+
+    updateUrl({
+      search: '',
+      filter: '',
+      positionId: '',
+      subordinateScope: 'all',
+      sortBy: config.defaultSort,
+      direction: config.defaultDirection ?? 'asc',
+      ...period,
+      page: 1,
+    });
+  }, [config, currentMonth, currentYear, filters.periodMonth, filters.periodYear, filters.reportDate, todayIso, updateUrl]);
 
   const shouldCanonicalizePeriod = config.periodFilter === 'month'
     ? searchParams.get('year') !== String(filters.periodYear) || searchParams.get('month') !== String(filters.periodMonth)
-    : config.periodFilter === 'date' && searchParams.get('reportDate') !== filters.reportDate;
+    : config.periodFilter === 'optional-month'
+      ? searchParams.get('year') !== (filters.periodYear == null ? null : String(filters.periodYear))
+        || searchParams.get('month') !== (filters.periodMonth == null ? null : String(filters.periodMonth))
+      : config.periodFilter === 'date' && searchParams.get('reportDate') !== filters.reportDate;
 
   useEffect(() => {
     if (!shouldCanonicalizePeriod) return;
@@ -154,7 +198,7 @@ export function useKpiTableState(config: KpiTableStateConfig) {
     setIsQueryLoading(false);
   }, [searchParams]);
 
-  return { filters, isQueryLoading, setSearch, setFilter, setPositionId, setSubordinateScope, setSort, setPeriod, setReportDate, setPage, reset };
+  return { filters, isQueryLoading, setSearch, setFilter, setPositionId, setSubordinateScope, setSort, setPeriod, setPeriodYear, setPeriodMonth, setReportDate, setPage, reset };
 }
 
 export function paginateKpiItems<T>(items: T[], page: number, size = 10) {

@@ -143,7 +143,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                     )}
                   </Table.Cell>
                   <Table.Cell className={isDeleted ? 'text-gray-400' : 'text-muted-foreground'}>
-                    {emp.email}
+                    {emp.email || '-'}
                   </Table.Cell>
                   <Table.Cell className={isDeleted ? 'text-gray-400' : ''}>
                     {primaryName === null ? (

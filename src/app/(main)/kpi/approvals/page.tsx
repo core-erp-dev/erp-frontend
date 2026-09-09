@@ -265,8 +265,8 @@ export default function KpiApprovalsPage() {
         sortOptions={[{ id: 'activityName:asc', label: 'Nama (A-Z)' }, { id: 'activityName:desc', label: 'Nama (Z-A)' }, { id: 'createdAt:desc', label: 'Terbaru' }, { id: 'createdAt:asc', label: 'Terlama' }]}
         selectedSortId={`${tableState.filters.sortBy}:${tableState.filters.direction}`}
         onSortChange={(selection) => { const selected = selection instanceof Set ? String(Array.from(selection)[0] ?? '') : ''; const [field, direction] = selected.split(':') as ['activityName' | 'createdAt', 'asc' | 'desc']; if (field && direction) tableState.setSort(field, direction); }}
-        hasActiveFilters={Boolean(tableState.filters.search || periodYear !== currentYear || periodMonth !== currentMonth || tableState.filters.sortBy !== APPROVAL_TABLE_STATE.defaultSort || tableState.filters.direction !== 'asc')}
-        onReset={() => { setSearchInput(''); tableState.reset(); }}
+        hasActiveFilters={Boolean(tableState.filters.search || tableState.filters.sortBy !== APPROVAL_TABLE_STATE.defaultSort || tableState.filters.direction !== APPROVAL_TABLE_STATE.defaultDirection)}
+        onReset={() => { setSearchInput(''); tableState.reset({ preservePeriod: true }); }}
       />
 
       <ApprovalTable

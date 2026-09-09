@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- Preview is a local object URL selected by the user. */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Breadcrumbs, BreadcrumbsItem, Button, FieldError, Form, Input, Label, ListBox, Select, Spinner, TextArea, TextField } from '@heroui/react';
 import { ArrowLeft, House, X } from '@phosphor-icons/react';
 import { useReportData } from './use-report-data';
@@ -14,6 +14,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 export function ReportSubmitPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { submitReport, isSubmitting } = useReportData();
   const [activities, setActivities] = useState<KpiActivityResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,6 +28,7 @@ export function ReportSubmitPage() {
   const [evidencePreview, setEvidencePreview] = useState<string | null>(null);
   const previewRef = useRef<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const requestedActivityId = searchParams.get('activityId');
 
   const loadActivities = useCallback(async () => {
     setIsLoading(true); setLoadError(null);
@@ -36,6 +38,11 @@ export function ReportSubmitPage() {
   }, []);
 
   useEffect(() => { void loadActivities(); setReportDate(new Date().toISOString().slice(0, 10)); }, [loadActivities]);
+  useEffect(() => {
+    if (requestedActivityId && activities.some((activity) => activity.id === requestedActivityId)) {
+      setSelectedActivityId(requestedActivityId);
+    }
+  }, [activities, requestedActivityId]);
   useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
 
   const selectedActivity = activities.find((activity) => activity.id === selectedActivityId);

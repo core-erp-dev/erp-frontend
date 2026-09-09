@@ -119,12 +119,12 @@ export const navigationConfig: SidebarItem[] = [
     href: KPI_ROUTES.reports,
     icon: Article,
     group: 'KPI',
-    // Expandable parent (Corporate KPI pattern). Report > Approval is NOT
-    // gated by kpi_report:root_review — hierarchy reviewers without it must
-    // still open the queue; root_review only adds root queue contents.
+    // Expandable parent. The reviewer queue remains responsibility-based;
+    // administrative report management is a separate child surface.
     children: [
       { title: 'Laporan Saya', href: KPI_ROUTES.reports },
       { title: 'Persetujuan Laporan', href: KPI_ROUTES.reportReviews },
+      { title: 'Semua Laporan', href: KPI_ROUTES.allReports, permissions: [PERM.KPI_REPORT_MANAGE] },
     ],
   },
 

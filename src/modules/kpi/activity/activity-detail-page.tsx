@@ -16,7 +16,7 @@ import {
   TextField,
   toast,
 } from '@heroui/react';
-import { ArrowLeft, DotsThreeVertical, House, PencilSimple, Trash, UserSwitch } from '@phosphor-icons/react';
+import { ArrowLeft, DotsThreeVertical, FileText, House, PencilSimple, Trash, UserSwitch } from '@phosphor-icons/react';
 import {
   ACTIVITY_STATUS_LABEL,
 } from './activity-v1.types';
@@ -118,7 +118,13 @@ export function ActivityDetailPage({ id, actingPositionId }: ActivityDetailPageP
           </Button>
           <h1 className="truncate text-xl font-semibold text-foreground">{activity.activityName}</h1>
         </div>
-        {hasPerm(PERM.KPI_ACTIVITY_MANAGE) && activity.status === 'ACTIVE' && (
+        <div className="flex items-center gap-2">
+          {from === 'mine' && activity.status === 'ACTIVE' && (
+            <Button variant="secondary" onPress={() => router.push(`/kpi/reports/create?activityId=${encodeURIComponent(activity.id)}`)}>
+              <FileText className="h-4 w-4" />Ajukan Laporan
+            </Button>
+          )}
+          {hasPerm(PERM.KPI_ACTIVITY_MANAGE) && activity.status === 'ACTIVE' && (
           <Dropdown>
             <Button isIconOnly variant="tertiary" aria-label="Opsi aktivitas">
               <DotsThreeVertical className="h-5 w-5" />
@@ -150,7 +156,8 @@ export function ActivityDetailPage({ id, actingPositionId }: ActivityDetailPageP
               </Dropdown.Menu>
             </Dropdown.Popover>
           </Dropdown>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

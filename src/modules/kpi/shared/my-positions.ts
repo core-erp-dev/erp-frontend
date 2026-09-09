@@ -25,7 +25,7 @@ export interface MyPositionResponse {
   id: string;
   userId: string;
   userName: string;
-  userEmail: string;
+  userEmail: string | null;
   /** `core_positions.id` — the authoritative acting-Position identity. */
   positionId: string;
   positionName: string;

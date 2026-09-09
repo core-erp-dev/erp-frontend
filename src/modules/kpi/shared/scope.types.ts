@@ -8,11 +8,11 @@
 
 export type KpiActivityScope = 'mine' | 'subordinates' | 'all' | 'superior';
 export type KpiRequestScope = 'mine' | 'to-review';
-export type KpiReportScope = 'mine' | 'to-review';
+export type KpiReportScope = 'mine' | 'to-review' | 'all';
 
 export const ACTIVITY_SCOPES: readonly KpiActivityScope[] = ['mine', 'subordinates', 'all', 'superior'] as const;
 export const REQUEST_SCOPES: readonly KpiRequestScope[] = ['mine', 'to-review'] as const;
-export const REPORT_SCOPES: readonly KpiReportScope[] = ['mine', 'to-review'] as const;
+export const REPORT_SCOPES: readonly KpiReportScope[] = ['mine', 'to-review', 'all'] as const;
 
 /** Thrown when a scoped call is attempted without an explicit scope value. */
 export class MissingScopeError extends Error {

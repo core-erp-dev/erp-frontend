@@ -47,7 +47,7 @@ describe('ReportTable — root review queue presentation', () => {
     expect(screen.getByText('Antrean perusahaan')).toBeInTheDocument();
   });
 
-  it('renders the reassign action only for hierarchy-assigned reports in TO_REVIEW mode', () => {
+  it('renders the reassign action only for hierarchy-assigned reports in ALL mode', () => {
     render(
       <ReportTable
         items={[
@@ -56,7 +56,7 @@ describe('ReportTable — root review queue presentation', () => {
         ]}
         isLoading={false}
         error={null}
-        mode="TO_REVIEW"
+        mode="ALL"
         onViewDetail={onViewDetail}
         onReassignReviewer={onReassignReviewer}
       />,

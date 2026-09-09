@@ -178,7 +178,7 @@ function EmployeeDetailPage() {
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Email</Label>
-            <Input value={employee.email} readOnly />
+            <Input value={employee.email || '-'} readOnly />
           </TextField>
           <TextField isReadOnly className="pointer-events-none w-full">
             <Label>Alamat</Label>

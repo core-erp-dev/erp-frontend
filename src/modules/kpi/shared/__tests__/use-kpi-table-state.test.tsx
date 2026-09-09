@@ -17,6 +17,13 @@ const dateConfig: KpiTableStateConfig = {
   periodFilter: 'date',
 };
 
+const optionalMonthConfig: KpiTableStateConfig = {
+  sortOptions: ['createdAt', 'activityName'],
+  defaultSort: 'createdAt',
+  defaultDirection: 'desc',
+  periodFilter: 'optional-month',
+};
+
 describe('useKpiTableState period URL state', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/kpi/test');
@@ -79,6 +86,58 @@ describe('useKpiTableState period URL state', () => {
     act(() => window.history.forward());
     await waitFor(() => expect(result.current.filters.periodYear).toBe(2024));
     expect(result.current.filters.periodMonth).toBe(2);
+  });
+
+  it('defaults optional month periods to all data and omits period parameters', () => {
+    const { result } = renderHook(() => useKpiTableState(optionalMonthConfig));
+
+    expect(result.current.filters.periodYear).toBeUndefined();
+    expect(result.current.filters.periodMonth).toBeUndefined();
+    expect(result.current.filters.sortBy).toBe('createdAt');
+    expect(result.current.filters.direction).toBe('desc');
+    expect(window.location.search).toBe('');
+  });
+
+  it('supports selecting and clearing optional year/month parameters', () => {
+    const { result } = renderHook(() => useKpiTableState(optionalMonthConfig));
+
+    act(() => result.current.setPeriodYear(2025));
+    expect(result.current.filters.periodYear).toBe(2025);
+    expect(result.current.filters.periodMonth).toBeUndefined();
+    expect(window.location.search).toBe('?year=2025');
+
+    act(() => result.current.setPeriodMonth(8));
+    expect(result.current.filters.periodMonth).toBe(8);
+    expect(window.location.search).toBe('?year=2025&month=8');
+
+    act(() => result.current.setPeriodYear(undefined));
+    expect(result.current.filters.periodYear).toBeUndefined();
+    expect(result.current.filters.periodMonth).toBeUndefined();
+    expect(window.location.search).toBe('');
+  });
+
+  it('removes an optional month when the URL has no valid year', async () => {
+    window.history.replaceState({}, '', '/kpi/test?month=8&page=4');
+    const { result } = renderHook(() => useKpiTableState(optionalMonthConfig));
+
+    expect(result.current.filters.periodYear).toBeUndefined();
+    expect(result.current.filters.periodMonth).toBeUndefined();
+    await waitFor(() => expect(window.location.search).toBe('?page=4'));
+  });
+
+  it('can reset other filters without clearing an optional period', () => {
+    const { result } = renderHook(() => useKpiTableState(optionalMonthConfig));
+
+    act(() => result.current.setPeriod(2025, 8));
+    act(() => result.current.setSearch('request'));
+    act(() => result.current.setPage(3));
+    act(() => result.current.reset({ preservePeriod: true }));
+
+    expect(result.current.filters.search).toBe('');
+    expect(result.current.filters.page).toBe(1);
+    expect(result.current.filters.periodYear).toBe(2025);
+    expect(result.current.filters.periodMonth).toBe(8);
+    expect(window.location.search).toBe('?year=2025&month=8');
   });
 
   it('defaults invalid report dates and keeps a selected date as YYYY-MM-DD', () => {

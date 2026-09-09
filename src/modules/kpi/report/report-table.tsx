@@ -11,7 +11,7 @@ import {
   type KpiReportResponse,
 } from './report-v1.types';
 
-type TableMode = 'MY' | 'TO_REVIEW';
+export type TableMode = 'MY' | 'TO_REVIEW' | 'ALL';
 
 interface ReportTableProps {
   items: KpiReportResponse[];
@@ -20,7 +20,7 @@ interface ReportTableProps {
   mode: TableMode;
   getDetailHref?: (item: KpiReportResponse) => string;
   onViewDetail?: (item: KpiReportResponse) => void;
-  /** T18 — administrative reviewer reassignment; provided only for `kpi_report:manage` holders. */
+  /** T18 — administrative reviewer reassignment; only used in `ALL` mode. */
   onReassignReviewer?: (report: KpiReportResponse) => void;
   totalItems: number;
   currentPage: number;
@@ -29,9 +29,10 @@ interface ReportTableProps {
 }
 
 export function ReportTable({
-  items, isLoading, error, mode, getDetailHref = (item) => `/kpi/reports/${item.id}?from=${mode === 'MY' ? 'mine' : 'review'}`, onViewDetail, onReassignReviewer, totalItems, currentPage, totalPages, onPageChange,
+  items, isLoading, error, mode, getDetailHref = (item) => `/kpi/reports/${item.id}?from=${mode === 'MY' ? 'mine' : mode === 'ALL' ? 'all' : 'review'}`, onViewDetail, onReassignReviewer, totalItems, currentPage, totalPages, onPageChange,
 }: ReportTableProps) {
-  const showReviewer = mode === 'MY';
+  const showReviewer = mode === 'MY' || mode === 'ALL';
+  const showSubmitter = mode === 'TO_REVIEW' || mode === 'ALL';
 
   return (
     <KpiTable
@@ -42,7 +43,7 @@ export function ReportTable({
         <Table.Column isRowHeader id="activityName">Aktivitas</Table.Column>
         <Table.Column id="reportDate">Tanggal Laporan</Table.Column>
         <Table.Column id="realizedValue">Nilai Realisasi</Table.Column>
-        {mode === 'TO_REVIEW' && <Table.Column id="submittedBy">Diajukan Oleh</Table.Column>}
+        {showSubmitter && <Table.Column id="submittedBy">Diajukan Oleh</Table.Column>}
         {showReviewer && <Table.Column id="reviewer">Peninjau</Table.Column>}
         <Table.Column id="status">Status</Table.Column>
         <Table.Column id="createdAt">Diajukan</Table.Column>
@@ -50,7 +51,7 @@ export function ReportTable({
       </>}
       isLoading={isLoading}
       error={error}
-      emptyLabel={mode === 'MY' ? 'Belum ada laporan yang diajukan.' : 'Tidak ada laporan untuk ditinjau.'}
+      emptyLabel={mode === 'MY' ? 'Belum ada laporan yang diajukan.' : mode === 'ALL' ? 'Belum ada laporan.' : 'Tidak ada laporan untuk ditinjau.'}
       totalItems={totalItems}
       currentPage={currentPage}
       totalPages={totalPages}
@@ -61,7 +62,7 @@ export function ReportTable({
                 <Table.Cell><Link href={getDetailHref(item)} className="font-medium text-foreground hover:underline">{item.activityName}</Link></Table.Cell>
                 <Table.Cell>{item.reportDate}</Table.Cell>
                 <Table.Cell>{item.realizedValue} {item.unit}</Table.Cell>
-                {mode === 'TO_REVIEW' && (
+                {showSubmitter && (
                   <Table.Cell>{item.submittedByUserName}</Table.Cell>
                 )}
                 {showReviewer && (
@@ -85,7 +86,7 @@ export function ReportTable({
                     {/* T18 reassignment applies to hierarchy-assigned reports only —
                         top-level root reports live in the permission-based company
                         queue and must not be silently pulled out of it. */}
-                    {mode === 'TO_REVIEW' && onReassignReviewer && item.reviewerUserId && (
+                    {mode === 'ALL' && onReassignReviewer && item.status === 'PENDING' && item.reviewerUserId && (
                       <Button isIconOnly variant="tertiary" size="sm" aria-label="Alihkan peninjau" onPress={() => onReassignReviewer(item)}>
                         <ArrowsClockwise className="h-4 w-4" />
                       </Button>

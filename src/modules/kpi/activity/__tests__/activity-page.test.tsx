@@ -38,6 +38,7 @@ describe('Activity workspace simplified position flow', () => {
     positions = [];
     positionError = null;
     tableProps = {};
+    window.history.replaceState({}, '', '/kpi/activities/mine');
     jest.clearAllMocks();
   });
 
@@ -66,6 +67,38 @@ describe('Activity workspace simplified position flow', () => {
       periodYear: 2025,
       periodMonth: 2,
     }));
+  });
+
+  it('does not show the clear-filter button when only the activity period changes', () => {
+    window.history.replaceState({}, '', '/kpi/activities/mine?year=2025&month=2');
+    positions = [{ positionId: 'position-a', positionName: 'A', userPositionId: 'assignment-a', userId: 'u', isPrimary: true }];
+
+    render(<ActivityWorkspace view="my-activities" />);
+
+    expect(screen.queryByRole('button', { name: 'Hapus filter' })).not.toBeInTheDocument();
+  });
+
+  it('shows all my requests by default and sorts them newest first', () => {
+    render(<ActivityWorkspace view="my-requests" />);
+
+    expect(fetchRequests).toHaveBeenCalledWith(expect.objectContaining({
+      periodYear: undefined,
+      periodMonth: undefined,
+      sortBy: 'createdAt',
+      sortDirection: 'desc',
+    }));
+  });
+
+  it('keeps the clear-filter button hidden when my requests only have a period', () => {
+    window.history.replaceState({}, '', '/kpi/activities/my-requests?year=2025&month=2');
+
+    render(<ActivityWorkspace view="my-requests" />);
+
+    expect(fetchRequests).toHaveBeenCalledWith(expect.objectContaining({
+      periodYear: 2025,
+      periodMonth: 2,
+    }));
+    expect(screen.queryByRole('button', { name: 'Hapus filter' })).not.toBeInTheDocument();
   });
 
   it('keeps the personal CTA visible but disabled without an active position', () => {

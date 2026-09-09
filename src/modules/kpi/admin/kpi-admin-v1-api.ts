@@ -1,5 +1,5 @@
 import { api } from '@/lib/axios';
-import type { ApiResponse } from '@/types/api';
+import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type {
   AdminCreateActivityRequest,
   AdminReassignReviewerRequest,
@@ -7,7 +7,11 @@ import type {
   KpiActivityResponse,
   KpiActivityManageOptions,
 } from '@/modules/kpi/activity/activity-v1.types';
-import type { KpiReportResponse } from '@/modules/kpi/report/report-v1.types';
+import type {
+  KpiReportResponse,
+  KpiReportReviewerOption,
+  ReportReviewerOptionsQuery,
+} from '@/modules/kpi/report/report-v1.types';
 
 /**
  * KPI administrative client — manage form bootstrap plus mutation endpoints.
@@ -63,6 +67,25 @@ export const kpiAdminV1Api = {
     const response = await api.patch<ApiResponse<KpiReportResponse>>(
       `/api/v1/admin/kpi-reports/${reportId}/reviewer`,
       body,
+    );
+    return response.data.data;
+  },
+
+  /** Administrative active-user projection for report reviewer selection. */
+  getReportReviewerOptions: async (
+    query: ReportReviewerOptionsQuery,
+  ): Promise<PaginatedResponse<KpiReportReviewerOption>> => {
+    const response = await api.get<ApiResponse<PaginatedResponse<KpiReportReviewerOption>>>(
+      '/api/v1/admin/kpi-reports/reviewer-options',
+      {
+        params: {
+          page: query.page,
+          size: query.size,
+          ...(query.search ? { search: query.search } : {}),
+          sortBy: query.sortBy,
+          sortDirection: query.sortDirection,
+        },
+      },
     );
     return response.data.data;
   },

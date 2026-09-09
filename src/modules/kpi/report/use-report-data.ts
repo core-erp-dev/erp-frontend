@@ -9,42 +9,65 @@ import {
   recoverableConflict,
   type RecoverableConflict,
 } from '@/modules/kpi/shared/domain-errors';
-import type { KpiReportResponse, SubmitReportPayload, RejectReportPayload } from './report-v1.types';
+import type {
+  KpiReportResponse,
+  PaginatedReportResponse,
+  ReportListQuery,
+  SubmitReportPayload,
+  RejectReportPayload,
+} from './report-v1.types';
+
+export const DEFAULT_REPORT_QUERY: ReportListQuery = {
+  page: 1,
+  size: 10,
+  search: '',
+  status: '',
+  sortBy: 'activityName',
+  sortDirection: 'asc',
+};
 
 /**
  * Combined report data hook (V1).
- *   - My Reports    → GET /api/v1/kpi-reports?scope=mine
- *   - Review Queue  → GET /api/v1/kpi-reports?scope=to-review — assigned
- *     hierarchy reports (stored reviewer) PLUS top-level root reports in the
- *     centralized company queue for kpi_report:root_review holders.
- *   - Submit/approve/reject per T12/T16/T17.
- * Already-processed failures surface as a recoverable conflict (banner + refetch).
+ * Scoped Report lists use the same server-side query contract as Activity:
+ * page, size, search, status, sortBy, and sortDirection.
  */
 export function useReportData() {
-  /* ── My Reports ── */
-  const [myReports, setMyReports] = useState<KpiReportResponse[]>([]);
-  const [isLoadingMy, setIsLoadingMy] = useState(false);
-  const [myError, setMyError] = useState<string | null>(null);
   const mountedRef = useRef(true);
-  const requestSeqRef = useRef({ mine: 0, review: 0 });
+  const requestSeqRef = useRef({ mine: 0, review: 0, all: 0 });
+  const latestQueryRef = useRef({
+    mine: DEFAULT_REPORT_QUERY,
+    review: DEFAULT_REPORT_QUERY,
+    all: DEFAULT_REPORT_QUERY,
+  });
+
   useEffect(() => {
-    // React Strict Mode runs effect cleanup during its development probe and
-    // then mounts the effect again. Reset the guard in setup so the real
-    // request is still allowed to commit its loading/data state.
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  const fetchMyReports = useCallback(async () => {
+  /* ── My Reports ── */
+  const [myReports, setMyReports] = useState<KpiReportResponse[]>([]);
+  const [myPagination, setMyPagination] = useState<PaginatedReportResponse | null>(null);
+  const [isLoadingMy, setIsLoadingMy] = useState(false);
+  const [myError, setMyError] = useState<string | null>(null);
+
+  const fetchMyReports = useCallback(async (query: ReportListQuery = DEFAULT_REPORT_QUERY) => {
     const requestId = ++requestSeqRef.current.mine;
+    latestQueryRef.current.mine = query;
     setIsLoadingMy(true);
     setMyError(null);
-    setMyReports([]);
     try {
-      const data = await reportV1Api.getReports('mine');
-      if (mountedRef.current && requestId === requestSeqRef.current.mine) setMyReports(data);
+      const data = await reportV1Api.getReports('mine', query);
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) {
+        setMyReports(data.content);
+        setMyPagination(data);
+      }
     } catch (err) {
-      if (mountedRef.current && requestId === requestSeqRef.current.mine) setMyError(extractReportV1Error(err));
+      if (mountedRef.current && requestId === requestSeqRef.current.mine) {
+        setMyReports([]);
+        setMyPagination(null);
+        setMyError(extractReportV1Error(err));
+      }
     } finally {
       if (mountedRef.current && requestId === requestSeqRef.current.mine) setIsLoadingMy(false);
     }
@@ -52,25 +75,61 @@ export function useReportData() {
 
   /* ── To Review ── */
   const [toReview, setToReview] = useState<KpiReportResponse[]>([]);
+  const [reviewPagination, setReviewPagination] = useState<PaginatedReportResponse | null>(null);
   const [isLoadingReview, setIsLoadingReview] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
-  const fetchToReview = useCallback(async () => {
+  const fetchToReview = useCallback(async (query: ReportListQuery = DEFAULT_REPORT_QUERY) => {
     const requestId = ++requestSeqRef.current.review;
+    latestQueryRef.current.review = query;
     setIsLoadingReview(true);
     setReviewError(null);
-    setToReview([]);
     try {
-      const data = await reportV1Api.getReports('to-review');
-      if (mountedRef.current && requestId === requestSeqRef.current.review) setToReview(data);
+      const data = await reportV1Api.getReports('to-review', query);
+      if (mountedRef.current && requestId === requestSeqRef.current.review) {
+        setToReview(data.content);
+        setReviewPagination(data);
+      }
     } catch (err) {
-      if (mountedRef.current && requestId === requestSeqRef.current.review) setReviewError(extractReportV1Error(err));
+      if (mountedRef.current && requestId === requestSeqRef.current.review) {
+        setToReview([]);
+        setReviewPagination(null);
+        setReviewError(extractReportV1Error(err));
+      }
     } finally {
       if (mountedRef.current && requestId === requestSeqRef.current.review) setIsLoadingReview(false);
     }
   }, []);
 
-  /* ── Recoverable conflict state (already-processed etc.) ── */
+  /* ── All Reports ── */
+  const [allReports, setAllReports] = useState<KpiReportResponse[]>([]);
+  const [allPagination, setAllPagination] = useState<PaginatedReportResponse | null>(null);
+  const [isLoadingAll, setIsLoadingAll] = useState(false);
+  const [allError, setAllError] = useState<string | null>(null);
+
+  const fetchAllReports = useCallback(async (query: ReportListQuery = DEFAULT_REPORT_QUERY) => {
+    const requestId = ++requestSeqRef.current.all;
+    latestQueryRef.current.all = query;
+    setIsLoadingAll(true);
+    setAllError(null);
+    try {
+      const data = await reportV1Api.getReports('all', query);
+      if (mountedRef.current && requestId === requestSeqRef.current.all) {
+        setAllReports(data.content);
+        setAllPagination(data);
+      }
+    } catch (err) {
+      if (mountedRef.current && requestId === requestSeqRef.current.all) {
+        setAllReports([]);
+        setAllPagination(null);
+        setAllError(extractReportV1Error(err));
+      }
+    } finally {
+      if (mountedRef.current && requestId === requestSeqRef.current.all) setIsLoadingAll(false);
+    }
+  }, []);
+
+  /* ── Recoverable conflict state ── */
   const [recoverable, setRecoverable] = useState<RecoverableConflict | null>(null);
   const clearRecoverable = useCallback(() => setRecoverable(null), []);
 
@@ -99,14 +158,14 @@ export function useReportData() {
     try {
       await reportV1Api.approveReport(id);
       toast.success('Laporan berhasil disetujui.');
-      await fetchToReview();
+      await fetchToReview(latestQueryRef.current.review);
       return true;
     } catch (err) {
       const raw = extractErrorMessage(err, '');
       const kind = classifyReportError(raw);
       if (kind !== 'other') {
         setRecoverable(recoverableConflict(kind));
-        await fetchToReview();
+        await fetchToReview(latestQueryRef.current.review);
       } else {
         toast.danger(raw || 'Gagal menyetujui laporan.');
       }
@@ -124,14 +183,14 @@ export function useReportData() {
     try {
       await reportV1Api.rejectReport(id, payload);
       toast.success('Laporan berhasil ditolak.');
-      await fetchToReview();
+      await fetchToReview(latestQueryRef.current.review);
       return true;
     } catch (err) {
       const raw = extractErrorMessage(err, '');
       const kind = classifyReportError(raw);
       if (kind !== 'other') {
         setRecoverable(recoverableConflict(kind));
-        await fetchToReview();
+        await fetchToReview(latestQueryRef.current.review);
       } else {
         toast.danger(raw || 'Gagal menolak laporan.');
       }
@@ -143,13 +202,20 @@ export function useReportData() {
 
   return {
     myReports,
+    myPagination,
     isLoadingMy,
     myError,
     fetchMyReports,
     toReview,
+    reviewPagination,
     isLoadingReview,
     reviewError,
     fetchToReview,
+    allReports,
+    allPagination,
+    isLoadingAll,
+    allError,
+    fetchAllReports,
     submitReport,
     isSubmitting,
     approveReport,
@@ -161,7 +227,7 @@ export function useReportData() {
   };
 }
 
-/** Known report mutation error → safe English message. */
+/** Known report mutation error → safe Indonesian message. */
 function mapReportError(error: unknown, fallback: string): string {
   const raw = extractErrorMessage(error, '');
   if (!raw) return fallback;

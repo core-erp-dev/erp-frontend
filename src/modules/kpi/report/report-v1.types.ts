@@ -74,7 +74,7 @@ export type PaginatedReportResponse = PaginatedResponse<KpiReportResponse>;
 export interface KpiReportReviewerOption {
   id: string;
   fullName: string;
-  email: string;
+  email: string | null;
 }
 
 export type ReportReviewerOptionsQuery = {

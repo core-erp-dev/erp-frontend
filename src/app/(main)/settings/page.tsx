@@ -28,12 +28,21 @@ export default function SettingsPage() {
         aria-label="Settings options"
         selectionMode="none"
         onAction={(key) => {
+          if (key === 'profile') {
+            router.push('/settings/profile');
+          }
           if (key === 'roles') {
             router.push('/settings/roles');
           }
         }}
         className="p-0"
       >
+        <ListBox.Item id="profile" textValue="Profile">
+          <div className="flex flex-col gap-0.5">
+            <Label>Profil</Label>
+            <Description>Ubah password akun Anda</Description>
+          </div>
+        </ListBox.Item>
         <ListBox.Item id="roles" textValue="Access Control & Roles">
           <div className="flex flex-col gap-0.5">
             <Label>Access Control & Roles</Label>
