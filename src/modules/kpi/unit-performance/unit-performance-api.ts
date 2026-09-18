@@ -20,7 +20,10 @@ export const unitPerformanceApi = {
       '/api/v1/unit-performances',
       { params: month != null ? { year, month } : { year } },
     );
-    return response.data.data;
+    const rows = response.data.data;
+    return Array.isArray(rows)
+      ? rows.map((row) => ({ ...row, indicators: Array.isArray(row.indicators) ? row.indicators : [] }))
+      : [];
   },
 
   getPerformanceDetail: async (

@@ -25,7 +25,7 @@ const detail = {
   year: 2025, month: 6, realization: 0, performance: 0, status: 'OK' as const,
   indicators: [{
     id: 'ind-1', code: '1', name: 'ROE', aspectName: 'Keuangan', unitWeight: 0,
-    actualValue: 4, targetValue: 5, contribution: 0, calculationStatus: 'OK',
+    actualValue: 4, targetValue: 5, contribution: 0, performance: 80, calculationStatus: 'OK', status: 'OK',
   }],
 };
 
@@ -40,14 +40,14 @@ beforeEach(() => {
 it('loads the selected detail period and renders zero weight as 0%', async () => {
   render(<UnitPerformanceDetailPage />);
 
-  expect(await screen.findByDisplayValue('Hublang')).toBeInTheDocument();
+  expect(await screen.findByText('ROE')).toBeInTheDocument();
   expect(screen.getByText('0%')).toBeInTheDocument();
   expect(mockedApi.getPerformanceDetail).toHaveBeenCalledWith('up-1', 2025, 6);
 });
 
 it('uses browser back only when the explicit list marker is present', async () => {
   render(<UnitPerformanceDetailPage />);
-  await screen.findByDisplayValue('Hublang');
+  await screen.findByText('ROE');
   screen.getByRole('button', { name: 'Kembali ke Performa Unit' }).click();
 
   expect(mockBack).toHaveBeenCalledTimes(1);

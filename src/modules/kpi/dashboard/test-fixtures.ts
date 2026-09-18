@@ -56,10 +56,12 @@ export function buildDashboardResponse(
       {
         id: 'up-1', organizationUnitId: 'org-1', unitCode: 'U01', unitName: 'Unit Distribusi',
         weight: 50, realization: 12.5, performance: 25, status: 'OK',
+        indicators: [],
       },
       {
         id: 'up-2', organizationUnitId: 'org-2', unitCode: 'U02', unitName: 'Unit Pelayanan',
         weight: 100, realization: 62.5, performance: 62.5, status: 'OK',
+        indicators: [],
       },
     ],
     summary: {

@@ -75,7 +75,7 @@ beforeEach(() => {
   mockedApi.saveWeightMatrix.mockResolvedValue(matrix);
   mockedApi.create.mockResolvedValue({
     id: 'up-new', organizationUnitId: 'ou-new', unitCode: 'NEW', unitName: 'New Unit',
-    weight: null, realization: null, performance: null, status: null,
+    weight: null, realization: null, performance: null, status: null, indicators: [],
   });
   mockedApi.delete.mockResolvedValue(undefined);
   mockedStructuresApi.list.mockResolvedValue([]);

@@ -28,7 +28,17 @@ function parseMonth(value: string | null, fallback: number): number {
 
 function filterRows(rows: UnitPerformanceRow[], searchQuery: string): UnitPerformanceRow[] {
   const query = searchQuery.trim().toLowerCase();
-  return rows.filter((row) => !query || row.unitCode.toLowerCase().includes(query) || row.unitName.toLowerCase().includes(query));
+  if (!query) return rows;
+  return rows.flatMap((row) => {
+    const unitMatches = row.unitCode.toLowerCase().includes(query) || row.unitName.toLowerCase().includes(query);
+    if (unitMatches) return [row];
+    const indicators = row.indicators.filter((indicator) => [
+      indicator.code,
+      indicator.name,
+      indicator.aspectName ?? '',
+    ].some((value) => value.toLowerCase().includes(query)));
+    return indicators.length > 0 ? [{ ...row, indicators }] : [];
+  });
 }
 
 export default function UnitPerformancePage() {
@@ -157,6 +167,7 @@ export default function UnitPerformancePage() {
       <Breadcrumbs><BreadcrumbsItem href="/" aria-label="Beranda"><House className="h-4 w-4" /></BreadcrumbsItem><BreadcrumbsItem>KPI</BreadcrumbsItem><BreadcrumbsItem>KPI Unit</BreadcrumbsItem><BreadcrumbsItem>{KPI_LABELS.unitPerformance}</BreadcrumbsItem></Breadcrumbs>
       <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><h1 className="text-xl font-semibold text-foreground">{KPI_LABELS.unitPerformance}</h1><Chip size="md" className="pointer-events-none" aria-label={`Total ${filteredRows.length} hasil`}>{filteredRows.length}</Chip></div><Button isIconOnly variant="tertiary" onPress={handleRetry} isDisabled={tableLoading} aria-label="Muat ulang Performa Unit"><ArrowsClockwise className={`h-4 w-4 ${tableLoading ? 'animate-spin' : ''}`} /></Button></div>
       <UnitPerformanceFilters periodMode={periodMode} selectedYear={selectedYear} years={selectableYears} selectedMonth={selectedMonth} searchQuery={searchInput} onPeriodModeChange={handlePeriodChange} onYearChange={handleYearChange} onMonthChange={handleMonthChange} onSearchChange={handleSearchChange} />
+      <p className="text-sm text-muted-foreground">Performa adalah pencapaian indikator (nilai aktual ÷ target × 100). Bobot Unit berasal dari matriks indikator × unit; Kontribusi Unit adalah bagian realisasi yang dialokasikan oleh bobot tersebut.</p>
       <UnitPerformanceResultsTable rows={filteredRows} isLoading={tableLoading} error={tableError} isTransitioning={isTransitioning || isSearchTransitioning} searchQuery={searchQuery} onRetry={handleRetry} getDetailHref={getDetailHref} />
     </div>
   );

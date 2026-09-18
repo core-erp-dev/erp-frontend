@@ -21,6 +21,7 @@ const row: UnitPerformanceRow = {
   realization: 15,
   performance: 50,
   status: 'OK',
+  indicators: [],
 };
 
 const matrix: UnitPerformanceWeightMatrix = {
@@ -81,7 +82,7 @@ describe('getPerformanceDetail', () => {
       year: 2026, month: 6, realization: 15, performance: 50, status: 'OK',
       indicators: [{
         id: 'ind-1', code: '1a', name: 'ROE', aspectName: 'Keuangan', unitWeight: 0,
-        actualValue: 4, targetValue: 5, contribution: 0, calculationStatus: 'OK',
+        actualValue: 4, targetValue: 5, contribution: 0, performance: 80, calculationStatus: 'OK', status: 'OK',
       }],
     };
     mockedApi.get.mockResolvedValueOnce({

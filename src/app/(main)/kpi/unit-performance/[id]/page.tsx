@@ -52,7 +52,9 @@ function DetailTable({
             <Table.Column id="weight">Bobot/Porsi Unit</Table.Column>
             <Table.Column id="actual">Nilai Aktual</Table.Column>
             <Table.Column id="target">Target Nilai Renbis</Table.Column>
+            <Table.Column id="performance">Performa</Table.Column>
             <Table.Column id="contribution">Hasil/Kontribusi</Table.Column>
+            <Table.Column id="status">Status</Table.Column>
           </Table.Header>
           <Table.Body
             renderEmptyState={() => (
@@ -75,7 +77,9 @@ function DetailTable({
                 <Table.Cell className="text-muted-foreground">{formatPercent(row.unitWeight)}</Table.Cell>
                 <Table.Cell className="text-muted-foreground">{formatNumber(row.actualValue)}</Table.Cell>
                 <Table.Cell className="text-muted-foreground">{formatNumber(row.targetValue)}</Table.Cell>
+                <Table.Cell className="text-muted-foreground">{formatPercent(row.performance)}</Table.Cell>
                 <Table.Cell className="text-muted-foreground">{formatNumber(row.contribution)}</Table.Cell>
+                <Table.Cell className={row.status === 'OK' ? 'text-success' : 'text-muted-foreground'}>{row.status === 'OK' ? 'Tersedia' : row.status === 'NOT_CONFIGURED' ? 'Belum dikonfigurasi' : row.status === 'MATRIX_INCOMPLETE' ? 'Konfigurasi belum lengkap' : 'Data belum tersedia'}</Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>

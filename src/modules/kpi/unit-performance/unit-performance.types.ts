@@ -4,13 +4,14 @@
  * Weight matrix model: `kpi_unit_performances` is the GLOBAL registry of
  * participating units; the per-indicator weights live in the Indicator × Unit
  * matrix. The legacy single `weight` field on a row is deprecated (nullable,
- * never a calculation source). Realization and performance are weighted
- * CONTRIBUTIONS attributed from the corporate KPI evaluation — null means
+ * never a calculation source). Realization is the weighted actual contribution
+ * and performance is weightedActual / weightedTarget × 100 — null means
  * NO_KPI_DATA (missing corporate data) or MATRIX_INCOMPLETE (config not ready);
  * never a fabricated number.
  */
 
 export type UnitPerformanceRowStatus = 'OK' | 'NO_KPI_DATA' | 'MATRIX_INCOMPLETE' | null;
+export type UnitPerformanceIndicatorStatus = 'OK' | 'NO_KPI_DATA' | 'NOT_CONFIGURED' | 'MATRIX_INCOMPLETE';
 
 export interface UnitPerformanceRow {
   id: string;
@@ -21,9 +22,11 @@ export interface UnitPerformanceRow {
   weight: number | null;
   /** Weighted contribution of the corporate actual result: Σ actualResult × w / 100. */
   realization: number | null;
-  /** Weighted contribution percentage: Σ achievement × w / 100. */
+  /** Weighted achievement percentage: weightedActual / weightedTarget × 100. */
   performance: number | null;
   status: UnitPerformanceRowStatus;
+  /** Period-scoped indicator breakdown; absent only for legacy payloads. */
+  indicators: UnitPerformanceIndicatorRow[];
 }
 
 export interface UnitPerformanceIndicatorRow {
@@ -35,7 +38,10 @@ export interface UnitPerformanceIndicatorRow {
   actualValue: number | null;
   targetValue: number | null;
   contribution: number | null;
+  /** Canonical indicator achievement: actualValue / targetValue × 100. */
+  performance: number | null;
   calculationStatus: string | null;
+  status: UnitPerformanceIndicatorStatus;
 }
 
 export interface UnitPerformanceDetail {

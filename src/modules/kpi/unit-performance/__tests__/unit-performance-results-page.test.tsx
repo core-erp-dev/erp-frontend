@@ -29,7 +29,23 @@ jest.mock('@heroui/react', () => {
 
 const row: UnitPerformanceRow = {
   id: 'up-1', organizationUnitId: 'ou-1', unitCode: 'U1', unitName: 'Unit Satu',
-  weight: null, realization: 12.5, performance: 78.25, status: 'OK',
+  weight: null, realization: 12.5, performance: 78.25, status: 'OK', indicators: [{
+    id: 'ind-1', code: 'IND-01', name: 'Kualitas Layanan', aspectName: 'Layanan',
+    unitWeight: 25, actualValue: 0, targetValue: 5, contribution: 0, performance: 0,
+    calculationStatus: 'OK', status: 'OK',
+  }, {
+    id: 'ind-02', code: 'IND-02', name: 'Efisiensi', aspectName: 'Operasional',
+    unitWeight: null, actualValue: null, targetValue: 5, contribution: null, performance: null,
+    calculationStatus: 'NOT_CONFIGURED', status: 'NOT_CONFIGURED',
+  }, {
+    id: 'ind-03', code: 'IND-03', name: 'Ketersediaan Data', aspectName: 'Layanan',
+    unitWeight: 25, actualValue: null, targetValue: 5, contribution: null, performance: null,
+    calculationStatus: 'MISSING_VALUE', status: 'NO_KPI_DATA',
+  }, {
+    id: 'ind-04', code: 'IND-04', name: 'Kelengkapan Matriks', aspectName: 'Operasional',
+    unitWeight: 25, actualValue: null, targetValue: null, contribution: null, performance: null,
+    calculationStatus: 'OK', status: 'MATRIX_INCOMPLETE',
+  }],
 };
 
 beforeEach(() => {
@@ -49,21 +65,32 @@ it('fetches and renders the result contract without exposing matrix editing', as
   mockPermissions = { 'unit_performance:read': true };
   render(<UnitPerformancePage />);
 
-  expect(await screen.findByText('Unit Satu')).toBeInTheDocument();
+  const unitLinks = await screen.findAllByRole('link', { name: 'Unit Satu' });
+  expect(unitLinks).toHaveLength(1);
   expect(mockedApi.getPerformance).toHaveBeenCalledWith(new Date().getFullYear(), new Date().getMonth() + 1);
-  expect(screen.getByText('Bobot')).toBeInTheDocument();
-  expect(screen.getByText('Kode')).toBeInTheDocument();
-  expect(screen.getByText('Hasil')).toBeInTheDocument();
-  expect(screen.getByText('78,25%')).toBeInTheDocument();
-  const detailLink = screen.getByRole('link', { name: 'Unit Satu' });
+  const matrix = screen.getByLabelText('Matrix Performa Unit');
+  expect(matrix).toBeInTheDocument();
+  expect(screen.getByText('Indikator')).toBeInTheDocument();
+  expect(screen.getByText('Layanan')).toBeInTheDocument();
+  expect(screen.getByText('Operasional')).toBeInTheDocument();
+  expect(screen.getByText('IND-01')).toBeInTheDocument();
+  expect(screen.getAllByText('0%')).toHaveLength(2);
+  expect(screen.getByText('N/A')).toBeInTheDocument();
+  expect(screen.getByText('Belum diatur')).toBeInTheDocument();
+  expect(screen.getByText('Belum lengkap')).toBeInTheDocument();
+  const columnTexts = Array.from(matrix.querySelectorAll('[data-mock="Table.Column"]')).map((column) => column.textContent ?? '').join(' ');
+  expect(columnTexts).not.toContain('Bobot Unit');
+  expect(columnTexts).not.toContain('Nilai Aktual');
+  expect(columnTexts).not.toContain('Target');
+  expect(columnTexts).not.toContain('Kontribusi Unit');
+  expect(columnTexts).not.toContain('Status');
+  const detailLink = unitLinks[0];
   expect(detailLink).toHaveAttribute('href', expect.stringContaining('/kpi/unit-performance/up-1?'));
   expect(detailLink.getAttribute('href')).toContain(`year=${new Date().getFullYear()}`);
   expect(detailLink.getAttribute('href')).toContain(`month=${new Date().getMonth() + 1}`);
   expect(detailLink.getAttribute('href')).toContain('from=unit-performance');
-  const detailButton = screen.getByRole('button', { name: 'Lihat Unit Satu' });
-  expect(detailButton).toBeInTheDocument();
-  expect(screen.queryByText('Nilai')).not.toBeInTheDocument();
-  expect(screen.queryByText('Target Nilai Renbis')).not.toBeInTheDocument();
+  expect(screen.getAllByText('Nilai Aktual').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Target').length).toBeGreaterThan(0);
   expect(screen.queryByText('Simpan Matriks Bobot')).not.toBeInTheDocument();
 });
 
@@ -80,8 +107,27 @@ it('renders every row returned by the non-paginated endpoint', async () => {
 
   render(<UnitPerformancePage />);
 
-  expect(await screen.findByText('Unit 10')).toBeInTheDocument();
+  const unitLinks = await screen.findAllByRole('link', { name: 'Unit 10' });
+  expect(unitLinks).toHaveLength(1);
   expect(screen.queryByText('Berikutnya')).not.toBeInTheDocument();
+});
+
+it('explains an empty participant result separately from missing indicator data', async () => {
+  mockPermissions = { 'unit_performance:read': true };
+  mockedApi.getPerformance.mockResolvedValue([]);
+
+  render(<UnitPerformancePage />);
+
+  expect(await screen.findByText('Belum ada unit peserta untuk periode yang dipilih.')).toBeInTheDocument();
+});
+
+it('explains a participant result with no indicator breakdown', async () => {
+  mockPermissions = { 'unit_performance:read': true };
+  mockedApi.getPerformance.mockResolvedValue([{ ...row, indicators: [] }]);
+
+  render(<UnitPerformancePage />);
+
+  expect(await screen.findByText('Belum ada indikator yang dapat ditampilkan untuk periode yang dipilih.')).toBeInTheDocument();
 });
 
 it('keeps the period unresolved while structure metadata is loading', () => {
