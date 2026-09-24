@@ -91,6 +91,26 @@ describe('activityV1Api.getActivities (T1)', () => {
     });
   });
 
+  it('loads minimal submission options without the Corporate KPI read endpoint', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({
+      periodYears: [2026], indicators: [{ id: 'ind-1', code: 'CK-01', name: 'Revenue' }],
+    }) });
+    const result = await activityV1Api.getSubmissionOptions(2026);
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/submission-options', {
+      params: { year: 2026 },
+    });
+    expect(result.periodYears).toEqual([2026]);
+    expect(result.indicators[0].id).toBe('ind-1');
+  });
+
+  it('loads period options without forcing a year or Corporate KPI structure read', async () => {
+    mockedApi.get.mockResolvedValueOnce({ data: wrap({ periodYears: [2026], indicators: [] }) });
+    await activityV1Api.getSubmissionOptions();
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/kpi-activities/submission-options', {
+      params: undefined,
+    });
+  });
+
   it('sends positionId as a filter without actingPositionId', async () => {
     mockedApi.get.mockResolvedValueOnce({ data: wrap({ content: [activity], page: 1, size: 10, totalElements: 1, totalPages: 1, last: true }) });
     await activityV1Api.getActivitiesPage('subordinates', undefined, {

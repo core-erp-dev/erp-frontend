@@ -14,6 +14,7 @@ import type {
   ActivityRequestListQuery,
   PaginatedActivityRequestResponse,
   KpiPeriodOptionsResponse,
+  KpiActivitySubmissionOptions,
   RequestDecisionRequest,
 } from './activity-v1.types';
 
@@ -93,6 +94,15 @@ export const activityV1Api = {
           ...(query?.subordinateScope && scope === 'subordinates' ? { subordinateScope: query.subordinateScope } : {}),
         },
       },
+    );
+    return response.data.data;
+  },
+
+  /** Minimal options for normal activity forms; no corporate_kpi:read is required. */
+  getSubmissionOptions: async (year?: number): Promise<KpiActivitySubmissionOptions> => {
+    const response = await api.get<ApiResponse<KpiActivitySubmissionOptions>>(
+      '/api/v1/kpi-activities/submission-options',
+      { params: year == null ? undefined : { year } },
     );
     return response.data.data;
   },

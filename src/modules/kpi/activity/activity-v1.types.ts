@@ -123,6 +123,11 @@ export interface KpiPeriodOptionsResponse {
   years: number[];
 }
 
+export interface KpiActivitySubmissionOptions {
+  indicators: KpiActivityManageIndicatorOption[];
+  periodYears: number[];
+}
+
 export type KpiActivityRequestType = 'CREATE' | 'UPDATE' | 'CANCEL';
 export type KpiActivityRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
